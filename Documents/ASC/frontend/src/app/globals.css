@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy-900: #0d1b2a;
+  --navy-800: #1a2d42;
+  --cyan-asc: #00b4d8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--navy-900);
+  color: #e0e8f0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--navy-900); }
+::-webkit-scrollbar-thumb { background: var(--cyan-asc); border-radius: 3px; }
+
+.severity-badge {
+  @apply text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide;
+}
+.severity-critical { @apply bg-threat-critical text-white; }
+.severity-high     { @apply bg-threat-high text-white; }
+.severity-medium   { @apply bg-threat-medium text-black; }
+.severity-low      { @apply bg-threat-low text-white; }
+
+.card {
+  @apply bg-navy-800 border border-navy-700 rounded-lg p-4;
+}
+
+.metric-card {
+  @apply card border-cyan-asc/30;
+}
+
+.btn-primary {
+  @apply bg-cyan-asc text-navy-900 font-semibold px-4 py-2 rounded hover:opacity-90 transition-opacity;
+}
+
+.btn-danger {
+  @apply bg-threat-critical text-white font-semibold px-4 py-2 rounded hover:opacity-90 transition-opacity;
+}
+
+.table-asc {
+  @apply w-full text-sm;
+}
+.table-asc th {
+  @apply bg-navy-900 text-cyan-asc font-semibold py-2 px-3 text-left;
+}
+.table-asc td {
+  @apply py-2 px-3 border-t border-navy-700;
+}
+.table-asc tr:hover td {
+  @apply bg-navy-700/40;
+}
