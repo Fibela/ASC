@@ -1,15 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 import uuid
+import bcrypt
 import jwt
 from jwt.exceptions import PyJWTError
-from passlib.context import CryptContext
 from fastapi import HTTPException, status
 from app.core.config import get_settings
 
 settings = get_settings()
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
 REFRESH_EXPIRE_DAYS = 7
@@ -106,8 +104,8 @@ def decode_token_payload(token: str) -> dict:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
