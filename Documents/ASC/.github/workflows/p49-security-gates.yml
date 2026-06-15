@@ -1,11 +1,13 @@
 name: P49 Security Gates — ASC PremosCorp
 
-# P49 adds:
-#  1. Trivy filesystem scan — CRITICAL blocking (vs informational Docker-only scan in ci.yml)
-#  2. Safety CVE check — PyPI Advisory Database (complement to pip-audit in security-audit.yml)
-#  3. SARIF upload — trivy + bandit findings appear in GitHub Security tab
-#  4. Dependency Review — blocks PRs that introduce vulnerable/license-denied deps
-#  5. P49 aggregate gate — single required status check for branch protection
+# Original P49 security gates baseline (2026-06-13).
+# TD-6 hardening (2026-06-15) adds:
+#  + trivy-high job: HIGH adaptive gating (fixable HIGH findings block merge)
+#  + Noise reduction: pip-audit + safety run together, block only on shared CVEs
+#  + License intelligence: SSPL-1.0, BUSL-1.1, Commons-Clause, EUPL-1.1 in deny list
+#  + Pipeline resilience: pip cache on all Python jobs, Trivy DB cache
+#  + SARIF fallback: security-summary-trivy.txt artifact if SARIF upload fails
+#  + Premos CI/CD Ledger: SHA-256 forensic hash + HMAC-SHA256 of all gate artifacts
 
 on:
   push:
@@ -28,6 +30,8 @@ concurrency:
 #  • exit-code 1 for CRITICAL severity (ci.yml uses exit-code 0 = informational)
 #  • Outputs SARIF so findings appear in GitHub Security > Code scanning
 #  • ignore-unfixed: true — only block on CVEs that have an available fix
+#  • TD-6: Trivy DB cache (actions/cache@v4) for faster subsequent runs
+#  • TD-6: SARIF local fallback summary — security-summary-trivy.txt artifact
 # ─────────────────────────────────────────────────────────────────────────────
 jobs:
   trivy-fs:
@@ -38,6 +42,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+
+      # TD-6: cache Trivy vuln DB — incremental updates on cache hit (~30s saved)
+      - name: Cache Trivy vulnerability DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: trivy-db-${{ runner.os }}-
 
       - name: Trivy — filesystem vulnerability + secret scan
         uses: aquasecurity/trivy-action@master
@@ -52,6 +64,49 @@ jobs:
           ignore-unfixed: true
         # continue-on-error is intentionally NOT set — CRITICAL = merge-blocking
 
+      # TD-6: SARIF local fallback — readable artifact if GitHub Advanced Security unavailable
+      - name: Generate SARIF local fallback summary
+        if: always()
+        run: |
+          mkdir -p reports
+          python3 << 'PYEOF'
+          import json, os, datetime
+
+          summary = {
+              "schema_version": "1.0",
+              "generated_at": datetime.datetime.utcnow().isoformat() + "Z",
+              "workflow": "p49-security-gates",
+              "run_id": os.environ.get("GITHUB_RUN_ID", "local"),
+              "git_sha": os.environ.get("GITHUB_SHA", "unknown"),
+              "git_ref": os.environ.get("GITHUB_REF", "unknown"),
+              "tool": "trivy-fs",
+              "severity_gated": "CRITICAL",
+              "findings": {},
+          }
+
+          if os.path.exists("trivy-fs.sarif"):
+              try:
+                  sarif = json.load(open("trivy-fs.sarif"))
+                  all_results = []
+                  for run in sarif.get("runs", []):
+                      all_results.extend(run.get("results", []))
+                  summary["findings"]["total"] = len(all_results)
+                  levels = {}
+                  for r in all_results:
+                      lvl = r.get("level", "unknown")
+                      levels[lvl] = levels.get(lvl, 0) + 1
+                  summary["findings"]["by_level"] = levels
+              except Exception as e:
+                  summary["findings"]["parse_error"] = str(e)
+          else:
+              summary["findings"]["note"] = "trivy-fs.sarif not produced"
+
+          with open("reports/security-summary-trivy.txt", "w") as f:
+              json.dump(summary, f, indent=2)
+
+          print("✅ SARIF fallback summary: reports/security-summary-trivy.txt")
+          PYEOF
+
       - name: Upload Trivy SARIF to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()   # upload even when trivy exits non-zero so we see findings
@@ -60,29 +115,72 @@ jobs:
           category: trivy-filesystem
         continue-on-error: true   # requires GitHub Advanced Security (may be unavailable on free plans)
 
-      - name: Upload Trivy report artifact
+      - name: Upload Trivy report artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: trivy-fs-report
-          path: trivy-fs.sarif
+          path: |
+            trivy-fs.sarif
+            reports/security-summary-trivy.txt
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 2 — Safety CVE Audit
+# JOB 2 — Trivy Filesystem Scan (HIGH adaptive — TD-6)
 #
-# Uses the classic `safety` tool (PyPI Advisory Database + SafetyDB) as a
-# second opinion alongside pip-audit (which uses OSV + PyPI Advisory).
-# Finding in one but not the other = triage needed, not automatic block.
-# Both failing = definitive CVE — block merge.
+# Complements trivy-fs (CRITICAL blocking) by catching HIGH-severity CVEs that
+# have an available fix.  "Adaptive" = ignore-unfixed: true prevents alert
+# fatigue from unfixable vendor CVEs with no remediation path yet.
 #
-# Key notes:
-#  • safety 3.x changed CLI interface — use `safety scan` (not `safety check`)
-#  • --policy-file flag allows suppressing known FP via .safety-policy.yml
-#  • exit 0 from safety even on findings (we evaluate JSON output explicitly)
+# Severity hierarchy: severity: HIGH reports HIGH and CRITICAL both.
+# Since CRITICAL is already handled by trivy-fs, only new signals here are
+# fixable HIGH CVEs — the class of vulnerability most likely to have a patch
+# available within a sprint cycle.
+# ─────────────────────────────────────────────────────────────────────────────
+  trivy-high:
+    name: Trivy Filesystem Scan (HIGH adaptive — fixable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Trivy vulnerability DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: trivy-db-${{ runner.os }}-
+
+      - name: Trivy — HIGH severity scan (fixable findings block merge)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          severity: HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+        # exit-code: 1 blocks on HIGH (and CRITICAL) findings where a fix is available.
+        # ignore-unfixed: avoids noise from vendor packages with no remediation path yet.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Safety + pip-audit Correlated CVE Audit (TD-6 noise reduction)
+#
+# Both tools run in the same job so findings can be correlated by CVE ID:
+#  • CVE found by BOTH tools  → definitive finding — BLOCKS merge
+#  • CVE found by ONE tool    → potential false positive / needs triage — WARNING only
+#  • No CVEs                  → clean pass
+#
+# This replaces the pure safety-only approach (which generated duplicate alerts
+# alongside pip-audit in security-audit.yml).  Running both in one job also
+# avoids cross-workflow artifact sharing complexity.
+#
+# Notes on safety CLI versions:
+#  • safety 3.x uses `scan` subcommand; fall back to `check` for 2.x
+#  • --disable-optional-telemetry avoids requiring a SAFETY_API_KEY
 # ─────────────────────────────────────────────────────────────────────────────
   safety:
-    name: Dependency Audit (safety)
+    name: Dependency Audit (safety + pip-audit correlated)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,14 +188,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip   # TD-6: pip cache avoids re-downloading safety + pip-audit
 
-      - name: Install safety
-        run: pip install safety
+      - name: Install safety + pip-audit
+        run: pip install safety pip-audit
 
       - name: Safety CVE scan
         run: |
           mkdir -p reports
-          # safety 3.x uses `scan` subcommand; fall back to `check` for 2.x
           SAFETY_VERSION=$(safety --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
           MAJOR=$(echo "$SAFETY_VERSION" | cut -d. -f1)
           if [ "$MAJOR" -ge 3 ] 2>/dev/null; then
@@ -116,60 +214,122 @@ jobs:
               || true
           fi
 
-      - name: Evaluate safety results
+      - name: pip-audit CVE scan
+        run: |
+          pip-audit \
+            -r backend/requirements.txt \
+            -f json \
+            -o reports/pip-audit-p49.json \
+            --progress-spinner off 2>&1 || true
+
+      - name: Correlate findings and evaluate (noise reduction)
         run: |
           python3 << 'PYEOF'
           import json, sys, os
 
-          path = "reports/safety.json"
-          if not os.path.exists(path):
-              print("ℹ️  safety.json not produced — treating as no findings")
+          # ── Load safety findings ──────────────────────────────────────────
+          safety_cves = {}
+          safety_path = "reports/safety.json"
+          if os.path.exists(safety_path):
+              try:
+                  data = json.load(open(safety_path))
+                  if isinstance(data, list):
+                      for v in data:
+                          vid = v[4] if len(v) > 4 else "?"
+                          safety_cves[vid] = {"package": v[0], "id": vid, "advisory": v[3][:100]}
+                  elif isinstance(data, dict):
+                      for v in data.get("vulnerabilities", []):
+                          vid = v.get("vulnerability_id", "?")
+                          safety_cves[vid] = {
+                              "package": v.get("package_name", "?"),
+                              "id": vid,
+                              "advisory": v.get("advisory", "")[:100],
+                          }
+              except Exception as e:
+                  print(f"ℹ️  Could not parse safety output ({e}) — treating as no findings")
+
+          # ── Load pip-audit findings ───────────────────────────────────────
+          pipaudit_cves = {}
+          pipaudit_path = "reports/pip-audit-p49.json"
+          if os.path.exists(pipaudit_path):
+              try:
+                  data = json.load(open(pipaudit_path))
+                  for dep in data.get("dependencies", []):
+                      for vuln in dep.get("vulns", []):
+                          vid = vuln.get("id", "?")
+                          pipaudit_cves[vid] = {
+                              "package": dep.get("name", "?"),
+                              "version": dep.get("version", "?"),
+                              "id": vid,
+                              "description": vuln.get("description", "")[:100],
+                              "fix_versions": vuln.get("fix_versions", []),
+                          }
+              except Exception as e:
+                  print(f"ℹ️  Could not parse pip-audit output ({e}) — treating as no findings")
+
+          safety_ids   = set(safety_cves)
+          pipaudit_ids = set(pipaudit_cves)
+          shared_ids   = safety_ids & pipaudit_ids
+          only_safety  = safety_ids - pipaudit_ids
+          only_pipaudit = pipaudit_ids - safety_ids
+
+          print(f"\n{'='*60}")
+          print(f"Premos CVE Correlation Report")
+          print(f"  safety findings       : {len(safety_ids)}")
+          print(f"  pip-audit findings    : {len(pipaudit_ids)}")
+          print(f"  shared (definitive)   : {len(shared_ids)}")
+          print(f"  safety-only (triage)  : {len(only_safety)}")
+          print(f"  pip-audit-only (triage): {len(only_pipaudit)}")
+          print(f"{'='*60}\n")
+
+          if shared_ids:
+              print(f"❌ DEFINITIVE CVEs (found by both tools — blocking):")
+              for vid in sorted(shared_ids):
+                  v = pipaudit_cves.get(vid) or safety_cves.get(vid)
+                  print(f"  {v['package']} — {vid}")
+              print()
+
+          if only_safety:
+              print(f"⚠️  Safety-only findings (triage recommended — not blocking):")
+              for vid in sorted(only_safety):
+                  v = safety_cves[vid]
+                  print(f"  {v['package']} — {vid}: {v['advisory']}")
+              print()
+
+          if only_pipaudit:
+              print(f"⚠️  pip-audit-only findings (triage recommended — not blocking):")
+              for vid in sorted(only_pipaudit):
+                  v = pipaudit_cves[vid]
+                  fix = ", ".join(v["fix_versions"]) or "no fix"
+                  print(f"  {v['package']} {v['version']} — {vid} (fix: {fix})")
+              print()
+
+          if not safety_ids and not pipaudit_ids:
+              print("✅ No CVEs found by either tool")
               sys.exit(0)
 
-          try:
-              data = json.load(open(path))
-          except json.JSONDecodeError as e:
-              print(f"ℹ️  Could not parse safety output ({e}) — treating as no findings")
-              sys.exit(0)
-
-          # safety 2.x: list of [package, spec, version, advisory, id]
-          # safety 3.x: {vulnerabilities: [{package_name, vulnerability_id, advisory, ...}]}
-          vulns = []
-          if isinstance(data, list):
-              vulns = [{"package": v[0], "id": v[4], "advisory": v[3]} for v in data]
-          elif isinstance(data, dict):
-              for v in data.get("vulnerabilities", []):
-                  vulns.append({
-                      "package": v.get("package_name", "?"),
-                      "id": v.get("vulnerability_id", "?"),
-                      "advisory": v.get("advisory", "")[:100],
-                  })
-
-          if vulns:
-              print(f"❌ safety: {len(vulns)} vulnerabilities found:")
-              for v in vulns[:20]:
-                  print(f"  {v['package']} — {v['id']}: {v['advisory']}")
+          if shared_ids:
+              print(f"❌ Blocking: {len(shared_ids)} CVE(s) confirmed by both safety and pip-audit")
               sys.exit(1)
 
-          print(f"✅ safety: no known vulnerabilities")
+          print("✅ No definitive shared CVEs — single-tool findings require triage only")
           PYEOF
 
-      - name: Upload safety report
+      - name: Upload correlated audit reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: safety-report
-          path: reports/safety.json
+          path: |
+            reports/safety.json
+            reports/pip-audit-p49.json
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 3 — Gitleaks SARIF Upload
+# JOB 4 — Gitleaks SARIF Upload
 #
 # Re-runs gitleaks (already in ci.yml) but outputs SARIF for GitHub Security
 # tab visibility.  Secrets findings = CRITICAL, immediate merge block.
-#
-# Note: gitleaks-action does not yet support SARIF natively; we run the CLI
-# directly to get SARIF output and upload it separately.
 # ─────────────────────────────────────────────────────────────────────────────
   gitleaks-sarif:
     name: Secrets Scan + SARIF (gitleaks)
@@ -218,10 +378,11 @@ jobs:
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 4 — Bandit SARIF Upload
+# JOB 5 — Bandit SARIF Upload
 #
 # Re-runs bandit (already in security-audit.yml) but outputs SARIF for GitHub
 # Security tab.  HIGH findings remain merge-blocking.
+# TD-6: pip cache added to setup-python step.
 # ─────────────────────────────────────────────────────────────────────────────
   bandit-sarif:
     name: Python SAST + SARIF (bandit)
@@ -235,6 +396,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip   # TD-6: pip cache
 
       - name: Install bandit with SARIF support
         run: pip install bandit[sarif]
@@ -304,14 +466,165 @@ jobs:
           retention-days: 30
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 5 — Dependency Review (PRs only)
+# JOB 6 — Premos CI/CD Ledger (TD-6 — forensic audit trail)
 #
-# GitHub's native dependency-review-action compares the dependency graph
-# between the PR base and head.  Blocks if any added dep has a CRITICAL CVE
-# or uses a copyleft license (GPL-3.0, AGPL-3.0) that conflicts with
-# PremosCorp's commercial SaaS model.
+# Generates a tamper-evident audit record for every CI/CD gate execution.
+# Computes SHA-256 of all security report artifacts and signs the ledger
+# with HMAC-SHA256 using the CI_LEDGER_SECRET repo secret.
 #
-# Only runs on pull_request events (no base commit on push/schedule).
+# Runs if: always() — even when upstream jobs fail, the ledger documents what
+# was and wasn't produced in that run (forensic completeness).
+#
+# Retention: 90 days (3× standard artifact retention — forensic record).
+# If CI_LEDGER_SECRET is not configured, the ledger is still generated but
+# flagged as unsigned.
+# ─────────────────────────────────────────────────────────────────────────────
+  premos-ledger:
+    name: Premos CI/CD Ledger (Forensic Hash)
+    needs: [trivy-fs, trivy-high, safety, gitleaks-sarif, bandit-sarif]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Download trivy report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-fs-report
+          path: artifacts/trivy
+        continue-on-error: true
+
+      - name: Download safety report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: safety-report
+          path: artifacts/safety
+        continue-on-error: true
+
+      - name: Download gitleaks report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: gitleaks-sarif
+          path: artifacts/gitleaks
+        continue-on-error: true
+
+      - name: Download bandit report artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bandit-sarif
+          path: artifacts/bandit
+        continue-on-error: true
+
+      - name: Generate Premos CI/CD Ledger
+        run: |
+          python3 << 'PYEOF'
+          import json, hashlib, hmac, os, datetime, glob
+
+          secret      = os.environ.get("CI_LEDGER_SECRET", "")
+          run_id      = os.environ.get("GITHUB_RUN_ID", "local")
+          run_number  = os.environ.get("GITHUB_RUN_NUMBER", "0")
+          ref         = os.environ.get("GITHUB_REF", "refs/heads/unknown")
+          sha         = os.environ.get("GITHUB_SHA", "unknown")
+          workflow    = os.environ.get("GITHUB_WORKFLOW", "p49-security-gates")
+          actor       = os.environ.get("GITHUB_ACTOR", "unknown")
+
+          gate_results = {
+              "trivy-fs":       os.environ.get("TRIVY_FS_RESULT", "unknown"),
+              "trivy-high":     os.environ.get("TRIVY_HIGH_RESULT", "unknown"),
+              "safety":         os.environ.get("SAFETY_RESULT", "unknown"),
+              "gitleaks-sarif": os.environ.get("GITLEAKS_RESULT", "unknown"),
+              "bandit-sarif":   os.environ.get("BANDIT_RESULT", "unknown"),
+          }
+
+          artifact_hashes = []
+          artifact_dirs = {
+              "trivy":    "artifacts/trivy",
+              "safety":   "artifacts/safety",
+              "gitleaks": "artifacts/gitleaks",
+              "bandit":   "artifacts/bandit",
+          }
+
+          for tool, dir_path in artifact_dirs.items():
+              for fpath in sorted(glob.glob(f"{dir_path}/**/*", recursive=True)):
+                  if os.path.isfile(fpath):
+                      content   = open(fpath, "rb").read()
+                      file_hash = hashlib.sha256(content).hexdigest()
+                      artifact_hashes.append({
+                          "tool":       tool,
+                          "file":       os.path.basename(fpath),
+                          "sha256":     file_hash,
+                          "size_bytes": len(content),
+                      })
+
+          ledger = {
+              "schema_version":         "1.0",
+              "ledger_type":            "premos-cicd-forensic",
+              "generated_at":           datetime.datetime.utcnow().isoformat() + "Z",
+              "run_id":                 run_id,
+              "run_number":             run_number,
+              "workflow":               workflow,
+              "actor":                  actor,
+              "git_ref":                ref,
+              "git_sha":                sha,
+              "gate_results":           gate_results,
+              "artifact_hashes":        artifact_hashes,
+              "total_artifacts_hashed": len(artifact_hashes),
+          }
+
+          if secret:
+              canonical = json.dumps(ledger, sort_keys=True, ensure_ascii=False).encode("utf-8")
+              sig = hmac.new(secret.encode("utf-8"), canonical, hashlib.sha256).hexdigest()
+              ledger["premos_signature"] = f"hmac-sha256:{sig}"
+          else:
+              ledger["premos_signature"] = "unsigned (CI_LEDGER_SECRET not configured)"
+
+          os.makedirs("reports", exist_ok=True)
+          with open("reports/ci-ledger.json", "w", encoding="utf-8") as f:
+              json.dump(ledger, f, indent=2, ensure_ascii=False)
+
+          print(f"✅ Premos CI/CD Ledger — run {run_id} (#{run_number})")
+          print(f"   Git SHA : {sha}")
+          print(f"   Ref     : {ref}")
+          print(f"   Actor   : {actor}")
+          print(f"   Gate results: {gate_results}")
+          print(f"   Artifacts hashed: {len(artifact_hashes)}")
+          for a in artifact_hashes:
+              print(f"   {a['tool']}/{a['file']}: sha256:{a['sha256'][:20]}...")
+          signed = "YES" if secret else "NO (configure CI_LEDGER_SECRET secret)"
+          print(f"   HMAC-SHA256 signed: {signed}")
+          PYEOF
+        env:
+          CI_LEDGER_SECRET: ${{ secrets.CI_LEDGER_SECRET }}
+          TRIVY_FS_RESULT:  ${{ needs.trivy-fs.result }}
+          TRIVY_HIGH_RESULT: ${{ needs.trivy-high.result }}
+          SAFETY_RESULT:    ${{ needs.safety.result }}
+          GITLEAKS_RESULT:  ${{ needs.gitleaks-sarif.result }}
+          BANDIT_RESULT:    ${{ needs.bandit-sarif.result }}
+
+      - name: Upload Premos CI/CD Ledger
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: premos-ci-ledger
+          path: reports/ci-ledger.json
+          retention-days: 90   # 3× standard — forensic record
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 7 — Dependency Review (PRs only)
+#
+# TD-6 license intelligence — deny list expanded beyond GPL to include:
+#  + SSPL-1.0       — MongoDB license; restricts all software offered as a service
+#  + BUSL-1.1       — Business Source License; commercial use restricted for 4 years
+#  + Commons-Clause — addendum restricting sale of the software; not OSI-approved
+#  + EUPL-1.1       — EU Public License with strong copyleft provisions
+#  + OSL-3.0        — Open Software License; strong copyleft, patent termination clause
+#
+# Original GPL-3.0, AGPL-3.0, GPL-2.0 retained from P49 baseline.
 # ─────────────────────────────────────────────────────────────────────────────
   dependency-review:
     name: Dependency Review (PRs only)
@@ -327,48 +640,55 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: critical
-          deny-licenses: GPL-3.0, AGPL-3.0, GPL-2.0
+          deny-licenses: GPL-3.0, AGPL-3.0, GPL-2.0, SSPL-1.0, BUSL-1.1, Commons-Clause, EUPL-1.1, OSL-3.0
           comment-summary-in-pr: always
 
 # ─────────────────────────────────────────────────────────────────────────────
-# P49 GATE — blocks merge if any critical security job fails
+# P49 GATE — TD-6: now requires trivy-high (HIGH adaptive) + premos-ledger
 #
-# dependency-review is excluded from gate (PR-only job; push/schedule have no
-# base commit).  Gate uses 'skipped' as acceptable for optional jobs.
+# dependency-review excluded from gate (PR-only job; push/schedule have no
+# base commit).  premos-ledger is informational in summary but its result
+# is included in gate needs so the gate always runs after the ledger.
 # ─────────────────────────────────────────────────────────────────────────────
   p49-gate:
     name: P49 Security Gate
-    needs: [trivy-fs, safety, gitleaks-sarif, bandit-sarif]
+    needs: [trivy-fs, trivy-high, safety, gitleaks-sarif, bandit-sarif, premos-ledger]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Evaluate P49 security checks
         run: |
-          echo "=== P49 SECURITY GATE SUMMARY ==="
+          echo "=== P49 SECURITY GATE SUMMARY (TD-6) ==="
           FAILED=""
 
           [[ "${{ needs.trivy-fs.result }}"      == "failure" ]] && FAILED+=" trivy-fs"
+          [[ "${{ needs.trivy-high.result }}"     == "failure" ]] && FAILED+=" trivy-high"
           [[ "${{ needs.safety.result }}"         == "failure" ]] && FAILED+=" safety"
           [[ "${{ needs.gitleaks-sarif.result }}" == "failure" ]] && FAILED+=" gitleaks-sarif"
           [[ "${{ needs.bandit-sarif.result }}"   == "failure" ]] && FAILED+=" bandit-sarif"
 
-          echo "  trivy-fs      : ${{ needs.trivy-fs.result }}"
-          echo "  safety        : ${{ needs.safety.result }}"
-          echo "  gitleaks-sarif: ${{ needs.gitleaks-sarif.result }}"
-          echo "  bandit-sarif  : ${{ needs.bandit-sarif.result }}"
+          echo "  trivy-fs (CRITICAL blocking)  : ${{ needs.trivy-fs.result }}"
+          echo "  trivy-high (HIGH adaptive)    : ${{ needs.trivy-high.result }}"
+          echo "  safety (correlated)           : ${{ needs.safety.result }}"
+          echo "  gitleaks-sarif                : ${{ needs.gitleaks-sarif.result }}"
+          echo "  bandit-sarif                  : ${{ needs.bandit-sarif.result }}"
+          echo "  premos-ledger                 : ${{ needs.premos-ledger.result }} (informational)"
 
           if [[ -n "$FAILED" ]]; then
             echo ""
             echo "❌ P49 GATE FAILED:$FAILED"
             echo "Resolve all CRITICAL/HIGH findings before merging."
-            echo "SARIF reports uploaded to GitHub Security > Code scanning."
+            echo "SARIF reports: GitHub Security > Code scanning"
+            echo "Forensic ledger: premos-ci-ledger artifact (90-day retention)"
             exit 1
           fi
 
           echo ""
-          echo "✅ P49 SECURITY GATE PASSED"
-          echo "   trivy-fs (CRITICAL blocking) ✓"
-          echo "   safety CVE audit             ✓"
-          echo "   gitleaks secrets scan        ✓"
-          echo "   bandit SAST (HIGH blocking)  ✓"
-          echo "   SARIF uploaded to Security tab"
+          echo "✅ P49 SECURITY GATE PASSED (TD-6)"
+          echo "   trivy-fs (CRITICAL blocking)        ✓"
+          echo "   trivy-high (HIGH adaptive, fixable) ✓"
+          echo "   safety+pip-audit (correlated)       ✓"
+          echo "   gitleaks secrets scan               ✓"
+          echo "   bandit SAST (HIGH blocking)         ✓"
+          echo "   SARIF → GitHub Security tab         ✓"
+          echo "   Premos CI/CD Ledger (forensic hash) ✓"

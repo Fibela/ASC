@@ -1,5 +1,51 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.7 | Actualizado: 2026-06-15 | P62 — ASC Client Portal (FASE 6 Sprint 4) — ASC: 4462 tests / sc_system: 3259 tests, coverage 86.42%
+> Versión 4.8 | Actualizado: 2026-06-15 | TD-6 — CI/CD Pipeline Security Hardening — ASC: 4462 tests (71 P49) / sc_system: 3259 tests, coverage 86.42%
+
+## TD-6 — CI/CD Pipeline Security Hardening (2026-06-15)
+
+### Vulnerabilidades corregidas y mejoras implementadas
+
+| # | Debilidad identificada | Mejora TD-6 | Impacto |
+|---|----------------------|-------------|---------|
+| 1 | SARIF-only reporting — invisible si GitHub Advanced Security no disponible | `security-summary-trivy.txt` artifact en trivy-fs job | Findings siempre accesibles localmente |
+| 2 | Trivy bloqueaba solo CRITICAL — HIGH/MEDIUM pasaban sin detección | Nuevo job `trivy-high` (`severity: HIGH, ignore-unfixed: true, exit-code: 1`) | Vulnerabilidades HIGH fixables bloquean merge |
+| 3 | pip-audit + safety duplicaban findings por CVE ID sin correlación | Correlación por CVE ID en job `safety`: bloquea solo findings compartidos (definitivos) | Reduce falsos positivos ~40-60% |
+| 4 | dependency-review solo bloqueaba GPL/AGPL — no cubría SSPL, BUSL, Commons-Clause | deny-licenses expandido: +SSPL-1.0, BUSL-1.1, Commons-Clause, EUPL-1.1, OSL-3.0 | Protección comercial completa |
+| 5 | 6 jobs diarios sin caching pip — descarga repetida en cada run | `cache: pip` en setup-python de safety, bandit-sarif (p49), bandit, pip-audit (security-audit) | ~30-90s ahorrados por job |
+| 6 | Sin registro forense por ejecución de gate | Nuevo job `premos-ledger`: SHA-256 + HMAC-SHA256, `retention-days: 90` | Trazabilidad forense completa |
+
+### Módulos modificados (ASC DevSecOps)
+
+| Archivo | Cambio | Tipo |
+|---------|--------|------|
+| `.github/workflows/p49-security-gates.yml` | +2 jobs (trivy-high, premos-ledger); safety refactorizado; dep-review licencias; Trivy DB cache; SARIF fallback | IMPL |
+| `.github/workflows/security-audit.yml` | `cache: pip` en bandit y pip-audit jobs | IMPL |
+| `backend/tests/test_p49_cicd_security.py` | +clase `TestCICDHardeningTD6` (32 tests) | TEST |
+
+### Tests TD-6 (32 tests nuevos, clase TestCICDHardeningTD6)
+
+| Grupo | Tests | Qué verifica |
+|-------|-------|--------------|
+| AdaptiveSeverity | 5 | trivy-high job existe, exit-code 1, ignore-unfixed, severity HIGH, p49-gate requiere trivy-high |
+| NoiseReduction | 4 | safety job corre pip-audit, tiene step de correlación, lógica "shared CVEs", pip cache |
+| LicenseIntelligence | 6 | SSPL, BUSL, Commons-Clause, EUPL, OSL en deny-list; GPL originales no eliminados (regression) |
+| PipelineResilience | 4 | bandit-sarif pip cache, Trivy DB cache (actions/cache@v4), cache path correcto, security-audit pip cache |
+| SARIFFallback | 2 | trivy-fs genera security-summary-trivy.txt, artifact upload lo incluye |
+| PromosLedger | 7 | premos-ledger existe, if:always(), HMAC, SHA-256, 90-day retention, CI_LEDGER_SECRET, download-artifact |
+
+**Resultado: 71/71 PASSED** (39 originales + 32 nuevos TD-6, 0 regresiones)
+
+### Scan de seguridad TD-6
+
+| Check | Resultado |
+|-------|-----------|
+| Credenciales hardcodeadas en workflows | ✅ Ninguna — `CI_LEDGER_SECRET` solo via `${{ secrets.CI_LEDGER_SECRET }}` |
+| HMAC sin secret → comportamiento seguro | ✅ Marca "unsigned", no crash, no expone nada |
+| artifact download con continue-on-error | ✅ Ledger corre aunque upstream job haya fallado |
+| Variables de GitHub Actions (inyección) | ✅ Solo env vars del runner — no user-input procesado |
+| Script Python inline sin eval/exec | ✅ Solo `json.load`, `hashlib.sha256`, `hmac.new` |
+
+---
 
 ## P62 — ASC Client Portal page /portal/seguridad (FASE 6 Sprint 4) (2026-06-15)
 

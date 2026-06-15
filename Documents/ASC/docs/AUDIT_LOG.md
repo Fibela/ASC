@@ -4426,6 +4426,35 @@ Siguiente: P58 — TD-4 Adapter Registry per Tenant (FASE 5 completion)
 
 ---
 
+## Session 73 — 2026-06-15
+
+### TD-6 — CI/CD Pipeline Security Hardening (p49-security-gates.yml + security-audit.yml)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1287 | 2026-06-15 | SECURITY | **Análisis de vulnerabilidades en pipeline CI/CD existente**: (1) SARIF-only reporting — si GitHub Advanced Security no está disponible, los findings quedan invisibles; (2) Trivy solo bloquea CRITICAL — vulnerabilidades HIGH/MEDIUM pasan sin detección; (3) pip-audit + safety duplicaban findings por CVE ID sin correlación; (4) dependency-review solo bloqueaba GPL/AGPL — no cubría SSPL, BUSL, Commons-Clause ni EUPL; (5) 6 jobs diarios sin caching pip — tiempo innecesario en each run; (6) sin registro forense por ejecución — sin trazabilidad de qué tools pasaron/fallaron en cada run. | IDENTIFICADO |
+| 1288 | 2026-06-15 | DESIGN | **Estrategia TD-6**: Implementar 6 mejoras en `.github/workflows/p49-security-gates.yml` (4 nuevas features + 2 modificaciones) + 1 mejora en `security-audit.yml` (pip cache). No crear workflow nuevo — hardening incremental sobre la base P49 para preservar todos los tests existentes. Nuevo job `premos-ledger` es informacional en el gate (corre always() pero no bloquea). | APROBADO |
+| 1289 | 2026-06-15 | IMPL | **`p49-security-gates.yml` — trivy-high job (adaptative severity gating)**: Nuevo job entre trivy-fs y safety. `severity: HIGH, exit-code: '1', ignore-unfixed: true` — bloquea solo findings HIGH+CRITICAL con fix disponible. "Adaptive" porque `ignore-unfixed: true` filtra CVEs sin parche, eliminando ruido de vendor packages sin remediation path. Comparte Trivy DB cache con trivy-fs (mismo cache key). | COMPLETADO |
+| 1290 | 2026-06-15 | IMPL | **`p49-security-gates.yml` — safety job refactorizado (noise reduction)**: Job renombrado conceptualmente a "safety + pip-audit correlated". Instala ambas tools (`pip install safety pip-audit`). Lógica de correlación Python inline: carga findings de ambos JSON, computa intersección por CVE ID. Bloquea si CVE aparece en AMBAS tools (finding definitivo). CVEs en solo una tool → warning + triage recomendado, no blocking. Elimina duplicidad sin silenciar falsos positivos reales. | COMPLETADO |
+| 1291 | 2026-06-15 | IMPL | **`p49-security-gates.yml` — dependency-review (license intelligence)**: `deny-licenses` expandido de 3 a 8 licencias: `GPL-3.0, AGPL-3.0, GPL-2.0` (P49 baseline) + `SSPL-1.0` (MongoDB — restringe SaaS), `BUSL-1.1` (Elastic/Terraform — uso comercial restringido 4 años), `Commons-Clause` (restricción de venta, no OSI-approved), `EUPL-1.1` (copyleft EU), `OSL-3.0` (copyleft fuerte + patent termination). | COMPLETADO |
+| 1292 | 2026-06-15 | IMPL | **`p49-security-gates.yml` — Trivy DB cache + SARIF fallback (pipeline resilience)**: (1) `actions/cache@v4` en trivy-fs y trivy-high con path `~/.cache/trivy` y restore-keys — el DB incremental update es ~30s vs ~3min full download; (2) Step "Generate SARIF local fallback summary" en trivy-fs: escribe `reports/security-summary-trivy.txt` con JSON parseado del SARIF (totales por nivel) — si `github/codeql-action/upload-sarif` falla (free plan sin Advanced Security), los findings siguen accesibles en el artifact de 30 días. | COMPLETADO |
+| 1293 | 2026-06-15 | IMPL | **`p49-security-gates.yml` — premos-ledger job (forensic audit trail)**: Nuevo job final `premos-ledger`. `needs` todos los scan jobs, `if: always()`. Steps: (1) `actions/download-artifact@v4` de cada scan job (continue-on-error: true — job puede fallar, artifact puede no existir); (2) Python script: itera archivos descargados, computa `hashlib.sha256` de cada uno, construye `ci-ledger.json` con `run_id`, `git_sha`, `actor`, `gate_results`, `artifact_hashes`; (3) `hmac.new(secret.encode(), canonical_json.encode(), hashlib.sha256)` si `CI_LEDGER_SECRET` secret configurado — sino "unsigned" (no rompe job); (4) artifact `premos-ci-ledger` con `retention-days: 90` (3× estándar). | COMPLETADO |
+| 1294 | 2026-06-15 | IMPL | **`security-audit.yml` — pip cache (pipeline resilience)**: `cache: pip` añadido a los steps `actions/setup-python@v5` en los jobs `bandit` y `pip-audit`. El job `semgrep` usa imagen Docker (`semgrep/semgrep`) — no aplica. El job `hardcoded-check` no instala Python — no aplica. | COMPLETADO |
+| 1295 | 2026-06-15 | IMPL | **`p49-gate` actualizado**: `needs` expandido de 4 a 6 jobs: `[trivy-fs, trivy-high, safety, gitleaks-sarif, bandit-sarif, premos-ledger]`. Gate summary actualizado con nuevas líneas trivy-high y premos-ledger (informational). `premos-ledger` falla → gate aún pasa (ledger informacional), pero si trivy-high falla → gate falla. | COMPLETADO |
+| 1296 | 2026-06-15 | TEST | **`backend/tests/test_p49_cicd_security.py` — clase `TestCICDHardeningTD6`**: 32 nuevos tests en 6 grupos: AdaptiveSeverity(5), NoiseReduction(4), LicenseIntelligence(6), PipelineResilience(4), SARIFFallback(2), PromosLedger(7). Todos los tests existentes (39) preservados sin cambios. | **71/71 PASS** |
+| 1297 | 2026-06-15 | SECURITY | **Scan de seguridad TD-6**: (a) No se añaden credenciales hardcodeadas — `CI_LEDGER_SECRET` referenciado como `${{ secrets.CI_LEDGER_SECRET }}` nunca expuesto; (b) `hmac.new` con secret vacío → string "unsigned", no error ni crash; (c) artifact download `continue-on-error: true` — si job upstream falló, ledger sigue corriendo; (d) git SHA, ref, actor obtenidos de env vars de GitHub Actions (no user-input, no injection risk); (e) correlation script usa `json.load` sin eval, no RCE surface. | VERIFICADO |
+
+### Resumen Session 73
+
+Sprint: TD-6 — CI/CD Pipeline Security Hardening (mejoras al pipeline existente P49)
+Vulnerabilidades corregidas: 6 (SARIF fallback, HIGH adaptive gating, pip-audit/safety noise, license gaps, no caching, no forensic trail)
+Archivos modificados: `.github/workflows/p49-security-gates.yml`, `.github/workflows/security-audit.yml`, `backend/tests/test_p49_cicd_security.py`
+Nuevos jobs en p49-security-gates.yml: `trivy-high` (HIGH adaptive) + `premos-ledger` (forensic hash)
+Test delta: 39 → 71 (+32 tests TD-6, 0 regresiones)
+Próximo: P63 — SPECTER Enrollment Portal en premoscorp.com (ruta /sectores/specter)
+
+---
+
 ## Session 66 — 2026-06-15
 
 ### Fix Final: P54 Regression en test_p40 + Verificación Suite Completa

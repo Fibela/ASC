@@ -303,3 +303,200 @@ class TestP49Regression:
     def test_p45_api_keys_page_present(self):
         path = _REPO_ROOT.parent / "frontend" / "src" / "app" / "api-keys" / "page.tsx"
         assert path.exists()
+
+
+# ── TD-6 CI/CD Pipeline Security Hardening ───────────────────────────────────
+
+class TestCICDHardeningTD6:
+    """TD-6 hardening improvements to p49-security-gates.yml and security-audit.yml.
+
+    Covers:
+    1. Adaptive severity gating (trivy-high job — HIGH with fixable filter)
+    2. Noise reduction (pip-audit + safety correlation in single job)
+    3. License intelligence (SSPL, BUSL, Commons-Clause, EUPL, OSL added)
+    4. Pipeline resilience (pip cache + Trivy DB cache)
+    5. SARIF local fallback (security-summary-trivy.txt artifact)
+    6. Premos CI/CD Ledger (SHA-256 forensic hash + HMAC-SHA256 signature)
+    """
+
+    @pytest.fixture(autouse=True)
+    def _load(self):
+        self.raw = _P49_YML.read_text(encoding="utf-8")
+        self.parsed = yaml.safe_load(self.raw)
+        self.jobs = self.parsed.get("jobs", {})
+        self.sec_raw = _SEC_YML.read_text(encoding="utf-8")
+
+    # ── 1. Adaptive severity gating ──────────────────────────────────────────
+
+    def test_has_trivy_high_job(self):
+        """TD-6: second Trivy job for HIGH adaptive gating must exist."""
+        assert "trivy-high" in self.jobs, "trivy-high (HIGH adaptive) job missing"
+
+    def test_trivy_high_is_merge_blocking(self):
+        """trivy-high must exit with code 1 (not informational exit-code 0)."""
+        assert "exit-code: '1'" in self.raw or 'exit-code: "1"' in self.raw
+
+    def test_trivy_high_ignores_unfixed_cves(self):
+        """ignore-unfixed prevents alert fatigue from CVEs with no available patch."""
+        assert "ignore-unfixed: true" in self.raw
+
+    def test_trivy_high_scans_high_severity(self):
+        """trivy-high must specify HIGH severity (catches HIGH + CRITICAL)."""
+        assert "severity: HIGH" in self.raw, "trivy-high must set severity: HIGH"
+
+    def test_p49_gate_requires_trivy_high(self):
+        """p49-gate must fail when trivy-high fails."""
+        gate = self.jobs.get("p49-gate", {})
+        needs = gate.get("needs", [])
+        assert "trivy-high" in needs, "p49-gate must require trivy-high"
+
+    # ── 2. Noise reduction: pip-audit + safety correlation ───────────────────
+
+    def test_safety_job_also_runs_pip_audit(self):
+        """safety job must install and run pip-audit for cross-tool correlation."""
+        assert "pip-audit" in self.raw, "safety job must also run pip-audit"
+
+    def test_safety_job_has_correlation_step(self):
+        """Correlation step must appear in the YAML (by its heading text)."""
+        assert "Correlate" in self.raw or "correlation" in self.raw.lower(), (
+            "No correlation step found in p49 workflow"
+        )
+
+    def test_safety_job_blocks_only_on_shared_cves(self):
+        """Blocking logic targets shared CVEs (intersection), not single-tool findings."""
+        assert "shared" in self.raw.lower() or "definitive" in self.raw.lower(), (
+            "Correlation gate must distinguish definitive (shared) vs triage-only CVEs"
+        )
+
+    def test_safety_job_uses_pip_cache(self):
+        """setup-python in safety job must use pip cache (pipeline resilience)."""
+        safety_job = self.jobs.get("safety", {})
+        steps = safety_job.get("steps", [])
+        for step in steps:
+            with_block = step.get("with", {})
+            if "python-version" in with_block:
+                assert with_block.get("cache") == "pip", (
+                    "safety job setup-python must set cache: pip"
+                )
+                return
+        pytest.fail("safety job missing setup-python step")
+
+    # ── 3. License intelligence ───────────────────────────────────────────────
+
+    def test_deny_sspl_license(self):
+        """SSPL-1.0 (MongoDB) restricts SaaS use — must be in deny list."""
+        assert "SSPL" in self.raw, "SSPL-1.0 missing from dependency-review deny list"
+
+    def test_deny_busl_license(self):
+        """BUSL-1.1 (Elastic, Terraform) restricts commercial use for 4 years."""
+        assert "BUSL" in self.raw, "BUSL-1.1 missing from dependency-review deny list"
+
+    def test_deny_commons_clause(self):
+        """Commons-Clause restricts selling software — incompatible with SaaS resale."""
+        assert "Commons-Clause" in self.raw, "Commons-Clause missing from deny list"
+
+    def test_deny_eupl_license(self):
+        """EUPL-1.1 has copyleft provisions — requires legal review for commercial use."""
+        assert "EUPL" in self.raw, "EUPL-1.1 missing from dependency-review deny list"
+
+    def test_deny_osl_license(self):
+        """OSL-3.0 has strong copyleft + patent termination — risky for commercial use."""
+        assert "OSL" in self.raw, "OSL-3.0 missing from dependency-review deny list"
+
+    def test_original_gpl_licenses_still_denied(self):
+        """Baseline GPL-3.0/AGPL-3.0/GPL-2.0 must not be removed by TD-6 changes."""
+        for lic in ["GPL-3.0", "AGPL-3.0", "GPL-2.0"]:
+            assert lic in self.raw, f"{lic} was removed from deny list — regression"
+
+    # ── 4. Pipeline resilience: caching ──────────────────────────────────────
+
+    def test_bandit_sarif_uses_pip_cache(self):
+        """bandit-sarif job must use pip cache to avoid repeated downloads."""
+        bandit_job = self.jobs.get("bandit-sarif", {})
+        steps = bandit_job.get("steps", [])
+        for step in steps:
+            with_block = step.get("with", {})
+            if "python-version" in with_block:
+                assert with_block.get("cache") == "pip", (
+                    "bandit-sarif setup-python must set cache: pip"
+                )
+                return
+        pytest.fail("bandit-sarif missing setup-python step")
+
+    def test_trivy_db_cache_present(self):
+        """Trivy vulnerability DB must be cached with actions/cache@v4."""
+        assert "actions/cache@v4" in self.raw, "Trivy DB cache missing (actions/cache@v4)"
+
+    def test_trivy_cache_path_correct(self):
+        """Trivy cache path must target ~/.cache/trivy (default Trivy DB location)."""
+        assert ".cache/trivy" in self.raw, "Trivy cache path must include .cache/trivy"
+
+    def test_security_audit_uses_pip_cache(self):
+        """security-audit.yml must also use pip cache (TD-6 applied to both files)."""
+        assert "cache: pip" in self.sec_raw, (
+            "security-audit.yml must use pip cache on setup-python steps"
+        )
+
+    # ── 5. SARIF local fallback ───────────────────────────────────────────────
+
+    def test_trivy_job_generates_fallback_summary(self):
+        """trivy-fs must generate a local summary if SARIF upload to GitHub fails."""
+        assert "security-summary" in self.raw, (
+            "trivy-fs must write security-summary-trivy.txt as SARIF fallback"
+        )
+
+    def test_trivy_fallback_summary_uploaded_as_artifact(self):
+        """security-summary-trivy.txt must be included in trivy artifact upload."""
+        trivy_job = self.jobs.get("trivy-fs", {})
+        steps = trivy_job.get("steps", [])
+        for step in steps:
+            with_block = step.get("with", {})
+            path_val = str(with_block.get("path", ""))
+            if "security-summary" in path_val or "trivy-fs.sarif" in path_val:
+                return
+        pytest.fail("trivy-fs must upload security-summary-trivy.txt with artifact")
+
+    # ── 6. Premos CI/CD Ledger ────────────────────────────────────────────────
+
+    def test_has_premos_ledger_job(self):
+        """TD-6: premos-ledger job must exist for forensic audit trail."""
+        assert "premos-ledger" in self.jobs, "premos-ledger job missing"
+
+    def test_premos_ledger_runs_always(self):
+        """premos-ledger must run even when upstream jobs fail (forensic completeness)."""
+        ledger = self.jobs.get("premos-ledger", {})
+        cond = str(ledger.get("if", "")).lower()
+        assert "always()" in cond, "premos-ledger must set if: always()"
+
+    def test_premos_ledger_uses_hmac_sha256(self):
+        """Ledger must use HMAC for tamper-evident signing."""
+        assert "hmac" in self.raw.lower(), "premos-ledger must use HMAC signing"
+
+    def test_premos_ledger_hashes_with_sha256(self):
+        """Artifact hashing algorithm must be SHA-256."""
+        assert "sha256" in self.raw.lower(), "premos-ledger must use SHA-256 hashing"
+
+    def test_premos_ledger_90_day_retention(self):
+        """Forensic ledger artifact must have 90-day retention (3× standard 30-day)."""
+        assert "retention-days: 90" in self.raw, (
+            "premos-ledger artifact must have 90-day retention"
+        )
+
+    def test_premos_ledger_uses_ci_ledger_secret(self):
+        """Ledger signing must reference CI_LEDGER_SECRET repo secret."""
+        assert "CI_LEDGER_SECRET" in self.raw, (
+            "premos-ledger must reference CI_LEDGER_SECRET for HMAC signing"
+        )
+
+    def test_premos_ledger_needs_all_gate_jobs(self):
+        """premos-ledger runs after all scanning jobs so it can hash their artifacts."""
+        ledger = self.jobs.get("premos-ledger", {})
+        needs = ledger.get("needs", [])
+        for required in ["trivy-fs", "trivy-high", "safety", "gitleaks-sarif", "bandit-sarif"]:
+            assert required in needs, f"premos-ledger missing needs: {required}"
+
+    def test_premos_ledger_downloads_artifacts(self):
+        """Ledger must download upstream artifacts to compute their SHA-256."""
+        assert "actions/download-artifact@v4" in self.raw, (
+            "premos-ledger must download artifacts (actions/download-artifact@v4)"
+        )

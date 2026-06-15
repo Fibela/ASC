@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.5 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P62 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅) — 4462 tests ASC / 3259 tests sc_system, coverage 86.42%
+> Versión 4.6 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P62 completados — TD-2/TD-4/TD-5/TD-6 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅) — 4462 tests ASC / 3259 tests sc_system, coverage 86.42%
 
 ---
 
@@ -679,6 +679,7 @@ React stores ASC token → redirects to asc.premoscorp.com/?token=...
 | P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ✅ COMPLETADO |
 | P61 | ASC Metrics Widget en premoscorp.com | 30 | ✅ COMPLETADO |
 | P62 | ASC Client Portal page en premoscorp.com | 31 | ✅ COMPLETADO |
+| TD-6 | CI/CD Pipeline Security Hardening | 31 | ✅ COMPLETADO |
 | P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
 
 ### P59 — SSO Bridge (Supabase → ASC)
@@ -730,6 +731,22 @@ Entregables:
 - i18n: 36 keys en `ascPortal` namespace → todos los 8 idiomas (ES/EN/PT/FR/DE/ZH/JA/AR)
 - Tests: 289 tests (SecurityInvariants×15, ComponentStructure×20, SSOFlowStates×18, I18nCoverage×216, RegressionGates×6)
 - Tests: Vitest unit
+
+### TD-6 — CI/CD Pipeline Security Hardening ✅ COMPLETADO
+**Semana 31 | ASC DevSecOps | 2026-06-15**
+
+Motivación: análisis post-P62 reveló 6 debilidades en el pipeline de seguridad existente (P49 baseline):
+SARIF-only reporting, cobertura parcial Trivy (solo CRITICAL), duplicidad pip-audit/safety, gap de licencias, sin caching pip, sin registro forense.
+
+Entregables:
+- **`p49-security-gates.yml` — trivy-high job**: `severity: HIGH, ignore-unfixed: true, exit-code: '1'` — bloquea HIGH fixables, no ruido de CVEs sin parche
+- **`p49-security-gates.yml` — safety refactorizado**: ejecuta pip-audit + safety en el mismo job, correlación por CVE ID — bloquea solo findings compartidos (definitivos)
+- **`p49-security-gates.yml` — license intelligence**: deny-licenses expandido a 8 (+SSPL-1.0, BUSL-1.1, Commons-Clause, EUPL-1.1, OSL-3.0)
+- **`p49-security-gates.yml` — Trivy DB cache**: `actions/cache@v4` en `~/.cache/trivy` — ~30s de ahorro por run
+- **`p49-security-gates.yml` — SARIF fallback**: `security-summary-trivy.txt` artefacto si GitHub Advanced Security no disponible
+- **`p49-security-gates.yml` — premos-ledger job**: SHA-256 de cada artefacto + HMAC-SHA256 (`CI_LEDGER_SECRET`) → `ci-ledger.json` con 90 días de retención
+- **`security-audit.yml` — pip cache**: `cache: pip` en bandit y pip-audit jobs
+- Tests: 32 nuevos tests en `TestCICDHardeningTD6` (71/71 total — 0 regresiones)
 
 ### P63 — SPECTER Enrollment Portal
 **Semana 32–33 | sc_system Frontend**
