@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime
+from sqlalchemy import String, Boolean, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -14,5 +14,38 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="analyst")  # admin, analyst, viewer
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ── P16.3 IAM fields ──────────────────────────────────────────────────────
+
+    # Brute-force lock: auto-set when failed_login_attempts reaches threshold
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Admin-initiated password reset flag — blocks all endpoints except change-password
+    force_password_reset: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # ── P16.3 per-analyst Ed25519 signing keys ────────────────────────────────
+
+    # Raw Ed25519 public key (base64) — stored in plaintext for verification
+    signing_public_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Fernet-encrypted Ed25519 private key (base64url ciphertext)
+    # Encryption key derived from app SECRET_KEY via PBKDF2 — see signing.py
+    signing_private_key_enc: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+    # ── P47 Multi-tenancy ─────────────────────────────────────────────────────
+    # NULL = default single-tenant mode (PremosCorp own deployment)
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+
+    @property
+    def is_locked(self) -> bool:
+        """True when the account has an active time-based lock."""
+        if self.locked_until is None:
+            return False
+        return datetime.now(timezone.utc) < self.locked_until

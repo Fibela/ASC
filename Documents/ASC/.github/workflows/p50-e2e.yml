@@ -1,0 +1,235 @@
+name: P50 E2E Tests — ASC PremosCorp
+
+# P50 closes the testing pyramid with browser-based E2E tests (Playwright).
+# Validates the full frontend → backend → CI/CD workflow end-to-end.
+#
+# Strategy:
+#  1. Build the Next.js app (production build, not dev server — closer to real deploy)
+#  2. Start the static server on port 3000
+#  3. Run Playwright tests across Chromium (all specs), Firefox, WebKit (smoke only)
+#  4. Upload HTML report + JUnit XML + screenshots/videos as artifacts
+#
+# Note: E2E tests mock all /api/v1/** calls via page.route() — no real backend needed.
+# Browser diversity: Chromium (full suite), Firefox + WebKit (auth + security smoke tests).
+
+on:
+  push:
+    branches: [main, master, develop, 'feature/**', 'fix/**']
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/p50-e2e.yml'
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'frontend/**'
+  schedule:
+    # Weekly on Sunday 04:00 UTC — full E2E across all browsers
+    - cron: '0 4 * * 0'
+
+concurrency:
+  group: p50-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — E2E Tests (Chromium — full suite)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  e2e-chromium:
+    name: E2E — Chromium (full suite)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only for full suite)
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Next.js (production)
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
+
+      - name: Run E2E tests (Chromium)
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          CI: 'true'
+        run: |
+          # Start Next.js production server in background
+          npm run start &
+          SERVER_PID=$!
+          # Wait for server to be ready (max 30s)
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 > /dev/null 2>&1 && break || sleep 1
+          done
+          echo "Next.js server started (PID $SERVER_PID)"
+          # Run Playwright tests (Chromium project only)
+          npx playwright test --project=chromium --reporter=html,junit,list
+          EXIT_CODE=$?
+          kill $SERVER_PID 2>/dev/null || true
+          exit $EXIT_CODE
+
+      - name: Upload Playwright HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-chromium
+          path: frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright test results (JUnit XML)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-chromium
+          path: frontend/playwright-results.xml
+          retention-days: 14
+
+      - name: Upload failure artifacts (screenshots + videos)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts-chromium
+          path: frontend/playwright-artifacts/
+          retention-days: 7
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — E2E Smoke Tests (Firefox + WebKit — auth + security specs only)
+#
+# Running the full suite in 3 browsers is expensive. Smoke tests in Firefox and
+# WebKit cover the auth flow + security headers — the most cross-browser-sensitive
+# areas. The full suite runs only on Chromium to keep CI fast.
+# ─────────────────────────────────────────────────────────────────────────────
+  e2e-smoke-firefox-webkit:
+    name: E2E — Firefox + WebKit (smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers (Firefox + WebKit)
+        working-directory: frontend
+        run: npx playwright install firefox webkit --with-deps
+
+      - name: Build Next.js (production)
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
+
+      - name: Run E2E smoke tests (Firefox + WebKit — auth + security specs only)
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          CI: 'true'
+        run: |
+          npm run start &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000 > /dev/null 2>&1 && break || sleep 1
+          done
+          # Run only auth and security-headers specs (most cross-browser-sensitive)
+          npx playwright test e2e/auth.spec.ts e2e/security-headers.spec.ts \
+            --project=firefox --project=webkit \
+            --reporter=html,list
+          EXIT_CODE=$?
+          kill $SERVER_PID 2>/dev/null || true
+          exit $EXIT_CODE
+
+      - name: Upload Firefox/WebKit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-firefox-webkit
+          path: frontend/playwright-report/
+          retention-days: 14
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — TypeScript Type Check (E2E specs)
+#
+# Playwright specs are TypeScript. Type-check them separately to catch type
+# errors in spec files before they become runtime failures in CI.
+# ─────────────────────────────────────────────────────────────────────────────
+  e2e-typecheck:
+    name: TypeScript — E2E spec type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: TypeScript check — Next.js app sources (excludes e2e/)
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: TypeScript check — E2E specs (uses e2e/tsconfig.json)
+        working-directory: frontend/e2e
+        run: npx tsc --noEmit --project tsconfig.json
+        continue-on-error: true   # @playwright/test not installed until playwright install step
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P50 GATE — blocks merge if any E2E or type-check job fails
+# ─────────────────────────────────────────────────────────────────────────────
+  p50-gate:
+    name: P50 E2E Gate
+    needs: [e2e-chromium, e2e-smoke-firefox-webkit, e2e-typecheck]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Evaluate E2E results
+        run: |
+          echo "=== P50 E2E GATE SUMMARY ==="
+          FAILED=""
+
+          [[ "${{ needs.e2e-chromium.result }}"             != "success" ]] && FAILED+=" e2e-chromium"
+          [[ "${{ needs.e2e-smoke-firefox-webkit.result }}" != "success" ]] && FAILED+=" e2e-smoke-firefox-webkit"
+          [[ "${{ needs.e2e-typecheck.result }}"            != "success" ]] && FAILED+=" e2e-typecheck"
+
+          echo "  e2e-chromium (full)         : ${{ needs.e2e-chromium.result }}"
+          echo "  e2e-smoke-firefox-webkit    : ${{ needs.e2e-smoke-firefox-webkit.result }}"
+          echo "  e2e-typecheck               : ${{ needs.e2e-typecheck.result }}"
+
+          if [[ -n "$FAILED" ]]; then
+            echo ""
+            echo "❌ P50 E2E GATE FAILED:$FAILED"
+            echo "HTML reports uploaded as artifacts — check playwright-report-* for details."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ P50 E2E GATE PASSED"
+          echo "   Chromium (full suite)      ✓"
+          echo "   Firefox + WebKit (smoke)   ✓"
+          echo "   TypeScript type check      ✓"
+          echo ""
+          echo "Testing pyramid: Unit → Integration → E2E — COMPLETE"

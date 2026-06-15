@@ -8,6 +8,8 @@ import uuid
 from app.db.session import get_db
 from app.models.event import Event
 from app.models.alert import Alert
+from app.models.user import User
+from app.api.deps import get_analyst_or_admin
 from app.services.correlator import normalize_event, evaluate_correlation_rules, match_iocs
 from app.core.config import get_settings
 from pydantic import BaseModel
@@ -30,7 +32,11 @@ class BulkEventIngest(BaseModel):
 
 
 @router.post("/ingest", summary="Ingest a single security event")
-async def ingest_event(payload: EventIngest, db: AsyncSession = Depends(get_db)):
+async def ingest_event(
+    payload: EventIngest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_analyst_or_admin),
+):
     normalized = await normalize_event({**payload.data, "source": payload.source, "category": payload.category, "action": payload.action, "host": payload.host})
 
     # IoC matching on key fields
@@ -69,7 +75,11 @@ async def ingest_event(payload: EventIngest, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/ingest/bulk", summary="Ingest multiple events and run correlation")
-async def ingest_bulk(payload: BulkEventIngest, db: AsyncSession = Depends(get_db)):
+async def ingest_bulk(
+    payload: BulkEventIngest,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_analyst_or_admin),
+):
     normalized_events = []
     created_ids = []
 
@@ -87,6 +97,20 @@ async def ingest_bulk(payload: BulkEventIngest, db: AsyncSession = Depends(get_d
     # Run correlation rules
     alerts_to_create = await evaluate_correlation_rules(normalized_events, db)
     created_alerts = []
+    # Earliest event timestamp → threat_start_at for accurate MTTD calculation
+    # Normalize to timezone-aware (SQLite returns naive UTC; PostgreSQL returns aware)
+    def _ensure_aware(dt):
+        if dt is not None and dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    event_timestamps = [
+        _ensure_aware(e.timestamp)
+        for e in (await db.execute(select(Event).where(Event.id.in_(created_ids)))).scalars().all()
+        if e.timestamp
+    ]
+    threat_start = min(event_timestamps) if event_timestamps else None
+
     for alert_data in alerts_to_create:
         alert = Alert(
             id=str(uuid.uuid4()),
@@ -96,6 +120,7 @@ async def ingest_bulk(payload: BulkEventIngest, db: AsyncSession = Depends(get_d
             risk_score=alert_data["risk_score"],
             ttps=alert_data["ttps"],
             source_events=created_ids,
+            threat_start_at=threat_start,
         )
         db.add(alert)
         created_alerts.append(alert.id)
@@ -110,6 +135,7 @@ async def list_events(
     offset: int = Query(0),
     severity: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_analyst_or_admin),
 ):
     q = select(Event).order_by(desc(Event.timestamp)).offset(offset).limit(limit)
     if severity:

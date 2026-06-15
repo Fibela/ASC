@@ -1,13 +1,21 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+"""
+Alerts endpoint — P21-F2: rate limiting added.
+"""
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from datetime import datetime, timezone
 
 from app.db.session import get_db
 from app.models.alert import Alert
+from app.models.user import User
+from app.api.deps import get_current_user, get_analyst_or_admin
+from app.core.rate_limit import limiter
+from app.core.config import get_settings
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
+settings = get_settings()
 
 
 class AlertUpdate(BaseModel):
@@ -18,12 +26,15 @@ class AlertUpdate(BaseModel):
 
 
 @router.get("/", summary="List alerts")
+@limiter.limit(settings.RATE_LIMIT_ALERTS)
 async def list_alerts(
+    request: Request,
     limit: int = Query(50, le=500),
     offset: int = Query(0),
     severity: str | None = Query(None),
     status: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     q = select(Alert).order_by(desc(Alert.detected_at)).offset(offset).limit(limit)
     if severity:
@@ -35,8 +46,38 @@ async def list_alerts(
     return [_alert_to_dict(a) for a in alerts]
 
 
+@router.get("/stats/summary", summary="Alert statistics for dashboard")
+@limiter.limit(settings.RATE_LIMIT_ALERTS)
+async def alert_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    total = (await db.execute(select(func.count()).select_from(Alert))).scalar()
+    open_count = (await db.execute(select(func.count()).select_from(Alert).where(Alert.status == "open"))).scalar()
+    critical = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "critical"))).scalar()
+    high = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "high"))).scalar()
+    fp = (await db.execute(select(func.count()).select_from(Alert).where(Alert.false_positive == True))).scalar()
+    fp_rate = round(fp / total, 4) if total else 0.0
+
+    return {
+        "total": total,
+        "open": open_count,
+        "critical": critical,
+        "high": high,
+        "false_positive_rate": fp_rate,
+        "by_severity": {"critical": critical, "high": high},
+    }
+
+
 @router.get("/{alert_id}", summary="Get alert detail")
-async def get_alert(alert_id: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_ALERTS)
+async def get_alert(
+    request: Request,
+    alert_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -45,7 +86,14 @@ async def get_alert(alert_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/{alert_id}", summary="Update alert status / assign analyst")
-async def update_alert(alert_id: str, payload: AlertUpdate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("60/minute")
+async def update_alert(
+    request: Request,
+    alert_id: str,
+    payload: AlertUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_analyst_or_admin),
+):
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -66,25 +114,6 @@ async def update_alert(alert_id: str, payload: AlertUpdate, db: AsyncSession = D
 
     await db.commit()
     return _alert_to_dict(alert)
-
-
-@router.get("/stats/summary", summary="Alert statistics for dashboard")
-async def alert_stats(db: AsyncSession = Depends(get_db)):
-    total = (await db.execute(select(func.count()).select_from(Alert))).scalar()
-    open_count = (await db.execute(select(func.count()).select_from(Alert).where(Alert.status == "open"))).scalar()
-    critical = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "critical"))).scalar()
-    high = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "high"))).scalar()
-    fp = (await db.execute(select(func.count()).select_from(Alert).where(Alert.false_positive == True))).scalar()
-    fp_rate = round(fp / total, 4) if total else 0.0
-
-    return {
-        "total": total,
-        "open": open_count,
-        "critical": critical,
-        "high": high,
-        "false_positive_rate": fp_rate,
-        "by_severity": {"critical": critical, "high": high},
-    }
 
 
 def _alert_to_dict(a: Alert) -> dict:

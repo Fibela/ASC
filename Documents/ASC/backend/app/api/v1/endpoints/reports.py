@@ -7,7 +7,9 @@ import uuid
 
 from app.db.session import get_db
 from app.models.alert import Alert
+from app.models.user import User
 from app.services.reporter import generate_pdf_report, generate_html_report
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -71,6 +73,7 @@ async def download_pdf(
     hours: int = Query(24),
     analyst: str = Query("System"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     data = await _build_report_data(db, hours, analyst)
     pdf_bytes = generate_pdf_report(data)
@@ -90,6 +93,7 @@ async def view_html(
     hours: int = Query(24),
     analyst: str = Query("System"),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     data = await _build_report_data(db, hours, analyst)
     return generate_html_report(data)

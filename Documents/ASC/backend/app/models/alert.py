@@ -21,7 +21,12 @@ class Alert(Base):
     recommended_actions: Mapped[list] = mapped_column(JSON, default=list)
     analyst_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     assigned_to: Mapped[str | None] = mapped_column(String(36), nullable=True) # user_id
+    # threat_start_at: when the underlying threat was first observed (earliest raw event timestamp).
+    # MTTD = detected_at - threat_start_at. None for manually created alerts.
+    threat_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     false_positive: Mapped[bool] = mapped_column(default=False)
+    # P47 Multi-tenancy — NULL = single-tenant / default deployment
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)

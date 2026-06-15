@@ -1,0 +1,23 @@
+# ─── TLS Certificate files — NEVER commit to git ─────────────────────────────
+#
+# Private keys and certificates contain sensitive cryptographic material.
+# Committing them would expose the private key to anyone with repo access,
+# permanently compromising the TLS security of asc.premoscorp.com.
+#
+# How to get certificates:
+#   Dev/staging:  bash scripts/gen_selfsigned_cert.sh
+#   Production:   Let's Encrypt — see docs/TLS_SETUP.md
+#
+# Files expected here (never committed):
+#   fullchain.pem  — certificate chain (cert + intermediates)
+#   privkey.pem    — private key (KEEP SECRET)
+#   dhparam.pem    — DH parameters (optional, for DHE ciphers)
+# ─────────────────────────────────────────────────────────────────────────────
+
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.der

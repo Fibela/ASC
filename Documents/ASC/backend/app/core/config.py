@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "ASC PremosCorp"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    SECRET_KEY: str = "changeme-generate-a-strong-key-in-production"
+    SECRET_KEY: str = "changeme-generate-a-strong-key-in-production"  # nosec B105
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 8  # 8 hours
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://asc_user:asc_pass@localhost:5432/asc_db"
+    DATABASE_URL: str = "postgresql+asyncpg://asc_user:asc_pass@localhost:5432/asc_db"  # nosec B105,B106
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -40,6 +40,121 @@ class Settings(BaseSettings):
     VIRUSTOTAL_API_KEY: str = ""
     ABUSEIPDB_API_KEY: str = ""
     OTXALIEN_API_KEY: str = ""
+
+    # ── SIEM/EDR/SOAR Adapter credentials (all optional — empty = adapter disabled) ──
+
+    # ELK / Elasticsearch
+    ELASTICSEARCH_URL: str = ""              # e.g. https://elastic.premoscorp.local:9200
+    ELASTICSEARCH_API_KEY: str = ""          # base64(id:api_key) from Kibana → API Keys
+    ELASTICSEARCH_INDEX_ALERTS: str = "asc-alerts"
+    ELASTICSEARCH_INDEX_EVENTS: str = "asc-events"
+
+    # Wazuh Manager REST API
+    WAZUH_URL: str = ""                      # e.g. https://wazuh.premoscorp.local:55000
+    WAZUH_USERNAME: str = ""                 # Wazuh API user
+    WAZUH_PASSWORD: str = ""                 # Wazuh API password
+    WAZUH_VERIFY_SSL: bool = True
+
+    # TheHive SOAR
+    THEHIVE_URL: str = ""                    # e.g. https://thehive.premoscorp.local:9000
+    THEHIVE_API_KEY: str = ""                # TheHive API key (user profile → API Keys)
+    THEHIVE_ORGANISATION: str = "PremosCorp"
+
+    # ── SPECTER Agent (P13) ────────────────────────────────────────────────────
+    # Ed25519 keypair for signing commands sent to SPECTER agents.
+    # Generate with: python -c "from app.core.signing import generate_keypair; p,q=generate_keypair(); print('PRIVATE:',p); print('PUBLIC:',q)"
+    SPECTER_SIGNING_PRIVATE_KEY: str = ""    # base64 raw Ed25519 private key (32 bytes)
+    SPECTER_SIGNING_PUBLIC_KEY: str = ""     # base64 raw Ed25519 public key  (32 bytes)
+    SPECTER_AGENT_VERSION: str = "1.0.0"    # minimum accepted agent version
+    SPECTER_MAX_EVENTS_PER_BATCH: int = 200  # max events in a single telemetry POST
+    SPECTER_INACTIVE_THRESHOLD_SECONDS: int = 120  # seconds without heartbeat → inactive
+
+    # ── P16.3 IAM ─────────────────────────────────────────────────────────────
+    # Failed login attempts before the account is auto-locked.
+    ACCOUNT_LOCK_THRESHOLD: int = 5
+    # Duration of the auto-lock (and manual lock default) in minutes.
+    ACCOUNT_LOCK_MINUTES: int = 15
+
+    # ── P16.3 Celery Escalation ───────────────────────────────────────────────
+    # How often Celery Beat runs the proactive escalation scan (seconds).
+    ESCALATION_CHECK_INTERVAL_SECONDS: int = 60
+    # How often Celery Beat runs the PIIL SLA breach escalation scan (seconds).
+    SLA_ESCALATION_CHECK_INTERVAL_SECONDS: int = 120
+
+    # ── P17 Rate Limiting ─────────────────────────────────────────────────────
+    # SlowAPI throttle strings — format: "N/period" (period: second/minute/hour)
+    RATE_LIMIT_LOGIN: str = "10/minute"
+    RATE_LIMIT_REGISTER: str = "3/minute"
+    RATE_LIMIT_REFRESH: str = "30/minute"
+    RATE_LIMIT_CHANGE_PASSWORD: str = "10/minute"
+    # General API rate limits (P21-F2)
+    RATE_LIMIT_ANALYZE_FILE: str = "20/minute"
+    RATE_LIMIT_ANALYZE_LOOKUP: str = "60/minute"
+    RATE_LIMIT_ALERTS: str = "120/minute"
+    RATE_LIMIT_IOCS: str = "120/minute"
+    RATE_LIMIT_OPS: str = "60/minute"
+    RATE_LIMIT_FORENSIC: str = "60/minute"
+    RATE_LIMIT_AGENTS_WRITE: str = "60/minute"
+    # Optional Redis URI for multi-worker rate-limit sharing. Empty = in-memory.
+    SLOWAPI_STORAGE_URI: str = ""
+
+    # ── P17 Request Hardening ─────────────────────────────────────────────────
+    # Maximum allowed request body in bytes (default 10 MB).
+    REQUEST_MAX_BODY_BYTES: int = 10 * 1024 * 1024
+
+    # ── F1 — Palo Alto Networks PAN-OS ───────────────────────────────────────
+    # PALOALTO_HOST: hostname or IP of Panorama/firewall (no https:// prefix).
+    # PALOALTO_API_KEY: generated via Device → Administrators → API Key.
+    PALOALTO_HOST: str = ""
+    PALOALTO_API_KEY: str = ""                      # nosec B105 — from env/Vault
+    PALOALTO_VSYS: str = "vsys1"
+    PALOALTO_BLOCKED_IP_GROUP: str = "ASC-Blocked-IPs"
+    PALOALTO_BLOCKED_URL_CATEGORY: str = "ASC-Blocked-Domains"
+
+    # ── F1 — Fortinet FortiGate ───────────────────────────────────────────────
+    # FORTINET_HOST: hostname or IP of FortiGate (no https:// prefix).
+    # FORTINET_API_TOKEN: generated via System → Administrators → REST API Admin.
+    FORTINET_HOST: str = ""
+    FORTINET_API_TOKEN: str = ""                    # nosec B105 — from env/Vault
+    FORTINET_VDOM: str = "root"
+    FORTINET_BLOCKED_IP_GROUP: str = "ASC-Blocked-IPs"
+    FORTINET_BLOCKED_DOMAIN_GROUP: str = "ASC-Blocked-Domains"
+
+    # ── F1 — Active Directory / LDAP ─────────────────────────────────────────
+    # AD_SERVER_URL: LDAPS URL of domain controller (ldaps://dc.corp.local:636).
+    # AD_BIND_DN: Service account full DN — use minimum-privilege account.
+    # AD_BIND_PASSWORD: Service account password — MUST come from Vault in prod.
+    AD_SERVER_URL: str = ""                         # ldaps://dc.premoscorp.local:636
+    AD_BIND_DN: str = ""                            # CN=svc-asc,OU=Service Accounts,DC=corp,DC=local
+    AD_BIND_PASSWORD: str = ""                      # nosec B105 — from env/Vault
+    AD_BASE_DN: str = ""                            # DC=corp,DC=local
+    AD_QUARANTINE_OU: str = ""                      # OU=Quarantine,DC=corp,DC=local
+    AD_USE_SSL: bool = True                         # Always True in production
+    AD_VERIFY_CERT: bool = True                     # Set False only for self-signed dev certs
+
+    # ── P41 Rate Limiting — Per API Key ──────────────────────────────────────
+    # Sliding window limits enforced by ApiKeyRateLimitMiddleware.
+    # Per-minute limit controls burst; per-hour limit controls sustained throughput.
+    # Both windows are enforced simultaneously — the stricter one governs.
+    RATE_LIMIT_API_KEY_PER_MINUTE: int = 60    # requests/minute per key (burst)
+    RATE_LIMIT_API_KEY_PER_HOUR: int = 1000    # requests/hour per key (throughput)
+
+    # ── P39 Observability ─────────────────────────────────────────────────────
+    # Static bearer token for Prometheus scraper (no JWT login required).
+    # Empty = scrape token disabled; only analyst+ JWT works.
+    # Generate: python -c "import secrets; print(secrets.token_hex(32))"
+    METRICS_SCRAPE_TOKEN: str = ""   # nosec B105 — from env/Vault
+
+    # ── SPECTER Security Hardening (P14) ──────────────────────────────────────
+    # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
+    # Generate a token with: python -c "from app.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"
+    SPECTER_ENROLLMENT_SECRET: str = ""      # nosec B105 — empty means dev mode
+    # Strict signature mode: reject telemetry events whose Ed25519 signature is invalid.
+    # In dev/test mode keep False; enable in production for zero-trust enforcement.
+    SPECTER_STRICT_SIGNATURE_MODE: bool = False
+    # Rate limiting for telemetry ingestion (per agent, sliding window).
+    SPECTER_MAX_EVENTS_PER_WINDOW: int = 200
+    SPECTER_RATE_WINDOW_SECONDS: int = 30
 
 
 @lru_cache

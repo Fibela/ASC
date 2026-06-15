@@ -1,0 +1,53 @@
+# ─── ASC PremosCorp — Docker Compose Override (Development) ──────────────────
+#
+# Applied automatically on: docker compose up
+# NOT applied on:           docker compose -f docker-compose.yml up
+#
+# What this file adds for local development:
+#   • Exposed ports for postgres (5432), redis (6379), backend (8000)
+#     so you can use DB clients, redis-cli, and access /docs directly.
+#   • Backend bind-mount + --reload for hot-reload without rebuilding.
+#   • DEBUG=true on backend.
+#   • Relaxed CORS to allow localhost:3000 and :8000 simultaneously.
+#
+# SECURITY: This file is intentionally NOT for production.
+#           Never deploy with this override active.
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: '3.9'
+
+services:
+
+  postgres:
+    ports:
+      - "5432:5432"   # DB clients (TablePlus, DBeaver, psql)
+
+  redis:
+    ports:
+      - "6379:6379"   # Redis Insight, redis-cli
+
+  backend:
+    ports:
+      - "8000:8000"   # Direct backend access: http://localhost:8000/docs
+    volumes:
+      - ./backend:/app   # Bind mount: edits reflect immediately
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload    # Hot-reload on source changes
+    environment:
+      DEBUG:        "true"
+      # Allow direct browser-to-backend calls in dev (bypassing nginx)
+      CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost","http://127.0.0.1:3000"]'
+
+  frontend:
+    ports:
+      - "3000:3000"   # Direct frontend access: http://localhost:3000
+    build:
+      args:
+        # In dev, frontend calls backend directly on port 8000
+        NEXT_PUBLIC_API_URL: "http://localhost:8000"

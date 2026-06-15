@@ -1,8 +1,23 @@
 """
 Neutralization Service — automated and analyst-initiated response actions.
+
+This module is the FALLBACK execution path only. The primary path is
+specter_bridge.dispatch() which routes actions through SPECTER agents and
+real F1 adapters. This module is called only when:
+  1. The bridge raises an unexpected exception (approval._execute_immediately)
+  2. The action_type is not routed by the bridge (simulation fallback)
+
+For block_ip, block_domain, and disable_account the fallback now also
+attempts real adapter calls before returning a simulated result, so a
+bridge failure does not silently mask the neutralization.
+
+For actions that require the SPECTER agent binary (isolate_endpoint,
+kill_process, quarantine_file, remove_persistence) the fallback remains
+a logged simulation because those require a live agent on the endpoint.
 """
 import asyncio
 from datetime import datetime, timezone
+
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -16,81 +31,135 @@ class NeutralizationResult:
 
 
 async def isolate_endpoint(host: str, reason: str = "") -> NeutralizationResult:
-    """Simulate endpoint isolation via EDR agent API."""
-    log.info("neutralize_isolate_endpoint", host=host, reason=reason)
-    await asyncio.sleep(0.1)  # EDR API call placeholder
+    """Endpoint isolation requires a live SPECTER agent — simulation fallback."""
+    log.warning("neutralize_fallback_simulation", action="isolate_endpoint", host=host)
+    await asyncio.sleep(0.1)
     return NeutralizationResult(
         success=True,
-        message=f"Endpoint {host} isolated from network",
-        details={"host": host, "isolation_time": datetime.now(timezone.utc).isoformat(), "rollback": "re-enable NIC or EDR unblock"},
+        message=f"[SIMULATION] Endpoint {host} isolation logged — SPECTER agent required for real execution",
+        details={"host": host, "simulation": True, "ts": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def block_ip(ip: str, direction: str = "both", reason: str = "") -> NeutralizationResult:
-    """Add IP to firewall blocklist via API."""
-    log.info("neutralize_block_ip", ip=ip, direction=direction)
+    """Attempt real firewall adapter; fall back to simulation if unconfigured."""
+    from app.adapters import get_firewall_adapter
+
+    fw = get_firewall_adapter()
+    if fw is not None:
+        try:
+            result = await fw.block_ip(ip, reason=reason)
+            log.info("neutralize_fallback_real", action="block_ip", ip=ip, adapter=type(fw).__name__)
+            return NeutralizationResult(
+                success=result.get("success", True),
+                message=result.get("message", f"IP {ip} blocked via {type(fw).__name__}"),
+                details={"ip": ip, "direction": direction, "adapter": type(fw).__name__,
+                         "blocked_at": datetime.now(timezone.utc).isoformat()},
+            )
+        except Exception as exc:
+            log.error("neutralize_fallback_adapter_error", action="block_ip", ip=ip, error=str(exc))
+
+    log.warning("neutralize_fallback_simulation", action="block_ip", ip=ip)
     await asyncio.sleep(0.05)
     return NeutralizationResult(
         success=True,
-        message=f"IP {ip} blocked ({direction})",
-        details={"ip": ip, "direction": direction, "blocked_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] IP {ip} blocked ({direction})",
+        details={"ip": ip, "direction": direction, "simulation": True,
+                 "blocked_at": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def block_domain(domain: str, reason: str = "") -> NeutralizationResult:
-    """Add domain to DNS sinkhole / proxy blocklist."""
-    log.info("neutralize_block_domain", domain=domain)
+    """Attempt real firewall adapter; fall back to simulation if unconfigured."""
+    from app.adapters import get_firewall_adapter
+
+    fw = get_firewall_adapter()
+    if fw is not None:
+        try:
+            result = await fw.block_domain(domain, reason=reason)
+            log.info("neutralize_fallback_real", action="block_domain", domain=domain, adapter=type(fw).__name__)
+            return NeutralizationResult(
+                success=result.get("success", True),
+                message=result.get("message", f"Domain {domain} blocked via {type(fw).__name__}"),
+                details={"domain": domain, "adapter": type(fw).__name__,
+                         "blocked_at": datetime.now(timezone.utc).isoformat()},
+            )
+        except Exception as exc:
+            log.error("neutralize_fallback_adapter_error", action="block_domain", domain=domain, error=str(exc))
+
+    log.warning("neutralize_fallback_simulation", action="block_domain", domain=domain)
     await asyncio.sleep(0.05)
     return NeutralizationResult(
         success=True,
-        message=f"Domain {domain} added to sinkhole",
-        details={"domain": domain, "blocked_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] Domain {domain} added to sinkhole",
+        details={"domain": domain, "simulation": True,
+                 "blocked_at": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def kill_process(host: str, process_name: str, pid: int | None = None) -> NeutralizationResult:
-    """Terminate malicious process via EDR."""
-    log.info("neutralize_kill_process", host=host, process=process_name, pid=pid)
+    """Process termination requires a live SPECTER agent — simulation fallback."""
+    log.warning("neutralize_fallback_simulation", action="kill_process", host=host, process=process_name)
     target = f"{process_name}(PID:{pid})" if pid else process_name
     await asyncio.sleep(0.05)
     return NeutralizationResult(
         success=True,
-        message=f"Process {target} terminated on {host}",
-        details={"host": host, "process": process_name, "pid": pid, "killed_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] Process {target} termination logged on {host} — SPECTER agent required",
+        details={"host": host, "process": process_name, "pid": pid, "simulation": True,
+                 "killed_at": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def quarantine_file(host: str, file_path: str) -> NeutralizationResult:
-    """Move file to quarantine via EDR."""
-    log.info("neutralize_quarantine_file", host=host, file=file_path)
+    """File quarantine requires a live SPECTER agent — simulation fallback."""
+    log.warning("neutralize_fallback_simulation", action="quarantine_file", host=host, file=file_path)
     await asyncio.sleep(0.05)
-    quarantine_path = f"C:\\Quarantine\\{file_path.replace('/', '_').replace('\\', '_')}"
+    quarantine_path = f"C:\\Quarantine\\{file_path.replace('/', '_').replace(chr(92), '_')}"
     return NeutralizationResult(
         success=True,
-        message=f"File quarantined on {host}",
-        details={"host": host, "original_path": file_path, "quarantine_path": quarantine_path, "quarantined_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] File quarantine logged on {host} — SPECTER agent required",
+        details={"host": host, "original_path": file_path, "quarantine_path": quarantine_path,
+                 "simulation": True, "quarantined_at": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def remove_persistence(host: str, persistence_type: str, target: str) -> NeutralizationResult:
-    """Remove registry run key, scheduled task, or startup entry."""
-    log.info("neutralize_remove_persistence", host=host, type=persistence_type, target=target)
+    """Persistence removal requires a live SPECTER agent — simulation fallback."""
+    log.warning("neutralize_fallback_simulation", action="remove_persistence", host=host)
     await asyncio.sleep(0.05)
     return NeutralizationResult(
         success=True,
-        message=f"Persistence mechanism removed on {host}: {persistence_type} -> {target}",
-        details={"host": host, "type": persistence_type, "target": target, "removed_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] Persistence removal logged on {host}: {persistence_type} — SPECTER agent required",
+        details={"host": host, "type": persistence_type, "target": target, "simulation": True,
+                 "removed_at": datetime.now(timezone.utc).isoformat()},
     )
 
 
 async def disable_account(username: str, domain: str = "LOCAL") -> NeutralizationResult:
-    """Disable compromised user account via AD/local policy."""
-    log.info("neutralize_disable_account", user=username, domain=domain)
+    """Attempt real AD adapter; fall back to simulation if unconfigured."""
+    from app.adapters import get_identity_adapter
+
+    iam = get_identity_adapter()
+    if iam is not None:
+        try:
+            result = await iam.disable_account(username, domain, reason="neutralizer_fallback")
+            log.info("neutralize_fallback_real", action="disable_account", user=username, adapter=type(iam).__name__)
+            return NeutralizationResult(
+                success=result.get("success", True),
+                message=result.get("message", f"Account {domain}\\{username} disabled via {type(iam).__name__}"),
+                details={"username": username, "domain": domain, "adapter": type(iam).__name__,
+                         "disabled_at": datetime.now(timezone.utc).isoformat()},
+            )
+        except Exception as exc:
+            log.error("neutralize_fallback_adapter_error", action="disable_account", user=username, error=str(exc))
+
+    log.warning("neutralize_fallback_simulation", action="disable_account", user=username)
     await asyncio.sleep(0.05)
     return NeutralizationResult(
         success=True,
-        message=f"Account {domain}\\{username} disabled",
-        details={"username": username, "domain": domain, "disabled_at": datetime.now(timezone.utc).isoformat()},
+        message=f"[SIMULATION] Account {domain}\\{username} disable logged — AD adapter required",
+        details={"username": username, "domain": domain, "simulation": True,
+                 "disabled_at": datetime.now(timezone.utc).isoformat()},
     )
 
 

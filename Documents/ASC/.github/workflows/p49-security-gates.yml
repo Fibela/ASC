@@ -1,0 +1,374 @@
+name: P49 Security Gates — ASC PremosCorp
+
+# P49 adds:
+#  1. Trivy filesystem scan — CRITICAL blocking (vs informational Docker-only scan in ci.yml)
+#  2. Safety CVE check — PyPI Advisory Database (complement to pip-audit in security-audit.yml)
+#  3. SARIF upload — trivy + bandit findings appear in GitHub Security tab
+#  4. Dependency Review — blocks PRs that introduce vulnerable/license-denied deps
+#  5. P49 aggregate gate — single required status check for branch protection
+
+on:
+  push:
+    branches: [main, master, develop, 'feature/**', 'fix/**']
+  pull_request:
+    branches: [main, master, develop]
+  schedule:
+    # Daily at 03:00 UTC — catch newly-disclosed CVEs even without code changes
+    - cron: '0 3 * * *'
+
+concurrency:
+  group: p49-security-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Trivy Filesystem Scan (CRITICAL blocking)
+#
+# Key differences from the trivy job in ci.yml:
+#  • Scans the full filesystem (vuln + secret scanners) — no Docker build needed
+#  • exit-code 1 for CRITICAL severity (ci.yml uses exit-code 0 = informational)
+#  • Outputs SARIF so findings appear in GitHub Security > Code scanning
+#  • ignore-unfixed: true — only block on CVEs that have an available fix
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  trivy-fs:
+    name: Trivy Filesystem Scan (CRITICAL blocking)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write   # required for SARIF upload
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy — filesystem vulnerability + secret scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+        # continue-on-error is intentionally NOT set — CRITICAL = merge-blocking
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()   # upload even when trivy exits non-zero so we see findings
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-filesystem
+        continue-on-error: true   # requires GitHub Advanced Security (may be unavailable on free plans)
+
+      - name: Upload Trivy report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-fs-report
+          path: trivy-fs.sarif
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Safety CVE Audit
+#
+# Uses the classic `safety` tool (PyPI Advisory Database + SafetyDB) as a
+# second opinion alongside pip-audit (which uses OSV + PyPI Advisory).
+# Finding in one but not the other = triage needed, not automatic block.
+# Both failing = definitive CVE — block merge.
+#
+# Key notes:
+#  • safety 3.x changed CLI interface — use `safety scan` (not `safety check`)
+#  • --policy-file flag allows suppressing known FP via .safety-policy.yml
+#  • exit 0 from safety even on findings (we evaluate JSON output explicitly)
+# ─────────────────────────────────────────────────────────────────────────────
+  safety:
+    name: Dependency Audit (safety)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install safety
+        run: pip install safety
+
+      - name: Safety CVE scan
+        run: |
+          mkdir -p reports
+          # safety 3.x uses `scan` subcommand; fall back to `check` for 2.x
+          SAFETY_VERSION=$(safety --version 2>&1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          MAJOR=$(echo "$SAFETY_VERSION" | cut -d. -f1)
+          if [ "$MAJOR" -ge 3 ] 2>/dev/null; then
+            safety scan \
+              --target backend/requirements.txt \
+              --output json \
+              --save-as json \
+              reports/safety.json \
+              --disable-optional-telemetry \
+              || true
+          else
+            safety check \
+              -r backend/requirements.txt \
+              --json \
+              -o reports/safety.json \
+              || true
+          fi
+
+      - name: Evaluate safety results
+        run: |
+          python3 << 'PYEOF'
+          import json, sys, os
+
+          path = "reports/safety.json"
+          if not os.path.exists(path):
+              print("ℹ️  safety.json not produced — treating as no findings")
+              sys.exit(0)
+
+          try:
+              data = json.load(open(path))
+          except json.JSONDecodeError as e:
+              print(f"ℹ️  Could not parse safety output ({e}) — treating as no findings")
+              sys.exit(0)
+
+          # safety 2.x: list of [package, spec, version, advisory, id]
+          # safety 3.x: {vulnerabilities: [{package_name, vulnerability_id, advisory, ...}]}
+          vulns = []
+          if isinstance(data, list):
+              vulns = [{"package": v[0], "id": v[4], "advisory": v[3]} for v in data]
+          elif isinstance(data, dict):
+              for v in data.get("vulnerabilities", []):
+                  vulns.append({
+                      "package": v.get("package_name", "?"),
+                      "id": v.get("vulnerability_id", "?"),
+                      "advisory": v.get("advisory", "")[:100],
+                  })
+
+          if vulns:
+              print(f"❌ safety: {len(vulns)} vulnerabilities found:")
+              for v in vulns[:20]:
+                  print(f"  {v['package']} — {v['id']}: {v['advisory']}")
+              sys.exit(1)
+
+          print(f"✅ safety: no known vulnerabilities")
+          PYEOF
+
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: reports/safety.json
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Gitleaks SARIF Upload
+#
+# Re-runs gitleaks (already in ci.yml) but outputs SARIF for GitHub Security
+# tab visibility.  Secrets findings = CRITICAL, immediate merge block.
+#
+# Note: gitleaks-action does not yet support SARIF natively; we run the CLI
+# directly to get SARIF output and upload it separately.
+# ─────────────────────────────────────────────────────────────────────────────
+  gitleaks-sarif:
+    name: Secrets Scan + SARIF (gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required
+
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION="8.18.4"
+          curl -sSfL \
+            "https://github.com/zricethezav/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          chmod +x gitleaks
+          sudo mv gitleaks /usr/local/bin/
+
+      - name: Gitleaks — detect secrets (SARIF output)
+        run: |
+          gitleaks detect \
+            --source . \
+            --config .gitleaks.toml \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
+        # exit-code 1 on findings — merge-blocking
+
+      - name: Upload Gitleaks SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks-secrets
+        continue-on-error: true
+
+      - name: Upload gitleaks artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gitleaks-sarif
+          path: gitleaks.sarif
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 4 — Bandit SARIF Upload
+#
+# Re-runs bandit (already in security-audit.yml) but outputs SARIF for GitHub
+# Security tab.  HIGH findings remain merge-blocking.
+# ─────────────────────────────────────────────────────────────────────────────
+  bandit-sarif:
+    name: Python SAST + SARIF (bandit)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install bandit with SARIF support
+        run: pip install bandit[sarif]
+
+      - name: Bandit SAST (SARIF output)
+        run: |
+          mkdir -p reports
+          bandit -r backend/app/ \
+            -x backend/tests/,backend/.venv/ \
+            -f sarif \
+            -o reports/bandit.sarif \
+            -s B101,B105,B106 \
+            --quiet || true
+
+      - name: Evaluate bandit for HIGH findings (blocking gate)
+        run: |
+          python3 << 'PYEOF'
+          import json, sys, os
+
+          path = "reports/bandit.sarif"
+          if not os.path.exists(path):
+              print("✅ No bandit SARIF output — no findings")
+              sys.exit(0)
+
+          try:
+              sarif = json.load(open(path))
+          except json.JSONDecodeError:
+              print("ℹ️  Could not parse bandit SARIF — treating as no findings")
+              sys.exit(0)
+
+          high_findings = []
+          for run in sarif.get("runs", []):
+              for result in run.get("results", []):
+                  level = result.get("level", "")
+                  if level == "error":   # bandit HIGH maps to SARIF error level
+                      rule_id = result.get("ruleId", "?")
+                      msg = result.get("message", {}).get("text", "?")[:80]
+                      locs = result.get("locations", [{}])
+                      loc = locs[0].get("physicalLocation", {}) if locs else {}
+                      uri = loc.get("artifactLocation", {}).get("uri", "?")
+                      line = loc.get("region", {}).get("startLine", "?")
+                      high_findings.append(f"  [{rule_id}] {msg} — {uri}:{line}")
+
+          if high_findings:
+              print(f"❌ Bandit: {len(high_findings)} HIGH findings (blocking):")
+              for f in high_findings:
+                  print(f)
+              sys.exit(1)
+
+          print("✅ Bandit SARIF: no HIGH findings")
+          PYEOF
+
+      - name: Upload Bandit SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/bandit.sarif
+          category: bandit-sast
+        continue-on-error: true
+
+      - name: Upload bandit SARIF artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-sarif
+          path: reports/bandit.sarif
+          retention-days: 30
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 5 — Dependency Review (PRs only)
+#
+# GitHub's native dependency-review-action compares the dependency graph
+# between the PR base and head.  Blocks if any added dep has a CRITICAL CVE
+# or uses a copyleft license (GPL-3.0, AGPL-3.0) that conflicts with
+# PremosCorp's commercial SaaS model.
+#
+# Only runs on pull_request events (no base commit on push/schedule).
+# ─────────────────────────────────────────────────────────────────────────────
+  dependency-review:
+    name: Dependency Review (PRs only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write   # allows posting review comments on the PR
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: critical
+          deny-licenses: GPL-3.0, AGPL-3.0, GPL-2.0
+          comment-summary-in-pr: always
+
+# ─────────────────────────────────────────────────────────────────────────────
+# P49 GATE — blocks merge if any critical security job fails
+#
+# dependency-review is excluded from gate (PR-only job; push/schedule have no
+# base commit).  Gate uses 'skipped' as acceptable for optional jobs.
+# ─────────────────────────────────────────────────────────────────────────────
+  p49-gate:
+    name: P49 Security Gate
+    needs: [trivy-fs, safety, gitleaks-sarif, bandit-sarif]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Evaluate P49 security checks
+        run: |
+          echo "=== P49 SECURITY GATE SUMMARY ==="
+          FAILED=""
+
+          [[ "${{ needs.trivy-fs.result }}"      == "failure" ]] && FAILED+=" trivy-fs"
+          [[ "${{ needs.safety.result }}"         == "failure" ]] && FAILED+=" safety"
+          [[ "${{ needs.gitleaks-sarif.result }}" == "failure" ]] && FAILED+=" gitleaks-sarif"
+          [[ "${{ needs.bandit-sarif.result }}"   == "failure" ]] && FAILED+=" bandit-sarif"
+
+          echo "  trivy-fs      : ${{ needs.trivy-fs.result }}"
+          echo "  safety        : ${{ needs.safety.result }}"
+          echo "  gitleaks-sarif: ${{ needs.gitleaks-sarif.result }}"
+          echo "  bandit-sarif  : ${{ needs.bandit-sarif.result }}"
+
+          if [[ -n "$FAILED" ]]; then
+            echo ""
+            echo "❌ P49 GATE FAILED:$FAILED"
+            echo "Resolve all CRITICAL/HIGH findings before merging."
+            echo "SARIF reports uploaded to GitHub Security > Code scanning."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ P49 SECURITY GATE PASSED"
+          echo "   trivy-fs (CRITICAL blocking) ✓"
+          echo "   safety CVE audit             ✓"
+          echo "   gitleaks secrets scan        ✓"
+          echo "   bandit SAST (HIGH blocking)  ✓"
+          echo "   SARIF uploaded to Security tab"

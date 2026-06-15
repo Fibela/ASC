@@ -1,0 +1,34 @@
+# Dev dependencies and tooling
+.venv/
+venv/
+.venv-security/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+reports/
+tests/
+
+# Environment files — NEVER in image
+.env
+.env.*
+*.env
+
+# IDE and OS files
+.idea/
+.vscode/
+*.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+logs/

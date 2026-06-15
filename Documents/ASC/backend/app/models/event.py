@@ -26,3 +26,5 @@ class Event(Base):
     tags: Mapped[list] = mapped_column(JSON, default=list)
     correlated: Mapped[bool] = mapped_column(default=False)
     alert_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # P47 Multi-tenancy — NULL = single-tenant / default deployment
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)

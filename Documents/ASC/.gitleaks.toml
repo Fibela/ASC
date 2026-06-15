@@ -1,0 +1,74 @@
+# Gitleaks Configuration — ASC PremosCorp
+title = "ASC PremosCorp Gitleaks Config"
+
+[extend]
+# Usar reglas por defecto de gitleaks + las personalizadas
+useDefault = true
+
+# ─── Reglas personalizadas para ASC ──────────────────────────────────────────
+[[rules]]
+id = "asc-crowdstrike-client-secret"
+description = "CrowdStrike client secret detectado"
+regex = '''(?i)(crowdstrike[_-]?client[_-]?secret|cs[_-]?client[_-]?secret)\s*[=:]\s*['\"]?([a-zA-Z0-9]{32,})'''
+tags = ["crowdstrike", "secret", "asc"]
+
+[[rules]]
+id = "asc-paloalto-api-key"
+description = "Palo Alto API Key detectada"
+regex = '''(?i)(paloalto[_-]?api[_-]?key|panorama[_-]?key|panos[_-]?key)\s*[=:]\s*['\"]?([a-zA-Z0-9+/=]{20,})'''
+tags = ["paloalto", "firewall", "asc"]
+
+[[rules]]
+id = "asc-fortinet-token"
+description = "Fortinet API Token detectado"
+regex = '''(?i)(fortinet[_-]?api[_-]?token|fortigate[_-]?token)\s*[=:]\s*['\"]?([a-zA-Z0-9+/=]{16,})'''
+tags = ["fortinet", "firewall", "asc"]
+
+[[rules]]
+id = "asc-ad-password"
+description = "Active Directory password detectada"
+regex = '''(?i)(ad[_-]?bind[_-]?password|ldap[_-]?password|ad[_-]?pass)\s*[=:]\s*['\"]?([^\s'"]{8,})'''
+tags = ["active-directory", "ldap", "asc"]
+
+[[rules]]
+id = "asc-virustotal-key"
+description = "VirusTotal API Key detectada"
+regex = '''(?i)(virustotal[_-]?api[_-]?key|vt[_-]?key)\s*[=:]\s*['\"]?([a-f0-9]{64})'''
+tags = ["virustotal", "threat-intel", "asc"]
+
+# ─── Allowlist: valores de ejemplo que NO son secretos reales ──────────────────
+[allowlist]
+description = "Valores placeholder en archivos de ejemplo"
+paths = [
+    '''.env.example''',
+    '''docs[/\\]''',
+    '''tests[/\\]''',
+    '''\.secrets\.baseline''',
+    # Entornos virtuales — librerías de terceros, no código de la app
+    '''\.venv-security[/\\]''',
+    '''\.venv[/\\]''',
+    '''venv[/\\]''',
+    # Herramientas internas y reportes generados
+    '''\.tools[/\\]''',
+    # Frontend third-party packages — not app code
+    '''frontend[/\\]node_modules[/\\]''',
+    # Generated reports (contain raw secrets from scan output)
+    '''gitleaks_report\.json''',
+]
+
+regexes = [
+    # Valores genéricos en configs de ejemplo
+    '''generate-a-strong-random-key-here''',
+    '''changeme-set-in-env-file''',
+    '''changeme-generate-a-strong-key-in-production''',
+    '''your-.*-key-here''',
+    '''asc_pass''',       # Contraseña de ejemplo en docker-compose
+    '''asc_user''',
+    # Tokens de prueba en docs
+    '''invalid\.jwt\.token''',
+    '''cafebabe:deadbeef''',
+    # Load test placeholders (locustfile.py / P48)
+    '''REPLACE_ME_WITH_REAL_JWT_TOKEN''',
+    # CI-only placeholder secret (ci.yml / security-audit.yml)
+    '''ci-only-not-a-real-secret-key-change-in-prod''',
+]

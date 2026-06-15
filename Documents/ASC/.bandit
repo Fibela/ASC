@@ -1,0 +1,12 @@
+[bandit]
+# Directorios a excluir del análisis
+exclude_dirs = tests,.venv-security,.venv,node_modules,migrations
+
+# Niveles mínimos a reportar
+# MEDIUM o HIGH en severidad/confianza
+severity = medium
+confidence = medium
+
+# Tests deshabilitados (revisar caso a caso si se deshabilitan)
+# B101 = assert_used (en tests es OK)
+skips = B101

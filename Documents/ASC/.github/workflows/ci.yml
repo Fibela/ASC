@@ -1,0 +1,209 @@
+name: CI — ASC PremosCorp
+
+# Triggers: every push to main/develop/feature/fix branches, and every PR
+# targeting main or develop.  Concurrent runs on the same ref are cancelled
+# so only the latest commit runs (saves Actions minutes).
+on:
+  push:
+    branches: [main, master, develop, 'feature/**', 'fix/**']
+  pull_request:
+    branches: [main, master, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Lint (ruff)
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      # Errors annotated inline on the PR diff
+      - name: Ruff — lint
+        run: ruff check backend/app/ --output-format=github
+
+      # Format check (does not auto-fix; fails if formatting diverges)
+      - name: Ruff — format check
+        run: ruff format backend/app/ --check
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Backend Tests
+#
+# Key fixes vs original workflow:
+#   • Removed postgres + redis services — all tests use SQLite in-memory
+#     (conftest.py uses sqlite+aiosqlite:// URIs, no real DB required in CI)
+#   • Added libmagic1 system dep required by python-magic and yara-python
+#   • working-directory: backend so pytest.ini is found correctly
+#   • Removed -m "unit" marker filter — no test has that marker; filter
+#     caused 0 tests to be collected in CI (silent green = wrong)
+#   • Coverage threshold: 85% (P34 baseline — raised from 81% in P33)
+#   • aiosqlite installed via requirements-dev.txt (added in P8)
+# ─────────────────────────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests + Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libmagic1 build-essential libpq-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        working-directory: backend
+        env:
+          # Tests use SQLite via conftest.py fixture — DATABASE_URL is
+          # never used.  SECRET_KEY must satisfy Pydantic Settings validation.
+          SECRET_KEY: ci-only-not-a-real-secret-key-change-in-prod
+          DEBUG: "true"
+        run: |
+          pytest tests/ \
+            --tb=short \
+            --cov=app \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=85 \
+            -q
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: backend/coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true   # Codecov token not required; informational
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Frontend Tests
+#
+# Key fixes vs original workflow:
+#   • setupFilesAfterEnv fixed in jest.config.ts (was setupFilesAfterFramework
+#     — an invalid key, causing jest.setup.ts to be silently skipped)
+#   • npm test passes --ci flag (disables interactive watch mode in CI)
+#   • Explicit tsc --noEmit for TypeScript gate
+#   • Build check verifies Next.js standalone output compiles successfully
+# ─────────────────────────────────────────────────────────────────────────────
+  test-frontend:
+    name: Frontend Tests + Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Jest unit tests
+        working-directory: frontend
+        run: npm test -- --passWithNoTests --ci
+
+      - name: TypeScript type check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Next.js build validation
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 4 — Docker Build Validation
+# ─────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t asc_backend:ci ./backend/
+
+      - name: Build frontend image
+        run: docker build -t asc_frontend:ci ./frontend/
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+      # Trivy scans for OS-level CVEs in the built image.
+      # exit-code 0 = informational — unfixed CVEs in base images are common
+      # and outside our control.  Security-gate workflow handles blocking.
+      - name: Trivy — container vulnerability scan (backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: asc_backend:ci
+          format: table
+          exit-code: '0'
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 5 — Secrets Scan (gitleaks)
+# ─────────────────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: Secrets Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required for gitleaks
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CI GATE — blocks merge if any critical job fails
+# ─────────────────────────────────────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    needs: [lint, test-backend, test-frontend, docker-build, gitleaks]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Evaluate all jobs
+        run: |
+          echo "=== CI GATE SUMMARY ==="
+          FAILED=""
+          [[ "${{ needs.lint.result }}"          != "success" ]] && FAILED+=" lint"
+          [[ "${{ needs.test-backend.result }}"  != "success" ]] && FAILED+=" test-backend"
+          [[ "${{ needs.test-frontend.result }}" != "success" ]] && FAILED+=" test-frontend"
+          [[ "${{ needs.docker-build.result }}"  != "success" ]] && FAILED+=" docker-build"
+          [[ "${{ needs.gitleaks.result }}"      != "success" ]] && FAILED+=" gitleaks"
+
+          if [[ -n "$FAILED" ]]; then
+            echo "❌ FAILED JOBS:$FAILED"
+            echo "Fix all failures before requesting review."
+            exit 1
+          fi
+          echo "✅ ALL JOBS PASSED — ready for review"

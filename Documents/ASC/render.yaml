@@ -1,0 +1,100 @@
+# ─── ASC PremosCorp — Render Blueprint (Fase 1 deployment) ────────────────────
+#
+# Declarative infrastructure-as-code for Render.com.
+# Apply with: render deploy --yaml render.yaml
+# Or: push to main with "Auto-Deploy" enabled in Render Dashboard.
+#
+# Reference: https://render.com/docs/blueprint-spec
+#
+# Environment variables marked sync:false must be set manually in the
+# Render Dashboard (Settings → Environment) before the first deploy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: asc-backend
+    runtime: python
+    region: oregon           # closest to South America with free tier availability
+    plan: free               # upgrade to 'starter' ($7/mo) to remove spin-down
+
+    # Source
+    rootDir: backend
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+
+    # Render free tier: single worker required (multi-worker needs persistent disk)
+    # In-memory rate limiting is sufficient at free-tier traffic volumes.
+
+    # Health check — Render polls this to confirm the service is alive.
+    # Maps to @app.get("/health") in main.py (no auth, returns {"status":"ok"}).
+    healthCheckPath: /health
+
+    # Auto-deploy on push to main
+    autoDeploy: true
+
+    envVars:
+      # ── Required — set in Render Dashboard → Environment ──────────────────
+      - key: SECRET_KEY
+        sync: false                # Never committed — generate with: python -c "import secrets; print(secrets.token_hex(32))"
+
+      - key: DATABASE_URL
+        sync: false                # Supabase connection string (Session mode, port 5432)
+                                   # Format: postgresql+asyncpg://postgres.[ref]:[pass]@aws-0-*.pooler.supabase.com:5432/postgres
+
+      - key: CORS_ORIGINS
+        sync: false                # JSON array: ["https://asc-premoscorp.vercel.app","https://asc.premoscorp.com"]
+
+      # ── Optional — leave empty to disable integrations ─────────────────────
+      - key: REDIS_URL
+        value: ""                  # Empty = Celery in no-op mode (OK for Fase 1 / free tier)
+                                   # Set to Upstash URL to enable Celery tasks
+
+      - key: VIRUSTOTAL_API_KEY
+        value: ""
+
+      - key: ABUSEIPDB_API_KEY
+        value: ""
+
+      - key: OTXALIEN_API_KEY
+        value: ""
+
+      # ── Fixed values for Render ────────────────────────────────────────────
+      - key: DEBUG
+        value: "false"
+
+      - key: ALERT_CRITICAL_THRESHOLD
+        value: "0.85"
+
+      - key: ALERT_HIGH_THRESHOLD
+        value: "0.65"
+
+      - key: ALERT_MEDIUM_THRESHOLD
+        value: "0.40"
+
+      - key: RATE_LIMIT_LOGIN
+        value: "10/minute"
+
+      - key: RATE_LIMIT_REGISTER
+        value: "3/minute"
+
+      - key: RATE_LIMIT_REFRESH
+        value: "30/minute"
+
+      - key: RATE_LIMIT_CHANGE_PASSWORD
+        value: "10/minute"
+
+      - key: REQUEST_MAX_BODY_BYTES
+        value: "10485760"
+
+      - key: SPECTER_STRICT_SIGNATURE_MODE
+        value: "false"
+
+      # ── P39 — Prometheus scraper token ────────────────────────────────────
+      - key: METRICS_SCRAPE_TOKEN
+        sync: false              # Static bearer token for /api/v1/observability/metrics
+                                 # Empty = requires analyst+ JWT instead
+
+      # Render injects PORT automatically — do NOT set it here.
+      # uvicorn binds to $PORT (set in startCommand above).

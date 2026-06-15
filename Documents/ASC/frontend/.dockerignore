@@ -1,0 +1,27 @@
+# Build output (rebuilt inside Docker)
+.next/
+node_modules/
+
+# Environment files — NEVER in image
+.env
+.env.*
+*.env
+.env.local
+.env.production
+
+# Test artifacts
+coverage/
+__tests__/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*

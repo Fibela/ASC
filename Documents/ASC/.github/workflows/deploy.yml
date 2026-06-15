@@ -1,0 +1,205 @@
+name: Deploy — ASC PremosCorp
+
+# Triggered after a successful push to main — only deploys if CI gate passed.
+# Backend → Render (free tier web service, Python runtime)
+# Frontend → Vercel (Next.js, CDN global)
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   RENDER_API_KEY        — Render Dashboard → Account → API Keys
+#   RENDER_SERVICE_ID     — Render Dashboard → Service → Settings → Service ID
+#   VERCEL_TOKEN          — Vercel Dashboard → Settings → Tokens
+#   VERCEL_ORG_ID         — .vercel/project.json after `vercel link`
+#   VERCEL_PROJECT_ID     — .vercel/project.json after `vercel link`
+#
+# If secrets are not configured, deploy jobs are skipped (not failed).
+# This prevents blocking PRs from forks or pre-secret-setup branches.
+
+on:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false   # never cancel an in-flight deploy
+
+jobs:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Re-run CI gate inline (safety net — deploy never runs on broken code)
+# ─────────────────────────────────────────────────────────────────────────────
+  ci-check:
+    name: CI Gate (pre-deploy verification)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libmagic1 build-essential libpq-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage gate
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-not-a-real-secret-key-change-in-prod
+          DEBUG: "true"
+        run: |
+          pytest tests/ \
+            --tb=short \
+            --cov=app \
+            --cov-fail-under=85 \
+            -q
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — Deploy Backend to Render
+# ─────────────────────────────────────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend → Render
+    runs-on: ubuntu-latest
+    needs: ci-check
+    # Skip gracefully if Render secrets are not yet configured
+    if: |
+      needs.ci-check.result == 'success' &&
+      secrets.RENDER_API_KEY != '' &&
+      secrets.RENDER_SERVICE_ID != ''
+    environment:
+      name: production
+      url: https://asc-backend.onrender.com   # update to your Render URL
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          RESPONSE=$(curl -sf -X POST \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Accept: application/json" \
+            -d '{}')
+          echo "Deploy triggered: $RESPONSE"
+          DEPLOY_ID=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('id','unknown'))")
+          echo "DEPLOY_ID=$DEPLOY_ID" >> $GITHUB_ENV
+
+      - name: Wait for Render deploy to complete
+        run: |
+          echo "Waiting for deploy $DEPLOY_ID to complete..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sf \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$DEPLOY_ID" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              -H "Accept: application/json" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))")
+            echo "  Attempt $i/30 — status: $STATUS"
+            if [ "$STATUS" = "live" ]; then
+              echo "Deploy live!"
+              break
+            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "canceled" ]; then
+              echo "Deploy failed: $STATUS"
+              exit 1
+            fi
+            sleep 20
+          done
+
+      - name: Smoke test — backend health check
+        run: |
+          # Give Render a moment to route traffic to the new instance
+          sleep 15
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+            https://asc-backend.onrender.com/health || echo "000")
+          echo "Health check HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Health check failed (HTTP $HTTP_CODE) — investigate Render logs"
+            exit 1
+          fi
+          echo "Backend smoke test passed"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Deploy Frontend to Vercel
+# ─────────────────────────────────────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend → Vercel
+    runs-on: ubuntu-latest
+    needs: ci-check
+    # Skip gracefully if Vercel secrets are not yet configured
+    if: |
+      needs.ci-check.result == 'success' &&
+      secrets.VERCEL_TOKEN != '' &&
+      secrets.VERCEL_ORG_ID != '' &&
+      secrets.VERCEL_PROJECT_ID != ''
+    environment:
+      name: production
+      url: https://asc-premoscorp.vercel.app   # update to your Vercel URL
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (production)
+        working-directory: frontend
+        env:
+          VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          vercel deploy \
+            --prod \
+            --token "$VERCEL_TOKEN" \
+            --build-env NEXT_PUBLIC_API_URL="https://asc-backend.onrender.com" \
+            --yes
+
+      - name: Smoke test — frontend reachable
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+            https://asc-premoscorp.vercel.app || echo "000")
+          echo "Frontend HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Frontend smoke test failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Frontend smoke test passed"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPLOY GATE — summary
+# ─────────────────────────────────────────────────────────────────────────────
+  deploy-gate:
+    name: Deploy Gate
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    if: always()
+    steps:
+      - name: Evaluate deploy results
+        run: |
+          echo "=== DEPLOY SUMMARY ==="
+          BACKEND="${{ needs.deploy-backend.result }}"
+          FRONTEND="${{ needs.deploy-frontend.result }}"
+          echo "  backend  : $BACKEND"
+          echo "  frontend : $FRONTEND"
+
+          # 'skipped' means secrets not configured — not a failure
+          if [ "$BACKEND" = "failure" ] || [ "$FRONTEND" = "failure" ]; then
+            echo "One or more deploys failed — check logs above"
+            exit 1
+          fi
+
+          echo ""
+          echo "Deploy complete or skipped (secrets not configured)"
+          echo "ASC PremosCorp is live"

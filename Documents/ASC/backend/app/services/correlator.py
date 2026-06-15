@@ -139,6 +139,15 @@ async def evaluate_correlation_rules(events: list[dict], db: AsyncSession) -> li
             if len(smb_events) >= 2:
                 fired = True
 
+        elif rule["id"] == "rule_data_exfiltration":
+            exfil_events = [
+                e for e in events
+                if e.get("category") == "network"
+                and "exfil" in str(e.get("action", "")).lower()
+            ]
+            if exfil_events:
+                fired = True
+
         if fired:
             alerts_to_create.append({
                 "title":       rule["name"],
