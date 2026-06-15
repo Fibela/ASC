@@ -4369,6 +4369,34 @@ Siguiente: P62 — ASC Client Portal page en premoscorp.com (ruta /portal/seguri
 
 ---
 
+## Session 72 — 2026-06-15
+
+### P62 — ASC Client Portal page en premoscorp.com (FASE 6 — Sprint 4)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1279 | 2026-06-15 | DESIGN | **Arquitectura P62**: Página `/portal/seguridad` con 4 estados explícitos: (1) authLoading — spinner; (2) sin usuario — auth gate con openAuthModal; (3) logado/idle — botón SSO; (4) éxito — panel con tenant_id, role, masked token, link a asc.premoscorp.com. SSO call explícito por click (no automático en mount) para darle control al usuario. Token ASC en estado de React — nunca en localStorage. | APROBADO |
+| 1280 | 2026-06-15 | SECURITY | **Scan de seguridad P62**: (a) `session.access_token` de Supabase enviado al backend, no almacenado en localStorage; (b) ASC JWT permanece en estado React (cleared on unmount); (c) token mostrado enmascarado (.slice(0,20)...slice(-10)); (d) link externo con `rel="noopener noreferrer"` + `target="_blank"` (anti-tabnapping); (e) `VITE_ASC_API_URL`/`VITE_ASC_APP_URL` usadas — sin hardcodeo; (f) solo POST `/api/v1/auth/supabase-sso` llamado desde cliente — endpoint público de SSO; (g) `Content-Type: application/json` en el fetch; (h) .json().catch() previene crash si body no es JSON. | VERIFICADO |
+| 1281 | 2026-06-15 | IMPL | `src/pages/ASCPortal.jsx` — Componente React: 4 estados SSO (idle/loading/success/error), ROLE_META (admin/analyst), helpers InfoRow/ShieldIcon/LockIcon/LoginArrowIcon/ExternalLinkIcon inline (sin icon lib), copy-to-clipboard con feedback visual, `resetSSO()` limpia estado completo, graceful degradation cuando `!ASC_API` (sin botón) o `!ASC_APP` (mensaje "en preparación"). | COMPLETADO |
+| 1282 | 2026-06-15 | IMPL | `src/App.jsx` — Route `portal/seguridad` → `<ASCPortal />` lazy-imported, dentro del Layout wrapper (nav + footer). Variable `VITE_ASC_APP_URL` añadida a `.env.example`. | COMPLETADO |
+| 1283 | 2026-06-15 | IMPL | i18n: sección `ascPortal` (36 keys) añadida a todos los 8 idiomas: ES, EN, PT, FR, DE, ZH, JA, AR. Traducciones nativas en cada idioma. Patrón `lbl.xxx ?? 'fallback'` en el componente para degradación graceful si alguna clave falta. | COMPLETADO |
+| 1284 | 2026-06-15 | TEST | `tests/p62_asc_portal.test.js` — 289 tests en 7 grupos: FileExistence(3), Routing(5), SecurityInvariants(15), ComponentStructure(20), SSOFlowStates(18), I18nCoverage(8×27=216), EnvExample(4), RegressionGates(6). I18nCoverage valida que los 27 keys críticos existen y no están vacíos en los 8 idiomas. | 289/289 VERDE |
+| 1285 | 2026-06-15 | TEST | Suite completa sc_system post-P62: `npx vitest run` → **3259 passed (21 test files), 0 failed**. Delta: +289 tests, 0 regresiones. | VERDE |
+| 1286 | 2026-06-15 | REVIEW | **Bugs y edge cases cubiertos**: (1) `handleSSO` guarda contra `!session?.access_token || !ASC_API` antes de fetch; (2) `fetch.json().catch(()=>({}))` — body no-JSON (502 de proxy) no lanza; (3) error codes específicos: `asc_unreachable` (network failure), `user_inactive` (403), `sso_not_configured` (503); (4) `copied` state vuelve a false en 2.5s con `setTimeout`; (5) `resetSSO()` también resetea `copied`; (6) `authLoading` del `AuthContext` cubierto con spinner propio. | DOCUMENTADO |
+
+### Resumen Session 72
+
+Sprint: P62 — FASE 6 Sprint 4: ASC Client Portal page en premoscorp.com
+Ruta: `/portal/seguridad` — integrada en Layout (nav + footer)
+SSO flow: Usuario logado → click → POST /api/v1/auth/supabase-sso → panel tenant/role/token masked → link a ASC App
+Bugs encontrados: 0 (diseño limpio — fetch.json().catch, resetSSO completo, all 4 SSO states)
+Artefactos nuevos: ASCPortal.jsx, tests/p62_asc_portal.test.js
+Artefactos modificados: App.jsx, .env.example, 8 locale files (ascPortal section)
+Test delta: 2970 → 3259 (+289 tests, 0 regresiones)
+Siguiente: P63 — SPECTER Enrollment Portal en premoscorp.com (ruta /sectores/specter)
+
+---
+
 ## Session 67 — 2026-06-15
 
 ### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)

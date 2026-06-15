@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.4 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P61 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅) — 4462 tests ASC / 2970 tests sc_system, coverage 86.42%
+> Versión 4.5 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P62 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅) — 4462 tests ASC / 3259 tests sc_system, coverage 86.42%
 
 ---
 
@@ -678,7 +678,7 @@ React stores ASC token → redirects to asc.premoscorp.com/?token=...
 | P59 | SSO Bridge — Supabase JWT → ASC JWT | 28–29 | ✅ COMPLETADO |
 | P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ✅ COMPLETADO |
 | P61 | ASC Metrics Widget en premoscorp.com | 30 | ✅ COMPLETADO |
-| P62 | ASC Client Portal page en premoscorp.com | 31 | ⏳ PENDING |
+| P62 | ASC Client Portal page en premoscorp.com | 31 | ✅ COMPLETADO |
 | P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
 
 ### P59 — SSO Bridge (Supabase → ASC)
@@ -715,14 +715,20 @@ Entregables:
 - Tests: 63 tests estáticos Vitest — SecurityInvariants, ComponentStructure, MetricsCoverage, PageIntegration, EnvExample, CodeQuality
 - 0 serverless functions nuevas creadas (preserva límite 12/12 Vercel Hobby)
 
-### P62 — ASC Client Portal en premoscorp.com
-**Semana 31 | sc_system Frontend**
+### P62 — ASC Client Portal en premoscorp.com ✅ COMPLETADO
+**Semana 31 | sc_system Frontend | 2026-06-15**
 
 Entregables:
-- `src/pages/ASCPortal.jsx` — página `/portal/seguridad`
-- SSO button: “Acceder al Centro de Seguridad” → flujo SSO exchange
-- Post-SSO: muestra tenant_id, plan, link a `asc.premoscorp.com`
-- i18n: ES/EN mínimo
+- `src/pages/ASCPortal.jsx` — ruta `/portal/seguridad`, dentro del Layout (nav + footer)
+- 4 estados explícitos: authLoading → spinner; sin usuario → auth gate; idle → botón SSO; success → panel
+- SSO exchange: click explícito → `POST /api/v1/auth/supabase-sso` con `session.access_token` → muestra tenant_id, role, masked token
+- ROLE_META para admin/analyst con badges de color; banner “cuenta creada” para provisioned=true
+- Link `${VITE_ASC_APP_URL}` con `target=”_blank” rel=”noopener noreferrer”`
+- Graceful degradation: sin ASC_API → oculta botón SSO; sin ASC_APP → mensaje “en preparación”
+- ASC JWT en estado React — nunca localStorage (XSS hardening)
+- `VITE_ASC_APP_URL` añadida a `.env.example`
+- i18n: 36 keys en `ascPortal` namespace → todos los 8 idiomas (ES/EN/PT/FR/DE/ZH/JA/AR)
+- Tests: 289 tests (SecurityInvariants×15, ComponentStructure×20, SSOFlowStates×18, I18nCoverage×216, RegressionGates×6)
 - Tests: Vitest unit
 
 ### P63 — SPECTER Enrollment Portal

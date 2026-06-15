@@ -1,5 +1,79 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.6 | Actualizado: 2026-06-15 | P61 — ASC Metrics Widget en premoscorp.com (FASE 6 Sprint 3) — ASC: 4462 tests / sc_system: 2970 tests, coverage 86.42%
+> Versión 4.7 | Actualizado: 2026-06-15 | P62 — ASC Client Portal (FASE 6 Sprint 4) — ASC: 4462 tests / sc_system: 3259 tests, coverage 86.42%
+
+## P62 — ASC Client Portal page /portal/seguridad (FASE 6 Sprint 4) (2026-06-15)
+
+### Módulos implementados / extendidos (sc_system)
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| Portal Page | `src/pages/ASCPortal.jsx` | Página completa con 4 estados SSO + auth gate + panel de sesión |
+| Router | `src/App.jsx` | Route `portal/seguridad` → `<ASCPortal />` lazy, dentro de Layout |
+| Env Config | `.env.example` | Variable `VITE_ASC_APP_URL` declarada |
+| i18n | `src/locales/*/common.json` | Sección `ascPortal` (36 keys) en los 8 idiomas |
+
+### Flujo SSO completo
+
+```
+Usuario en /portal/seguridad:
+
+1. authLoading → spinner (AuthContext loading)
+2. !user → Auth gate
+       → openAuthModal('portal-seguridad') [Supabase OAuth popup]
+3. user logado + ssoStatus='idle' → Botón "Acceder al Centro de Seguridad"
+       → handleSSO() [click explícito, NO automático en mount]
+4. ssoStatus='loading' → spinner + texto "Verificando acceso..."
+       fetch POST /api/v1/auth/supabase-sso
+         body: { supabase_token: session.access_token }
+       ┌── res.ok ──→ ssoStatus='success', ssoData={access_token,tenant_id,user_id,email,role,provisioned}
+       └── !res.ok ──→ ssoStatus='error', ssoError={code, status}
+           Codes: asc_unreachable | user_inactive | sso_not_configured | sso_error
+5. ssoStatus='success' → Panel:
+       - Provisioned banner (si provisioned=true)
+       - Sesión ASC: email / tenant_id / user_id
+       - Role badge: admin (rojo) | analyst (verde)
+       - Token: masked (slice 0..20 + ...  + slice -10) + copy button
+       - Link a VITE_ASC_APP_URL (si configurado) ← noopener noreferrer
+       - "Iniciar nueva sesión" → resetSSO()
+```
+
+### Invariantes de seguridad verificadas
+
+| Invariante | Mecanismo |
+|---|---|
+| ASC JWT nunca en localStorage | Estado React — cleared on unmount |
+| Token enmascarado en UI | `slice(0,20)...slice(-10)` — nunca full token visible |
+| Link externo anti-tabnapping | `rel="noopener noreferrer" target="_blank"` |
+| Sin hardcodeo de URLs | `import.meta.env.VITE_ASC_API_URL/APP_URL` |
+| SSO solo con sesión activa | Guard `if (!session?.access_token || !ASC_API) return` |
+| Body no-JSON tolerado | `.json().catch(() => ({}))` — 502 de proxy no crashea |
+| Auth gate usa openAuthModal | No expone signIn directo — flujo OAuth popup estándar |
+| 0 nuevas serverless functions | Límite 12/12 Vercel Hobby preservado |
+
+### Tests P62 (289 tests, 7 clases)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| FileExistence | 3 | Archivos presentes, sin api/ nuevos |
+| Routing | 5 | lazy import, path, element, Layout wrapper, Layout import |
+| SecurityInvariants | 15 | Env vars, no hardcodeo, session.access_token, no localStorage, maskedToken, no secrets, endpoint path, Content-Type, no Bearer hardcoded, rel noopener, target _blank, no console.log |
+| ComponentStructure | 20 | default export, useAuth, session, useTranslation, lbl pattern, 4 useState, handleSSO async, guard, clipboard, resetSSO, imports, motion, easing, #8B1E1E, SVG inline, InfoRow helper |
+| SSOFlowStates | 18 | authLoading, !user gate, openAuthModal, idle/loading/error/success states, error codes (3), provisioned banner, tenant_id/user_id/role, maskedToken, copy, ASC_APP link, ascAppPending, retry, resetSSO, .json().catch |
+| I18nCoverage | 216 | 8 locales × 27 keys each — todas no-empty |
+| EnvExample | 4 | VITE_ASC_API_URL, VITE_ASC_APP_URL, sin hardcodeo, comentarios |
+| RegressionGates | 6 | P61 intacto, Seguridad.jsx/Home.jsx widgets intactos, rutas pre-P62, MiCuenta sin efectos, endpoint /supabase-sso correcto |
+
+**Resultado: 289/289 PASSED**
+
+### Métricas P62
+
+- Test delta sc_system: 2970 → 3259 (+289 tests, **0 regresiones**, 21 test files)
+- Locales modificados: 8/8 (ES, EN, PT, FR, DE, ZH, JA, AR)
+- ASC backend: 4462 tests, 86.42% coverage (sin cambios — P62 es solo sc_system)
+- i18n keys nuevas: 36 por idioma × 8 idiomas = 288 traducciones
+- Commit: pendiente
+
+---
 
 ## P61 — ASC Metrics Widget en premoscorp.com (FASE 6 Sprint 3) (2026-06-15)
 
