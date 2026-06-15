@@ -4310,6 +4310,37 @@ Siguiente: P60 — Stripe → ASC Tenant Auto-Provisioning
 
 ---
 
+## Session 70 — 2026-06-15
+
+### P60 — Stripe → ASC Tenant Auto-Provisioning (FASE 6 — Sprint 2)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1260 | 2026-06-15 | DESIGN | **Análisis P60**: `Tenant` ya tenía `stripe_customer_id`/`stripe_subscription_id` (P55). Faltaba: (a) handler `checkout.session.completed` para provisioning automatico, (b) `customer.subscription.created`, (c) campo de idempotencia para prevenir doble-provisioning en replay de Stripe. Decisión: `stripe_checkout_session_id` VARCHAR(255) UNIQUE como guard de idempotencia. | APROBADO |
+| 1261 | 2026-06-15 | IMPL | `backend/migrations/versions/v2p45s4u7o09_add_stripe_checkout_p60.py` — **Creado**. Migración #18 (down_revision=u1o34r3t6n08): `op.add_column("tenants", sa.Column("stripe_checkout_session_id", sa.String(255), nullable=True))` + `op.create_index("ix_tenants_stripe_checkout_session_id", ..., unique=True)`. Total migraciones: **18**. | COMPLETADO |
+| 1262 | 2026-06-15 | IMPL | `backend/app/models/tenant.py` — Campo `stripe_checkout_session_id: Mapped[str \| None]` añadido (String(255), nullable=True, unique=True). | COMPLETADO |
+| 1263 | 2026-06-15 | IMPL | `backend/app/core/config.py` — P60 section: `STRIPE_PROVISIONING_PLAN: str = "pro"` (plan asignado en checkout), `STRIPE_SEGURIDAD_PRODUCT_ID: str = ""` (filtro opcional por product ID). | COMPLETADO |
+| 1264 | 2026-06-15 | IMPL | `backend/app/api/v1/endpoints/billing.py` — **Extendido**. Nuevos imports: `secrets`, `uuid`, `get_password_hash`. Nueva función `_provision_stripe_customer(customer_email, stripe_customer_id, stripe_subscription_id, checkout_session_id, db)`: (1) idempotency guard por checkout_session_id, (2) lookup por stripe_customer_id → upgrade plan, (3) lookup usuario por email → link tenant, (4) auto-provision Tenant+admin User. Webhook extendido: maneja `checkout.session.completed`, `customer.subscription.created` (con filtro opcional por product_id). P55 events (`subscription.updated/deleted`) preservados como rama `elif`. | COMPLETADO |
+| 1265 | 2026-06-15 | SECURITY | **Invariantes P60**: (a) `stripe_checkout_session_id` UNIQUE → doble webhook ignorado silenciosamente; (b) admin User tiene `hashed_password = get_password_hash(secrets.token_urlsafe(32))` — login directo imposible; (c) `email_verified=True` — Stripe ya validó el email; (d) `STRIPE_SEGURIDAD_PRODUCT_ID` filter evita provisioning accidental de otros productos; (e) ningún `sk_live_`/`whsec_` hardcodeado en código fuente (scan regex confirmado). | VERIFICADO |
+| 1266 | 2026-06-15 | IMPL | `render.yaml` + `.env.example` — P60 vars: `STRIPE_PROVISIONING_PLAN=pro`, `STRIPE_SEGURIDAD_PRODUCT_ID=`. | COMPLETADO |
+| 1267 | 2026-06-15 | FIX | Regression gates P58/P59 ampliados: OR conditions para aceptar count=16\|17\|18 y heads P58\|P59\|P60 — gates son forward-compatible en lugar de strict. | CORREGIDO |
+| 1268 | 2026-06-15 | TEST | `backend/tests/test_p60_stripe_provisioning.py` — **Creado**. 78 tests en 8 clases (asyncio+trio dual): TestCheckoutSessionWebhook(8×2=16), TestProvisionStripeTenant(10×2=20), TestSubscriptionCreatedHandler(4×2=8), TestSecurityInvariants(9), TestMigrationArtifact(6), TestConfigCompleteness(6), TestModuleStructure(6), TestRegressionGates(7). | **78/78 PASS** |
+| 1269 | 2026-06-15 | TEST | Suite completa post-P60: `python -m pytest tests/ --tb=short -q` → **4462 passed, 16 skipped, 0 failed** en 284s (4:44). Coverage: **86.42%** (gate 85% superado). Test delta: 4383 → 4462 (+79 tests, 0 regresiones). | **VERDE** |
+| 1270 | 2026-06-15 | IMPL | Commit `f956610` — `feat(P60/FASE6): Stripe → ASC Tenant Auto-Provisioning`. 11 archivos, +1047 líneas. Push exitoso a origin/master. | COMPLETADO |
+
+### Resumen Session 70
+
+Sprint: P60 — FASE 6 Sprint 2: Stripe Checkout → ASC Tenant Auto-Provisioning
+Arquitectura: Stripe `checkout.session.completed` → billing webhook → `_provision_stripe_customer()` → Tenant+admin User (o upgrade de tenant existente)
+Idempotencia: `stripe_checkout_session_id` UNIQUE index — webhook replay no genera usuarios duplicados
+Bugs encontrados: 0 (diseño limpio — model y helper bien aislados)
+Módulos nuevos: migration #18 v2p45s4u7o09, `_provision_stripe_customer()` helper en billing.py
+Artefactos modificados: billing.py (new handler + helper), tenant.py, config.py, render.yaml, .env.example, test_p56/p57/p58/p59 (gates OR)
+Test delta: 4383 → 4462 (+79 tests, 0 regresiones) | Coverage: 86.42%
+Siguiente: P61 — ASC Metrics Widget en premoscorp.com (sc_system frontend)
+
+---
+
 ## Session 67 — 2026-06-15
 
 ### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)

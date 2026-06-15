@@ -1,5 +1,58 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.4 | Actualizado: 2026-06-15 | P59 — SSO Bridge Supabase→ASC (FASE 6 Sprint 1) — 4383 tests, coverage 86.33%
+> Versión 4.5 | Actualizado: 2026-06-15 | P60 — Stripe Checkout Auto-Provisioning (FASE 6 Sprint 2) — 4462 tests, coverage 86.42%
+
+## P60 — Stripe → ASC Tenant Auto-Provisioning (FASE 6 Sprint 2) (2026-06-15)
+
+### Módulos implementados / extendidos
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| Migration #18 | `migrations/versions/v2p45s4u7o09_add_stripe_checkout_p60.py` | `stripe_checkout_session_id VARCHAR(255) UNIQUE` en `tenants` (idempotencia) |
+| Tenant Model | `app/models/tenant.py` | Campo `stripe_checkout_session_id` añadido |
+| Billing Webhook | `app/api/v1/endpoints/billing.py` | `_provision_stripe_customer()` + handler `checkout.session.completed` + `customer.subscription.created` |
+| Config | `app/core/config.py` | `STRIPE_PROVISIONING_PLAN=pro`, `STRIPE_SEGURIDAD_PRODUCT_ID=""` |
+
+### `_provision_stripe_customer()` — Lógica de resolución
+
+```
+1. Idempotencia: ¿checkout_session_id ya en DB? → return existing (no-op)
+2. Lookup por stripe_customer_id → upgrade plan + link subscription
+3. Lookup usuario por email → link tenant existente a Stripe
+4. Auto-provision: new Tenant(plan=STRIPE_PROVISIONING_PLAN) + admin User(random password)
+```
+
+### Tests P60 (78 tests, 8 clases)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| TestCheckoutSessionWebhook | 8×2=16 | 200 ack, received=True, provision called, no email skipped, no customer skipped, product filter blocks/allows, unknown event acks |
+| TestProvisionStripeTenant | 10×2=20 | 2 objects added, plan from config, admin role, stripe_customer_id set, checkout_session_id set, existing by stripe_id not provisioned, plan upgrade, idempotency returns existing, email link, email_verified=True |
+| TestSubscriptionCreatedHandler | 4×2=8 | active upgrades plan+sub_id, incomplete no-update, unknown customer ignored, subscription.deleted still downgrades (P55 regression) |
+| TestSecurityInvariants | 9 | provision fn async, checkout_session_id column exists+unique, no sk_live_ hardcoded, no whsec_ hardcoded, email_verified in source, admin role in source, provisioning plan ≠enterprise, P55 sig validation intact |
+| TestMigrationArtifact | 6 | file exists, down_revision=P59, creates column, unique index, downgrade, count=18 |
+| TestConfigCompleteness | 6 | STRIPE_PROVISIONING_PLAN in config, STRIPE_SEGURIDAD_PRODUCT_ID in config, render.yaml both vars, .env.example var, provision fn importable |
+| TestModuleStructure | 6 | stripe_checkout_session_id on Tenant, billing imports get_password_hash/secrets/uuid, checkout.session.completed in webhook, customer.subscription.created in webhook |
+| TestRegressionGates | 7 | P59 migration present, P58 migration present, stripe_customer_id still in model, stripe_subscription_id still in model, subscription.deleted still handled, p57 count ≥16, p56 count ≥16 |
+
+**Resultado: 78/78 PASSED (asyncio + trio dual-backend)**
+
+### Invariantes de seguridad verificadas
+
+- `stripe_checkout_session_id` UNIQUE index → webhook replay (Stripe entrega a veces 2×) → no-op silencioso
+- Admin User: `hashed_password = get_password_hash(secrets.token_urlsafe(32))` — login directo imposible
+- `email_verified=True` en Stripe-provisioned users — Stripe ya validó el email del customer
+- `STRIPE_SEGURIDAD_PRODUCT_ID` filter — si está configurado, solo checkout sessions con `metadata.product_id` matching activan provisioning
+- Ningún `sk_live_*` ni `whsec_*` hardcodeado — verificado por regex scan en todo `app/`
+- P55 invariante preservado: `subscription.deleted` sigue degradando plan a "free" (rama `elif` en webhook)
+
+### Métricas P60
+
+- Test delta: 4383 → 4462 (+79 tests, **0 regresiones**)
+- Coverage: **86.42%** (gate 85.00% superado)
+- Migración: #18 `v2p45s4u7o09` (stripe_checkout_session_id + unique index)
+- Commit: `f956610`
+
+---
 
 ## P59 — SSO Bridge: Supabase JWT → ASC JWT Exchange (FASE 6 Sprint 1) (2026-06-15)
 

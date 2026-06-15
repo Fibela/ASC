@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.2 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P59 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 iniciada (P59✅) — 4383 tests, coverage 86.33%
+> Versión 4.3 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P60 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅) — 4462 tests, coverage 86.42%
 
 ---
 
@@ -676,7 +676,7 @@ React stores ASC token → redirects to asc.premoscorp.com/?token=...
 | Sprint | Nombre | Semana | Estado |
 |--------|--------|--------|--------|
 | P59 | SSO Bridge — Supabase JWT → ASC JWT | 28–29 | ✅ COMPLETADO |
-| P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ⏳ PENDING |
+| P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ✅ COMPLETADO |
 | P61 | ASC Metrics Widget en premoscorp.com | 30 | ⏳ PENDING |
 | P62 | ASC Client Portal page en premoscorp.com | 31 | ⏳ PENDING |
 | P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
