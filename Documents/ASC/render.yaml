@@ -36,6 +36,10 @@ services:
     autoDeploy: true
 
     envVars:
+      # ── Python version pin (Render free tier defaults to latest = 3.14) ───
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
       # ── Required — set in Render Dashboard → Environment ──────────────────
       - key: SECRET_KEY
         sync: false                # Never committed — generate with: python -c "import secrets; print(secrets.token_hex(32))"
