@@ -1,5 +1,41 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 3.8 | Actualizado: 2026-06-14 | P51 — Multi-Tenancy Enforcement — 3716 tests, coverage 85.45%
+> Versión 3.9 | Actualizado: 2026-06-14 | P56 — Deployment Readiness — 3800 tests, coverage 85.45%
+
+## P56 — Deployment Readiness (2026-06-14)
+
+### Suite test_p56_deployment_readiness.py
+
+**84 tests, 9 clases — CI-safe (sin DB, sin servicios externos)**
+
+| Clase | Tests | Qué valida |
+|-------|-------|-----------|
+| TestSecurityPreDeploy | 9 | No secrets hardcoded en fuente Python, .env excluido, certs protegidos en gitignore, no DB password remota en source |
+| TestInfrastructure | 13 | Dockerfiles existen y usan non-root, .dockerignore excluye .env, render.yaml health=/health + sync:false, docker-compose tiene nginx, next.config.js standalone |
+| TestDatabaseMigrations | 6 | Dir migraciones existe, 13 archivos, tags de sprints presentes, alembic.ini, head único = p6j79m8o1i93, chain sin gaps |
+| TestCICDWorkflows | 11 | deploy.yml: ci-check/deploy-backend/deploy-frontend/gate jobs, ci-check gate, backend needs ci-check, secrets check graceful, coverage cov-fail-under=85, trigger main/master, p49 workflow |
+| TestEnvironmentConfig | 12 | .env.example existe, 9 keys requeridas (SECRET_KEY DATABASE_URL CORS_ORIGINS DEBUG REDIS_URL NEXT_PUBLIC_API_URL METRICS_SCRAPE_TOKEN RATE_LIMIT_LOGIN ALERT_CRITICAL_THRESHOLD), CORS_ORIGINS es JSON array, SECRET_KEY es placeholder, DATABASE_URL es placeholder |
+| TestApplicationHealth | 8 | app importable, /health en routes, /health sin auth deps, config importable, api_router importable, TenantMiddleware importable, tenant_context functions, todos los modelos importables |
+| TestFrontendConfig | 8 | next.config.js standalone, security headers (X-Content-Type-Options, X-Frame-Options, CSP), package.json build+start scripts, @playwright/test en devDeps, playwright.config.ts, e2e/ dir, tsconfig excluye e2e |
+| TestEndpointAudit | 5 | /health registrado, /api/v1/ paths >= 5, /docs oculto en prod, /openapi.json oculto, auth endpoints registrados |
+| TestDeploymentRegression | 12 | tenant_id en User/APIKey/Webhook, p49 workflow, p50 workflow, TenantMiddleware en main.py, tenant_filter.py, tenant_context.py, observability endpoint, sdk dir, locustfile.py, deployment-guide.md, .gitleaks.toml |
+
+**Resultado: 84/84 PASSED — commit SHA 97cb974 subido a Fibela/ASC**
+
+### Auditoría de seguridad pre-deploy
+
+| Control | Herramienta | Resultado |
+|---------|-------------|-----------|
+| Secrets en source code | gitleaks + regex scan | 0 leaks reales |
+| Vulnerabilidades Python | bandit -r backend/app | 0 HIGH, 3 LOW (urllib/subprocess — documentados) |
+| .env en repositorio | test + git status | .env no presente, gitignored |
+| TLS certificates en git | file scan *.pem/*.key | 0 archivos de certificados |
+| DB password en source | regex scan excl. config.py | 0 encontradas |
+| Real JWT en source | regex eyJ{20+} | 0 encontrados |
+| Real API keys en source | regex 40+ char hex keys | 0 encontrados |
+| Docker non-root users | Dockerfile parse | appuser (uid 1001), nextjs (uid 1001) |
+| Coverage artifacts en git | .gitignore check | .coverage, htmlcov/, coverage.xml excluidos |
+
+---
 
 ## P51 — Multi-Tenancy Enforcement (2026-06-14)
 

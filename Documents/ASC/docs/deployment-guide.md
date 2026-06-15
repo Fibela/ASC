@@ -314,3 +314,93 @@ docker compose exec backend alembic current          # revisión activa
 docker compose exec postgres psql -U asc_user asc_db # psql directo
 docker compose restart celery-worker                 # reiniciar workers
 ```
+
+---
+
+## P56 — Checklist de Activación (Fase 1 First Deploy)
+
+> Estado: Código en GitHub (SHA 97cb974). Pasos pendientes que requieren acción en servicios externos.
+
+### Paso 1 — GitHub Secrets (prerequisito para CI/CD)
+
+Ir a `https://github.com/Fibela/ASC/settings/secrets/actions` y crear:
+
+| Secret | Cómo obtener |
+|--------|-------------|
+| `SECRET_KEY` | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `DATABASE_URL` | Supabase → Project Settings → Database → Connection String (Session mode, puerto 5432) |
+| `CORS_ORIGINS` | `["https://<tu-proyecto>.vercel.app","https://asc.premoscorp.com"]` |
+| `RENDER_API_KEY` | Render Dashboard → Account → API Keys → Create Key |
+| `RENDER_SERVICE_ID` | Render Dashboard → asc-backend → Settings → Service ID |
+| `VERCEL_TOKEN` | Vercel Dashboard → Settings → Tokens → Create |
+| `VERCEL_ORG_ID` | `cat frontend/.vercel/project.json` tras `cd frontend && vercel link` |
+| `VERCEL_PROJECT_ID` | Ídem |
+
+### Paso 2 — Supabase
+
+1. Crear proyecto en https://supabase.com (sin tarjeta de crédito)
+2. Project Settings → Database → Connection String → modo **Session** (puerto 5432)
+3. Generar SQL de migraciones: `cd backend && alembic upgrade head --sql > supabase_migrations.sql`
+4. Supabase Dashboard → SQL Editor → New query → pegar y ejecutar `supabase_migrations.sql`
+5. Verificar: `SELECT version FROM alembic_version;` — debe retornar `p6j79m8o1i93`
+6. Auth → Disable "Enable email confirmations" (ASC usa su propio JWT, no Supabase Auth)
+
+### Paso 3 — Render (Backend)
+
+1. Crear cuenta en https://render.com
+2. New → **Blueprint** → Connect GitHub repo `Fibela/ASC`
+3. Render detecta `render.yaml` y crea el servicio `asc-backend` (Oregon, free tier)
+4. En el servicio → Environment → añadir las variables con `sync: false`:
+   - `SECRET_KEY` (desde GitHub Secret)
+   - `DATABASE_URL` (URL de Supabase Session mode)
+   - `CORS_ORIGINS` (JSON array con URL de Vercel)
+   - `DEBUG=false`
+   - `REDIS_URL=` (vacío — Celery desactivado en Fase 1)
+5. Manual Deploy → deploy inicial
+6. Smoke test: `curl https://asc-backend.onrender.com/health` → `{"status":"ok"}`
+
+**Nota free tier:** Spin-down tras 15 min inactividad. Cold start ~30s. Para 24/7 → Render Starter $7/mes.
+
+### Paso 4 — Vercel (Frontend)
+
+```bash
+cd frontend
+npm install -g vercel
+vercel link          # asocia el proyecto → genera .vercel/project.json
+vercel deploy --prod
+```
+
+En Vercel Dashboard → Settings → Environment Variables:
+- `NEXT_PUBLIC_API_URL` = `https://asc-backend.onrender.com`
+
+Custom domain (opcional): Vercel → Domains → `asc.premoscorp.com` → DNS CNAME → `cname.vercel-dns.com`
+
+### Paso 5 — Verificación final
+
+```bash
+# Backend health
+curl https://asc-backend.onrender.com/health
+# → {"status":"ok","version":"3.6","db":"connected"}
+
+# Auth smoke test
+curl -X POST https://asc-backend.onrender.com/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@premoscorp.com","password":"Admin@1234!","full_name":"Admin"}'
+# → {"id":"...","email":"admin@premoscorp.com","role":"admin",...}
+
+# Frontend
+open https://<tu-proyecto>.vercel.app
+# → Login page visible, no console errors
+```
+
+### P56 — Test Suite de Validación
+
+```bash
+# Ejecutar suite de deployment readiness (CI-safe, sin DB externa)
+cd backend && python -m pytest tests/test_p56_deployment_readiness.py -v
+# → 84/84 PASSED
+
+# Suite completa con coverage
+python -m pytest tests/ --cov=app --cov-fail-under=85
+# → 3800 passed, coverage ≥ 85%
+```

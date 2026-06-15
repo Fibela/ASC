@@ -4148,3 +4148,29 @@ Archivos modificados: backend/app/core/security.py (+tenant_id en create_access_
 Test delta: 3666 → 3716 (+50 tests, P51: 47 nuevos)
 Coverage: 85.45% (gate 85% superado)
 Schema: Sin nuevas migraciones Alembic (tenant_id ya existía de P47 — P51 solo activa el enforcement)
+
+---
+
+## Session 63 — 2026-06-14
+
+### P56 — Deployment Readiness (Fase 1: Supabase + Render + Vercel)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1182 | 2026-06-14 | SECURITY | **Auditoría pre-commit completa**: (1) gitleaks scan — 0 leaks reales en código fuente. (2) Bandit scan — 0 HIGH en app/ (3 LOW en urllib subprocess usage, documentado). (3) Verificación .env — NO existente en proyecto root. (4) TLS certs — infra/nginx/certs/ protegido con .gitignore (*.pem, *.key). (5) supabase_migrations.sql — confirmado NO en git. (6) Dockerfiles — usuarios no-root (appuser uid 1001, nextjs uid 1001). (7) /docs y /openapi.json ocultos con DEBUG=False. | LIMPIO — 0 leaks |
+| 1183 | 2026-06-14 | IMPL | `.gitignore` actualizado con cobertura completa: `.env.staging`, artefactos coverage (`.coverage`, `htmlcov/`, `coverage.xml`, `coverage.json`, `*.coverage`), artefactos Playwright (`playwright-report/`, `playwright-results.xml`, `playwright-artifacts/`, `test-results/`), `backend/supabase_migrations.sql`. | COMPLETADO |
+| 1184 | 2026-06-14 | IMPL | `backend/tests/test_p56_deployment_readiness.py` — **Creado**. 84 tests, 9 clases cobriendo: seguridad pre-deploy (9 tests — no JWT hardcoded, no API keys, .env excluido, certs protegidos), infraestructura (13 tests — Dockerfiles, .dockerignore, render.yaml, healthcheck, standalone), migraciones Alembic (6 tests — chain integridad, 13 migrations, head p6j79m8o1i93), CI/CD workflows (11 tests — ci-check gate, deploy jobs, coverage 85%), config de entorno (12 tests — 9 keys required en .env.example, CORS array JSON, placeholders), app health (8 tests — importabilidad, /health sin auth, TenantMiddleware, modelos), frontend (8 tests — standalone output, security headers, package.json scripts), endpoint audit (5 tests — /health público, /docs oculto prod), regresión P47-P51 (12 tests). | 84/84 PASS |
+| 1185 | 2026-06-14 | DEPLOY | **Commit inicial P01-P56** — SHA `97cb974` pusheado a `https://github.com/Fibela/ASC.git` branch master. 340 archivos, 119,139 inserciones: backend completo (FastAPI + Alembic + 13 migraciones + 75+ tests), frontend (Next.js 14 + E2E Playwright), asc-agent (Specter), SDK (asc_sdk), load_tests (Locust), IaC (render.yaml, docker-compose.yml, Dockerfiles, nginx.conf, .github/workflows/), docs, scripts. | PUSH OK |
+| 1186 | 2026-06-14 | IMPL | **Guía de despliegue actualizada** — deployment-guide.md actualizado con checklist P56: Supabase (migration head p6j79m8o1i93, conexión Session mode puerto 5432), Render (Blueprint via render.yaml, 5 env vars, deploy automático), Vercel (vercel.json con security headers, env NEXT_PUBLIC_API_URL), GitHub Secrets (8 secrets documentados), smoke tests post-deploy. | COMPLETADO |
+| 1187 | 2026-06-14 | SECURITY | **Endpoint audit P56**: /health — sin auth (GET 200 en Render liveness probe). /api/v1/auth/login — público (necesario). /api/v1/api-keys, /api/v1/webhooks — requieren JWT (verificado en test suite P40/P42). /api/v1/admin/*, /api/v1/users/* — requieren JWT + role=admin (verificado en RBAC tests P36). /metrics — requiere METRICS_SCRAPE_TOKEN header (Bearer). /docs, /openapi.json — 404 en producción (DEBUG=False). | OK |
+| 1188 | 2026-06-14 | TEST | `test_p56_deployment_readiness.py`: **84/84 PASSED** — 0 fallos. Suite CI-safe (sin DB, sin redis, sin servicios externos). Verifica: IaC files, Dockerfiles non-root, render.yaml, .gitignore coverage/playwright, no secrets en source, Alembic chain, CI/CD workflows, .env.example completeness, /health importable, next.config.js standalone+headers, regresión P47-P51. | 84 passed |
+
+### Resumen Session 63
+
+Sprint: P56 — Deployment Readiness Fase 1 (Supabase + Render + Vercel)
+Archivos creados: backend/tests/test_p56_deployment_readiness.py
+Archivos modificados: .gitignore (+coverage +playwright +staging .env), docs/deployment-guide.md (+P56 checklist), docs/ROADMAP.md (v3.7 + P56 section), docs/testing-and-audit.md (P56 section), docs/AUDIT_LOG.md (Session 63)
+GitHub: SHA 97cb974 — 340 archivos, 119,139 inserciones — push exitoso a Fibela/ASC master
+Test delta: 3716 → 3800 (+84 tests P56)
+Coverage: sin cambio en lógica de negocio (tests estáticos) — 85.45% mantenida
+Siguiente: P52 (Tenant Management API) · P53 (Onboarding) · P54 (Per-plan Caps)

@@ -1,5 +1,5 @@
-﻿# ASC PremosCorp â€” Roadmap de Desarrollo
-> Versión 3.6 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P51 completados — P51 Multi-Tenancy Enforcement activo — 3716 tests, coverage 85.45%
+﻿# ASC PremosCorp — Roadmap de Desarrollo
+> Versión 3.7 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P56 completados — Deploy Fase 1 ready (SHA 97cb974 en Fibela/ASC) — 3800 tests, coverage 85.45%
 
 ---
 
@@ -1045,3 +1045,79 @@ WHERE api_keys.tenant_id IS NULL  ← registros legacy / single-tenant
 - Deployment artifacts: todos los archivos verificados
 - Regression: P40/P41/P42/P43 imports + endpoints sin auth = 401
 - Coverage total: 85.36% (gate 85% superado)
+
+---
+
+## v3.7 — Sprint P56: Deployment Readiness Fase 1
+
+**Objetivo:** Auditoría pre-deploy, cleanup gitignore, suite de readiness, commit inicial y push a GitHub con guía completa de activación Supabase+Render+Vercel.
+
+### Contexto
+
+P56 cierra el ciclo de desarrollo pre-producción de ASC v3.6. Todo el trabajo P01–P51 está en git y el deploy a la infraestructura Fase 1 (free tier) está bloqueado únicamente por la creación de cuentas y secrets en servicios externos.
+
+### Entregables P56
+
+| Entregable | Estado | Archivo/SHA |
+|-----------|--------|-------------|
+| Auditoría de seguridad pre-commit | COMPLETADO | 0 leaks, certs protegidos, no .env en repo |
+| .gitignore actualizado | COMPLETADO | .gitignore (+coverage +playwright +supabase_migrations.sql) |
+| test_p56_deployment_readiness.py | COMPLETADO | backend/tests/test_p56_deployment_readiness.py |
+| Commit inicial P01-P56 | COMPLETADO | SHA 97cb974 → github.com/Fibela/ASC |
+| Guía activación Fase 1 | COMPLETADO | docs/deployment-guide.md (sección P56) |
+| AUDIT_LOG + ROADMAP actualizados | COMPLETADO | docs/ Session 63 |
+
+### Test Suite P56 (84 tests, 9 clases)
+
+| Clase | Tests | Cubre |
+|-------|-------|-------|
+| TestSecurityPreDeploy | 9 | No JWT/API keys hardcoded, .env excluido, certs protegidos, coverage en .gitignore |
+| TestInfrastructure | 13 | Dockerfiles non-root + healthcheck, .dockerignore, render.yaml health+sync, standalone |
+| TestDatabaseMigrations | 6 | Chain Alembic 13 migrations, head p6j79m8o1i93, no gaps |
+| TestCICDWorkflows | 11 | ci-check gate, deploy jobs, coverage 85%, secrets check, p49/p50 workflows |
+| TestEnvironmentConfig | 12 | 9 required keys en .env.example, CORS array JSON, placeholders (no real values) |
+| TestApplicationHealth | 8 | App importable, /health sin auth, TenantMiddleware, todos los modelos importables |
+| TestFrontendConfig | 8 | standalone output, security headers, package.json scripts, Playwright, tsconfig |
+| TestEndpointAudit | 5 | /health público, /api/v1/ registrado, /docs oculto en prod |
+| TestDeploymentRegression | 12 | P47 tenant_id, P49 security gates, P50 e2e, P51 middleware+filter, SDK, load_tests |
+
+**Resultado: 84/84 PASSED — suite CI-safe sin servicios externos**
+
+### Arquitectura de Aislamiento (P51 — activo en deploy)
+
+```
+Request → [JWT: tenant_id claim]
+              │
+              ▼
+    TenantMiddleware (ContextVar)
+              │
+    ┌─────────┴──────────┐
+    │ tid=None            │ tid="xyz"
+    │ → IS NULL           │ → = "xyz"
+    │ (single-tenant)     │ (strict isolation)
+    └────────────────────┘
+              │
+    apply_tenant_filter(stmt, Model)
+              │
+              ▼
+    SELECT * FROM api_keys WHERE tenant_id [IS NULL | = 'xyz']
+```
+
+### Siguientes sprints (backlog prioritizado)
+
+| Sprint | Objetivo | Descripción |
+|--------|----------|-------------|
+| **P52** | Tenant Management API | CRUD tenants, onboarding de nuevos clientes, plan assignment |
+| **P53** | Onboarding Flow | Registro self-service, email verification, first-login wizard |
+| **P54** | Per-plan Resource Caps | Límites por plan (max_alerts, max_api_keys, max_agents) enforced en middleware |
+| **P55** | Billing/Metering | Conteo de usage, Stripe integration, upgrade prompts |
+| **P57** | Adapter Registry per-tenant | Configuración de integraciones por tenant (ahora son globales) |
+| **P58** | Next.js upgrade | 14.2.15 → 16.x (5 CVEs documentados en P13) |
+
+### Gaps críticos para SaaS comercialización
+
+- **Tenant Management API (P52)**: No existe endpoint para crear/gestionar tenants. El campo `tenant_id` está en las tablas (P47) y el enforcement activo (P51), pero no hay CRUD de tenants ni flujo de alta de clientes.
+- **Adapter Registry per-tenant (P57)**: Todas las integraciones (CrowdStrike, Palo Alto, Wazuh, etc.) son actualmente configuración global en Settings. En SaaS, cada tenant necesita sus propias credenciales de integración.
+- **Billing/Metering (P55)**: Zero implementación. Sin metering no hay forma de cobrar por uso.
+- **Per-plan Caps (P54)**: No hay límites por plan. Un tenant free puede crear ilimitados API keys/webhooks/agents.
+- **`get_user_from_api_key()` en deps.py**: No aplica tenant filter — vector potencial de cross-tenant si un API key se usa en contexto multi-tenant. Requiere fix en P52/P57.
