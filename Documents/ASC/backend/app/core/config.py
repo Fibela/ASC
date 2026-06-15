@@ -166,6 +166,19 @@ class Settings(BaseSettings):
     SPECTER_MAX_EVENTS_PER_WINDOW: int = 200
     SPECTER_RATE_WINDOW_SECONDS: int = 30
 
+    # ── P59 SSO Bridge — Supabase → ASC JWT Exchange ─────────────────────────
+    # SUPABASE_URL: your project URL (e.g. https://xyz.supabase.co)
+    # SUPABASE_JWT_SECRET: the JWT Secret from Supabase project settings (Settings → API → JWT Secret)
+    # SUPABASE_JWT_AUDIENCE: expected "aud" claim in Supabase JWTs (default: "authenticated")
+    # Empty SUPABASE_URL / SUPABASE_JWT_SECRET disables SSO bridge (returns 503).
+    SUPABASE_URL: str = ""                   # https://xyz.supabase.co
+    SUPABASE_JWT_SECRET: str = ""            # nosec B105 — from Supabase project settings
+    SUPABASE_JWT_AUDIENCE: str = "authenticated"
+    # ASC plan assigned to new SSO-provisioned tenants: free | pro | enterprise
+    SSO_DEFAULT_PLAN: str = "free"
+    # CORS: add *.premoscorp.com for SSO cross-origin requests from premoscorp.com
+    CORS_ORIGINS_EXTRA: List[str] = []       # additional origins (merged with CORS_ORIGINS)
+
 
 @lru_cache
 def get_settings() -> Settings:

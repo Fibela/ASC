@@ -146,5 +146,16 @@ services:
       - key: THEHIVE_API_KEY
         value: ""
 
+      # ── P59 — SSO Bridge: Supabase → ASC JWT ─────────────────────────────
+      - key: SUPABASE_URL
+        value: ""                # https://xyz.supabase.co — empty = SSO disabled
+      - key: SUPABASE_JWT_SECRET
+        sync: false              # JWT Secret from Supabase project Settings → API
+                                 # Empty = SSO bridge returns 503
+      - key: SUPABASE_JWT_AUDIENCE
+        value: "authenticated"   # Expected aud claim in Supabase JWTs
+      - key: SSO_DEFAULT_PLAN
+        value: "free"            # Plan assigned to auto-provisioned SSO tenants
+
       # Render injects PORT automatically — do NOT set it here.
       # uvicorn binds to $PORT (set in startCommand above).

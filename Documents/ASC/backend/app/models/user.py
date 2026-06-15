@@ -56,6 +56,13 @@ class User(Base):
     # Wizard step: pending_email → pending_setup → completed
     onboarding_step: Mapped[str] = mapped_column(String(50), default="completed")
 
+    # ── P59 SSO Bridge ────────────────────────────────────────────────────────
+    # Supabase user UUID (sub claim). NULL = native ASC user (no SSO link).
+    # Indexed for fast lookup during SSO exchange. Unique per Supabase user.
+    supabase_uid: Mapped[str | None] = mapped_column(
+        String(36), nullable=True, unique=True, index=True
+    )
+
     @property
     def is_locked(self) -> bool:
         """True when the account has an active time-based lock."""

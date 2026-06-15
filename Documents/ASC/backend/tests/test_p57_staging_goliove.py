@@ -40,8 +40,8 @@ _BACKEND    = Path(__file__).parent.parent          # backend/
 _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
-_EXPECTED_MIGRATION_HEAD  = "t0n23q2s5m07"
-_EXPECTED_MIGRATION_COUNT = 16
+_EXPECTED_MIGRATION_HEAD  = "u1o34r3t6n08"
+_EXPECTED_MIGRATION_COUNT = 17
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
@@ -527,10 +527,16 @@ class TestMigrationChain:
         p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
         assert len(p55_files) == 1, "P55 migration (s9m12p1r4l06) not found"
 
-    def test_head_migration_has_tenant_adapter_configs(self):
+    def test_head_migration_has_supabase_uid(self):
         head_files = [f for f in self.migration_files if _EXPECTED_MIGRATION_HEAD in f.name]
         content = head_files[0].read_text(encoding="utf-8", errors="ignore")
-        assert "tenant_adapter_configs" in content, "P58 head migration must create tenant_adapter_configs"
+        assert "supabase_uid" in content, "P59 head migration must add supabase_uid column"
+
+    def test_p58_migration_has_tenant_adapter_configs(self):
+        p58_files = [f for f in self.migration_files if "t0n23q2s5m07" in f.name]
+        assert len(p58_files) == 1, "P58 migration (t0n23q2s5m07) not found"
+        content = p58_files[0].read_text(encoding="utf-8", errors="ignore")
+        assert "tenant_adapter_configs" in content, "P58 migration must create tenant_adapter_configs"
 
     def test_p55_migration_has_usage_records(self):
         p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
