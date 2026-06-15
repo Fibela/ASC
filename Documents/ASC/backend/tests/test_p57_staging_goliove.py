@@ -40,8 +40,8 @@ _BACKEND    = Path(__file__).parent.parent          # backend/
 _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
-_EXPECTED_MIGRATION_HEAD  = "s9m12p1r4l06"
-_EXPECTED_MIGRATION_COUNT = 15
+_EXPECTED_MIGRATION_HEAD  = "t0n23q2s5m07"
+_EXPECTED_MIGRATION_COUNT = 16
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
@@ -527,9 +527,15 @@ class TestMigrationChain:
         p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
         assert len(p55_files) == 1, "P55 migration (s9m12p1r4l06) not found"
 
-    def test_head_migration_has_usage_records(self):
+    def test_head_migration_has_tenant_adapter_configs(self):
         head_files = [f for f in self.migration_files if _EXPECTED_MIGRATION_HEAD in f.name]
         content = head_files[0].read_text(encoding="utf-8", errors="ignore")
+        assert "tenant_adapter_configs" in content, "P58 head migration must create tenant_adapter_configs"
+
+    def test_p55_migration_has_usage_records(self):
+        p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
+        assert len(p55_files) == 1, "P55 migration (s9m12p1r4l06) not found"
+        content = p55_files[0].read_text(encoding="utf-8", errors="ignore")
         assert "usage_records" in content, "P55 migration must create usage_records table"
 
     def test_p53_migration_has_email_verified(self):

@@ -21,6 +21,7 @@ from app.models.api_key import APIKey
 from app.models.webhook import Webhook
 from app.models.tenant import Tenant
 from app.models.usage_record import UsageRecord
+from app.models.tenant_adapter_config import TenantAdapterConfig
 
 __all__ = [
     "User", "Event", "IoC", "Alert", "SocMetric", "Artifact",
@@ -40,4 +41,5 @@ __all__ = [
     "Webhook",
     "Tenant",
     "UsageRecord",
+    "TenantAdapterConfig",
 ]

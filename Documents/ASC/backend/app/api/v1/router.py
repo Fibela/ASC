@@ -4,7 +4,7 @@ from app.api.v1.endpoints import (
     neutralize, reports, detection, playbooks, adapters, health, agents, honeypot,
     notifications, iam, forensic, ops_dashboard, threat_intel, threat_hunting, pcdi,
     soar, pids, correlation, incidents, executive_reports, observability, api_keys,
-    webhooks, tenants, onboarding, billing,
+    webhooks, tenants, onboarding, billing, adapter_registry,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -41,3 +41,4 @@ api_router.include_router(webhooks.router)
 api_router.include_router(tenants.router)
 api_router.include_router(onboarding.router)
 api_router.include_router(billing.router)
+api_router.include_router(adapter_registry.router)
