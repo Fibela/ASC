@@ -4246,6 +4246,35 @@ Siguiente: commit + push → GitHub master
 
 ---
 
+## Session 68 — 2026-06-15
+
+### P58 — Tenant Adapter Registry (TD-4 Closure)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1234 | 2026-06-15 | IMPL | `backend/app/models/tenant_adapter_config.py` — **Creado**. ORM model `TenantAdapterConfig` con ADAPTER_TYPES frozenset (edr, firewall, identity, siem, soar), ADAPTER_PROVIDERS dict (edr→specter/none, firewall→paloalto/fortinet/none, identity→active_directory/none, siem→elasticsearch/wazuh/none, soar→thehive/none), UniqueConstraint "uq_tenant_adapter_type" a nivel DB, propiedades `is_configured` y `display_provider`. | COMPLETADO |
+| 1235 | 2026-06-15 | IMPL | `backend/app/core/adapter_crypto.py` — **Creado**. Helpers Fernet: `encrypt_credential(value, secret_key)` → sha256(key)[:32] → b64 → Fernet token; `decrypt_credential(token, secret_key)` → raise ValueError si token corrupto/tampered; `credential_hint(value)` → primeros 4 chars + `****`. Invariante: credencial RAW nunca retorna al cliente. | COMPLETADO |
+| 1236 | 2026-06-15 | IMPL | `backend/migrations/versions/t0n23q2s5m07_add_adapter_registry_p58.py` — **Creado**. Migración Alembic (revision=t0n23q2s5m07, down_revision=s9m12p1r4l06). Crea tabla `tenant_adapter_configs` con columnas `credential_encrypted` (Text), `credential_hint` (String(8)), índices en `tenant_id` y `adapter_type`, UniqueConstraint uq_tenant_adapter_type. Total migraciones: **16**. | COMPLETADO |
+| 1237 | 2026-06-15 | IMPL | `backend/app/api/v1/endpoints/adapter_registry.py` — **Creado**. 7 endpoints bajo `/adapter-registry`: GET /types (analyst_or_admin), GET /{tid} (analyst_or_admin), GET /{tid}/{type} (analyst_or_admin), POST /{tid} (admin), PUT /{tid}/{type} (admin), DELETE /{tid}/{type} (admin, 204), POST /{tid}/{type}/test (admin, stub FASE 5). credential=None→keep, credential=""→clear, credential="value"→encrypt+hint. | COMPLETADO |
+| 1238 | 2026-06-15 | SECURITY | Auditoría credenciales: `AdapterConfigResponse` no expone `credential_encrypted`. Solo `is_configured` (bool) + `credential_hint` (4 chars + ****). Tests `test_credential_not_in_response` confirman invariante en GET, POST. RBAC: admin=write, analyst=read-only. | VERIFICADO |
+| 1239 | 2026-06-15 | TEST | `backend/tests/test_p58_adapter_registry.py` — **Creado**. 112 tests en 11 clases: TestAdapterCrypto(10), TestTenantAdapterConfigModel(13), TestGetAdapterTypes(5×2=10), TestListTenantAdapters(4×2=8), TestGetTenantAdapter(4×2=8), TestCreateTenantAdapter(7×2=14), TestUpdateTenantAdapter(5×2=10), TestDeleteTenantAdapter(4×2=8), TestTestAdapter(4×2=8), TestSecurityInvariants(9), TestMigrationAndStructure(14). anyio asyncio+trio dual. | **112/112 PASS** |
+| 1240 | 2026-06-15 | FIX | `test_p57::TestMigrationChain::test_head_migration_has_usage_records` — falló porque el HEAD pasó de P55 (usage_records) a P58 (tenant_adapter_configs). Corregido: renombrado `test_head_migration_has_tenant_adapter_configs` verificando contenido P58; añadido `test_p55_migration_has_usage_records` apuntando a s9m12p1r4l06 explícitamente. | CORREGIDO |
+| 1241 | 2026-06-15 | FIX | `test_p56::TestDatabaseMigrations` + `test_p57::_EXPECTED_MIGRATION_*` — actualizados: `_EXPECTED_HEAD = "t0n23q2s5m07"`, `_EXPECTED_COUNT = 16`, añadido "adapter_registry" a lista de expected_tags en p56. | CORREGIDO |
+| 1242 | 2026-06-15 | TEST | Suite completa post-P58: `python -m pytest tests/ --tb=short -q` → **4314 passed, 16 skipped, 0 failed** en 268s (4:28). Coverage: **86.24%** (gate 85% superado). Test delta: 4201 → 4314 (+113 tests, 0 regresiones). | **VERDE** |
+| 1243 | 2026-06-15 | IMPL | Commit `29e0510` — `feat(P58/TD-4): Tenant Adapter Registry per tenant`. 10 archivos, +1384/-6 líneas. Push exitoso a origin/master. | COMPLETADO |
+
+### Resumen Session 68
+
+Sprint: P58 — TD-4 (Adapter Registry per Tenant) — Cierre de última deuda técnica de FASE 5
+Deudas cerradas: TD-4 (per-tenant adapter configuration con RBAC + Fernet encryption)
+Bugs encontrados: P57 test headmigration obsoleto (s9m12p1r4l06→t0n23q2s5m07), P56/P57 migration count 15→16
+Módulos nuevos: TenantAdapterConfig model, adapter_crypto.py, adapter_registry endpoints (7), migration P58
+Artefactos modificados: router.py, models/__init__.py, requirements.txt, test_p56, test_p57
+Test delta: 4201 → 4314 (+113 tests, 0 regresiones) | Coverage: 86.24%
+Siguiente: FASE 6 — Integración ASC/SPECTER dentro del portal premoscorp.com
+
+---
+
 ## Session 67 — 2026-06-15
 
 ### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)

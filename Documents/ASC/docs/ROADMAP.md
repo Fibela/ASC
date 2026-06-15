@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.0 | Fecha: 2026-06-15 | Estado: FASE 1–4 completadas — P39–P57 completados — TD-2/TD-5 cerradas — 4201 tests, coverage 86.07%
+> Versión 4.1 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P58 completados — TD-2/TD-4/TD-5 cerradas — 4314 tests, coverage 86.24%
 
 ---
 
@@ -542,6 +542,33 @@ pytest backend/tests/security/test_rbac.py -v
 - **Artefactos creados:** staging-deploy-runbook.md, go-live-runbook.md, test_p57_staging_goliove.py
 - **Artefactos modificados:** render.yaml (+Stripe+SPECTER+adapters), .env.example (+P53/P55/SPECTER)
 - **Bugs encontrados:** render.yaml sin Stripe keys (P55 gap) → CORREGIDO; .env.example desincronizado → CORREGIDO
+
+---
+
+## Sprint P58 — Tenant Adapter Registry (TD-4)
+**Estado:** COMPLETADO — 2026-06-15
+**Sesión:** 68
+
+### Entregables P58
+
+| Tarea | Descripción | Estado |
+|-------|-------------|--------|
+| P58-MODEL | `app/models/tenant_adapter_config.py` — ORM `TenantAdapterConfig`: ADAPTER_TYPES (5), ADAPTER_PROVIDERS dict, UniqueConstraint uq_tenant_adapter_type, @property is_configured + display_provider, Fernet credential_encrypted (Text) | ✅ COMPLETADO |
+| P58-CRYPTO | `app/core/adapter_crypto.py` — Fernet helpers: sha256(SECRET_KEY)→32 bytes→base64url key. encrypt/decrypt/credential_hint. ValueError si token corrupto. credential NUNCA retorna al cliente | ✅ COMPLETADO |
+| P58-MIGRATION | `migrations/versions/t0n23q2s5m07_add_adapter_registry_p58.py` — Creates tenant_adapter_configs table + indexes + uq_tenant_adapter_type. head: t0n23q2s5m07, down_revision: s9m12p1r4l06. Total: **16 migraciones** | ✅ COMPLETADO |
+| P58-ENDPOINTS | `app/api/v1/endpoints/adapter_registry.py` — 7 endpoints: GET /types, GET /{tid}, GET /{tid}/{type}, POST /{tid}, PUT /{tid}/{type}, DELETE /{tid}/{type} (204), POST /{tid}/{type}/test (stub). RBAC: admin=write, analyst/admin=read | ✅ COMPLETADO |
+| P58-SECURITY | Invariantes: credential_encrypted NUNCA en respuesta API. Solo is_configured (bool) + credential_hint (4 chars + ****). PUT: credential=null→keep, credential=""→clear. Verificado por 3 tests de security_invariants | ✅ VERIFICADO |
+| P58-TESTS | `test_p58_adapter_registry.py` — **112 tests (anyio asyncio+trio), 11 clases**: TestAdapterCrypto(10), TestTenantAdapterConfigModel(13), TestGetAdapterTypes(10), TestListTenantAdapters(8), TestGetTenantAdapter(8), TestCreateTenantAdapter(14), TestUpdateTenantAdapter(10), TestDeleteTenantAdapter(8), TestTestAdapter(8), TestSecurityInvariants(9), TestMigrationAndStructure(14) | ✅ 112/112 PASS |
+| P58-REGRESSION | Updated test_p56/p57 migration head (s9m12p1r4l06→t0n23q2s5m07) + count (15→16). Fixed test_p57 TestMigrationChain::test_head_migration_has_tenant_adapter_configs (era usage_records, ahora verifica P58 content) | ✅ 0 regresiones |
+
+### Métricas P58
+
+- **Test suite:** 4201 → 4314 (+113 tests, 0 regresiones)
+- **Coverage:** 86.24% (gate 85.00% superado)
+- **Deuda cerrada:** TD-4 (Adapter Registry per Tenant) — FASE 5 completada al 100%
+- **Módulos nuevos:** tenant_adapter_config.py, adapter_crypto.py, adapter_registry.py (endpoints), migration P58
+- **Commit:** `29e0510` — pushed to origin/master
+- **Próximo:** FASE 6 — Integración ASC/SPECTER en portal premoscorp.com
 
 ---
 

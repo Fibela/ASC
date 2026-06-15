@@ -1,5 +1,51 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.2 | Actualizado: 2026-06-15 | P57 — Staging Validation + Go-Live Readiness — 4201 tests, coverage 86.07%
+> Versión 4.3 | Actualizado: 2026-06-15 | P58 — Tenant Adapter Registry (TD-4) — 4314 tests, coverage 86.24%
+
+## P58 — Tenant Adapter Registry per Tenant (TD-4) (2026-06-15)
+
+### Módulos implementados
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| ORM Model | `app/models/tenant_adapter_config.py` | TenantAdapterConfig + ADAPTER_TYPES/PROVIDERS, UniqueConstraint, @property is_configured/display_provider |
+| Crypto | `app/core/adapter_crypto.py` | Fernet encrypt/decrypt (sha256→32 bytes→base64url), credential_hint (4 chars + ****) |
+| Migration | `migrations/versions/t0n23q2s5m07_add_adapter_registry_p58.py` | Creates tenant_adapter_configs + indexes + uq. Total: 16 migraciones |
+| Endpoints | `app/api/v1/endpoints/adapter_registry.py` | 7 endpoints CRUD + test stub. RBAC: admin=write, analyst=read |
+
+### Tests P58 (112 tests, 11 clases)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| TestAdapterCrypto | 10 | roundtrip, differs from plaintext, str return, bad token ValueError, hint 4+****, short, empty, diff secrets, random IV per call, wrong secret raises |
+| TestTenantAdapterConfigModel | 13 | tablename, 5 types, edr/firewall/identity/siem/soar providers, is_configured True/False, display_provider known/none, UniqueConstraint name, models __init__ export |
+| TestGetAdapterTypes | 5×2=10 | admin 200, analyst 200, returns 5 types, all type names, requires auth |
+| TestListTenantAdapters | 4×2=8 | returns 200, tenant not found 404, credential NOT in response, requires auth |
+| TestGetTenantAdapter | 4×2=8 | returns 200, invalid type 422, config not found 404, credential NOT in response |
+| TestCreateTenantAdapter | 7×2=14 | analyst 403, invalid type 422, invalid provider 422, duplicate 409, create 201, credential NOT in response, tenant not found 404 |
+| TestUpdateTenantAdapter | 5×2=10 | analyst 403, invalid type 422, config not found 404, update 200, invalid provider 422 |
+| TestDeleteTenantAdapter | 4×2=8 | 204, not found 404, analyst 403, invalid type 422 |
+| TestTestAdapter | 4×2=8 | stub when configured+enabled, skipped when disabled, not_configured without credential, analyst 403 |
+| TestSecurityInvariants | 9 | no credential field in schema, is_configured present, hint not value, admin dep on create/update/delete, analyst_or_admin on list/get, none provider all types |
+| TestMigrationAndStructure | 14 | file exists, down_revision P55, creates table, uq, credential_encrypted col, count=16, router wired, models init, adapter_crypto importable, router prefix, cryptography in reqs, no duplicate revisions, p56 updated, p57 updated |
+
+**Resultado: 112/112 PASSED (asyncio + trio dual-backend)**
+
+### Invariantes de seguridad verificadas
+
+- `AdapterConfigResponse` no tiene campo `credential` ni `credential_encrypted` — verificado por schema inspection
+- 3 tests de "credential NOT in response" cubren GET list, GET one, POST create
+- RBAC split: `get_current_admin` en POST/PUT/DELETE, `get_analyst_or_admin` en GET — verificado por `inspect.signature`
+- `credential=null` → keep existing; `credential=""` → clear; `credential="value"` → encrypt + hint
+- `"none"` como provider válido en TODOS los tipos (permite deshabilitar un adapter sin eliminarlo)
+
+### Métricas P58
+
+- Test delta: 4201 → 4314 (+113 tests, **0 regresiones**)
+- Coverage: **86.24%** (gate 85.00% superado)
+- Deuda cerrada: TD-4 — FASE 5 completada al 100%
+- Commit: `29e0510`
+
+---
 
 ## P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5) (2026-06-15)
 
@@ -23,7 +69,7 @@
 | TestCICDWorkflows | 11 | ci.yml, deploy.yml, security-audit.yml, p49/p50 presentes, coverage gate en ci.yml, bandit en security-audit.yml, deploy depends on ci, trivy en p49, gitleaks en p49, sin --no-verify en workflows |
 | TestEndpointCompleteness | 8 | 27 routers registrados, onboarding+billing+tenants presentes, archivos críticos existen, 0 NotImplementedError, ≥230 endpoints, /health presente |
 | TestConfigCompleteness | 8 | EMAIL_VERIFICATION_EXPIRE_HOURS=24, STRIPE_SECRET_KEY existe, STRIPE_WEBHOOK_SECRET existe, rate limits P41, CORS incluye premoscorp, SPECTER signing fields |
-| TestMigrationChain | 8 | count=15, head=s9m12p1r4l06, P53+P55 migrations presentes, usage_records en P55, email_verified en P53, P47 presente, sin duplicate revision IDs |
+| TestMigrationChain | 9 | count=16, head=t0n23q2s5m07, P53+P55+P58 presentes, tenant_adapter_configs en P58 (head), usage_records en P55, email_verified en P53, P47 presente, sin duplicate revision IDs |
 | TestRunbookArtifacts | 12 | staging+goliove runbooks existen, prereqs, bandit+pip-audit, alembic, rollback, env vars checklist, 72h table, alert thresholds, escalación, /health, CORS, criterios aceptación |
 | TestCodeHygieneAndGate | 14 | sin print() en services, sin eval() en app, AUDIT_LOG reciente, ROADMAP actual, testing-and-audit existe, deployment-guide existe, runbooks existen, SDK existe, .gitignore excluye .env, render.yaml YAML válido, UsageRecord+Tenant en models __init__ |
 
