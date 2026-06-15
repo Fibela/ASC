@@ -251,16 +251,35 @@ class TestCreateAPIKey:
     async def test_create_no_tenant_bypasses_cap(self, analyst_id):
         # P54: the old hardcoded _MAX_KEYS_PER_USER=20 limit (422) was replaced
         # by per-plan cap enforcement (403) in plan_caps.py.
-        # When the user has no tenant in DB (scalar_result=None for Tenant lookup),
-        # no cap is applied and the key is created successfully.
+        # When the user has no tenant (tenant_id=None), plan caps are skipped
+        # and the key is created successfully.
         # Per-plan cap 403 behavior is tested in test_p54_plan_caps.py.
-        existing_keys = [_make_api_key_row(analyst_id) for _ in range(20)]
-        override, _ = _db_override(scalar_result=None, scalars_result=existing_keys)
+        import uuid as _uuid
+
+        from datetime import datetime, timezone as _tz
+
+        override, db_mock = _db_override(scalar_result=None, scalars_result=[])
         user = _make_user("analyst", analyst_id)
         user.tenant_id = None  # no tenant → plan caps skipped
 
+        # Simulate DB flush: assign UUIDs + fill SQL-level column defaults
+        def _add_side_effect(obj):
+            if getattr(obj, "id", None) is None:
+                obj.id = str(_uuid.uuid4())
+        db_mock.add.side_effect = _add_side_effect
+
+        async def _refresh_side_effect(obj):
+            if getattr(obj, "is_active", None) is None:
+                obj.is_active = True
+            if getattr(obj, "created_at", None) is None:
+                obj.created_at = datetime.now(_tz.utc)
+            if getattr(obj, "last_used_at", "sentinel") == "sentinel":
+                obj.last_used_at = None
+        db_mock.refresh.side_effect = _refresh_side_effect
+
         app.dependency_overrides[get_db] = override
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("app.api.v1.endpoints.api_keys._ledger_create"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     self.URL,
