@@ -4275,6 +4275,41 @@ Siguiente: FASE 6 — Integración ASC/SPECTER dentro del portal premoscorp.com
 
 ---
 
+## Session 69 — 2026-06-15
+
+### P59 — SSO Bridge: Supabase JWT → ASC JWT Exchange (FASE 6 — Sprint 1)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1244 | 2026-06-15 | DESIGN | **Arquitectura SSO**: premoscorp.com (Supabase Auth) → React obtiene Supabase session token → POST `/api/v1/auth/supabase-sso` → ASC valida HS256 JWT con `SUPABASE_JWT_SECRET` → encuentra/crea usuario → retorna ASC JWT. Sin proxy en Vercel (12/12 funciones maxed); React llama ASC directamente via CORS. | APROBADO |
+| 1245 | 2026-06-15 | IMPL | `backend/app/core/config.py` — P59 SSO section: `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_JWT_AUDIENCE="authenticated"`, `SSO_DEFAULT_PLAN="free"`, `CORS_ORIGINS_EXTRA`. | COMPLETADO |
+| 1246 | 2026-06-15 | IMPL | `backend/app/models/user.py` — Añadido `supabase_uid: Mapped[str \| None]` (String(36), nullable=True, unique=True, index=True). NULL para usuarios nativos ASC; poblado en primer login SSO. | COMPLETADO |
+| 1247 | 2026-06-15 | IMPL | `backend/migrations/versions/u1o34r3t6n08_add_supabase_uid_p59.py` — **Creado**. Migración #17 (down_revision=t0n23q2s5m07): `op.add_column("users", sa.Column("supabase_uid", sa.String(36), nullable=True))` + `op.create_index("ix_users_supabase_uid", ..., unique=True)`. downgrade: drop_index + drop_column. | COMPLETADO |
+| 1248 | 2026-06-15 | IMPL | `backend/app/api/v1/endpoints/auth_sso.py` — **Creado**. SSO endpoint completo: `_validate_supabase_token()` (HS256, require sub/email/exp/aud, raise 503 si no secret, 401 si expired/wrong-aud/tampered), `_find_or_create_user()` (1. lookup by supabase_uid; 2. lookup by email → link; 3. auto-provision User+Tenant), `POST /auth/supabase-sso`. Respuesta: `SSOResponse(access_token, token_type, tenant_id, user_id, email, role, provisioned)`. | COMPLETADO |
+| 1249 | 2026-06-15 | SECURITY | **Invariantes SSO**: (a) SUPABASE_JWT_SECRET ausente → 503 (no expone detalles); (b) usuarios SSO reciben role="analyst" — no pueden escalar vía JWT claims; (c) hashed_password = `get_password_hash(secrets.token_urlsafe(32))` — login por contraseña imposible para cuentas SSO-only; (d) `supabase_uid` con unique index previene impersonación; (e) usuario inactivo → 403; (f) `SSOResponse` nunca expone `credential_encrypted` ni `hashed_password`. | VERIFICADO |
+| 1250 | 2026-06-15 | FIX | **Bug 1**: `create_access_token(data=token_data)` — firma incorrecta. La función acepta `subject: str`, `tenant_id: str \| None` como kwargs. Corregido: `create_access_token(subject=user.id, tenant_id=user.tenant_id)`. | CORREGIDO |
+| 1251 | 2026-06-15 | FIX | **Bug 2**: `Tenant(updated_at=now)` — modelo Tenant no tiene campo `updated_at`. Eliminado del constructor. | CORREGIDO |
+| 1252 | 2026-06-15 | FIX | **Bug 3**: Tests enviaban tokens de <10 chars (`"any"`, `"not.a.jwt"`) — rechazados por Pydantic `min_length=10` con 422 antes de llegar al endpoint. Tokens extendidos a >10 chars para testing correcto del flujo 503/401. | CORREGIDO |
+| 1253 | 2026-06-15 | FIX | `test_p58::TestMigrationAndStructure::_TOTAL = 16 → 17`. `test_p56::_EXPECTED_HEAD/COUNT → u1o34r3t6n08/17`. `test_p57::_EXPECTED_MIGRATION_HEAD/COUNT → u1o34r3t6n08/17`. `test_p57::test_head_migration_has_tenant_adapter_configs` → renombrado `test_head_migration_has_supabase_uid` + añadido `test_p58_migration_has_tenant_adapter_configs`. `test_p58` regression gates → comparación OR con P59 valores. | CORREGIDO |
+| 1254 | 2026-06-15 | FIX | `test_no_hardcoded_supabase_secret` — falso positivo en docstring de `auth_sso.py` line `"2. ASC validates the token using SUPABASE_JWT_SECRET"`. Lógica de detección mejorada: regex `SUPABASE_JWT_SECRET\s*=\s*["\'][^"\']{4,}["\']` — solo falla en asignaciones literales con valor no-vacío, no en menciones del nombre. | CORREGIDO |
+| 1255 | 2026-06-15 | IMPL | `backend/app/api/v1/router.py` — `auth_sso` importado y `api_router.include_router(auth_sso.router)` añadido. | COMPLETADO |
+| 1256 | 2026-06-15 | IMPL | `render.yaml` + `.env.example` — P59 vars añadidas: `SUPABASE_URL`, `SUPABASE_JWT_SECRET` (sync:false), `SUPABASE_JWT_AUDIENCE=authenticated`, `SSO_DEFAULT_PLAN=free`. | COMPLETADO |
+| 1257 | 2026-06-15 | TEST | `backend/tests/test_p59_sso_bridge.py` — **Creado**. 68 tests en 8 clases: TestSupabaseJWTValidation(8), TestAutoProvisioning(6×2=12 anyio), TestSSOEndpoint(10×2=20 anyio), TestSecurityInvariants(9), TestConfigCompleteness(4), TestMigrationArtifact(6), TestModuleStructure(4), TestRegressionGates(5). | **68/68 PASS** |
+| 1258 | 2026-06-15 | TEST | Suite completa post-P59: `python -m pytest tests/ --tb=short -q` → **4383 passed, 16 skipped, 0 failed** en 288s (4:48). Coverage: **86.33%** (gate 85% superado). Test delta: 4314 → 4383 (+69 tests, 0 regresiones). | **VERDE** |
+| 1259 | 2026-06-15 | IMPL | Commit `8726c32` — `feat(P59/FASE6): SSO Bridge — Supabase JWT → ASC JWT Exchange`. 11 archivos, +1009 líneas. Push exitoso a origin/master. | COMPLETADO |
+
+### Resumen Session 69
+
+Sprint: P59 — FASE 6 Sprint 1: SSO Bridge (Supabase JWT → ASC JWT)
+Arquitectura: premoscorp.com Supabase session → POST /api/v1/auth/supabase-sso → ASC JWT (sin Vercel proxy, CORS directo)
+Bugs encontrados y corregidos: create_access_token firma incorrecta (data= vs subject=), Tenant sin updated_at, test tokens demasiado cortos (Pydantic 422 antes del endpoint), falso positivo en scan de docstrings
+Módulos nuevos: auth_sso.py (endpoint), migration #17 u1o34r3t6n08
+Artefactos modificados: user.py (supabase_uid), config.py (SSO vars), router.py, render.yaml, .env.example, test_p56/p57/p58
+Test delta: 4314 → 4383 (+69 tests, 0 regresiones) | Coverage: 86.33%
+Siguiente: P60 — Stripe → ASC Tenant Auto-Provisioning
+
+---
+
 ## Session 67 — 2026-06-15
 
 ### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)

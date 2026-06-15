@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.1 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P58 completados — TD-2/TD-4/TD-5 cerradas — 4314 tests, coverage 86.24%
+> Versión 4.2 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P59 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 iniciada (P59✅) — 4383 tests, coverage 86.33%
 
 ---
 
@@ -634,16 +634,100 @@ pytest backend/tests/integration/test_rate_limiting.py -v
 
 ---
 
-## FASE 6 â€” ComercializaciÃ³n
-**DuraciÃ³n:** Semanas 28â€“33
+## FASE 6 — Integración ASC/SPECTER en premoscorp.com
+**Duración:** Semanas 28–33 | **Estado:** EN PROGRESO (2026-06-15)
 
-### Entregables
-- Portal de clientes (onboarding, configuraciÃ³n de integraciones)
-- DocumentaciÃ³n pÃºblica de API (Swagger + guÃ­as de integraciÃ³n)
-- SLA dashboard por cliente
-- Programa de soporte (tickets, SLAs de respuesta)
-- Proceso de seguridad para revisiÃ³n de nuevos clientes (vetting)
-- Pricing model y billing integration
+### Objetivo
+Conectar el portal corporativo **premoscorp.com** (sc_system: React + Supabase + Stripe) con la
+plataforma **ASC** (`asc.premoscorp.com`: FastAPI + Next.js + PostgreSQL) para que los clientes
+de seguridad puedan:
+1. Subscribirse desde premoscorp.com a planes de seguridad ASC
+2. Acceder a su dashboard ASC via SSO (sin re-autenticación)
+3. Gestionar agentes SPECTER desde premoscorp.com
+4. Ver métricas de seguridad en tiempo real en premoscorp.com
+
+### Restricciones técnicas
+- premoscorp.com está al límite de 12/12 serverless functions (Vercel Hobby) → nuevas llamadas API
+  van **directamente desde React → asc.premoscorp.com** via CORS (ya configurado)
+- No se añaden serverless functions al sc_system — solo componentes React y páginas
+- ASC ya tiene: Supabase JWT lib (PyJWT), Stripe webhook (P55), Tenant model (P47), multi-tenancy
+
+### Arquitectura SSO (flujo central FASE 6)
+```
+premoscorp.com user (Supabase session)
+  │  [1] supabase.auth.getSession() → Supabase JWT
+  ▼
+React fetch → POST https://asc.premoscorp.com/api/v1/auth/supabase-sso
+  │  Body: { “supabase_token”: “eyJ...” }
+  ▼
+ASC validates JWT (HS256 + SUPABASE_JWT_SECRET)
+  │  → extracts sub (supabase_uid), email
+  │  → if new user: create User + Tenant (auto-provisioning)
+  │  → create ASC JWT
+  ▼
+Returns { “access_token”: “...”, “token_type”: “bearer”, “tenant_id”: “...” }
+  │
+  ▼
+React stores ASC token → redirects to asc.premoscorp.com/?token=...
+```
+
+### Sprints FASE 6
+
+| Sprint | Nombre | Semana | Estado |
+|--------|--------|--------|--------|
+| P59 | SSO Bridge — Supabase JWT → ASC JWT | 28–29 | ✅ COMPLETADO |
+| P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ⏳ PENDING |
+| P61 | ASC Metrics Widget en premoscorp.com | 30 | ⏳ PENDING |
+| P62 | ASC Client Portal page en premoscorp.com | 31 | ⏳ PENDING |
+| P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
+
+### P59 — SSO Bridge (Supabase → ASC)
+**Semana 28–29 | Backend ASC | Migration #17**
+
+Entregables:
+- `supabase_uid` column en `users` table (migration u1o34r3t6n08)
+- `POST /api/v1/auth/supabase-sso` — valida Supabase JWT, crea/devuelve ASC JWT
+- Config vars: `SUPABASE_URL`, `SUPABASE_JWT_SECRET` (sync:false)
+- CORS: añadir `https://premoscorp.com` ya está — verificar `*.premoscorp.com`
+- Tests: 50+ (TestSupabaseJWTValidation, TestSSOEndpoint, TestAutoProvisioning, TestSecurityInvariants)
+
+### P60 — Stripe → ASC Tenant Auto-Provisioning
+**Semana 29–30 | Backend ASC**
+
+Entregables:
+- `stripe_customer_id` column en `tenants` table (migration #18)
+- Extend Stripe webhook handler: `checkout.session.completed` con product “SEGURIDAD”
+- Auto-crea Tenant en ASC vinculado al customer Stripe
+- Welcome email vía RESEND (credenciales ASC + link asc.premoscorp.com)
+- Tests: 40+
+
+### P61 — ASC Metrics Widget
+**Semana 30 | sc_system Frontend**
+
+Entregables:
+- `src/components/sections/ASCStatusWidget.jsx` — llama GET /api/v1/metrics/public
+- Muestra: amenazas detectadas, neutralizaciones, uptime, agentes activos
+- Embebido en Seguridad.jsx y Home.jsx
+- Tests: Vitest unit (mock fetch)
+
+### P62 — ASC Client Portal en premoscorp.com
+**Semana 31 | sc_system Frontend**
+
+Entregables:
+- `src/pages/ASCPortal.jsx` — página `/portal/seguridad`
+- SSO button: “Acceder al Centro de Seguridad” → flujo SSO exchange
+- Post-SSO: muestra tenant_id, plan, link a `asc.premoscorp.com`
+- i18n: ES/EN mínimo
+- Tests: Vitest unit
+
+### P63 — SPECTER Enrollment Portal
+**Semana 32–33 | sc_system Frontend**
+
+Entregables:
+- `src/pages/Specter.jsx` — página `/sectores/specter`
+- Mostra: enrollment key, download links, agent status (via ASC API + SSO token)
+- i18n: ES/EN
+- Tests: Vitest unit
 
 ---
 

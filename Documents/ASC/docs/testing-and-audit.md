@@ -1,5 +1,63 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.3 | Actualizado: 2026-06-15 | P58 — Tenant Adapter Registry (TD-4) — 4314 tests, coverage 86.24%
+> Versión 4.4 | Actualizado: 2026-06-15 | P59 — SSO Bridge Supabase→ASC (FASE 6 Sprint 1) — 4383 tests, coverage 86.33%
+
+## P59 — SSO Bridge: Supabase JWT → ASC JWT Exchange (FASE 6 Sprint 1) (2026-06-15)
+
+### Módulos implementados
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| SSO Endpoint | `app/api/v1/endpoints/auth_sso.py` | POST /auth/supabase-sso: valida Supabase HS256 JWT, find-or-create user, retorna ASC JWT |
+| Migration #17 | `migrations/versions/u1o34r3t6n08_add_supabase_uid_p59.py` | `supabase_uid VARCHAR(36) NULL UNIQUE` en `users` + index ix_users_supabase_uid |
+| User Model | `app/models/user.py` | Campo `supabase_uid: Mapped[str | None]` añadido |
+| Config | `app/core/config.py` | `SUPABASE_URL`, `SUPABASE_JWT_SECRET`, `SUPABASE_JWT_AUDIENCE`, `SSO_DEFAULT_PLAN` |
+
+### Tests P59 (68 tests, 8 clases)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| TestSupabaseJWTValidation | 8 | valid token → payload, expired 401, wrong secret 401, wrong audience 401, no secret 503, tampered 401, sub+email in payload, custom audience |
+| TestAutoProvisioning | 6×2=12 | existing uid → not provisioned, email link → not provisioned, new user → 2 objects added, analyst role, email_verified=True, supabase_uid stamped |
+| TestSSOEndpoint | 10×2=20 | 503 no config, 401 expired, 401 invalid, 200 existing user, response has access_token, response has tenant_id, 403 inactive, 422 empty, 422 missing body, provisioned=True new user |
+| TestSecurityInvariants | 9 | no supabase_token/hashed_password in response, access_token present, provisioned flag, HS256-only (RS256 rejected), supabase_uid on User model, no auth dep on endpoint, config vars present, column nullable, default plan not enterprise |
+| TestConfigCompleteness | 4 | render.yaml SUPABASE_URL, sync:false for secret, .env.example vars, router wired |
+| TestMigrationArtifact | 6 | file exists, down_revision=P58, supabase_uid column, unique index, downgrade, count=17 |
+| TestModuleStructure | 4 | router importable (prefix=/auth), supabase_uid nullable, SSORequest schema, SSOResponse fields |
+| TestRegressionGates | 5 | p58 count ≥16, p57 count ≥16, no hardcoded literal SUPABASE_JWT_SECRET value, auth_sso in router, p56 count consistent |
+
+**Resultado: 68/68 PASSED (asyncio + trio dual-backend)**
+
+### Invariantes de seguridad verificadas
+
+- `SSOResponse` no expone `supabase_token`, `hashed_password`, ni `credential_encrypted`
+- SSO-provisioned users: `role="analyst"` siempre — no escalación via JWT claims externos
+- `hashed_password = get_password_hash(secrets.token_urlsafe(32))` — login por contraseña imposible para SSO-only
+- `supabase_uid` con `unique=True` + `index=True` previene impersonación (dos usuarios no pueden compartir uid)
+- `SUPABASE_JWT_SECRET` ausente → 503 `sso_not_configured` (no expone si la ruta existe)
+- Algoritmo forzado a `HS256` — tokens RS256/tampered con alg diferente son rechazados 401
+- Email-linking: solo se vincula si `existing_user.supabase_uid is None` — previene re-linking
+- Usuario inactivo `is_active=False` → 403 `user_inactive` post-validación
+
+### Bugs encontrados y corregidos durante P59
+
+| Bug | Descripción | Fix |
+|-----|-------------|-----|
+| #1 | `create_access_token(data=token_data)` — función no acepta kwarg `data` | `create_access_token(subject=user.id, tenant_id=user.tenant_id)` |
+| #2 | `Tenant(updated_at=now)` — modelo Tenant no tiene columna `updated_at` | Eliminado del constructor |
+| #3 | Tests enviaban tokens `"any"` (3 chars) y `"not.a.jwt"` (9 chars) — Pydantic `min_length=10` devolvía 422 antes de llegar al endpoint | Tokens extendidos: `"any.fake.token.value.here"`, `"not.a.valid.jwt.token"` |
+| #4 | `test_no_hardcoded_supabase_secret` — falso positivo en docstring `"2. ASC validates the token using SUPABASE_JWT_SECRET"` | Regex cambiada: solo falla si hay asignación literal `= "value_8+chars"` |
+| #5 | `test_p58::_TOTAL = 16` → migration count ahora es 17 | Actualizado a 17 |
+| #6 | `test_p57::test_head_migration_has_tenant_adapter_configs` verificaba P59 head por `tenant_adapter_configs` (P58 content) | Renombrado `test_head_migration_has_supabase_uid` + añadido `test_p58_migration_has_tenant_adapter_configs` |
+| #7 | `test_p58` regression gates hard-codaban "t0n23q2s5m07" y "count=16" en p56/p57 — falla cuando se avanza | Gates actualizados a comparación OR (aceptan P58 o P59 valores) |
+
+### Métricas P59
+
+- Test delta: 4314 → 4383 (+69 tests, **0 regresiones**)
+- Coverage: **86.33%** (gate 85.00% superado)
+- Migración: #17 `u1o34r3t6n08` (supabase_uid column + unique index)
+- Commit: `8726c32`
+
+---
 
 ## P58 — Tenant Adapter Registry per Tenant (TD-4) (2026-06-15)
 
