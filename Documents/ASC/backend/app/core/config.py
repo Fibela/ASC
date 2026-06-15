@@ -166,6 +166,15 @@ class Settings(BaseSettings):
     SPECTER_MAX_EVENTS_PER_WINDOW: int = 200
     SPECTER_RATE_WINDOW_SECONDS: int = 30
 
+    # ── P60 Stripe Checkout Auto-Provisioning ────────────────────────────────
+    # Plan assigned to tenants when a Stripe checkout.session.completed fires.
+    # Typically "pro" or "enterprise" — must be a valid plan slug.
+    STRIPE_PROVISIONING_PLAN: str = "pro"
+    # Optional: restrict checkout provisioning to a specific Stripe product ID.
+    # Empty = provision on ALL checkout.session.completed events (safe when the
+    # ASC webhook URL is dedicated to this Stripe account / product line).
+    STRIPE_SEGURIDAD_PRODUCT_ID: str = ""
+
     # ── P59 SSO Bridge — Supabase → ASC JWT Exchange ─────────────────────────
     # SUPABASE_URL: your project URL (e.g. https://xyz.supabase.co)
     # SUPABASE_JWT_SECRET: the JWT Secret from Supabase project settings (Settings → API → JWT Secret)

@@ -40,8 +40,8 @@ _BACKEND    = Path(__file__).parent.parent          # backend/
 _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
-_EXPECTED_MIGRATION_HEAD  = "u1o34r3t6n08"
-_EXPECTED_MIGRATION_COUNT = 17
+_EXPECTED_MIGRATION_HEAD  = "v2p45s4u7o09"
+_EXPECTED_MIGRATION_COUNT = 18
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
@@ -527,10 +527,18 @@ class TestMigrationChain:
         p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
         assert len(p55_files) == 1, "P55 migration (s9m12p1r4l06) not found"
 
-    def test_head_migration_has_supabase_uid(self):
+    def test_head_migration_has_stripe_checkout(self):
         head_files = [f for f in self.migration_files if _EXPECTED_MIGRATION_HEAD in f.name]
         content = head_files[0].read_text(encoding="utf-8", errors="ignore")
-        assert "supabase_uid" in content, "P59 head migration must add supabase_uid column"
+        assert "stripe_checkout_session_id" in content, (
+            "P60 head migration must add stripe_checkout_session_id column"
+        )
+
+    def test_p59_migration_has_supabase_uid(self):
+        p59_files = [f for f in self.migration_files if "u1o34r3t6n08" in f.name]
+        assert len(p59_files) == 1, "P59 migration (u1o34r3t6n08) not found"
+        content = p59_files[0].read_text(encoding="utf-8", errors="ignore")
+        assert "supabase_uid" in content, "P59 migration must add supabase_uid"
 
     def test_p58_migration_has_tenant_adapter_configs(self):
         p58_files = [f for f in self.migration_files if "t0n23q2s5m07" in f.name]

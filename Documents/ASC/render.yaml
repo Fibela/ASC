@@ -108,6 +108,13 @@ services:
         sync: false              # whsec_… from Stripe Dashboard → Webhooks → Signing secret
                                  # Empty = webhook signature validation skipped (dev only)
 
+      # ── P60 — Stripe Checkout Auto-Provisioning ───────────────────────────
+      - key: STRIPE_PROVISIONING_PLAN
+        value: "pro"             # Plan assigned on checkout.session.completed (free|pro|enterprise)
+      - key: STRIPE_SEGURIDAD_PRODUCT_ID
+        value: ""                # Optional: restrict provisioning to this Stripe product ID
+                                 # Empty = all checkout.session.completed events trigger provisioning
+
       # ── SPECTER Signing Keys (required in production) ─────────────────────
       - key: SPECTER_SIGNING_PRIVATE_KEY
         sync: false              # base64 raw Ed25519 private key (32 bytes)

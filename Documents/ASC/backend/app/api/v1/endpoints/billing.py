@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import secrets
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -26,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_admin, get_current_user
 from app.core.audit import log_security_action
 from app.core.config import get_settings
+from app.core.security import get_password_hash
 from app.db.session import get_db
 from app.models.alert import Alert
 from app.models.api_key import APIKey
@@ -160,6 +163,107 @@ def _verify_stripe_signature(payload_bytes: bytes, sig_header: str, secret: str)
     mac = hmac.new(secret.encode(), signed_payload, hashlib.sha256)
     computed = mac.hexdigest()
     return hmac.compare_digest(computed, expected)
+
+
+# ── P60 — Stripe Checkout Auto-Provisioning ──────────────────────────────────
+
+async def _provision_stripe_customer(
+    customer_email: str,
+    stripe_customer_id: str,
+    stripe_subscription_id: str | None,
+    checkout_session_id: str | None,
+    db: AsyncSession,
+) -> tuple[Tenant, bool]:
+    """
+    Find or create a Tenant for a Stripe customer.
+
+    Resolution order:
+      1. Idempotency: if checkout_session_id already stored → return existing
+      2. Lookup by stripe_customer_id → update plan / subscription
+      3. Lookup by user email → link their tenant to Stripe
+      4. Auto-provision: new Tenant (plan from STRIPE_PROVISIONING_PLAN) +
+         admin User with cryptographically random password
+
+    Returns (tenant, provisioned) where provisioned=True only for new tenants.
+    """
+    # 0. Idempotency guard
+    if checkout_session_id:
+        result = await db.execute(
+            select(Tenant).where(Tenant.stripe_checkout_session_id == checkout_session_id)
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing, False
+
+    # 1. Lookup by stripe_customer_id
+    if stripe_customer_id:
+        result = await db.execute(
+            select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id)
+        )
+        tenant = result.scalar_one_or_none()
+        if tenant:
+            tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
+            if stripe_subscription_id:
+                tenant.stripe_subscription_id = stripe_subscription_id
+            if checkout_session_id:
+                tenant.stripe_checkout_session_id = checkout_session_id
+            await db.commit()
+            return tenant, False
+
+    # 2. Lookup by email → link existing ASC user's tenant
+    result = await db.execute(select(User).where(User.email == customer_email))
+    existing_user = result.scalar_one_or_none()
+    if existing_user and existing_user.tenant_id:
+        result = await db.execute(
+            select(Tenant).where(Tenant.id == existing_user.tenant_id)
+        )
+        tenant = result.scalar_one_or_none()
+        if tenant:
+            tenant.stripe_customer_id = stripe_customer_id
+            tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
+            tenant.contact_email = customer_email
+            if stripe_subscription_id:
+                tenant.stripe_subscription_id = stripe_subscription_id
+            if checkout_session_id:
+                tenant.stripe_checkout_session_id = checkout_session_id
+            await db.commit()
+            return tenant, False
+
+    # 3. Auto-provision: new Tenant + admin User
+    now = datetime.now(timezone.utc)
+    tenant_id = str(uuid.uuid4())
+    slug = customer_email.split("@")[0].lower().replace(".", "-")[:50]
+
+    tenant = Tenant(
+        id=tenant_id,
+        name=f"{slug} (Stripe)",
+        slug=f"{slug}-{tenant_id[:8]}",
+        plan=_settings.STRIPE_PROVISIONING_PLAN,
+        is_active=True,
+        contact_email=customer_email,
+        stripe_customer_id=stripe_customer_id,
+        stripe_subscription_id=stripe_subscription_id,
+        stripe_checkout_session_id=checkout_session_id,
+        created_at=now,
+    )
+    db.add(tenant)
+
+    user = User(
+        id=str(uuid.uuid4()),
+        email=customer_email,
+        full_name=customer_email.split("@")[0].replace(".", " ").title(),
+        hashed_password=get_password_hash(secrets.token_urlsafe(32)),
+        role="admin",
+        is_active=True,
+        email_verified=True,
+        onboarding_step="completed",
+        tenant_id=tenant_id,
+        created_at=now,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return tenant, True
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -317,8 +421,62 @@ async def stripe_webhook(
         extra={"event_type": event_type, "event_id": event.get("id", "")},
     )
 
-    # Handle subscription updates — update tenant's subscription ID
-    if event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
+    # ── P60: checkout.session.completed → provision / upgrade tenant ──────────
+    if event_type == "checkout.session.completed":
+        session = event.get("data", {}).get("object", {})
+        customer_email: str = (
+            session.get("customer_email")
+            or session.get("customer_details", {}).get("email", "")
+        )
+        stripe_customer_id: str = session.get("customer", "")
+        stripe_subscription_id: str | None = session.get("subscription")
+        checkout_session_id: str = session.get("id", "")
+
+        # Optional product filter: skip if a product ID is configured and doesn't match
+        product_id_filter = _settings.STRIPE_SEGURIDAD_PRODUCT_ID
+        if product_id_filter:
+            metadata = session.get("metadata", {})
+            if metadata.get("product_id") != product_id_filter:
+                return WebhookAckResponse(received=True)
+
+        if customer_email and stripe_customer_id:
+            tenant, provisioned = await _provision_stripe_customer(
+                customer_email,
+                stripe_customer_id,
+                stripe_subscription_id,
+                checkout_session_id,
+                db,
+            )
+            log_security_action(
+                "stripe.tenant_provisioned" if provisioned else "stripe.tenant_upgraded",
+                user_id=None,
+                extra={
+                    "tenant_id": tenant.id,
+                    "stripe_customer_id": stripe_customer_id,
+                    "plan": _settings.STRIPE_PROVISIONING_PLAN,
+                    "provisioned": provisioned,
+                },
+            )
+
+    # ── P60: customer.subscription.created → link subscription to tenant ──────
+    elif event_type == "customer.subscription.created":
+        subscription = event.get("data", {}).get("object", {})
+        stripe_customer_id = subscription.get("customer", "")
+        stripe_sub_id = subscription.get("id")
+        sub_status = subscription.get("status")
+
+        if stripe_customer_id and sub_status == "active":
+            result = await db.execute(
+                select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id)
+            )
+            tenant = result.scalar_one_or_none()
+            if tenant:
+                tenant.stripe_subscription_id = stripe_sub_id
+                tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
+                await db.commit()
+
+    # ── P55: subscription updated / deleted ───────────────────────────────────
+    elif event_type in ("customer.subscription.updated", "customer.subscription.deleted"):
         subscription = event.get("data", {}).get("object", {})
         stripe_customer_id = subscription.get("customer")
         stripe_sub_id = subscription.get("id")
