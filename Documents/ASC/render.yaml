@@ -45,7 +45,7 @@ services:
                                    # Format: postgresql+asyncpg://postgres.[ref]:[pass]@aws-0-*.pooler.supabase.com:5432/postgres
 
       - key: CORS_ORIGINS
-        sync: false                # JSON array: ["https://asc-premoscorp.vercel.app","https://asc.premoscorp.com"]
+        value: '["https://premoscorp.com","https://www.premoscorp.com"]'
 
       # ── Optional — leave empty to disable integrations ─────────────────────
       - key: REDIS_URL

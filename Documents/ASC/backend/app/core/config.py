@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
 from functools import lru_cache
-from typing import List
+from typing import Any, List
+import json
 
 
 class Settings(BaseSettings):
@@ -187,6 +189,20 @@ class Settings(BaseSettings):
     SSO_DEFAULT_PLAN: str = "free"
     # CORS: add *.premoscorp.com for SSO cross-origin requests from premoscorp.com
     CORS_ORIGINS_EXTRA: List[str] = []       # additional origins (merged with CORS_ORIGINS)
+
+    @field_validator("CORS_ORIGINS", "CORS_ORIGINS_EXTRA", mode="before")
+    @classmethod
+    def _parse_str_list(cls, v: Any) -> Any:
+        if isinstance(v, list):
+            return v
+        if not v:
+            return []
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                return json.loads(v)
+            return [item.strip() for item in v.split(",") if item.strip()]
+        return v
 
 
 @lru_cache
