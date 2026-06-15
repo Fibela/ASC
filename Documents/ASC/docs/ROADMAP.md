@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 3.8 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P52 completados — Tenant CRUD activo + Bug#Gap-1 corregido — 3899 tests, coverage 85.67%
+> Versión 3.9 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P55 completados — Onboarding + Plan Caps + Billing/Metering activos — 4103 tests, coverage ≥85%
 
 ---
 
@@ -1179,3 +1179,80 @@ Request → [JWT: tenant_id claim]
 | TestP52Regression | 7 | Tenant model, context, filter, middleware, models tenant_id, archivo, deps intactos |
 
 **Resultado: 99/99 PASSED — 3899 tests totales, 85.67% coverage**
+
+---
+
+## v3.9 — Sprint P53+P54+P55: Onboarding + Plan Caps + Billing/Metering
+
+**Objetivo:** Completar el núcleo SaaS comercial: registro self-service de tenants, verificación de email, límites por plan y metering mensual con integración Stripe stub.
+
+### P53 — Onboarding Flow
+
+**Archivos creados:** `backend/app/api/v1/endpoints/onboarding.py`, `backend/migrations/versions/r8l01o0q3k05_add_onboarding_p53.py`
+
+**Archivos modificados:** `backend/app/models/user.py` (+4 campos), `backend/app/api/deps.py` (+email_verified gate), `backend/app/api/v1/router.py`
+
+**Wizard steps:** `pending_email` → `pending_setup` → `completed`
+
+| Endpoint | Método | Auth | Descripción |
+|----------|--------|------|-------------|
+| /onboarding/register | POST | Público | Crea Tenant + User admin, email_verified=False, envía token |
+| /onboarding/verify-email | POST | Público | Valida SHA-256(token), avanza a pending_setup |
+| /onboarding/status | GET | JWT | Estado actual (step, email_verified) |
+| /onboarding/complete | POST | JWT | Avanza pending_setup → completed |
+
+**Seguridad:** Raw token nunca en DB (SHA-256 hash, 64-char). Expira en 24h. `getattr(user, "email_verified", True)` como default para usuarios legacy. `email_verified=False` → HTTP 403 `email_verification_required` en todos los endpoints autenticados.
+
+### P54 — Per-Plan Resource Caps
+
+**Archivo creado:** `backend/app/core/plan_caps.py`
+
+**Archivos modificados:** `backend/app/api/v1/endpoints/api_keys.py` (+enforce_api_key_cap), `backend/tests/test_p40_api_keys.py` (test actualizado por cambio de comportamiento)
+
+| Plan | max_users | max_api_keys/user |
+|------|-----------|-------------------|
+| free | 5 | 3 |
+| pro | 50 | 20 |
+| enterprise | ∞ | ∞ |
+
+**Diseño:** Tenant column override > plan default. Enterprise skips DB query. 403 con error structured `{code, message, current, cap, plan}`. Tenant sin tenant_id → sin cap.
+
+### P55 — Billing / Metering
+
+**Archivos creados:** `backend/app/models/usage_record.py`, `backend/app/api/v1/endpoints/billing.py`, `backend/migrations/versions/s9m12p1r4l06_add_billing_metering_p55.py`
+
+**Archivos modificados:** `backend/app/models/tenant.py` (+stripe_*), `backend/app/core/config.py` (+Stripe+email settings), `backend/app/models/__init__.py`, `backend/tests/test_p56_deployment_readiness.py`
+
+| Endpoint | Método | Auth | Descripción |
+|----------|--------|------|-------------|
+| /billing/usage | GET | JWT | Snapshot actual del tenant autenticado |
+| /billing/usage/{tenant_id} | GET | Admin | Snapshot de cualquier tenant |
+| /billing/snapshot | POST | Admin | Cuenta recursos activos y hace upsert en usage_records |
+| /billing/stripe/webhook | POST | Público (HMAC) | Recibe eventos Stripe, actualiza plan/subs |
+
+**Seguridad Stripe:** `hmac.compare_digest` (timing-safe). Validación solo cuando `STRIPE_WEBHOOK_SECRET ≠ ""`. JSON inválido → 400. Firma inválida → 400.
+
+### Test Matrix P53–P55
+
+| Suite | Tests | Clases | Áreas clave |
+|-------|-------|--------|-------------|
+| test_p53_onboarding.py | 67 | 10 | Token helpers, register, verify, status, complete, email gate, model fields, migration, config, router |
+| test_p54_plan_caps.py | 57 | 7 | PLAN_DEFAULTS, _resolve_cap, user cap, api_key cap, api_keys wiring, module structure, regression |
+| test_p55_billing.py | 80 | 9 | UsageRecord model, period helper, Stripe sig, usage endpoints, snapshot, webhook, config, migration, router |
+| **Total** | **204** | **26** | |
+
+**Resultado: 204/204 PASSED — 4103 tests totales**
+
+### SaaS Gap Analysis actualizada
+
+| Gap | Sprint | Estado |
+|-----|--------|--------|
+| Multi-tenant isolation | P47+P51 | ✅ DONE |
+| API key tenant bypass | Bug#Gap-1 (P52) | ✅ FIXED |
+| Tenant CRUD | P52 | ✅ DONE |
+| Self-service onboarding | P53 | ✅ DONE |
+| Email verification | P53 | ✅ DONE |
+| Per-plan resource caps | P54 | ✅ DONE |
+| Monthly usage metering | P55 | ✅ DONE |
+| Stripe billing integration | P55 (stub) | ✅ STUB |
+| Deployment readiness | P56 | 🔄 PENDING |

@@ -259,8 +259,8 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "p6j79m8o1i93"   # add_multi_tenancy_p47 (latest)
-    _EXPECTED_COUNT = 13               # total migrations
+    _EXPECTED_HEAD  = "s9m12p1r4l06"   # add_billing_metering_p55 (latest)
+    _EXPECTED_COUNT = 15               # total migrations (added P53 + P55)
 
     def test_migrations_directory_exists(self):
         assert self._MIGRATIONS_DIR.exists()
@@ -281,6 +281,8 @@ class TestDatabaseMigrations:
             "api_keys",         # P40
             "webhooks",         # P42
             "multi_tenancy",    # P47
+            "onboarding",       # P53
+            "billing_metering", # P55
         ]
         files = [f.name for f in self._MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
         for tag in expected_tags:

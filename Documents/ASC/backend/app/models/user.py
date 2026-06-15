@@ -43,6 +43,19 @@ class User(Base):
     # NULL = default single-tenant mode (PremosCorp own deployment)
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
+    # ── P53 Onboarding / Email Verification ───────────────────────────────────
+    # True = verified (default for legacy users and internal registrations).
+    # False = pending verification (set by POST /onboarding/register).
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=True)
+    # SHA-256 hash of the one-time verification token (raw token sent via email).
+    email_verification_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Token expiry — None when already verified or never set.
+    email_verification_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Wizard step: pending_email → pending_setup → completed
+    onboarding_step: Mapped[str] = mapped_column(String(50), default="completed")
+
     @property
     def is_locked(self) -> bool:
         """True when the account has an active time-based lock."""

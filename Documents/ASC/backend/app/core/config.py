@@ -145,6 +145,16 @@ class Settings(BaseSettings):
     # Generate: python -c "import secrets; print(secrets.token_hex(32))"
     METRICS_SCRAPE_TOKEN: str = ""   # nosec B105 — from env/Vault
 
+    # ── P53 Email Verification ────────────────────────────────────────────────
+    # Number of hours before the email verification token expires.
+    EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
+
+    # ── P55 Stripe Billing ────────────────────────────────────────────────────
+    # Empty = Stripe integration disabled (default for dev/test).
+    # In production set these via env/Vault. Never hard-code.
+    STRIPE_SECRET_KEY: str = ""           # nosec B105 — sk_live_… or sk_test_…
+    STRIPE_WEBHOOK_SECRET: str = ""       # nosec B105 — whsec_…
+
     # ── SPECTER Security Hardening (P14) ──────────────────────────────────────
     # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
     # Generate a token with: python -c "from app.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"

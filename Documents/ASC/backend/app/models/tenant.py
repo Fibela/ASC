@@ -39,3 +39,9 @@ class Tenant(Base):
     max_users: Mapped[int | None] = mapped_column(nullable=True)
     # Max API keys per user under this plan
     max_api_keys_per_user: Mapped[int | None] = mapped_column(nullable=True)
+
+    # ── P55 Billing / Stripe ──────────────────────────────────────────────────
+    # Stripe customer ID (e.g. cus_XXXXXXXXXXXXXXXXXX). NULL = not yet in Stripe.
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Active Stripe subscription ID (sub_XXXXXXXXXXXXXXXXXX). NULL = free/no sub.
+    stripe_subscription_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

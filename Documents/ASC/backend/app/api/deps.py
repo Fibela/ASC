@@ -84,6 +84,15 @@ async def _resolve_user(
             detail="password_reset_required",
         )
 
+    # P53: Block unverified users from authenticated endpoints.
+    # email_verified defaults to True for legacy users — only NEW self-registered
+    # users have it set to False until they click the link in their inbox.
+    if not getattr(user, "email_verified", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="email_verification_required",
+        )
+
     return user
 
 

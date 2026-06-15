@@ -32,10 +32,12 @@ from app.api.deps import get_current_user, get_current_admin
 from app.core.api_key_rate_limit import api_key_limiter
 from app.core.audit import log_security_action
 from app.core.config import get_settings
+from app.core.plan_caps import enforce_api_key_cap
 from app.core.tenant_context import get_tenant_id
 from app.db.session import get_db
 from app.db.tenant_filter import apply_tenant_filter
 from app.models.api_key import APIKey
+from app.models.tenant import Tenant
 from app.models.user import User
 
 router = APIRouter(prefix="/api-keys", tags=["API Keys"])
@@ -203,16 +205,14 @@ async def create_api_key(
     """
     _validate_scopes(payload.scopes)
 
-    # Enforce per-user cap
-    count_result = await db.execute(
-        select(APIKey).where(APIKey.user_id == current_user.id, APIKey.is_active == True)
-    )
-    active_keys = count_result.scalars().all()
-    if len(active_keys) >= _MAX_KEYS_PER_USER:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Límite de {_MAX_KEYS_PER_USER} llaves activas por usuario alcanzado",
+    # P54: enforce per-plan api_key cap before any DB write.
+    if current_user.tenant_id:
+        tenant_result = await db.execute(
+            select(Tenant).where(Tenant.id == current_user.tenant_id)
         )
+        tenant = tenant_result.scalar_one_or_none()
+        if tenant:
+            await enforce_api_key_cap(tenant, current_user.id, db)
 
     raw = _generate_raw_key()
     key = APIKey(

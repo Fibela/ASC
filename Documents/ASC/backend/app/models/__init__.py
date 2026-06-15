@@ -20,6 +20,7 @@ from app.models.executive_report import ExecutiveReport
 from app.models.api_key import APIKey
 from app.models.webhook import Webhook
 from app.models.tenant import Tenant
+from app.models.usage_record import UsageRecord
 
 __all__ = [
     "User", "Event", "IoC", "Alert", "SocMetric", "Artifact",
@@ -38,4 +39,5 @@ __all__ = [
     "APIKey",
     "Webhook",
     "Tenant",
+    "UsageRecord",
 ]

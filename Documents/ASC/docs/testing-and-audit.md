@@ -1,5 +1,87 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.0 | Actualizado: 2026-06-14 | P52 — Tenant Management API + Bug#Gap-1 — 3899 tests, coverage 85.67%
+> Versión 4.1 | Actualizado: 2026-06-14 | P53–P55 — Onboarding + Plan Caps + Billing/Metering — 4103 tests, coverage ≥85%
+
+## P53–P55 — Onboarding + Plan Caps + Billing/Metering (2026-06-14)
+
+### Suite test_p53_onboarding.py
+
+**67 tests, 10 clases — CI-safe (sin DB real, sin servicios externos)**
+
+| Clase | Tests | Qué valida |
+|-------|-------|------------|
+| TestTokenHelpers | 12 | SHA-256 hash, longitud 64, determinismo, unicidad, raw≠hash, expiración en futuro |
+| TestRegister | 7 | success (201), slug 409, email 409, email_verified=False, onboarding_step=pending_email, email enviado, password mínimo, slug regex |
+| TestVerifyEmail | 6 | token válido→verified, token inválido 400, token expirado 400, campos limpiados, step→pending_setup, raw≠sha256 |
+| TestOnboardingStatus | 5 | completed, pending_email, pending_setup, campo email, usuario legacy sin atributos |
+| TestCompleteOnboarding | 5 | avanza pending_setup→completed, idempotente, bloquea pending_email 400, emite audit, commit |
+| TestEmailVerifiedGate | 5 | import en source, usa getattr, 403 para unverified, 200 para verified, default True |
+| TestUserModelFields | 6 | email_verified, token, expires_at, onboarding_step, default=True, default='completed' |
+| TestP53Migration | 10 | archivo existe, down_revision, revision, email_verified, token, onboarding_step, server_default, índice, downgrade |
+| TestOnboardingConfig | 3 | EMAIL_VERIFICATION_EXPIRE_HOURS exists, default=24, positivo |
+| TestRouterRegistration | 10 | prefix=/onboarding, import en router, include_router, 4 rutas presentes, POST/GET correctos |
+
+**Resultado: 67/67 PASSED**
+
+**Seguridad verificada en tests:**
+- Raw token ≠ SHA-256(raw token) — verificado con 2 tests
+- Email_verified gate: 403 para unverified; 200 para verified
+- `getattr(user, "email_verified", True)` — usuarios legacy NO bloqueados
+- Config values vacíos por defecto (no secrets hardcoded)
+- Token limpiado de DB tras verificación exitosa
+
+---
+
+### Suite test_p54_plan_caps.py
+
+**57 tests, 7 clases — CI-safe (sin DB real)**
+
+| Clase | Tests | Qué valida |
+|-------|-------|------------|
+| TestPlanDefaults | 13 | free(5/3), pro(50/20), enterprise(None/None), jerarquía, tipo dict, claves por plan |
+| TestResolveCap | 8 | default free, default pro, enterprise=None, column override, zero válido, api_key column, plan desconocido, clave no-existente |
+| TestEnforceUserCap | 13 | bajo-cap pasa, en-cap 403, sobre-cap 403, code=user_cap_exceeded, current, cap, enterprise∞, enterprise skip DB, pro=50, pro-1 pasa, custom override, 0 pasa, async |
+| TestEnforceApiKeyCap | 10 | bajo pasa, en-cap 403, code=api_key_cap_exceeded, plan en detail, enterprise∞, enterprise skip DB, pro=20, custom override, async, scoped a user_id |
+| TestApiKeysWiring | 5 | import en api_keys.py, plan_caps referenciado, Tenant importado, create llama enforce, sin viejo límite hardcoded |
+| TestModuleStructure | 6 | importable, enforce_user_cap coroutine, enforce_api_key_cap coroutine, _resolve_cap sync, PLAN_DEFAULTS exported, docstring P54 |
+| TestP54Regression | 4 | create llama enforce, free=3 not 20, user_count filtra is_active=True |
+
+**Resultado: 57/57 PASSED**
+
+**Seguridad verificada en tests:**
+- Enterprise siempre skip DB query (no falsos límites en plan unlimited)
+- Cap 0 se respeta (máximo de 0 = ningún recurso permitido)
+- Plan desconocido → free defaults (safe fallback)
+- Viejo límite hardcoded 422 eliminado, reemplazado por 403 con payload structured
+
+---
+
+### Suite test_p55_billing.py
+
+**80 tests, 9 clases — CI-safe**
+
+| Clase | Tests | Qué valida |
+|-------|-------|------------|
+| TestUsageRecordModel | 11 | tablename, id, tenant_id, period, resource_type, count, recorded_at, UniqueConstraint, en models/__init__ |
+| TestCurrentPeriod | 5 | formato YYYY-MM, 7 chars, dígitos, año en rango, mes con padding |
+| TestStripeSignatureVerification | 10 | firma válida True, secret incorrecto False, payload tampered False, missing t= False, missing v1= False, empty sig False, malformed False, replay False, SHA-256, compare_digest |
+| TestGetMyUsage | 5 | sin records→ceros, todos los resource_types presentes, sin tenant 400, mapeo de records, period actual |
+| TestGetTenantUsage | 2 | admin puede ver otro tenant, tenant no-encontrado 404 |
+| TestTakeSnapshot | 5 | sin tenant 400, todos los tipos, commit, audit log, 5 records escritos |
+| TestStripeWebhook | 8 | ack sin secret, 400 missing sig, 400 invalid sig, 200 valid sig, 400 JSON inválido, subscription.deleted→free, subscription.updated→pro, unknown event→200 |
+| TestBillingConfig | 7 | STRIPE_SECRET_KEY exists, STRIPE_WEBHOOK_SECRET exists, defaults vacíos, tipos string, valores vacíos en runtime |
+| TestP55Migration | 11 | archivo existe, down_revision=r8l01o0q3k05, revision, usage_records table, stripe_customer_id, stripe_subscription_id, UniqueConstraint, tenant_id index, period index, downgrade, tenant model fields |
+| TestBillingRouterRegistration | 11 | prefix=/billing, import en router, include_router, 4 rutas, POST/GET, RESOURCE_TYPES completo |
+
+**Resultado: 80/80 PASSED**
+
+**Seguridad verificada en tests:**
+- `hmac.compare_digest` en Stripe sig (timing-safe) — verificado en test
+- SHA-256 usado en verificación de firma — verificado en test
+- Config defaults vacíos en runtime (no keys hardcoded vivos)
+- JSON payload malformado → 400 antes de procesar
+- Firma inválida → 400 sin ejecutar lógica de negocio
+
+---
 
 ## P52 — Tenant Management API (2026-06-14)
 

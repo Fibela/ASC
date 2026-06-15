@@ -248,11 +248,16 @@ class TestCreateAPIKey:
         assert r.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_create_hits_cap_returns_422(self, analyst_id):
-        # Simulate 20 active keys already existing
+    async def test_create_no_tenant_bypasses_cap(self, analyst_id):
+        # P54: the old hardcoded _MAX_KEYS_PER_USER=20 limit (422) was replaced
+        # by per-plan cap enforcement (403) in plan_caps.py.
+        # When the user has no tenant in DB (scalar_result=None for Tenant lookup),
+        # no cap is applied and the key is created successfully.
+        # Per-plan cap 403 behavior is tested in test_p54_plan_caps.py.
         existing_keys = [_make_api_key_row(analyst_id) for _ in range(20)]
         override, _ = _db_override(scalar_result=None, scalars_result=existing_keys)
         user = _make_user("analyst", analyst_id)
+        user.tenant_id = None  # no tenant → plan caps skipped
 
         app.dependency_overrides[get_db] = override
         with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
@@ -264,8 +269,7 @@ class TestCreateAPIKey:
                 )
         app.dependency_overrides.pop(get_db, None)
 
-        assert r.status_code == 422
-        assert "Límite" in r.json()["detail"]
+        assert r.status_code == 201
 
     @pytest.mark.asyncio
     async def test_create_name_required(self, analyst_id):
