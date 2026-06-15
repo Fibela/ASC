@@ -96,5 +96,55 @@ services:
         sync: false              # Static bearer token for /api/v1/observability/metrics
                                  # Empty = requires analyst+ JWT instead
 
+      # ── P53 — Email Verification ──────────────────────────────────────────
+      - key: EMAIL_VERIFICATION_EXPIRE_HOURS
+        value: "24"              # Hours before email verification token expires
+
+      # ── P55 — Stripe Billing (leave empty to disable) ─────────────────────
+      - key: STRIPE_SECRET_KEY
+        sync: false              # sk_live_… or sk_test_… — never committed
+                                 # Empty = Stripe integration disabled
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false              # whsec_… from Stripe Dashboard → Webhooks → Signing secret
+                                 # Empty = webhook signature validation skipped (dev only)
+
+      # ── SPECTER Signing Keys (required in production) ─────────────────────
+      - key: SPECTER_SIGNING_PRIVATE_KEY
+        sync: false              # base64 raw Ed25519 private key (32 bytes)
+                                 # Generate: python -c "from app.core.signing import generate_keypair; p,q=generate_keypair(); print('PRIVATE:',p)"
+      - key: SPECTER_SIGNING_PUBLIC_KEY
+        sync: false              # base64 raw Ed25519 public key (32 bytes)
+                                 # Leave empty to disable command signing (dev/sandbox only)
+
+      # ── Adapter credentials (all optional — empty = adapter disabled) ──────
+      - key: PALOALTO_HOST
+        value: ""
+      - key: PALOALTO_API_KEY
+        value: ""
+      - key: FORTINET_HOST
+        value: ""
+      - key: FORTINET_API_TOKEN
+        value: ""
+      - key: AD_SERVER_URL
+        value: ""
+      - key: AD_BIND_DN
+        value: ""
+      - key: AD_BIND_PASSWORD
+        value: ""
+      - key: ELASTICSEARCH_URL
+        value: ""
+      - key: ELASTICSEARCH_API_KEY
+        value: ""
+      - key: WAZUH_URL
+        value: ""
+      - key: WAZUH_USERNAME
+        value: ""
+      - key: WAZUH_PASSWORD
+        value: ""
+      - key: THEHIVE_URL
+        value: ""
+      - key: THEHIVE_API_KEY
+        value: ""
+
       # Render injects PORT automatically — do NOT set it here.
       # uvicorn binds to $PORT (set in startCommand above).

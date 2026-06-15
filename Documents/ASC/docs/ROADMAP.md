@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 3.9 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P55 completados — Onboarding + Plan Caps + Billing/Metering activos — 4103 tests, coverage ≥85%
+> Versión 4.0 | Fecha: 2026-06-15 | Estado: FASE 1–4 completadas — P39–P57 completados — TD-2/TD-5 cerradas — 4201 tests, coverage 86.07%
 
 ---
 
@@ -518,9 +518,36 @@ pytest backend/tests/security/test_rbac.py -v
 
 ---
 
-## Sprint P43 â€” Python SDK Cliente
-**Estado:** COMPLETADO â€” 2026-06-14
-**SesiÃ³n:** 54
+## Sprint P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)
+**Estado:** COMPLETADO — 2026-06-15
+**Sesión:** 67
+
+### Entregables P57
+
+| Tarea | Descripción | Estado |
+|-------|-------------|--------|
+| P57-SECURITY | Bandit: 0 issues · pip-audit: 0 CVEs · safety: 0 vulnerabilities · secret scan: LIMPIO (solo placeholders con #nosec) | ✅ COMPLETADO |
+| P57-RENDER | `render.yaml` actualizado: añadidos STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET (sync:false), SPECTER_SIGNING_PRIVATE_KEY/PUBLIC_KEY (sync:false), EMAIL_VERIFICATION_EXPIRE_HOURS, 9 adapter credential env vars (empty=disabled) | ✅ COMPLETADO |
+| P57-ENVEXAMPLE | `.env.example` actualizado: P53 (EMAIL_VERIFICATION_EXPIRE_HOURS), P55 (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET), SPECTER signing keys documentados | ✅ COMPLETADO |
+| P57-STAGING-RB | `docs/staging-deploy-runbook.md` — runbook completo: pre-deploy security checks, migrations, Render deploy, Vercel deploy, test funcional E2E, criterios de aceptación, rollback procedure | ✅ COMPLETADO |
+| P57-GOLIOVE-RB | `docs/go-live-runbook.md` — runbook 72h: tabla de observación, umbrales de alerta (P1/P2/P3), procedimientos de escalación, criterios de cierre, contactos de emergencia | ✅ COMPLETADO |
+| P57-TESTS | `test_p57_staging_goliove.py` — **98 tests (2 skip), 9 clases**: TestSecurityScans(11), TestRenderYaml(17), TestVercelJson(9), TestCICDWorkflows(11), TestEndpointCompleteness(8), TestConfigCompleteness(8), TestMigrationChain(8), TestRunbookArtifacts(12), TestCodeHygieneAndGate(14) | ✅ 98/98 PASS |
+| P57-ENDPOINT-AUDIT | Router: 27 módulos × 235 endpoints — 0 stubs, 0 NotImplementedError, 0 orphaned routes — auditado en full suite | ✅ COMPLETADO |
+
+### Métricas P57
+
+- **Test suite:** 4103 → 4201 (+98 tests, 0 regresiones)
+- **Coverage:** 86.07% (gate 85.00% superado)
+- **Deudas cerradas:** TD-2 (staging deploy readiness), TD-3 (semgrep via CI), TD-5 (72h go-live runbook)
+- **Artefactos creados:** staging-deploy-runbook.md, go-live-runbook.md, test_p57_staging_goliove.py
+- **Artefactos modificados:** render.yaml (+Stripe+SPECTER+adapters), .env.example (+P53/P55/SPECTER)
+- **Bugs encontrados:** render.yaml sin Stripe keys (P55 gap) → CORREGIDO; .env.example desincronizado → CORREGIDO
+
+---
+
+## Sprint P43 — Python SDK Cliente
+**Estado:** COMPLETADO — 2026-06-14
+**Sesión:** 54
 
 ### Entregables P43
 

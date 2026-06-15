@@ -4246,6 +4246,35 @@ Siguiente: commit + push → GitHub master
 
 ---
 
+## Session 67 — 2026-06-15
+
+### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1224 | 2026-06-15 | SECURITY | **Bandit** `python -m bandit -r app/ -ll -f txt` — 23,660 líneas escaneadas. Total issues H/M: **0**. 10 `#nosec Bxxx` anotaciones confirmadas (no bare nosec). | **LIMPIO** |
+| 1225 | 2026-06-15 | SECURITY | **pip-audit** `python -m pip_audit -r requirements.txt` — dependencias actuales. | **"No known vulnerabilities found"** |
+| 1226 | 2026-06-15 | SECURITY | **Secret grep** — patrón `(password\|secret\|api_key)\s*=\s*['\"][^'\"]{8,}` sobre `app/`. Solo resultado: `config.py:13` `SECRET_KEY = "changeme-..."` (nosec B105) y `config.py:155/156` Stripe placeholders vacíos (nosec B105). | **LIMPIO** |
+| 1227 | 2026-06-15 | SECURITY | **Endpoint audit** — 27 routers registrados en `router.py`, 235 endpoints totales. 0 `raise NotImplementedError`, 0 stubs sin implementar. `pass` aislados en neutralize.py (aprobación de JWT) y middleware.py (Content-Length malformado) — ambos intencionales. | **COMPLETO** |
+| 1228 | 2026-06-15 | FIX | **`render.yaml`** — Gap P55: `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` faltaban (sync:false). Gap SPECTER: `SPECTER_SIGNING_PRIVATE_KEY` y `SPECTER_SIGNING_PUBLIC_KEY` no estaban documentados. Añadidos también `EMAIL_VERIFICATION_EXPIRE_HOURS` y 9 adapter credential vars (PALOALTO, FORTINET, AD, ELASTICSEARCH, WAZUH, THEHIVE) con `value: ""` (empty = disabled). | CORREGIDO |
+| 1229 | 2026-06-15 | FIX | **`.env.example`** — desincronizado con render.yaml post-P53/P55. Añadidos: `EMAIL_VERIFICATION_EXPIRE_HOURS=24`, `STRIPE_SECRET_KEY=`, `STRIPE_WEBHOOK_SECRET=`, `SPECTER_SIGNING_PRIVATE_KEY=`, `SPECTER_SIGNING_PUBLIC_KEY=` con documentación de generación. Test `test_env_example_has_all_required_keys` (P38) fue la regla de detección — pasó a ✅ tras el fix. | CORREGIDO |
+| 1230 | 2026-06-15 | IMPL | `docs/staging-deploy-runbook.md` — **Creado**. Runbook de deploy a staging: FASE 0 (security scans locales, env vars checklist), FASE 1 (migraciones Alembic + verificación DB), FASE 2 (deploy Render + curl health checks), FASE 3 (deploy Vercel + security headers), FASE 4 (test funcional E2E completo), criterios de aceptación, rollback procedure. | COMPLETADO |
+| 1231 | 2026-06-15 | IMPL | `docs/go-live-runbook.md` — **Creado**. Runbook 72h de observación post-deploy: tabla de revisiones por hora (0h, 1h, 2h, 4h, 8h, 12h, 24h, 36h, 48h, 60h, 72h), endpoints de monitoreo, umbrales CRÍTICO/ALTO/MEDIO, procedimientos P1/P2/P3, criterios de cierre, log de observación. | COMPLETADO |
+| 1232 | 2026-06-15 | TEST | `test_p57_staging_goliove.py` — **Creado**. 98 tests, 9 clases. TestSecurityScans(11), TestRenderYaml(17), TestVercelJson(9), TestCICDWorkflows(11), TestEndpointCompleteness(8), TestConfigCompleteness(8), TestMigrationChain(8), TestRunbookArtifacts(12), TestCodeHygieneAndGate(14). | **98/98 PASS (2 skip)** |
+| 1233 | 2026-06-15 | TEST | Suite completa post-P57: `4201 passed, 16 skipped, 0 failed` en 253s. Coverage: **86.07%** (gate 85% superado). Test delta: 4103 → 4201 (+98 tests). | **VERDE** |
+
+### Resumen Session 67
+
+Sprint: P57 — TD-2 (Staging Deploy Readiness) + TD-5 (Go-Live 72h Readiness)
+Deudas cerradas: TD-2 (staging deploy artifacts validados y runbook creado), TD-5 (go-live runbook 72h + monitoring)
+Bugs encontrados y corregidos: render.yaml sin vars Stripe/SPECTER (P55 gap) · .env.example desincronizado post-P53/P55
+Artefactos creados: staging-deploy-runbook.md, go-live-runbook.md, test_p57_staging_goliove.py
+Artefactos modificados: render.yaml, .env.example, docs/ROADMAP.md (v4.0), docs/testing-and-audit.md (v4.2)
+Test delta: 4103 → 4201 (+98 tests, 0 regresiones)
+Siguiente: P58 — TD-4 Adapter Registry per Tenant (FASE 5 completion)
+
+---
+
 ## Session 66 — 2026-06-15
 
 ### Fix Final: P54 Regression en test_p40 + Verificación Suite Completa

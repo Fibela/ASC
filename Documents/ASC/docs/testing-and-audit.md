@@ -1,5 +1,43 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.1 | Actualizado: 2026-06-14 | P53–P55 — Onboarding + Plan Caps + Billing/Metering — 4103 tests, coverage ≥85%
+> Versión 4.2 | Actualizado: 2026-06-15 | P57 — Staging Validation + Go-Live Readiness — 4201 tests, coverage 86.07%
+
+## P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5) (2026-06-15)
+
+### Escaneos de seguridad ejecutados
+
+| Herramienta | Comando | Resultado |
+|-------------|---------|-----------|
+| bandit | `python -m bandit -r app/ -ll -f txt` | **0 issues** (Medium+) |
+| pip-audit | `python -m pip_audit -r requirements.txt` | **0 CVEs** |
+| safety | `python -m safety scan --output screen` | **0 vulnerabilities** |
+| Secret grep | Patrón: `(password\|secret\|api_key)\s*=\s*['\"][^'\"]{8,}` | **LIMPIO** — solo `changeme` con nosec |
+| Endpoint audit | 27 routers, 235 endpoints, 0 NotImplementedError | **COMPLETO** |
+
+### Tests P57 (98 tests, 9 clases)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| TestSecurityScans | 11 | bandit zero-issues, no sk_live_/whsec_ en código, no password123, .env no en git, nosec con Bxxx, Stripe defaults vacíos, startup_checks weak key detection |
+| TestRenderYaml | 17 | type=web, healthCheckPath=/health, autoDeploy, sync:false para secretos, STRIPE_SECRET_KEY/WEBHOOK_SECRET presentes y sync:false, SPECTER signing keys, adapter vars, DEBUG=false, no inline values en sync:false, EMAIL_VERIFICATION_EXPIRE_HOURS |
+| TestVercelJson | 9 | X-Frame-Options=DENY, nosniff, XSS-Protection, HSTS+includeSubDomains, CSP con frame-ancestors, Referrer-Policy, Permissions-Policy, regions, framework=nextjs |
+| TestCICDWorkflows | 11 | ci.yml, deploy.yml, security-audit.yml, p49/p50 presentes, coverage gate en ci.yml, bandit en security-audit.yml, deploy depends on ci, trivy en p49, gitleaks en p49, sin --no-verify en workflows |
+| TestEndpointCompleteness | 8 | 27 routers registrados, onboarding+billing+tenants presentes, archivos críticos existen, 0 NotImplementedError, ≥230 endpoints, /health presente |
+| TestConfigCompleteness | 8 | EMAIL_VERIFICATION_EXPIRE_HOURS=24, STRIPE_SECRET_KEY existe, STRIPE_WEBHOOK_SECRET existe, rate limits P41, CORS incluye premoscorp, SPECTER signing fields |
+| TestMigrationChain | 8 | count=15, head=s9m12p1r4l06, P53+P55 migrations presentes, usage_records en P55, email_verified en P53, P47 presente, sin duplicate revision IDs |
+| TestRunbookArtifacts | 12 | staging+goliove runbooks existen, prereqs, bandit+pip-audit, alembic, rollback, env vars checklist, 72h table, alert thresholds, escalación, /health, CORS, criterios aceptación |
+| TestCodeHygieneAndGate | 14 | sin print() en services, sin eval() en app, AUDIT_LOG reciente, ROADMAP actual, testing-and-audit existe, deployment-guide existe, runbooks existen, SDK existe, .gitignore excluye .env, render.yaml YAML válido, UsageRecord+Tenant en models __init__ |
+
+### Artefactos nuevos/modificados P57
+
+| Archivo | Tipo | Cambio |
+|---------|------|--------|
+| `render.yaml` | Modificado | +Stripe (sync:false), +SPECTER signing (sync:false), +9 adapter vars, +EMAIL_VERIFICATION_EXPIRE_HOURS |
+| `.env.example` | Modificado | +EMAIL_VERIFICATION_EXPIRE_HOURS, +STRIPE_SECRET_KEY/WEBHOOK_SECRET, +SPECTER_SIGNING_PRIVATE/PUBLIC_KEY |
+| `docs/staging-deploy-runbook.md` | Creado | Runbook completo staging: security checks, migraciones, Render+Vercel deploy, E2E funcional, rollback |
+| `docs/go-live-runbook.md` | Creado | Runbook 72h go-live: tabla observación, umbrales P1/P2/P3, procedimientos escalación, criterios cierre |
+| `backend/tests/test_p57_staging_goliove.py` | Creado | 98 tests, 9 clases, validación integral TD-2+TD-5 |
+
+---
 
 ## P53–P55 — Onboarding + Plan Caps + Billing/Metering (2026-06-14)
 
