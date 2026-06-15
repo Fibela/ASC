@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.core.tenant_context import set_tenant_id
 from app.db.session import get_db
 from app.models.user import User
 from app.models.api_key import APIKey
@@ -177,6 +178,12 @@ async def get_user_from_api_key(
 
     # Scopes adaptativos — store on request.state for require_api_key_scope()
     request.state.api_key_scopes = list(api_key.scopes or [])
+
+    # Bug#Gap-1 fix (P52): TenantMiddleware only reads tenant_id from JWT Bearer.
+    # API key auth has no JWT, so the ContextVar remains None after middleware runs.
+    # Override it here to match the owner user's tenant, ensuring that downstream
+    # apply_tenant_filter() correctly scopes queries for API-key-authenticated calls.
+    set_tenant_id(user.tenant_id)
 
     # Touch last_used_at (fire-and-forget style — non-critical)
     api_key.last_used_at = datetime.now(timezone.utc)

@@ -252,23 +252,23 @@ class TestHealthReadiness:
 # ── TestAlembicMigration ──────────────────────────────────────────────────────
 
 class TestAlembicMigration:
+    # Resolve from this test file's location to be CWD-independent
+    _VERSIONS = __import__("pathlib").Path(__file__).parent.parent / "migrations" / "versions"
+
     def test_migration_file_exists(self):
-        from pathlib import Path
-        versions = Path("migrations/versions")
-        files = list(versions.glob("*.py"))
-        assert len(files) >= 1, "No migration files found in migrations/versions/"
+        files = list(self._VERSIONS.glob("*.py"))
+        assert len(files) >= 1, f"No migration files found in {self._VERSIONS}"
 
     def test_initial_migration_has_revision(self):
-        from pathlib import Path
-        files = list(Path("migrations/versions").glob("*.py"))
+        files = sorted(self._VERSIONS.glob("*.py"))
         content = files[0].read_text()
         assert "revision" in content
         assert "upgrade" in content
         assert "downgrade" in content
 
     def test_migration_covers_p16_tables(self):
-        from pathlib import Path
-        files = list(Path("migrations/versions").glob("*.py"))
+        # P16 tables are in the initial schema migration
+        files = sorted(self._VERSIONS.glob("*.py"))
         content = files[0].read_text()
         assert "revoked_tokens" in content
         assert "signing_public_key" in content
