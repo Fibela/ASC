@@ -205,10 +205,14 @@ class TestRenderYaml:
         db = next(e for e in svc["envVars"] if e["key"] == "DATABASE_URL")
         assert db.get("sync") is False
 
-    def test_cors_origins_sync_false(self):
+    def test_cors_origins_has_default_value(self):
+        # CORS_ORIGINS is not a secret (public domain names) — must have a
+        # hardcoded value in render.yaml so Render never injects an empty string
+        # that would crash pydantic-settings JSON parsing on startup.
         svc = self.data["services"][0]
         cors = next(e for e in svc["envVars"] if e["key"] == "CORS_ORIGINS")
-        assert cors.get("sync") is False
+        assert cors.get("value"), "CORS_ORIGINS must have a non-empty value in render.yaml"
+        assert "premoscorp.com" in cors["value"], "CORS_ORIGINS must include premoscorp.com"
 
     def test_stripe_secret_key_present(self):
         assert "STRIPE_SECRET_KEY" in self.env_keys, (
