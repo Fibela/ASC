@@ -43,6 +43,7 @@ from app.core.specter_security import (
     SprecterRateLimiter,
     check_injection,
     check_suspicious_registration,
+    generate_enrollment_token,
     log_honeypot_trigger,
     validate_command_params,
     verify_enrollment_token,
@@ -306,6 +307,40 @@ async def list_agents(
     return {
         "agents": [AgentOut.from_orm(a).model_dump() for a in agents],
         "total":  len(agents),
+    }
+
+
+@router.get("/enrollment-token", summary="Get current SPECTER enrollment token (admin)")
+async def get_enrollment_token(
+    _: User = Depends(get_current_admin),
+) -> dict:
+    """
+    Returns the current SPECTER enrollment token for the authenticated admin.
+
+    The token is HMAC-SHA256(SPECTER_ENROLLMENT_SECRET, window) with a 1-hour rolling
+    window.  It is safe to distribute to endpoint operators but expires within ~2 hours.
+    Never returns the raw secret — only the derived token.
+
+    Security: admin-only.  Analysts cannot retrieve the enrollment token (least privilege).
+    """
+    import math, time as _time
+
+    if not settings.SPECTER_ENROLLMENT_SECRET:
+        return {
+            "configured": False,
+            "token": None,
+            "valid_for_seconds": None,
+            "note": "SPECTER_ENROLLMENT_SECRET not configured — dev mode (open registration)",
+        }
+
+    token = generate_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET)
+    seconds_remaining = int(3600 - (_time.time() % 3600))
+
+    return {
+        "configured": True,
+        "token": token,
+        "valid_for_seconds": seconds_remaining,
+        "note": f"Token expires in {seconds_remaining // 60}m {seconds_remaining % 60}s. Distribute via secure channel only.",
     }
 
 

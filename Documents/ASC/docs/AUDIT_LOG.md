@@ -4455,6 +4455,36 @@ Próximo: P63 — SPECTER Enrollment Portal en premoscorp.com (ruta /sectores/sp
 
 ---
 
+## Session 74 — 2026-06-15
+
+### P63 — SPECTER Enrollment Portal (/sectores/specter) + ASC enrollment-token endpoint
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1298 | 2026-06-15 | IMPL | `backend/app/api/v1/endpoints/agents.py` — Nuevo endpoint `GET /agents/enrollment-token` (admin-only). Retorna token HMAC-SHA256 derivado (NUNCA el raw `SPECTER_ENROLLMENT_SECRET`), `valid_for_seconds` restantes en ventana horaria, flag `configured: bool` y nota de expiración. Registrado ANTES del wildcard `/{agent_id}` para evitar ambigüedad FastAPI. | COMPLETADO |
+| 1299 | 2026-06-15 | SECURITY | Auditoría endpoint enrollment-token: (a) admin-only via `Depends(get_current_admin)` — analistas excluidos; (b) token = HMAC-SHA256(secret, window_index) — expira en máx ~2h; (c) raw secret nunca en respuesta; (d) devuelve `configured: false` en modo dev sin crash; (e) `valid_for_seconds` = `int(3600 - (time() % 3600))`. | VERIFICADO |
+| 1300 | 2026-06-15 | IMPL | `src/pages/Specter.jsx` — Portal de enrolamiento SPECTER completo (~350 líneas). Secciones: PageHero, features grid (6 cards con Framer Motion stagger), how-it-works (4 pasos), fleet section (auth-gated, 5 estados UI: sin cuenta / idle / loading / error / success), download section (OS tabs: windows/linux/macos con InstallCmd helper). | COMPLETADO |
+| 1301 | 2026-06-15 | SECURITY | Auditoría Specter.jsx: (a) JWT ASC en React state solamente — NO localStorage (anti-XSS); (b) token enrolamiento en React state solamente — NO localStorage; (c) SPECTER_ENROLLMENT_SECRET nunca en bundle cliente; (d) links externos con `rel="noopener noreferrer"`; (e) SSO via POST /api/v1/auth/supabase-sso con supabase_token; (f) fleet load con Bearer token; (g) enrollment token solo fetcheado si `ssoData.role === 'admin'` (least privilege); (h) comandos instalación usan placeholder `YOUR_TOKEN_AQUI` — nunca token real. | VERIFICADO |
+| 1302 | 2026-06-15 | IMPL | `src/App.jsx` — Ruta `sectores/specter` con lazy import de `./pages/Specter`. Dentro de `<Layout>`. Vercel 12/12 serverless limit respetado — 0 nuevas funciones api/ creadas. | COMPLETADO |
+| 1303 | 2026-06-15 | IMPL | i18n — Sección `specter` (70 keys) añadida a los 8 locales: ES/EN/PT/FR/DE/ZH/JA/AR. Keys: seoTitle/seoDesc, heroTag, title, subtitle, featuresTitle/Subtitle, feat1-6Title/Desc (12), howTitle/Subtitle, step1-4Title/Desc (8), fleet/auth/error (22), enrollTitle/Desc/Note/Unavailable, copiar/copiado, tabla fleet (8), totalAgents, nuevaSesion, abrirASC, downloadTitle/Desc/Note, verSeguridad, irPortal. JSON válido en todos. | COMPLETADO |
+| 1304 | 2026-06-15 | SECURITY | Auditoría i18n: (a) Ningún locale contiene tokens/secretos reales; (b) placeholder `YOUR_TOKEN_AQUI` en comandos instalación; (c) `totalAgents` usa `{{count}}` sin XSS de interpolación; (d) JSON validado con `node -e JSON.parse(...)` en los 8 archivos. | VERIFICADO |
+| 1305 | 2026-06-15 | TEST | `tests/p63_specter_portal.test.js` — Suite estática Vitest de 157 tests, 14 grupos: FileExistence(5), Routing(5), SecurityInvariants(15), ComponentStructure(15), FleetDisplay(10), EnrollmentToken(11), DownloadTabs(8), I18n ES(20)+EN/PT/FR/DE/ZH/JA/AR(×7=70), I18nParity(4), ASCBackend(8), RegressionGates(7). | COMPLETADO |
+| 1306 | 2026-06-15 | TEST | `npx vitest run tests/p63_specter_portal.test.js` → **157/157 PASSED**. Bugs corregidos en suite: (1) ascRoot path incorrecto (`../..` vs `..`); (2) test SPECTER_ENROLLMENT_SECRET demasiado estricto — el componente usa el key name en fallback UX strings (legítimo) → test actualizado para verificar ausencia de valores reales asignados. | VERDE |
+| 1307 | 2026-06-15 | TEST | Suite completa sc_system: `npx vitest run` → **3416/3416 PASSED** (22 archivos, 0 regresiones). Delta: 3259 → 3416 (+157 tests P63). | VERDE |
+| 1308 | 2026-06-15 | SECURITY | Scan secretos P63: (a) No hay `VITE_SPECTER_*` con secrets en cliente; (b) Sin keys hardcodeadas; (c) Placeholder `YOUR_TOKEN_AQUI` inofensivo; (d) ASC API URL solo de `import.meta.env.VITE_ASC_API_URL`; (e) CORS cross-origin premoscorp.com → asc.premoscorp.com — alineado arquitectura FASE 6. | VERIFICADO |
+| 1309 | 2026-06-15 | DOC | `AUDIT_LOG.md` Session 74, `ROADMAP.md` v4.7 P63 COMPLETADO + sección expandida, `testing-and-audit.md` v4.9 sección P63 añadida. | COMPLETADO |
+
+### Resumen Session 74
+
+Sprint: P63 — SPECTER Enrollment Portal (premoscorp.com /sectores/specter) + GET /agents/enrollment-token (ASC backend)
+Archivos sc_system: `src/pages/Specter.jsx` (nuevo, ~350 líneas), `src/App.jsx` (ruta), `src/locales/*/common.json` (×8, sección specter 70 keys), `tests/p63_specter_portal.test.js` (nuevo, 157 tests)
+Archivos ASC: `backend/app/api/v1/endpoints/agents.py` (endpoint GET /enrollment-token)
+Test delta sc_system: 3259 → 3416 (+157 tests, 0 regresiones)
+Invariantes seguridad críticas: JWT ASC en state only, enrollment token en state only, raw secret nunca al cliente, endpoint admin-only en backend
+Vercel limit: 12/12 — sin nuevas funciones serverless
+
+---
+
 ## Session 66 — 2026-06-15
 
 ### Fix Final: P54 Regression en test_p40 + Verificación Suite Completa

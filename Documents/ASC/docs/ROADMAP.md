@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.6 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P62 completados — TD-2/TD-4/TD-5/TD-6 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅) — 4462 tests ASC / 3259 tests sc_system, coverage 86.42%
+> Versión 4.7 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P63 completados — TD-2/TD-4/TD-5/TD-6 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅ P63✅) — 4462 tests ASC / 3416 tests sc_system, coverage 86.42%
 
 ---
 
@@ -680,7 +680,7 @@ React stores ASC token → redirects to asc.premoscorp.com/?token=...
 | P61 | ASC Metrics Widget en premoscorp.com | 30 | ✅ COMPLETADO |
 | P62 | ASC Client Portal page en premoscorp.com | 31 | ✅ COMPLETADO |
 | TD-6 | CI/CD Pipeline Security Hardening | 31 | ✅ COMPLETADO |
-| P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
+| P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ✅ COMPLETADO |
 
 ### P59 — SSO Bridge (Supabase → ASC)
 **Semana 28–29 | Backend ASC | Migration #17**
@@ -748,14 +748,18 @@ Entregables:
 - **`security-audit.yml` — pip cache**: `cache: pip` en bandit y pip-audit jobs
 - Tests: 32 nuevos tests en `TestCICDHardeningTD6` (71/71 total — 0 regresiones)
 
-### P63 — SPECTER Enrollment Portal
-**Semana 32–33 | sc_system Frontend**
+### P63 — SPECTER Enrollment Portal ✅
+**Semana 32–33 | sc_system Frontend + ASC Backend**
 
 Entregables:
-- `src/pages/Specter.jsx` — página `/sectores/specter`
-- Mostra: enrollment key, download links, agent status (via ASC API + SSO token)
-- i18n: ES/EN
-- Tests: Vitest unit
+- `src/pages/Specter.jsx` — página `/sectores/specter` (~350 líneas, Framer Motion, 5 estados UI auth)
+- `GET /agents/enrollment-token` (ASC backend, admin-only, HMAC-SHA256 derivado, ~2h expiry)
+- `src/App.jsx` — ruta `sectores/specter` registrada con lazy import (Vercel 12/12 intacto)
+- i18n: 8 idiomas (ES/EN/PT/FR/DE/ZH/JA/AR), 70 keys por locale, JSON validado
+- `tests/p63_specter_portal.test.js` — 157 tests estáticos Vitest, 0 regresiones
+- Seguridad: JWT ASC + enrollment token en React state only (anti-XSS), raw secret nunca al cliente, least privilege (token solo para admin)
+- Download section: OS tabs Windows/Linux/macOS con comandos de instalación y placeholder `YOUR_TOKEN_AQUI`
+- Fleet table: colHostname/OS/Status/Threat/LastSeen/Events, THREAT_META color map, totalAgents count
 
 ---
 

@@ -1,5 +1,51 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.8 | Actualizado: 2026-06-15 | TD-6 — CI/CD Pipeline Security Hardening — ASC: 4462 tests (71 P49) / sc_system: 3259 tests, coverage 86.42%
+> Versión 4.9 | Actualizado: 2026-06-15 | P63 — SPECTER Enrollment Portal — ASC: 4462 tests / sc_system: 3416 tests (+157 P63), coverage 86.42%
+
+## P63 — SPECTER Enrollment Portal /sectores/specter (FASE 6 Sprint 5) (2026-06-15)
+
+### Módulos implementados / extendidos
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| Portal Page | `src/pages/Specter.jsx` | ~350 líneas — 5 estados UI, fleet table, enrollment token, OS download tabs |
+| ASC Endpoint | `backend/app/api/v1/endpoints/agents.py` | `GET /enrollment-token` admin-only, HMAC-SHA256 derivado, valid_for_seconds |
+| Router | `src/App.jsx` | Route `sectores/specter` → `<Specter />` lazy, dentro de Layout |
+| i18n | `src/locales/*/common.json` | Sección `specter` (70 keys) en los 8 idiomas (ES/EN/PT/FR/DE/ZH/JA/AR) |
+| Tests | `tests/p63_specter_portal.test.js` | 157 tests estáticos Vitest, 14 grupos |
+
+### Tests P63 (157 tests, tests/p63_specter_portal.test.js)
+
+| Grupo | Tests | Qué verifica |
+|-------|-------|--------------|
+| FileExistence | 5 | Specter.jsx, test file, 0 nuevas api/, agents.py, specter_security.py |
+| Routing | 5 | lazy import, ruta sectores/specter, element Specter, P62 no-regression |
+| SecurityInvariants | 15 | Sin secrets hardcodeados, JWT/token en state only, rel noopener, SSO/fleet/enrollment endpoints, error 503/403, supabase_token, VITE_ASC_API_URL |
+| ComponentStructure | 15 | PageHero, SEO, useTranslation, useAuth, framer-motion, easing [0.22,1,0.36,1], THREAT_META, 6 features, 4 steps, 3 OS tabs, enrollTitle, clipboard, resetSSO, Link, lbl ?? fallback |
+| FleetDisplay | 10 | Columnas tabla fleet (6), totalAgents, noAgents, statusActive/Inactive, THREAT_META colors |
+| EnrollmentToken | 11 | enrollNote, enrollUnavailable, copiar/copiado, ASC endpoint GET /enrollment-token, admin-only, generate_enrollment_token, configured:false, valid_for_seconds, no raw secret en response |
+| DownloadTabs | 8 | downloadTitle/Desc/Note, YOUR_TOKEN_AQUI placeholder, activeTab state, Windows/Linux/macOS commands |
+| I18nCoverage ES | 20 | specter ns exists + 19 critical keys en ES |
+| I18nCoverage EN/PT/FR/DE/ZH/JA/AR | 70 (10×7) | Existencia namespace + keys críticos + {{count}} en totalAgents por locale |
+| I18nParity | 4 | Igual key count en todos los locales, ≥60 keys, totalAgents y enrollTitle presentes en todos |
+| ASCBackend | 8 | enrollment-token antes de /{agent_id}, GET method, admin-only, generate_enrollment_token, specter_security, token/valid_for_seconds/note en response, SPECTER_ENROLLMENT_SECRET manejado |
+| RegressionGates | 7 | P62 ASCPortal.jsx intacto, 0 nuevas api/ de P63, 3 rutas en App.jsx, ascPortal ES/EN intactos, JSON válido 8 locales, export default Specter |
+
+**Resultado: 3416/3416 PASSED** (157 P63 + 3259 baseline, 0 regresiones)
+
+### Invariantes de seguridad P63
+
+| Invariante | Implementación | Verificado |
+|-----------|----------------|------------|
+| JWT ASC nunca en localStorage | React state (`ssoData`) únicamente | ✅ Test SecurityInvariants |
+| Enrollment token nunca en localStorage | React state (`enrollToken`) únicamente | ✅ Test SecurityInvariants |
+| Raw SPECTER_ENROLLMENT_SECRET nunca al cliente | Solo token HMAC-SHA256 derivado via endpoint admin | ✅ Test EnrollmentToken |
+| Endpoint admin-only | `Depends(get_current_admin)` en ASC backend | ✅ Test ASCBackend |
+| Links externos seguros | `rel="noopener noreferrer"` en todos los `target="_blank"` | ✅ Test SecurityInvariants |
+| Sin variables VITE_ con secrets | `VITE_ASC_API_URL` (URL pública) única variable VITE_ usada | ✅ Test SecurityInvariants |
+| Placeholder en comandos instalación | `YOUR_TOKEN_AQUI` — nunca token real en bundle | ✅ Test DownloadTabs |
+| Vercel 12/12 intacto | Sin nuevas funciones api/ — SSO directo CORS cliente→ASC | ✅ Test FileExistence + RegressionGates |
+
+---
 
 ## TD-6 — CI/CD Pipeline Security Hardening (2026-06-15)
 
