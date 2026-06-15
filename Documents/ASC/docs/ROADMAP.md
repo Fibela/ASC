@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.7 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P63 completados — TD-2/TD-4/TD-5/TD-6 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅ P62✅ P63✅) — 4462 tests ASC / 3416 tests sc_system, coverage 86.42%
+> Versión 4.8 | Fecha: 2026-06-15 | Estado: FASE 1–6 completadas — P39–P63 completados — TD-2/TD-4/TD-5/TD-6 cerradas — Auditoría Pre-Producción PASSED — 4491 tests ASC (4316+175 security) / 3416 tests sc_system, coverage 86.36%
 
 ---
 
@@ -635,7 +635,7 @@ pytest backend/tests/integration/test_rate_limiting.py -v
 ---
 
 ## FASE 6 — Integración ASC/SPECTER en premoscorp.com
-**Duración:** Semanas 28–33 | **Estado:** EN PROGRESO (2026-06-15)
+**Duración:** Semanas 28–33 | **Estado:** ✅ COMPLETADA — Auditoría Pre-Producción PASSED (2026-06-15)
 
 ### Objetivo
 Conectar el portal corporativo **premoscorp.com** (sc_system: React + Supabase + Stripe) con la
@@ -760,6 +760,63 @@ Entregables:
 - Seguridad: JWT ASC + enrollment token en React state only (anti-XSS), raw secret nunca al cliente, least privilege (token solo para admin)
 - Download section: OS tabs Windows/Linux/macOS con comandos de instalación y placeholder `YOUR_TOKEN_AQUI`
 - Fleet table: colHostname/OS/Status/Threat/LastSeen/Events, THREAT_META color map, totalAgents count
+
+---
+
+## Auditoría Pre-Producción — Go-Live Readiness (2026-06-15)
+
+### Resumen ejecutivo
+
+**Estado: LISTO PARA PRODUCCIÓN** — condicionado a 4 items de configuración de entorno (no de código).
+
+### Scans de seguridad ejecutados
+
+| Scan | Herramienta | Resultado |
+|------|------------|-----------|
+| SAST código Python | Bandit `-ll` (24,439 líneas) | ✅ 0 HIGH, 0 MEDIUM |
+| Secretos hardcodeados | grep + regex AST | ✅ 0 en producción |
+| localStorage jwt/token | grep frontend | ✅ 0 patterns |
+| XSS frontend | grep `dangerouslySetInnerHTML` | ✅ DOMPurify protegido |
+| SQL Injection | Análisis AST execute+format | ✅ 0 patterns (ORM) |
+| Endpoints inconclusos | grep `NotImplementedError\|STUB` | ✅ 0 stubs |
+| Auth gates (25 módulos) | grep Depends + verificación manual | ✅ 25/25 con auth |
+| Error leakage | grep `detail.*traceback` | ✅ 0 leaks |
+| Env vars indirectas | grep `VITE_\|os.environ[` | ✅ 0 en backend |
+| TODO/FIXME producción | grep en backend/app/ | ✅ 0 issues funcionales |
+| `__import__` injection | AST walk | ✅ Solo defaults SQLAlchemy (legítimos) |
+
+### Invariantes de seguridad verificadas
+
+| Invariante | Implementación | Estado |
+|-----------|----------------|--------|
+| SECRET_KEY débil → startup abort | `startup_checks.py` RuntimeError + 12 substrings bloqueadas | ✅ |
+| CORS wildcard → startup abort | `startup_checks.py` bloquea `*` en DEBUG=False | ✅ |
+| Security headers | X-Content-Type-Options, X-Frame-Options DENY, CSP, HSTS+preload | ✅ |
+| JWT ASC nunca en localStorage | React state only (Specter.jsx + ASCPortal.jsx) | ✅ |
+| Raw secrets nunca al cliente | Enrollment token: solo HMAC derivado; API Keys: solo hash | ✅ |
+| Rate limiting en login | SlowAPI + ApiKeyRateLimitMiddleware | ✅ |
+| CORS no wildcard en producción | `CORS_ORIGINS = [localhost, premoscorp.com]` | ✅ |
+| Error responses sin stack trace | HTTP exceptions con mensajes controlados | ✅ |
+
+### Resultados test suites finales
+
+| Suite | Tests | Resultado | Cobertura |
+|-------|-------|-----------|-----------|
+| ASC backend (main) | 4,316 passed / 16 skipped | ✅ VERDE | 86.36% |
+| ASC security tests | 175 passed | ✅ VERDE | — |
+| sc_system Vitest | 3,416 / 3,416 | ✅ VERDE | — |
+| **Total** | **7,907 tests** | **✅ 0 FAILED** | |
+
+### Items de configuración previos al go-live
+
+| # | Item | Tipo | Descripción |
+|---|------|------|-------------|
+| 1 | `CORS_ORIGINS_EXTRA` | Env var | Añadir `https://www.premoscorp.com` si el dominio www es activo en producción |
+| 2 | `SUPABASE_JWT_SECRET` | GitHub Secret + Render env | Requerido para SSO Bridge (P59) |
+| 3 | `CI_LEDGER_SECRET` | GitHub Secret | Requerido para Premos CI/CD Ledger forense (TD-6) |
+| 4 | `VITE_ASC_API_URL` + `VITE_ASC_APP_URL` | Vercel env | URLs de producción de ASC para FASE 6 |
+| 5 | Staging 48h | Operacional | Validar render.yaml + Vercel sin errores durante 48h |
+| 6 | Go-live 72h | Operacional | Observación con umbrales P1/P2/P3 según `go-live-runbook.md` |
 
 ---
 

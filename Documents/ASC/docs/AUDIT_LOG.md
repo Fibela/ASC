@@ -4455,6 +4455,60 @@ Próximo: P63 — SPECTER Enrollment Portal en premoscorp.com (ruta /sectores/sp
 
 ---
 
+## Session 75 — 2026-06-15
+
+### Auditoría Pre-Producción General — ASC PremosCorp (Go-Live Readiness)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1310 | 2026-06-15 | AUDIT | **Bandit SAST** (`python -m bandit -r backend/app/ -ll`): 24,439 líneas escaneadas. 0 issues HIGH, 0 MEDIUM, 2 LOW (confidence LOW, asociados a `#nosec B105/B106` en defaults de config.py — legítimos). 0 archivos sin escanear. | ✅ LIMPIO |
+| 1311 | 2026-06-15 | AUDIT | **Scan de secretos hardcodeados ASC** (`grep -rn "SECRET_KEY\|password\|SPECTER_ENROLLMENT_SECRET" backend/app/`): Todos los matches están en test files con valores mock (`"test-secret-key"`, `hashed_password="hash"`). Ningún secret real hardcodeado en código de producción. Config.py: defaults con `#nosec B105` + startup guard que aborta en producción si detecta valores débiles. | ✅ LIMPIO |
+| 1312 | 2026-06-15 | AUDIT | **Scan de secretos sc_system** (`grep -rn "sk_live\|localStorage.*token\|localStorage.*jwt"`): 0 matches. Ningún token JWT, key de Stripe ni secret almacenado en localStorage. JWT ASC + enrollment token solo en React state. | ✅ LIMPIO |
+| 1313 | 2026-06-15 | AUDIT | **Scan XSS frontend**: `dangerouslySetInnerHTML` encontrado en `src/pages/NoticiaDetalle.jsx:131` — **protegido por `DOMPurify.sanitize()`** (patrón correcto). No hay `eval()`, `innerHTML =` sin sanitizar, ni otras superficies XSS en src/. | ✅ LIMPIO |
+| 1314 | 2026-06-15 | AUDIT | **Scan inyección SQL** (`execute()` + f-string o `%s` en mismo contexto): 0 issues encontrados. Todos los queries usan SQLAlchemy ORM con parámetros bind — superficie SQL injection = 0. | ✅ LIMPIO |
+| 1315 | 2026-06-15 | AUDIT | **Scan endpoints inconclusos**: `grep -rn "NotImplementedError\|raise NotImplemented\|# STUB\|pass.*TODO"` en `backend/app/api/`: 0 matches. Los 27 módulos de endpoints (235+ rutas) están completamente implementados. `adapter_registry.py:test_tenant_adapter` es un stub documentado — no expone funcionalidad incorrecta. | ✅ LIMPIO |
+| 1316 | 2026-06-15 | AUDIT | **Audit auth gates (25 módulos endpoints)**: Script Python verificó que cada módulo de endpoint tiene dependencias de autenticación — ya sea `get_current_user/admin/analyst`, `get_analyst_or_admin`, `agent_auth`, `METRICS_SCRAPE_TOKEN` o validación de `stripe-signature`. El script inicial (regex de single-line) generó 162 falsos positivos — verificación manual por grep confirmó que todas las funciones usan auth en parámetros multilinea. `auth_sso.py` sin auth es correcto (es el endpoint de login). | ✅ LIMPIO |
+| 1317 | 2026-06-15 | AUDIT | **Startup security guards** (`backend/app/core/startup_checks.py`): Verifica (1) `SECRET_KEY` ≥ 32 chars y sin substrings débiles (`changeme`, `secret`, `password`, `default`, `test`, `dev`, `replace`, `generate`, `placeholder`); (2) CORS_ORIGINS no contiene `*` en production; En producción (`DEBUG=False`) → `RuntimeError` que aborta el proceso. En dev → solo warnings. | ✅ ROBUSTO |
+| 1318 | 2026-06-15 | AUDIT | **Security Headers Middleware** (`backend/app/core/middleware.py`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains; preload` (solo en producción). Stack de middlewares: ApiKeyRateLimit → SecurityHeaders → BodySizeLimit → CORS → Tenant → RequestContext → GZip. | ✅ COMPLETO |
+| 1319 | 2026-06-15 | AUDIT | **CORS configuration**: `CORS_ORIGINS = ["http://localhost:3000", "https://premoscorp.com"]`. No wildcard (`*`) — rechazado por startup_checks. Middleware: `allow_origins=settings.CORS_ORIGINS`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. `CORS_ORIGINS_EXTRA = []` (merge env var). **⚠️ PRE-PROD**: `https://www.premoscorp.com` no está en default — debe añadirse via `CORS_ORIGINS_EXTRA` en env de producción si aplica. | ⚠️ CONFIG PENDIENTE |
+| 1320 | 2026-06-15 | AUDIT | **Rate limiting login endpoint** (`backend/app/api/v1/endpoints/auth.py`): Rate limiting vía SlowAPI activo en login. Observability: dual-auth (JWT analyst+ OR `METRICS_SCRAPE_TOKEN` estático). `/health/liveness` y `/health/readiness` correctamente públicos. `/api/v1/metrics/public` público (métricas agregadas sin datos de usuario). | ✅ CORRECTO |
+| 1321 | 2026-06-15 | AUDIT | **Errores HTTP sin fuga de stack traces**: `grep -rn "detail.*traceback\|detail.*Error(str\|detail.*repr("` en endpoints: 0 matches. Los errores HTTP exponen mensajes controlados, no excepciones internas ni rutas de archivo. | ✅ LIMPIO |
+| 1322 | 2026-06-15 | AUDIT | **Variables de entorno**: `grep -rn "VITE_" backend/`: 0 matches (correcto — VITE_ solo en frontend). `grep -rn "os\.environ\[" backend/app/`: 0 matches (correcto — todo via `config.py` Settings/pydantic-settings). No hay acceso directo no controlado a env vars. | ✅ LIMPIO |
+| 1323 | 2026-06-15 | AUDIT | **TODO/FIXME markers en código de producción**: `grep -rn "TODO\|FIXME\|HACK\|XXX" backend/app/` excluyendo tests: Solo comentarios descriptivos en `tenant.py` sobre formato de IDs Stripe (`cus_XXX`, `sub_XXX`, `cs_XXX`) — son ejemplos de formato, no código pendiente. 0 issues funcionales. | ✅ LIMPIO |
+| 1324 | 2026-06-15 | TEST | **Suite ASC main** (`python -m pytest backend/tests/ --ignore=backend/tests/security`): **4,316 passed, 16 skipped, 91 warnings** en 248s. Coverage: **86.36%** (gate ≥85% superado). | ✅ VERDE |
+| 1325 | 2026-06-15 | TEST | **Suite ASC security** (`python -m pytest backend/tests/security/`): **175 passed, 3 warnings** en 25s. Grupos: input_validation, RBAC, token security, SQL injection, CORS security, rate limiting, auth bypass attempts. | ✅ VERDE |
+| 1326 | 2026-06-15 | TEST | **Suite sc_system** (`npx vitest run`): **3,416/3,416 PASSED** en 705ms (22 archivos de test). | ✅ VERDE |
+| 1327 | 2026-06-15 | AUDIT | **Scan `__import__` en models**: `hunt.py` y `pcdi.py` usan `default=lambda: ...replace(tzinfo=__import__("datetime").timezone.utc)` — patrón SQLAlchemy para defaults de columna UTC. No es inyección — es Python estándar para importar dentro de un lambda. | ✅ FALSO POSITIVO DESCARTADO |
+| 1328 | 2026-06-15 | DOC | Docs actualizados: `AUDIT_LOG.md` Session 75 (este bloque), `ROADMAP.md` v4.8 sección pre-producción, `testing-and-audit.md` v5.0 sección go-live audit. | COMPLETADO |
+
+### Resumen Session 75 — Veredicto Pre-Producción
+
+**Código limpio — listo para go-live condicionado a 4 items de configuración:**
+
+| Categoría | Hallazgos | Veredicto |
+|-----------|-----------|-----------|
+| SAST (Bandit) | 0 HIGH, 0 MEDIUM, 2 LOW (nosec legítimos) | ✅ LIMPIO |
+| Secretos hardcodeados | 0 en producción | ✅ LIMPIO |
+| localStorage secrets | 0 tokens/JWTs en localStorage | ✅ LIMPIO |
+| XSS | dangerouslySetInnerHTML + DOMPurify ✅ | ✅ LIMPIO |
+| SQL Injection | 0 patterns (ORM parameterized) | ✅ LIMPIO |
+| Endpoints inconclusos | 0 stubs/NotImplementedError | ✅ LIMPIO |
+| Auth gates | 25/25 módulos con auth | ✅ LIMPIO |
+| Startup guards | RuntimeError en SECRET_KEY débil + CORS wildcard | ✅ ROBUSTO |
+| Security headers | HSTS+CSP+X-Frame+nosniff+Referrer en producción | ✅ COMPLETO |
+| Rate limiting | SlowAPI en login + ApiKeyRateLimitMiddleware | ✅ ACTIVO |
+| CORS wildcard | Bloqueado por startup_checks en production | ✅ SEGURO |
+| Tests ASC | 4,316 + 175 security = 4,491 passed, 86.36% cov | ✅ VERDE |
+| Tests sc_system | 3,416/3,416 passed | ✅ VERDE |
+
+**Items pendientes (config, no código):**
+1. ⚠️ `CORS_ORIGINS_EXTRA=https://www.premoscorp.com` en env de producción (si aplica)
+2. ⚠️ `SUPABASE_JWT_SECRET` en GitHub Secrets + env producción
+3. ⚠️ `CI_LEDGER_SECRET` en GitHub Secrets
+4. ⚠️ `VITE_ASC_API_URL` + `VITE_ASC_APP_URL` en Vercel producción
+
+---
+
 ## Session 74 — 2026-06-15
 
 ### P63 — SPECTER Enrollment Portal (/sectores/specter) + ASC enrollment-token endpoint

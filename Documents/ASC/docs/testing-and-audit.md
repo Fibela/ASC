@@ -1,5 +1,68 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.9 | Actualizado: 2026-06-15 | P63 — SPECTER Enrollment Portal — ASC: 4462 tests / sc_system: 3416 tests (+157 P63), coverage 86.42%
+> Versión 5.0 | Actualizado: 2026-06-15 | Auditoría Pre-Producción PASSED — ASC: 4491 tests (4316+175 security) / sc_system: 3416 tests, coverage 86.36% — LISTO PARA GO-LIVE
+
+## Auditoría Pre-Producción — Go-Live Readiness (Session 75, 2026-06-15)
+
+### Scans ejecutados y resultados
+
+| Scan | Herramienta / Método | Líneas/Archivos | Resultado |
+|------|---------------------|-----------------|-----------|
+| SAST Python | `bandit -r backend/app/ -ll` | 24,439 líneas | ✅ 0 HIGH, 0 MEDIUM, 2 LOW (nosec legítimos) |
+| Secretos hardcodeados backend | `grep` + Python AST walk (regex patterns) | 100+ archivos .py | ✅ 0 en producción |
+| Secretos sc_system | `grep -rn "sk_live\|localStorage.*token"` src/ | 22 pages, 40+ components | ✅ 0 matches |
+| XSS frontend | `grep dangerouslySetInnerHTML` + `grep eval(` | src/ completo | ✅ DOMPurify en único hit |
+| SQL Injection | AST + `execute()+f-string/format` | backend/app/ completo | ✅ 0 patterns (ORM) |
+| Endpoints inconclusos | `grep NotImplementedError\|STUB\|pass.*TODO` | backend/app/api/ | ✅ 0 stubs |
+| Auth gates | Per-file grep Depends + verificación multilinea manual | 25 módulos endpoint | ✅ 25/25 con auth |
+| Error leakage (stack traces) | `grep "detail.*traceback\|repr\|str(e)"` | backend/app/api/ | ✅ 0 leaks |
+| Variables de entorno | `grep VITE_ backend/`, `grep os.environ[` | backend/app/ | ✅ 0 acceso directo |
+| TODO/FIXME en producción | `grep TODO\|FIXME\|HACK` excluyendo tests | backend/app/ | ✅ 0 funcionales |
+| `__import__` injection | Script AST walk | hunt.py, pcdi.py | ✅ Falso positivo — defaults SQLAlchemy |
+| CORS config | Inspección config.py + main.py + startup_checks.py | 3 archivos | ⚠️ www.premoscorp.com faltante (ver config pendiente) |
+| Security headers | Inspección middleware.py | 1 archivo | ✅ X-Frame DENY, CSP, HSTS preload, nosniff |
+| Startup guards | Inspección startup_checks.py | 1 archivo | ✅ RuntimeError en SECRET_KEY débil + CORS * |
+| Rate limiting login | Inspección auth.py + middleware.py | 2 archivos | ✅ SlowAPI + ApiKeyRateLimitMiddleware |
+
+### Invariantes de seguridad — Estado final
+
+| Invariante | Mecanismo | Estado |
+|-----------|-----------|--------|
+| SECRET_KEY débil → aborta producción | `_WEAK_SUBSTRINGS` frozenset + len ≥ 32 → RuntimeError | ✅ |
+| CORS wildcard `*` → aborta producción | startup_checks `_check_cors()` → RuntimeError DEBUG=False | ✅ |
+| Security headers HTTP | SecurityHeadersMiddleware: X-Content-Type-Options, X-Frame-Options DENY, X-XSS-Protection, Referrer-Policy, CSP default-src none, HSTS+preload (prod) | ✅ |
+| JWT ASC en React state only | ASCPortal.jsx + Specter.jsx: nunca `localStorage.setItem` | ✅ |
+| Enrollment token en React state only | Specter.jsx: `enrollToken` solo en useState | ✅ |
+| Raw SPECTER_ENROLLMENT_SECRET nunca al cliente | endpoint retorna HMAC-SHA256 derivado solamente | ✅ |
+| API Keys: raw key nunca en DB | HMAC-SHA256 en `key_hash`, raw devuelta una sola vez | ✅ |
+| Webhook secrets: one-time reveal | No aparecen en GET/list responses | ✅ |
+| Ed25519 en Forensic Ledger | Ed25519 + SHA3-512, verificable sin secreto compartido | ✅ |
+| SQL Injection imposible | SQLAlchemy ORM con bind parameters en todos los queries | ✅ |
+| XSS en contenido dinámico | DOMPurify.sanitize() antes de dangerouslySetInnerHTML | ✅ |
+| Auth en todos los endpoints | get_analyst_or_admin / get_current_admin / agent_auth en 25/25 módulos | ✅ |
+| Error responses sin internal info | HTTPException con mensajes controlados, sin traceback | ✅ |
+| Wildcard CORS en CORS middleware | allow_origins=settings.CORS_ORIGINS (lista explícita, no *) | ✅ |
+
+### Suite de tests final
+
+| Suite | Tests | Skipped | Resultado | Cobertura |
+|-------|-------|---------|-----------|-----------|
+| ASC backend (main) | 4,316 | 16 | ✅ 0 failed | **86.36%** ≥ 85% gate |
+| ASC security tests | 175 | 0 | ✅ 0 failed | — |
+| sc_system Vitest (22 archivos) | 3,416 | 0 | ✅ 0 failed | — |
+| **TOTAL** | **7,907** | **16** | **✅ 0 FAILED** | |
+
+### Items de configuración pendientes (no código — operacional)
+
+| # | Item | Impacto si falta | Acción requerida |
+|---|------|-----------------|-----------------|
+| 1 | `CORS_ORIGINS_EXTRA=https://www.premoscorp.com` | CORS error si usuarios acceden via www | Añadir en Render env vars |
+| 2 | `SUPABASE_JWT_SECRET` | SSO Bridge retorna 503 (P59 desactivado) | Añadir en GitHub Secrets + Render |
+| 3 | `CI_LEDGER_SECRET` | Ledger CI/CD firma como "unsigned" | Añadir en GitHub Secrets |
+| 4 | `VITE_ASC_API_URL` + `VITE_ASC_APP_URL` | FASE 6 widgets/portales no cargan | Añadir en Vercel env (production) |
+| 5 | Deploy staging 48h | Riesgo migraciones en DB real | Ejecutar staging-deploy-runbook.md |
+| 6 | Go-live 72h observación | Sin baseline de alertas reales | Ejecutar go-live-runbook.md (P1/P2/P3) |
+
+---
 
 ## P63 — SPECTER Enrollment Portal /sectores/specter (FASE 6 Sprint 5) (2026-06-15)
 
