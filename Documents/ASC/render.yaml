@@ -16,7 +16,7 @@ services:
   - type: web
     name: asc-backend
     runtime: python
-    pythonVersion: "3.11.9"  # pydantic-core 2.23.4 has no wheel for 3.14 — pin to 3.11
+    pythonVersion: "3.11"    # pydantic-core 2.23.4 has no wheel for 3.14 — pin to 3.11
     region: oregon           # closest to South America with free tier availability
     plan: free               # upgrade to 'starter' ($7/mo) to remove spin-down
 
