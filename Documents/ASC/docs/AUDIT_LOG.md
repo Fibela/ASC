@@ -4174,3 +4174,34 @@ GitHub: SHA 97cb974 — 340 archivos, 119,139 inserciones — push exitoso a Fib
 Test delta: 3716 → 3800 (+84 tests P56)
 Coverage: sin cambio en lógica de negocio (tests estáticos) — 85.45% mantenida
 Siguiente: P52 (Tenant Management API) · P53 (Onboarding) · P54 (Per-plan Caps)
+
+---
+
+## Session 64 — 2026-06-14
+
+### P52 — Tenant Management API
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1189 | 2026-06-14 | DESIGN | P52 arquitectura: 8 endpoints REST para CRUD de tenants. Modelo: soft-delete únicamente (is_active=False conserva todos los datos). Slug: regex `^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$` — 3-100 chars, sin mayúsculas, sin espacios, sin guion al inicio/fin. Plan changes requieren campo `reason` (mínimo 5 chars) para audit trail obligatorio. GET /tenants/me accesible a cualquier usuario autenticado. Stats endpoint retorna conteos en tiempo real (sin cache). | DISEÑADO |
+| 1190 | 2026-06-14 | FEATURE | `backend/app/api/v1/endpoints/tenants.py` — **Creado**. 8 endpoints: POST /tenants (crear), GET /tenants (listar paginado + filtro plan/active_only), GET /tenants/me, GET /tenants/{id}, GET /tenants/{id}/stats (users/alerts/api_keys/webhooks/incidents), PATCH /tenants/{id} (actualizar), PATCH /tenants/{id}/plan (cambio de plan con razón auditable), POST /tenants/{id}/activate, POST /tenants/{id}/deactivate. Schemas Pydantic: TenantCreate, TenantUpdate, TenantPlanChange, TenantRead, TenantStats, TenantListResponse. | COMPLETADO |
+| 1191 | 2026-06-14 | SECURITY | Diseño de seguridad P52: (1) Todos los endpoints write + admin-list requieren role=admin (get_current_admin dep). (2) /tenants/me accesible a cualquier usuario (get_current_user). (3) Slug único validado en API layer con 409 CONFLICT. (4) Soft delete — no physical delete en API (requiere operación manual en DB con aprobación de negocio). (5) Plan changes tienen campo reason auditable obligatorio. (6) Todos los mutations emiten log_security_action() con user_id + detalles del cambio. | OK |
+| 1192 | 2026-06-14 | FIX | **Bug#Gap-1** (P52 fix): `get_user_from_api_key()` en deps.py nunca llamaba `set_tenant_id()`. Requests autenticados vía `X-API-Key` siempre tenían `tenant_id=None` en el ContextVar, bypasseando el aislamiento multi-tenant de P51. Fix: añadir `set_tenant_id(user.tenant_id)` antes del `db.commit()` en `get_user_from_api_key`. Ahora la autenticación por API key produce el mismo aislamiento de tenant que la autenticación JWT Bearer. Import de `set_tenant_id` añadido a `from app.core.tenant_context import set_tenant_id`. | FIXED |
+| 1193 | 2026-06-14 | FIX | **Bug pre-existente** en `test_hardening.py::TestAlembicMigration`: Las 3 pruebas usaban `Path("migrations/versions")` como ruta relativa al CWD, que falla cuando pytest se ejecuta desde el root del proyecto. Fix: cambiado a `Path(__file__).parent.parent / "migrations" / "versions"` — independiente del directorio de trabajo. | FIXED |
+| 1194 | 2026-06-14 | IMPL | `backend/app/api/v1/router.py` actualizado — import de `tenants` añadido y `api_router.include_router(tenants.router)` registrado al final. | COMPLETADO |
+| 1195 | 2026-06-14 | IMPL | `backend/requirements.txt` actualizado — añadido `email-validator==2.2.0` y `pydantic[email]==2.9.2` (requeridos por `EmailStr` en schemas Pydantic de TenantCreate/TenantUpdate). | COMPLETADO |
+| 1196 | 2026-06-14 | TEST | `backend/tests/test_p52_tenant_management.py` — **Creado**. 99 tests, 13 clases. TestSlugValidation(16: 7 válidos + 9 inválidos parametrizados), TestTenantSchemas(10: validación Pydantic — plan inválido, slug uppercase, name corto, reason corto), TestCreateTenant(6: success, 409 slug conflict, audit log, admin dep, all fields, slug numbers), TestListTenants(8: paginación, filtro plan, filtro active_only, plan inválido 422, segunda página, schema, admin dep), TestGetTenant(5: 200, 404, full schema, inactive visible, admin dep), TestGetMyTenant(6: retorna propio tenant, 404 single-tenant, no-admin accesible, user.tenant_id priority, fallback ContextVar, DB no-encontrado), TestTenantStats(6: schema correcto, 404, 5 campos, admin dep, ceros, valores no-nulos), TestUpdateTenant(7: name, email, max_users, no-change skip commit, 404, audit log, admin dep), TestChangePlan(7: free→pro, mismo plan 422, old/new en log, 404, downgrade, reason persistido, admin dep), TestActivateDeactivate(8: deactivate, ya-inactivo 422, activate, ya-activo 422, audit events, data preservada, ciclo completo), TestBugGap1ApiKeyTenantCtx(6: import presente, llamada presente, arg correcto, orden correcto, módulo correcto, callable), TestRouterRegistration(7: routes presentes), TestP52Regression(7: modelo, contexto, filtro, middleware, models tenant_id, archivo, deps). | 99/99 PASS |
+| 1197 | 2026-06-14 | TEST | Suite completa post-P52: **3899 passed, 14 skipped, 0 failed. Coverage 85.67% (gate 85% superado)**. Test delta: 3800 → 3899 (+99 tests P52 + 0 regresiones). Bug#Gap-1 y bug pre-existente test_hardening incluidos en el conteo. | OK |
+| 1198 | 2026-06-14 | SECURITY | Scan de seguridad P52: (1) No secretos hardcoded en tenants.py ni en tests. (2) Mock tokens en tests usan formato no-JWT (`mock-token-*`). (3) Endpoints admin-only verificados por dep inspection en tests. (4) EmailStr validada por pydantic (no regex casero). (5) Slug regex previene inyección SQL/XSS vía slug names. (6) Soft delete → no pérdida accidental de datos. | LIMPIO |
+| 1199 | 2026-06-14 | DEPLOY | GitHub push SHA `c935425` → master (`Fibela/ASC`). 6 archivos, 1,676 inserciones. | PUSH OK |
+
+### Resumen Session 64
+
+Sprint: P52 — Tenant Management API + Bug#Gap-1 fix
+Archivos creados: backend/app/api/v1/endpoints/tenants.py, backend/tests/test_p52_tenant_management.py
+Archivos modificados: backend/app/api/deps.py (+set_tenant_id Bug#Gap-1), backend/app/api/v1/router.py (+tenants), backend/requirements.txt (+email-validator), backend/tests/test_hardening.py (path fix), docs/AUDIT_LOG.md, docs/ROADMAP.md, docs/testing-and-audit.md
+GitHub: SHA c935425 — 6 archivos, 1,676 inserciones
+Test delta: 3800 → 3899 (+99 tests, 0 regresiones)
+Coverage: 85.67% (gate 85% superado)
+Sin nuevas migraciones Alembic (tabla tenants existe desde P47)
+Siguiente: P53 (Onboarding Flow) · P54 (Per-plan Caps) · P55 (Billing/Metering)

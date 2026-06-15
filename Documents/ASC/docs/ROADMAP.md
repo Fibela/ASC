@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 3.7 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P56 completados — Deploy Fase 1 ready (SHA 97cb974 en Fibela/ASC) — 3800 tests, coverage 85.45%
+> Versión 3.8 | Fecha: 2026-06-14 | Estado: FASE 1–4 completadas — P39–P52 completados — Tenant CRUD activo + Bug#Gap-1 corregido — 3899 tests, coverage 85.67%
 
 ---
 
@@ -1116,8 +1116,66 @@ Request → [JWT: tenant_id claim]
 
 ### Gaps críticos para SaaS comercialización
 
-- **Tenant Management API (P52)**: No existe endpoint para crear/gestionar tenants. El campo `tenant_id` está en las tablas (P47) y el enforcement activo (P51), pero no hay CRUD de tenants ni flujo de alta de clientes.
+- ~~**Tenant Management API (P52)**~~: **COMPLETADO** — 8 endpoints CRUD (create/list/me/detail/stats/update/plan/activate/deactivate), slug único, soft-delete, audit trail plan changes.
+- ~~**`get_user_from_api_key()` en deps.py**~~: **COMPLETADO (Bug#Gap-1)** — `set_tenant_id(user.tenant_id)` añadido. API key auth ahora produce el mismo aislamiento que JWT.
+- **Onboarding Flow (P53)**: Sin flujo de self-service para nuevos tenants. Actualmente solo un admin puede crear tenants vía API.
+- **Per-plan Caps (P54)**: Los campos `max_users` y `max_api_keys_per_user` existen en el modelo Tenant pero no se validan en los endpoints correspondientes. Un tenant free puede crear usuarios sin límite.
+- **Billing/Metering (P55)**: Zero implementación. Sin metering no hay forma de cobrar por uso ni rastrear consumo.
 - **Adapter Registry per-tenant (P57)**: Todas las integraciones (CrowdStrike, Palo Alto, Wazuh, etc.) son actualmente configuración global en Settings. En SaaS, cada tenant necesita sus propias credenciales de integración.
-- **Billing/Metering (P55)**: Zero implementación. Sin metering no hay forma de cobrar por uso.
-- **Per-plan Caps (P54)**: No hay límites por plan. Un tenant free puede crear ilimitados API keys/webhooks/agents.
-- **`get_user_from_api_key()` en deps.py**: No aplica tenant filter — vector potencial de cross-tenant si un API key se usa en contexto multi-tenant. Requiere fix en P52/P57.
+
+---
+
+## v3.8 — Sprint P52: Tenant Management API
+
+**Objetivo:** Implementar el CRUD completo de tenants para habilitar el modelo SaaS multi-tenant.
+
+### Entregables P52
+
+| Entregable | Estado | Archivo |
+|-----------|--------|---------|
+| Tenant CRUD API (8 endpoints) | COMPLETADO | backend/app/api/v1/endpoints/tenants.py |
+| Bug#Gap-1 fix (API key tenant context) | COMPLETADO | backend/app/api/deps.py |
+| Router registration | COMPLETADO | backend/app/api/v1/router.py |
+| email-validator dependency | COMPLETADO | backend/requirements.txt |
+| Test suite (99 tests, 13 clases) | COMPLETADO | backend/tests/test_p52_tenant_management.py |
+| Bug pre-existente test_hardening migration path | CORREGIDO | backend/tests/test_hardening.py |
+
+### Endpoints P52
+
+| Método | Ruta | Auth | Descripción |
+|--------|------|------|-------------|
+| POST | /api/v1/tenants | admin | Crear tenant con slug único |
+| GET | /api/v1/tenants | admin | Listar con paginación + filtros plan/active_only |
+| GET | /api/v1/tenants/me | any user | Tenant del usuario autenticado |
+| GET | /api/v1/tenants/{id} | admin | Detalle de tenant |
+| GET | /api/v1/tenants/{id}/stats | admin | Conteos en tiempo real (users/alerts/api_keys/webhooks/incidents) |
+| PATCH | /api/v1/tenants/{id} | admin | Actualizar nombre, email, límites de recursos |
+| PATCH | /api/v1/tenants/{id}/plan | admin | Cambio de plan con campo `reason` obligatorio |
+| POST | /api/v1/tenants/{id}/activate | admin | Reactivar tenant inactivo |
+| POST | /api/v1/tenants/{id}/deactivate | admin | Soft-delete (is_active=False, datos preservados) |
+
+### Bug#Gap-1 — API Key Tenant Context
+
+**Causa raíz:** `TenantMiddleware` lee `tenant_id` del JWT Bearer. Requests con `X-API-Key` no tienen JWT → `tenant_id` permanecía `None` en el ContextVar → `apply_tenant_filter()` usaba `WHERE tenant_id IS NULL` → cross-tenant data potential.
+
+**Fix:** `get_user_from_api_key()` en `deps.py` llama `set_tenant_id(user.tenant_id)` después de resolver el usuario, antes del `db.commit()`. Ahora ambas rutas de autenticación producen el mismo tenant context.
+
+### Tests P52 (99 tests, 13 clases)
+
+| Clase | Tests | Cubre |
+|-------|-------|-------|
+| TestSlugValidation | 16 | 7 slugs válidos + 9 inválidos (uppercase, dash-start, spaces, underscore, dot, @) |
+| TestTenantSchemas | 10 | Pydantic: plan inválido, slug uppercase, name corto, reason corto, defaults, from_attributes |
+| TestCreateTenant | 6 | success, 409 slug conflict, audit log, admin dep, all fields, slug with numbers |
+| TestListTenants | 8 | paginación, filtro plan, active_only, plan inválido 422, segunda página, schema, admin dep |
+| TestGetTenant | 5 | 200, 404, full schema, inactive visible para admin, admin dep |
+| TestGetMyTenant | 6 | retorna propio, 404 single-tenant, no-admin accesible, user.tenant_id priority, fallback ContextVar, 404 DB |
+| TestTenantStats | 6 | schema TenantStats, 404, 5 campos, admin dep, ceros, valores no-nulos |
+| TestUpdateTenant | 7 | name, email, max_users, no-change→skip commit, 404, audit log, admin dep |
+| TestChangePlan | 7 | free→pro, mismo plan 422, log old/new, 404, downgrade, reason persistido, admin dep |
+| TestActivateDeactivate | 8 | deactivate, ya-inactivo 422, activate, ya-activo 422, audit events, data preservada, ciclo |
+| TestBugGap1ApiKeyTenantCtx | 6 | import, llamada, arg=user.tenant_id, orden antes de commit, módulo, callable |
+| TestRouterRegistration | 7 | routes: create, me, stats, plan, activate, deactivate, any tenant path |
+| TestP52Regression | 7 | Tenant model, context, filter, middleware, models tenant_id, archivo, deps intactos |
+
+**Resultado: 99/99 PASSED — 3899 tests totales, 85.67% coverage**

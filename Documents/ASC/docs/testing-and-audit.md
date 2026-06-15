@@ -1,5 +1,51 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 3.9 | Actualizado: 2026-06-14 | P56 — Deployment Readiness — 3800 tests, coverage 85.45%
+> Versión 4.0 | Actualizado: 2026-06-14 | P52 — Tenant Management API + Bug#Gap-1 — 3899 tests, coverage 85.67%
+
+## P52 — Tenant Management API (2026-06-14)
+
+### Suite test_p52_tenant_management.py
+
+**99 tests, 13 clases — CI-safe (sin DB real, sin servicios externos)**
+
+| Clase | Tests | Qué valida |
+|-------|-------|-----------|
+| TestSlugValidation | 16 | Regex slug: 7 válidos (acme-corp, tenant-123, 100chars, etc.) + 9 inválidos (UPPERCASE, -leading-dash, trailing-dash-, spaces, too-short, too-long, underscore, dot, @symbol) |
+| TestTenantSchemas | 10 | Pydantic field validation: plan inválido, slug uppercase→ValidationError, name<2→ValidationError, reason<5→ValidationError, TenantCreate defaults, TenantPlanChange requiere reason, TenantRead from_attributes, TenantUpdate all fields optional |
+| TestCreateTenant | 6 | Success (db.add + commit + refresh + TenantRead), 409 slug conflict, audit log tenant.created con user_id, admin dep inspection, all fields (enterprise + max_users + max_api_keys_per_user), slug con números válido |
+| TestListTenants | 8 | Paginación (total/page/items), empty list, filtro plan=pro, plan inválido→422, active_only=True, segunda página (offset correcto), schema TenantRead, admin dep wired |
+| TestGetTenant | 5 | 200 con tenant encontrado, 404 con mensaje tenant_id, full TenantRead con contact/max_users, inactivo visible para admin, admin dep |
+| TestGetMyTenant | 6 | Retorna tenant por user.tenant_id, 404 si tid=None (single-tenant mode), dep es get_current_user (no admin), user.tenant_id tiene prioridad sobre ContextVar, fallback ContextVar si user.tenant_id=None, 404 si tenant no en DB |
+| TestTenantStats | 6 | Schema TenantStats con 6 campos, 404 tenant inexistente, 5 resource types en model_fields, admin dep, todos los conteos en cero, valores no-nulos reales |
+| TestUpdateTenant | 7 | Update name→t.name cambia, update email, update max_users, no-change body→commit not called, 404, log tenant.updated con changes dict, admin dep |
+| TestChangePlan | 7 | free→pro actualiza t.plan, mismo plan→422 con plan name en detail, log old_plan+new_plan+reason, 404, downgrade enterprise→free, reason completo en audit log, admin dep |
+| TestActivateDeactivate | 8 | Deactivate→is_active=False + commit, ya-inactivo→422, Activate→is_active=True + commit, ya-activo→422, deactivate audit event name, activate audit event name, data preservada tras deactivate (slug/plan/max_users/email intactos), ciclo completo deactivate→activate |
+| TestBugGap1ApiKeyTenantCtx | 6 | `set_tenant_id` importado en deps.py, llamada presente en source, arg es `user.tenant_id`, llamada antes de `db.commit()`, import desde `app.core.tenant_context`, función callable |
+| TestRouterRegistration | 7 | /api/v1/tenants, /api/v1/tenants/me, /api/v1/tenants/{tenant_id}/stats, /api/v1/tenants/{tenant_id}/plan, activate, deactivate, any /tenants path |
+| TestP52Regression | 7 | Tenant model attributes, ContextVar set/get/clear, apply_tenant_filter WHERE clause, TenantMiddleware importable, User/Alert/APIKey/Webhook/Incident tienen tenant_id, tenants.py existe, _resolve_user/get_current_user/get_current_admin intactos |
+
+**Resultado: 99/99 PASSED — cobertura 85.67% (gate 85% superado)**
+
+### Bug#Gap-1 — Corrección de aislamiento en autenticación por API Key
+
+**Impacto antes del fix:** Cualquier request autenticado con `X-API-Key` nunca tenía tenant context en el ContextVar. `apply_tenant_filter()` retornaba `WHERE tenant_id IS NULL`, lo que potencialmente exponía datos del tenant default a cualquier API key válido de otro tenant.
+
+**Fix aplicado en `backend/app/api/deps.py`:**
+```python
+# Bug#Gap-1 fix (P52): set tenant context from user record for API key auth
+set_tenant_id(user.tenant_id)
+# Touch last_used_at (fire-and-forget)
+api_key.last_used_at = datetime.now(timezone.utc)
+await db.commit()
+```
+
+**Verificaciones de seguridad del fix:**
+1. `set_tenant_id` importado desde el módulo canónico `app.core.tenant_context`
+2. El argumento es `user.tenant_id` (no hardcoded, no de headers sin validar)
+3. La llamada ocurre ANTES de `db.commit()` → tenant context activo para todo el request lifecycle
+4. TenantMiddleware sigue corriendo (ASGI level) — este fix solo cubre el camino API key
+5. JWT Bearer auth no se ve afectado (TenantMiddleware ya manejaba ese camino)
+
+---
 
 ## P56 — Deployment Readiness (2026-06-14)
 
