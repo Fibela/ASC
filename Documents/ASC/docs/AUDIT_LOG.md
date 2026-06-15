@@ -4341,6 +4341,34 @@ Siguiente: P61 — ASC Metrics Widget en premoscorp.com (sc_system frontend)
 
 ---
 
+## Session 71 — 2026-06-15
+
+### P61 — ASC Metrics Widget en premoscorp.com (FASE 6 — Sprint 3)
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1271 | 2026-06-15 | DESIGN | **Arquitectura P61**: premoscorp.com (sc_system) tiene Vercel Hobby 12/12 funciones serverless — no se puede añadir proxy. Decisión: widget React hace llamadas CORS directas al backend ASC. Endpoints elegidos: `GET /api/v1/health/liveness` (no-auth) + `GET /api/v1/metrics/public` (no-auth) — ambos diseñados para consumo externo. | APROBADO |
+| 1272 | 2026-06-15 | SECURITY | **Scan de seguridad P61 (sc_system)**: (a) `VITE_ASC_API_URL` es la única referencia a la URL del backend — sin hardcodeo; (b) ninguna clave secreta con prefijo `VITE_` introducida; (c) solo endpoints públicos/no-auth llamados desde el cliente (`/metrics/public`, `/health/liveness`); (d) no se llama `/health/system` (expone info interna) ni `/health/readiness` (lista checks de DB); (e) no se crea nuevo archivo en `api/` (preserva límite 12/12). | VERIFICADO |
+| 1273 | 2026-06-15 | IMPL | `src/components/sections/ASCStatusWidget.jsx` — Componente React: fetches paralelos vía `Promise.allSettled`, `AbortController` + `cancelled` flag para cleanup en unmount, loading skeleton `animate-pulse`, status pill (EN LÍNEA/DEGRADADO/FUERA DE LÍNEA), grid de métricas (MTTD, MTTA, MTTR, IoC Coverage, FP Rate), badge de postura de riesgo (NORMAL/ELEVATED/HIGH/CRITICAL) con colores corporativos. Graceful degradation: retorna `null` si `VITE_ASC_API_URL` no está configurada. | COMPLETADO |
+| 1274 | 2026-06-15 | IMPL | `src/pages/Seguridad.jsx` — Widget embebido entre sección "Capacidades" y `CTABanner`. `src/pages/Home.jsx` — Widget embebido entre `NewsGrid` y `CTABanner`. Ambas páginas conservan toda lógica preexistente sin regresiones. | COMPLETADO |
+| 1275 | 2026-06-15 | IMPL | `.env.example` (sc_system) — añadida variable `VITE_ASC_API_URL=` (valor vacío) con comentario explicativo. Valor vacío → widget invisible hasta que el deployer configure la URL real. | COMPLETADO |
+| 1276 | 2026-06-15 | TEST | `tests/p61_asc_metrics_widget.test.js` — 63 tests estáticos en 9 grupos: FileExistence(3), EnvVarUsage(6), SecurityInvariants(9), ComponentStructure(12), MetricsCoverage(15), SeguridadIntegration(4), HomeIntegration(4), EnvExample(3), CodeQuality(7). | 63/63 VERDE |
+| 1277 | 2026-06-15 | TEST | Suite completa sc_system post-P61: `npx vitest run` → **2970 passed (20 test files), 0 failed**. Delta: +63 tests, 0 regresiones. | VERDE |
+| 1278 | 2026-06-15 | REVIEW | **Decisiones de diseño documentadas**: (1) `Promise.allSettled` en lugar de `Promise.all` — si un endpoint falla, el otro sigue renderizando; (2) `cancelled` flag + `AbortController` — previene setState post-unmount en navegación rápida; (3) `import.meta.env.VITE_ASC_API_URL ?? ''` — el `??` garantiza string vacío (no undefined) en evaluación boolean; (4) `return null` cuando `!ASC_API` — no renderiza nada (no broken UI) cuando la var no existe en el entorno. | DOCUMENTADO |
+
+### Resumen Session 71
+
+Sprint: P61 — FASE 6 Sprint 3: ASC Metrics Widget en premoscorp.com
+Arquitectura: React directo CORS → ASC backend (sin serverless proxy — límite 12/12 preservado)
+Endpoints públicos: `/api/v1/health/liveness` + `/api/v1/metrics/public`
+Bugs encontrados: 0 (diseño limpio desde el inicio)
+Artefactos nuevos: ASCStatusWidget.jsx, tests/p61_asc_metrics_widget.test.js
+Artefactos modificados: Seguridad.jsx, Home.jsx, .env.example
+Test delta: 2907 → 2970 (+63 tests, 0 regresiones)
+Siguiente: P62 — ASC Client Portal page en premoscorp.com (ruta /portal/seguridad, SSO button flow)
+
+---
+
 ## Session 67 — 2026-06-15
 
 ### P57 — Staging Deploy Validation + Go-Live Readiness (TD-2 + TD-5)

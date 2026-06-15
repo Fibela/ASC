@@ -1,5 +1,72 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 4.5 | Actualizado: 2026-06-15 | P60 — Stripe Checkout Auto-Provisioning (FASE 6 Sprint 2) — 4462 tests, coverage 86.42%
+> Versión 4.6 | Actualizado: 2026-06-15 | P61 — ASC Metrics Widget en premoscorp.com (FASE 6 Sprint 3) — ASC: 4462 tests / sc_system: 2970 tests, coverage 86.42%
+
+## P61 — ASC Metrics Widget en premoscorp.com (FASE 6 Sprint 3) (2026-06-15)
+
+### Módulos implementados / extendidos (sc_system)
+
+| Módulo | Archivo | Descripción |
+|--------|---------|-------------|
+| Widget Component | `src/components/sections/ASCStatusWidget.jsx` | Fetches `/health/liveness` + `/metrics/public`, renderiza métricas SOC en tiempo real |
+| Seguridad Page | `src/pages/Seguridad.jsx` | Widget embebido antes de CTABanner |
+| Home Page | `src/pages/Home.jsx` | Widget embebido antes de CTABanner |
+| Env Config | `.env.example` | Variable `VITE_ASC_API_URL` declarada (sin hardcodeo) |
+
+### Diseño del widget
+
+```
+VITE_ASC_API_URL="" → return null (no renderiza — graceful degradation)
+
+VITE_ASC_API_URL="https://..." → useEffect:
+  Promise.allSettled([
+    fetch(`${ASC_API}/api/v1/health/liveness`),    // no-auth
+    fetch(`${ASC_API}/api/v1/metrics/public`),     // no-auth
+  ])
+  → setStatus('alive' | 'degraded' | 'offline')
+  → setMetrics({ mttd_minutes, mtta_minutes, mttr_minutes, ioc_coverage, false_positive_rate, risk_posture, period_hours })
+```
+
+**Endpoints elegidos — sin autenticación (CORS-safe):**
+- `/api/v1/health/liveness` → `{ status: "alive", ts }` — liveness check puro
+- `/api/v1/metrics/public` → métricas agregadas diseñadas para consumo externo (no expone datos de tenants individuales)
+
+**Endpoints descartados intencionalmente:**
+- `/api/v1/health/system` — requiere JWT, expone info interna (version, pid, mem)
+- `/api/v1/health/readiness` — detalla checks de DB/Redis internos
+- `/api/v1/metrics/soc` — requiere JWT, datos de tenant específico
+
+### Tests P61 (63 tests, 9 clases — sc_system Vitest estático)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| FileExistence | 3 | Widget existe, test file existe, no nuevos archivos en `api/` |
+| EnvVarUsage | 6 | `VITE_ASC_API_URL` declarado, `import.meta.env.*`, sin hardcodeo onrender/localhost/IP/premoscorp.com |
+| SecurityInvariants | 9 | Sin Auth Bearer hardcoded, sin API key literal, sin SUPABASE_SERVICE_ROLE_KEY/STRIPE_SECRET_KEY/RESEND_API_KEY/HIBP_API_KEY, solo /metrics/public (no /soc), solo /health/liveness (no /system, no /readiness) |
+| ComponentStructure | 12 | default export, useState/useEffect, loading, AbortController, cleanup fn, Promise.allSettled, motion, motion.div, Premos easing, #8B1E1E, animate-pulse, return null |
+| MetricsCoverage | 15 | MTTD/MTTA/MTTR labels + `*_minutes` fields, ioc_coverage, false_positive_rate, risk_posture, CRITICAL/NORMAL/ELEVATED/HIGH postures, period_hours |
+| SeguridadIntegration | 4 | Import, correct path, `<ASCStatusWidget />` en JSX, antes de CTABanner |
+| HomeIntegration | 4 | Import, correct path, `<ASCStatusWidget />` en JSX, antes de CTABanner |
+| EnvExample | 3 | `VITE_ASC_API_URL` declarado, sin URL hardcodeada como valor por defecto, comentario presente |
+| CodeQuality | 7 | Sin console.log, sin console.error(err) crudo, imports relativos, MetricCell helper, StatusPill helper, em-dash fallback, cancelled flag |
+
+**Resultado: 63/63 PASSED**
+
+### Invariantes de seguridad verificadas (sc_system)
+
+- `VITE_ASC_API_URL` es la única referencia al backend ASC — cero hardcodeo
+- Solo endpoints públicos/no-auth llamados desde el cliente — cero auth material expuesto en browser
+- No se crea nuevo archivo en `api/` — límite 12/12 Vercel Hobby preservado
+- Widget retorna `null` si `VITE_ASC_API_URL` vacío — sin llamadas innecesarias ni broken UI
+- `AbortController` + `cancelled` flag — previene memory leaks y setState post-unmount
+- `Promise.allSettled` — falla parcial de un endpoint no rompe el widget entero
+
+### Métricas P61
+
+- Test delta sc_system: 2907 → 2970 (+63 tests, **0 regresiones**, 20 test files)
+- ASC backend: 4462 tests, 86.42% coverage (sin cambios en backend)
+- Commit: pendiente (próximo paso)
+
+---
 
 ## P60 — Stripe → ASC Tenant Auto-Provisioning (FASE 6 Sprint 2) (2026-06-15)
 

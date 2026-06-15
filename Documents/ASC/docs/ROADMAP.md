@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.3 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P60 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅) — 4462 tests, coverage 86.42%
+> Versión 4.4 | Fecha: 2026-06-15 | Estado: FASE 1–5 completadas — P39–P61 completados — TD-2/TD-4/TD-5 cerradas — FASE 6 avanzando (P59✅ P60✅ P61✅) — 4462 tests ASC / 2970 tests sc_system, coverage 86.42%
 
 ---
 
@@ -677,7 +677,7 @@ React stores ASC token → redirects to asc.premoscorp.com/?token=...
 |--------|--------|--------|--------|
 | P59 | SSO Bridge — Supabase JWT → ASC JWT | 28–29 | ✅ COMPLETADO |
 | P60 | Stripe → ASC Tenant Auto-Provisioning | 29–30 | ✅ COMPLETADO |
-| P61 | ASC Metrics Widget en premoscorp.com | 30 | ⏳ PENDING |
+| P61 | ASC Metrics Widget en premoscorp.com | 30 | ✅ COMPLETADO |
 | P62 | ASC Client Portal page en premoscorp.com | 31 | ⏳ PENDING |
 | P63 | SPECTER Enrollment Portal en premoscorp.com | 32–33 | ⏳ PENDING |
 
@@ -701,14 +701,19 @@ Entregables:
 - Welcome email vía RESEND (credenciales ASC + link asc.premoscorp.com)
 - Tests: 40+
 
-### P61 — ASC Metrics Widget
-**Semana 30 | sc_system Frontend**
+### P61 — ASC Metrics Widget ✅ COMPLETADO
+**Semana 30 | sc_system Frontend | 2026-06-15**
 
 Entregables:
-- `src/components/sections/ASCStatusWidget.jsx` — llama GET /api/v1/metrics/public
-- Muestra: amenazas detectadas, neutralizaciones, uptime, agentes activos
-- Embebido en Seguridad.jsx y Home.jsx
-- Tests: Vitest unit (mock fetch)
+- `src/components/sections/ASCStatusWidget.jsx` — fetches paralelos: `GET /api/v1/health/liveness` + `GET /api/v1/metrics/public` (ambos no-auth)
+- Métricas mostradas: MTTD, MTTA, MTTR, IoC Coverage, FP Rate, Risk Posture (NORMAL/ELEVATED/HIGH/CRITICAL)
+- Loading skeleton `animate-pulse`, status pill (EN LÍNEA/DEGRADADO/FUERA DE LÍNEA)
+- Graceful degradation: `return null` si `VITE_ASC_API_URL` no configurada
+- `AbortController` + `cancelled` flag — previene setState post-unmount
+- Embebido en `Seguridad.jsx` (antes de CTABanner) y `Home.jsx` (antes de CTABanner)
+- `VITE_ASC_API_URL` añadida a `.env.example`
+- Tests: 63 tests estáticos Vitest — SecurityInvariants, ComponentStructure, MetricsCoverage, PageIntegration, EnvExample, CodeQuality
+- 0 serverless functions nuevas creadas (preserva límite 12/12 Vercel Hobby)
 
 ### P62 — ASC Client Portal en premoscorp.com
 **Semana 31 | sc_system Frontend**
