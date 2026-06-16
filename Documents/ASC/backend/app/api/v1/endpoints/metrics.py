@@ -36,30 +36,17 @@ async def _fetch_alerts(db: AsyncSession, since: datetime) -> list[Alert]:
     return list(result.scalars().all())
 
 
-@router.get("/public", summary="Métricas públicas para portal premoscorp.com — sin autenticación")
-async def public_metrics(db: AsyncSession = Depends(get_db)):
-    """No-auth endpoint consumed by sc_system (premoscorp.com). Exposes aggregate non-sensitive metrics."""
-    since = datetime.now(timezone.utc) - timedelta(hours=24)
-    alerts = await _fetch_alerts(db, since)
-
-    total_alerts = len(alerts)
-    critical = sum(1 for a in alerts if a.severity == "critical")
-    fp_count = sum(1 for a in alerts if a.false_positive)
-    fp_rate  = round(fp_count / total_alerts, 4) if total_alerts else 0.0
-
-    ioc_coverage = await get_ioc_coverage(db)
-    summary      = build_soc_summary(alerts)
-
-    posture = _risk_posture(critical, sum(1 for a in alerts if a.severity == "high"), 0)
-
+@router.get("/public", summary="Estado operacional del SOC — sin autenticación")
+async def public_metrics():
+    """
+    Public health endpoint for premoscorp.com marketing portal.
+    Returns ONLY operational status — no internal KPIs, no timing data,
+    no coverage metrics that could provide adversarial intelligence.
+    """
     return {
-        "mttd_minutes":        summary["mttd_minutes"],
-        "mtta_minutes":        summary["mtta_minutes"],
-        "mttr_minutes":        summary["mttr_minutes"],
-        "false_positive_rate": fp_rate,
-        "ioc_coverage":        ioc_coverage,
-        "risk_posture":        posture,
-        "period_hours":        24,
+        "status":     "operational",
+        "uptime":     True,
+        "as_of":      datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
 

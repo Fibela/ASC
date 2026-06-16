@@ -1,6 +1,9 @@
 # Security scan reports — generated artifacts, never commit
 reports/
 
+# TypeScript build cache — contains hashes, triggers false-positive secret scans
+*.tsbuildinfo
+
 # Environment — NEVER commit real secrets
 .env
 .env.local

@@ -438,6 +438,78 @@ asyncio.run(t())
 
 ---
 
+## Session 47 — 2026-06-15/16 (FASE 0: QC Roadmap — Secret Scan, Dependency Audit, Endpoint Audit, Schema Integrity, Metrics Hardening)
+
+### Context
+
+After confirming login JWT works (`role:admin`) and `/api/v1/metrics/public` returns 200 with correct CORS, a comprehensive QC Roadmap was defined (FASE 0–4). This session covers FASE 0 execution and FASE 0.5 hardening. All audit scripts and reports are stored in `backend/reports/` (git-ignored) and `backend/audit_endpoints*.py`.
+
+### P47-DEPLOY: Pre-Audit Fixes (from prior session handoff)
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 119 | 2026-06-14 | FIX | **Alembic migration SQL** — `migrations_asc_initial.sql` rewritten 3x to fix `42P07 relation already exists` and `23505 duplicate key` errors. Final pattern: all DDL uses `IF NOT EXISTS`; single `DELETE FROM alembic_version; INSERT INTO alembic_version VALUES ('v2p45s4u7o09')` at end. Applied successfully in Supabase SQL Editor. |
+| 120 | 2026-06-14 | IMPL | **Admin user created** — bcrypt hash generated locally, `INSERT INTO users (...)` executed in Supabase SQL Editor. Login verified: `POST /api/v1/auth/login` → `{"access_token":..., "role":"admin"}`. |
+| 121 | 2026-06-14 | FIX | **CSP — `sc_system/vercel.json`** — Added `https://asc-backend-ona9.onrender.com` to `connect-src`. Browser was blocking fetch to ASC backend before this. Committed + pushed → Vercel redeployed. |
+| 122 | 2026-06-14 | FIX | **Schema drift — 10 tables** — `/api/v1/metrics/public` returned 500 because `Alert.detected_at` column didn't exist (old migration schema). Created `migrations_asc_schema_patch.sql`: drops 10 tables in FK-safe order and recreates with correct columns from current SQLAlchemy models. Applied in Supabase SQL Editor. `/api/v1/metrics/public` now returns 200 with correct CORS. |
+
+### FASE 0.1: Secret Scan
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 123 | 2026-06-15 | SECURITY | **detect-secrets** — full repo scan including git history. | **739 findings, ALL false positives**: 675 Hex High Entropy (Alembic migration revision IDs), 62 Secret Keyword (test placeholders, `# nosec`-tagged), 2 Basic Auth Credentials (`alembic.ini` placeholder URL). 0 real secrets. Report: `reports/detect_secrets_fase0.json`. |
+| 124 | 2026-06-15 | IMPL | **`.gitignore` updated** — Added `reports/` (generated audit artifacts) and `*.tsbuildinfo` (TypeScript build cache that triggers false-positive secret scans with its SHA hashes). |
+
+### FASE 0.2: Dependency Audit + SAST
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 125 | 2026-06-15 | SECURITY | **pip-audit** — CVE scan of `requirements.txt`. | **12 CVEs in 3 packages**. All fixed with version bumps in `requirements.txt`. Report: `reports/pip_audit_fase0.json`. |
+| 126 | 2026-06-15 | FIX | **`requirements.txt`** — Upgraded: `cryptography 48.0.0 → 49.0.0` (GHSA-537c-gmf6-5ccf), `python-multipart 0.0.27 → 0.0.32` (CVE-2026-53538/39/40), `aiohttp 3.14.0 → 3.14.1` (CVE-2026-54273 through 54280). |
+| 127 | 2026-06-15 | SECURITY | **Bandit SAST** — `bandit -r app/`. | **0 HIGH, 0 MEDIUM, 2 LOW** (false positives, `# nosec`-annotated). Report: `reports/bandit_fase0.json`. CLEAN. |
+
+### FASE 0.3: Endpoint Auth Audit
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 128 | 2026-06-15 | SECURITY | **Static endpoint audit** — `audit_endpoints3.py` scans all `app/api/v1/endpoints/*.py`. Regex captures from `@router.METHOD` decorator through closing `):` of function signature (multi-line). Also checks `dependencies=[Depends(...)]` in decorator. Auth patterns checked: `get_current_user`, `require_role`, `get_analyst_or_admin`, `get_current_active`, `get_admin_user`, `get_current_superuser`, `get_current_admin`, `_rate_limited_user`, `_get_agent_by_header`, `get_current_user_allow_reset`. | **0 unprotected endpoints**. 226 with auth confirmed, 21 legitimately public (login, refresh, register, health, SSO callback, Stripe webhook, Prometheus metrics, agent enrollment/poll/report, honeypot callbacks). Report: `reports/endpoint_audit_fase03.json`. |
+
+### FASE 0.4: Schema Integrity — Remaining Tables
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 129 | 2026-06-15 | IMPL | **`gen_remaining_tables.py`** — Script that introspects SQLAlchemy models via SQLite and generates FK-safe PostgreSQL DDL. Outputs `migrations_asc_remaining_tables.sql`. 33 tables total (490 columns); 10 already in `migrations_asc_schema_patch.sql`; 23 remaining generated here. |
+| 130 | 2026-06-15 | IMPL | **`migrations_asc_remaining_tables.sql`** — CREATED. FK-safe order: `tenants → users → revoked_tokens → api_keys → webhooks → correlation_rules → correlation_clusters → correlation_signals → executive_reports → forensic_ledger → hunt_sessions → hunt_findings → hunt_queries → identity_actions → incidents → incident_links → incident_timeline → pcdi_signed_reports → playbook_triggers → scheduled_reports → tenant_adapter_configs → threat_intel_indicators → usage_records`. All DDL uses `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` — safe to re-run. **ACTION REQUIRED**: Execute in Supabase SQL Editor (project ref: `kqxwtayzqujlddviskwl`). |
+
+### FASE 0.5: /metrics/public Hardening
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 131 | 2026-06-15 | SECURITY | **`app/api/v1/endpoints/metrics.py`** — `GET /metrics/public` rewritten to return only `{"status":"operational","uptime":true,"as_of":"..."}`. Previous response exposed MTTD/MTTA/MTTR/FP-rate/IoC-coverage — all adversarial intelligence. MTTD tells attackers how long they have before detection; FP rate tells them how reliable alerts are; IoC coverage reveals surveillance gaps; risk_posture="CRITICAL" leaks active incident status. The endpoint is still public (for premoscorp.com status widget) but now reveals nothing operationally sensitive. |
+
+### FASE 0 Final State
+
+| Metric | Result |
+|--------|--------|
+| Secret scan (detect-secrets) | ✅ 739 findings — ALL false positives, 0 real secrets |
+| SAST (Bandit) | ✅ 0 HIGH, 0 MEDIUM, 2 LOW (nosec-tagged) |
+| Dependency CVEs (pip-audit) | ✅ 12 CVEs fixed via requirements.txt version bumps |
+| Endpoint auth audit | ✅ 0 unprotected endpoints (226 auth-protected, 21 legitimately public) |
+| Schema integrity — 10 original tables | ✅ Fixed in `migrations_asc_schema_patch.sql` (applied) |
+| Schema integrity — 23 remaining tables | ⏳ `migrations_asc_remaining_tables.sql` generated — apply in Supabase |
+| `/metrics/public` hardening | ✅ Returns only operational status, no internal SOC KPIs |
+
+### Pending (FASE 1+)
+
+| Item | Status |
+|------|--------|
+| FASE 1.1 — Generate correct Alembic migration from current model state | ⏳ Pending |
+| FASE 1.2 — pytest unit + integration + security tests | ⏳ Pending |
+| FASE 2 — `premoscorp.com/sectores/seguridad` commercial SOC-as-a-Service page | ⏳ Pending |
+| Commit: `requirements.txt` CVE fixes, `.gitignore`, `audit_endpoints3.py`, `metrics.py` patch | ⏳ Pending |
+
+---
+
 ## Security Design Notes
 
 ### Token Security
