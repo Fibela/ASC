@@ -520,12 +520,53 @@ After confirming login JWT works (`role:admin`) and `/api/v1/metrics/public` ret
 | `7c55956` | `security: FASE 0 QC audit` — CVE fixes, endpoint audit script, schema patches, `/metrics/public` hardening, `.gitignore`, AUDIT_LOG Session 47 |
 | `96cb739` | `test: update /metrics/public tests for FASE 0.5 hardening` — 5 tests rewritten/added, 4 deleted (old KPI assertions) |
 
-### Pending (FASE 2+)
+### FASE 2: `/sectores/seguridad` — Commercial SOC-as-a-Service Page (sc_system)
+
+> Scope: `sc_system` (premoscorp.com portal — Vite 6 + React 18 + Tailwind CSS v4 + Framer Motion)
+
+#### FASE 2.1 — ASCStatusWidget Rewrite
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 136 | 2026-06-16 | IMPL | **`sc_system/src/components/sections/ASCStatusWidget.jsx`** — Complete rewrite. Old version tried to display MTTD/MTTA/MTTR/IoC/FP-rate from `/metrics/public` — fields removed in FASE 0.5. New: fetches `/api/v1/health/liveness` (health state) + `/api/v1/metrics/public` (`as_of` only). Shows static `SOC_CAPABILITIES` badge grid, `StatusPill` (animated dot + label), link to `/portal/seguridad`. `Promise.allSettled` for resilience, `AbortController` for unmount cleanup. Returns `null` if `VITE_ASC_API_URL` unset. |
+| 137 | 2026-06-16 | SECURITY | **Widget security posture**: Widget DOM exposes 0 adversarial intel — no MTTD/MTTA/MTTR timing, no risk_posture, no ioc_coverage, no false_positive_rate. Consistent with FASE 0.5 backend hardening. |
+
+#### FASE 2.2 — i18n (8 locales)
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 138 | 2026-06-16 | IMPL | **`sc_system/scripts/update_seguridad_i18n.js`** — Node.js ES module merges new keys into all 8 locale files. New keys: `socTag/socTitle/socSubtitle`, `socPlans` (3-plan array: Vigilancia/Protección/Enterprise), `complianceTag/complianceTitle/complianceDesc`, `frameworks` (NIST CSF, MITRE ATT&CK, ISO/IEC 27001, GDPR/RGPD, SOC 2 Type II), updated CTA keys. Output: ✓ es ✓ en ✓ pt ✓ fr ✓ de ✓ zh ✓ ja ✓ ar. |
+| 139 | 2026-06-16 | REVIEW | **i18n key audit** — 26/26 keys verified in `es/common.json`. `socPlans` = 3 plans, `frameworks` = 5 items, `capacidades` = 6 items. All confirmed via `node -e`. |
+
+#### FASE 2.3 — Seguridad.jsx Page Update
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 140 | 2026-06-16 | IMPL | **`sc_system/src/pages/Seguridad.jsx`** — Full commercial funnel. Structure: `PageHero → Intro (stats) → Capacidades (6 cards) → ASCStatusWidget → SOC Plans (3 tiers) → Compliance Frameworks → CTABanner`. New: `PlanCard` component (highlight tier = Protección, `border rgba(139,30,30,0.45)`), `FrameworkPill` badges, compliance bordered card. CTABanner: `primaryPath="/portal/seguridad"` (was `/manual-ciberseguridad`), `secondaryPath="/contacto"`. |
+
+#### FASE 2.4 — Test Suite Update
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 141 | 2026-06-16 | TEST | **`sc_system/tests/p61_asc_metrics_widget.test.js`** — `P61 — MetricsCoverage` rewritten as `P61 — SecurityHardening (FASE 0.5)`. Old tests asserted KPI presence; new tests assert KPI ABSENCE + verify new behavior: `SOC_CAPABILITIES`, `as_of`, `alive`/`degraded` states, `/portal/seguridad` link. Removed `MetricCell` and em-dash tests (not applicable). Added `StatusPill`/`OPERACIONAL`/`DEGRADADO` coverage. | **3415/3415 PASS** ✅ |
+
+#### FASE 2 Final State
+
+| Metric | Result |
+|--------|--------|
+| `ASCStatusWidget.jsx` | ✅ Rewritten — no KPI exposure, static capabilities + health status |
+| 8 locale files updated | ✅ `socPlans` (3 plans), `frameworks` (5 items), compliance, CTA keys |
+| `Seguridad.jsx` commercial funnel | ✅ SOC tiers + compliance section + updated CTA |
+| Test suite sc_system | ✅ 3415/3415 PASS |
+| Security: no KPI data in DOM | ✅ Verified — widget exposes 0 adversarial intel |
+| CTA path updated | ✅ `primaryPath="/portal/seguridad"` (was `/manual-ciberseguridad`) |
+
+### Pending (FASE 1.2b / FASE 3+)
 
 | Item | Status |
 |------|--------|
-| Full test suite run with coverage gate (`python -m pytest tests/ --tb=short`) | ⏳ Recommended — verify 85% gate still passes after metrics.py reduction |
-| FASE 2 — `premoscorp.com/sectores/seguridad` commercial SOC-as-a-Service page | ⏳ Next session |
+| **FASE 1.2b** — Full ASC test suite con gate `--cov-fail-under=85` | ⏳ `python -m pytest tests/ --cov --cov-fail-under=85 --tb=short` |
+| FASE 3+ — Per QC roadmap definido en Session 47 | ⏳ Sesiones futuras |
 
 ---
 
