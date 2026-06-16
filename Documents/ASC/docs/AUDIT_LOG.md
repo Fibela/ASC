@@ -499,14 +499,33 @@ After confirming login JWT works (`role:admin`) and `/api/v1/metrics/public` ret
 | Schema integrity — 23 remaining tables | ⏳ `migrations_asc_remaining_tables.sql` generated — apply in Supabase |
 | `/metrics/public` hardening | ✅ Returns only operational status, no internal SOC KPIs |
 
-### Pending (FASE 1+)
+### FASE 1.1: Alembic Sync Verification
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 132 | 2026-06-16 | REVIEW | **Alembic migration chain — 18 files discovered** (not 10 as previously documented). Chain extends from P16 (`6f4219e1c240`) through P60 (`v2p45s4u7o09_add_stripe_checkout_p60.py`). `v2p45s4u7o09` is the real Alembic head AND matches `alembic_version` in Supabase — **DB is correctly stamped**. `migrations_asc_remaining_tables.sql` created tables with all columns up to P60, which is consistent with Alembic thinking P60 is applied. No new migration needed. | ✅ IN SYNC |
+
+### FASE 1.2: Test Suite Validation
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 133 | 2026-06-16 | TEST | **`tests/test_metrics.py::TestMetricsPublicAPI`** — 5 tests rewritten. Removed: assertions on `mttd_minutes`, `risk_posture`, `false_positive_rate`, `ioc_coverage`, `period_hours`. Added: `test_public_response_shape` (checks `status/uptime/as_of`), `test_public_does_not_leak_kpis` (explicit guard against regression for 7 sensitive fields), `test_public_as_of_is_iso_timestamp`. Also removed `test_public_posture_critical_with_critical_alert` (no longer applicable — endpoint doesn't query DB). | ✅ PASS |
+| 134 | 2026-06-16 | TEST | **`tests/test_p31_coverage_extra.py`** — `test_public_metrics_no_auth_required` and `test_public_metrics_normal_posture_empty_db` updated to assert new `{status, uptime, as_of}` shape. `test_public_metrics_does_not_leak_kpis` added. | ✅ PASS |
+| 135 | 2026-06-16 | TEST | **Targeted test run** — 716 tests across `test_metrics.py`, `test_p31_coverage_extra.py`, `security/`, `test_auth.py`, `test_alerts.py`, `test_p47_multitenancy.py`, `test_p60_stripe_provisioning.py`, `test_p55_billing.py`, `test_p40_api_keys.py`, `test_p42_webhooks.py`. | **716/716 PASS**, 8 deprecation warnings (FastAPI HTTP constant renaming — cosmetic only). |
+
+### Commits — Session 47
+
+| Commit | Description |
+|--------|-------------|
+| `7c55956` | `security: FASE 0 QC audit` — CVE fixes, endpoint audit script, schema patches, `/metrics/public` hardening, `.gitignore`, AUDIT_LOG Session 47 |
+| `96cb739` | `test: update /metrics/public tests for FASE 0.5 hardening` — 5 tests rewritten/added, 4 deleted (old KPI assertions) |
+
+### Pending (FASE 2+)
 
 | Item | Status |
 |------|--------|
-| FASE 1.1 — Generate correct Alembic migration from current model state | ⏳ Pending |
-| FASE 1.2 — pytest unit + integration + security tests | ⏳ Pending |
-| FASE 2 — `premoscorp.com/sectores/seguridad` commercial SOC-as-a-Service page | ⏳ Pending |
-| Commit: `requirements.txt` CVE fixes, `.gitignore`, `audit_endpoints3.py`, `metrics.py` patch | ⏳ Pending |
+| Full test suite run with coverage gate (`python -m pytest tests/ --tb=short`) | ⏳ Recommended — verify 85% gate still passes after metrics.py reduction |
+| FASE 2 — `premoscorp.com/sectores/seguridad` commercial SOC-as-a-Service page | ⏳ Next session |
 
 ---
 
