@@ -33,6 +33,7 @@ import uuid
 from datetime import datetime, timezone
 
 import jwt as pyjwt
+from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -97,15 +98,17 @@ def _validate_supabase_token(token: str) -> dict:
         )
 
     algorithm = header.get("alg", "HS256")
+    # email is intentionally excluded from require — it is validated manually
+    # below so that OAuth users without email in the JWT still get a useful error
+    # rather than a generic MissingRequiredClaimError.
     decode_opts = {
         "audience": _settings.SUPABASE_JWT_AUDIENCE,
-        "options": {"require": ["sub", "email", "exp", "aud"]},
+        "options": {"require": ["sub", "exp", "aud"]},
     }
 
     try:
         if algorithm in ("RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"):
             # New Supabase JWT Signing Keys — verify via JWKS (no secret needed)
-            from jwt import PyJWKClient
             jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
             jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600)
             signing_key = jwk_client.get_signing_key_from_jwt(token)
@@ -133,6 +136,12 @@ def _validate_supabase_token(token: str) -> dict:
 
     except HTTPException:
         raise
+    except (PyJWKClientConnectionError, PyJWKClientError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "sso_jwks_error",
+                    "message": f"Could not reach Supabase JWKS endpoint: {exc}"},
+        )
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

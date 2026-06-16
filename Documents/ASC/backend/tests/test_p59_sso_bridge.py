@@ -249,7 +249,7 @@ class TestSupabaseJWTValidation:
         mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
 
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
-             patch("jwt.PyJWKClient", return_value=mock_jwk_client):
+             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = ""   # absent — must not matter for RS256
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
@@ -541,29 +541,42 @@ class TestSecurityInvariants:
         from app.api.v1.endpoints.auth_sso import SSOResponse
         assert "provisioned" in SSOResponse.model_fields
 
-    def test_validate_requires_hs256_algorithm(self):
-        """RS256 tokens must be rejected — ASC only accepts HS256."""
+    def test_tampered_rs256_header_rejected_with_wrong_key(self):
+        """Token claiming RS256 but signed with HS256 must be rejected (signature mismatch)."""
+        import base64, json
         from fastapi import HTTPException
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.backends import default_backend
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
-        from cryptography.hazmat.primitives.asymmetric import ed25519
+
+        # Create HS256 token then tamper the header to claim RS256
         token = pyjwt.encode(
             {"sub": "uid", "email": "e@e.com", "aud": "authenticated",
              "exp": int(time.time()) + 3600, "iat": int(time.time())},
-            "anything",
+            "anything-long-enough-for-hmac-xxxxxxxxxxxxxxx",
             algorithm="HS256",
         )
-        # Tamper the header to claim RS256 — pyjwt will reject it
         parts = token.split(".")
-        import base64, json
         header = json.dumps({"alg": "RS256", "typ": "JWT"}).encode()
         padded = base64.urlsafe_b64encode(header).rstrip(b"=").decode()
         tampered = padded + "." + parts[1] + "." + parts[2]
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+
+        # Mock JWKS to return a real RSA public key — signature won't match
+        wrong_key = rsa.generate_private_key(65537, 2048, default_backend()).public_key()
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = wrong_key
+        mock_jwk_client = MagicMock()
+        mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
+            mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(tampered)
         assert exc.value.status_code == 401
+        assert exc.value.detail["code"] == "supabase_token_invalid"
 
     def test_user_model_has_supabase_uid(self):
         from app.models.user import User
