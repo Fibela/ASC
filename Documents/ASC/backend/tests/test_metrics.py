@@ -597,46 +597,35 @@ class TestMetricsSocAPI:
 
 @pytest.mark.asyncio
 class TestMetricsPublicAPI:
+    """
+    /metrics/public returns only operational status (FASE 0.5 hardening).
+    Old KPI fields (mttd_minutes, risk_posture, etc.) were removed because
+    they leaked adversarial intelligence (detection timing, surveillance gaps).
+    """
+
     async def test_public_no_auth_required(self, client: AsyncClient):
         resp = await client.get("/api/v1/metrics/public")
         assert resp.status_code == 200
 
     async def test_public_response_shape(self, client: AsyncClient):
-        resp = await client.get("/api/v1/metrics/public")
-        data = resp.json()
-        assert "mttd_minutes" in data
-        assert "mtta_minutes" in data
-        assert "mttr_minutes" in data
-        assert "false_positive_rate" in data
-        assert "ioc_coverage" in data
-        assert "risk_posture" in data
-        assert "period_hours" in data
-        assert data["period_hours"] == 24
+        data = (await client.get("/api/v1/metrics/public")).json()
+        assert data["status"] == "operational"
+        assert data["uptime"] is True
+        assert "as_of" in data
 
-    async def test_public_empty_db(self, client: AsyncClient):
-        resp = await client.get("/api/v1/metrics/public")
-        data = resp.json()
-        assert data["mttd_minutes"] is None
-        assert data["mttr_minutes"] is None
-        assert data["false_positive_rate"] == 0.0
+    async def test_public_does_not_leak_kpis(self, client: AsyncClient):
+        data = (await client.get("/api/v1/metrics/public")).json()
+        for leaked_field in (
+            "mttd_minutes", "mtta_minutes", "mttr_minutes",
+            "false_positive_rate", "ioc_coverage", "risk_posture", "period_hours",
+        ):
+            assert leaked_field not in data, f"Field '{leaked_field}' must not be public"
 
-    async def test_public_posture_normal_empty(self, client: AsyncClient):
-        resp = await client.get("/api/v1/metrics/public")
-        assert resp.json()["risk_posture"] == "NORMAL"
-
-    async def test_public_posture_critical_with_critical_alert(self, client: AsyncClient, db):
-        alert = Alert(
-            id=str(uuid.uuid4()),
-            title="Critical",
-            description="critical test",
-            severity="critical",
-            risk_score=0.95,
-            detected_at=datetime.now(timezone.utc),
-        )
-        db.add(alert)
-        await db.commit()
-        resp = await client.get("/api/v1/metrics/public")
-        assert resp.json()["risk_posture"] == "CRITICAL"
+    async def test_public_as_of_is_iso_timestamp(self, client: AsyncClient):
+        data = (await client.get("/api/v1/metrics/public")).json()
+        from datetime import datetime
+        # Should parse without error
+        datetime.strptime(data["as_of"], "%Y-%m-%dT%H:%M:%SZ")
 
 
 @pytest.mark.asyncio

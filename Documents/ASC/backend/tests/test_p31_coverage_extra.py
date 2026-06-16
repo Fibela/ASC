@@ -559,15 +559,17 @@ class TestMetricsEndpoints:
         resp = await client.get("/api/v1/metrics/public")
         assert resp.status_code == 200
         body = resp.json()
-        assert "mttd_minutes" in body
-        assert "risk_posture" in body
-        assert "ioc_coverage" in body
-        assert "false_positive_rate" in body
+        # FASE 0.5: public endpoint returns only operational status
+        assert body["status"] == "operational"
+        assert body["uptime"] is True
+        assert "as_of" in body
 
-    async def test_public_metrics_normal_posture_empty_db(self, client):
+    async def test_public_metrics_does_not_leak_kpis(self, client):
         resp = await client.get("/api/v1/metrics/public")
         assert resp.status_code == 200
-        assert resp.json()["risk_posture"] == "NORMAL"
+        body = resp.json()
+        for field in ("mttd_minutes", "risk_posture", "ioc_coverage", "false_positive_rate"):
+            assert field not in body
 
     async def test_soc_metrics_empty_db(self, client, admin_headers):
         resp = await client.get("/api/v1/metrics/soc", headers=admin_headers)
