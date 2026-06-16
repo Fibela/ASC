@@ -1,3 +1,6 @@
+# Security scan reports — generated artifacts, never commit
+reports/
+
 # Environment — NEVER commit real secrets
 .env
 .env.local
