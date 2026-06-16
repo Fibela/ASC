@@ -14,6 +14,7 @@ engine = create_async_engine(
     pool_size=10,
     max_overflow=20,
     echo=settings.DEBUG,
+    connect_args={"statement_cache_size": 0},  # required for Supabase Transaction pooler (port 6543)
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
