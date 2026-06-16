@@ -116,15 +116,24 @@ def _db_override(user=None, tenant=None, supabase_user=None, email_user=None):
 
 # ── 1. JWT Validation (unit) ──────────────────────────────────────────────────
 
-class TestSupabaseJWTValidation:
-    """Unit tests for _validate_supabase_token()."""
+_TEST_SUPABASE_URL = "https://kqxwtayzqujlddviskwl.supabase.co"
 
-    def test_valid_token_returns_payload(self):
+
+def _hs256_cfg(mock_cfg, secret=_TEST_SECRET, audience="authenticated"):
+    """Populate mock settings for the HS256 (legacy) verification path."""
+    mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
+    mock_cfg.SUPABASE_JWT_SECRET = secret
+    mock_cfg.SUPABASE_JWT_AUDIENCE = audience
+
+
+class TestSupabaseJWTValidation:
+    """Unit tests for _validate_supabase_token() — covers HS256 and RS256 paths."""
+
+    def test_valid_hs256_token_returns_payload(self):
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg)
             payload = _validate_supabase_token(token)
         assert payload["sub"] == _TEST_UID
         assert payload["email"] == _TEST_EMAIL
@@ -132,10 +141,9 @@ class TestSupabaseJWTValidation:
     def test_expired_token_raises_401(self):
         from fastapi import HTTPException
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
-        token = _make_supabase_token(exp_offset=-1)  # expired 1 second ago
+        token = _make_supabase_token(exp_offset=-1)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
         assert exc.value.status_code == 401
@@ -144,10 +152,9 @@ class TestSupabaseJWTValidation:
     def test_wrong_secret_raises_401(self):
         from fastapi import HTTPException
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
-        token = _make_supabase_token(secret="correct-secret")
+        token = _make_supabase_token(secret="correct-secret-that-is-long-enough-xxxxx")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = "wrong-secret"
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg, secret="wrong-secret-that-is-also-long-enough-xxxxx")
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
         assert exc.value.status_code == 401
@@ -157,20 +164,37 @@ class TestSupabaseJWTValidation:
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="service_role")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
         assert exc.value.status_code == 401
         assert "audience" in str(exc.value.detail).lower()
 
-    def test_missing_supabase_jwt_secret_raises_503(self):
+    def test_missing_supabase_url_raises_503(self):
+        """SUPABASE_URL absent → 503 regardless of algorithm."""
         from fastapi import HTTPException
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = ""
+            mock_cfg.SUPABASE_URL = ""
+            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
+            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             with pytest.raises(HTTPException) as exc:
-                _validate_supabase_token("any_token")
+                _validate_supabase_token(token)
+        assert exc.value.status_code == 503
+        assert "not_configured" in str(exc.value.detail)
+
+    def test_missing_hs256_secret_raises_503(self):
+        """SUPABASE_URL present but SUPABASE_JWT_SECRET absent on HS256 token → 503."""
+        from fastapi import HTTPException
+        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        token = _make_supabase_token()
+        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+            mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
+            mock_cfg.SUPABASE_JWT_SECRET = ""
+            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            with pytest.raises(HTTPException) as exc:
+                _validate_supabase_token(token)
         assert exc.value.status_code == 503
         assert "not_configured" in str(exc.value.detail)
 
@@ -179,8 +203,7 @@ class TestSupabaseJWTValidation:
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token() + "tamper"
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
         assert exc.value.status_code == 401
@@ -191,8 +214,7 @@ class TestSupabaseJWTValidation:
         email = "test@example.com"
         token = _make_supabase_token(sub=uid, email=email)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _hs256_cfg(mock_cfg)
             payload = _validate_supabase_token(token)
         assert payload["sub"] == uid
         assert payload["email"] == email
@@ -201,10 +223,41 @@ class TestSupabaseJWTValidation:
         from app.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="my_audience")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
-            mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
-            mock_cfg.SUPABASE_JWT_AUDIENCE = "my_audience"
+            _hs256_cfg(mock_cfg, audience="my_audience")
             payload = _validate_supabase_token(token)
         assert payload["sub"] == _TEST_UID
+
+    def test_rs256_token_uses_jwks_not_secret(self):
+        """RS256 token (new Supabase JWT Signing Keys) verified via JWKS — secret unused."""
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.backends import default_backend
+        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+
+        private_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048, backend=default_backend()
+        )
+        rs256_token = pyjwt.encode(
+            {"sub": _TEST_UID, "email": _TEST_EMAIL, "aud": "authenticated",
+             "iat": int(time.time()), "exp": int(time.time()) + 3600,
+             "role": "authenticated"},
+            private_key, algorithm="RS256",
+        )
+
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = private_key.public_key()
+        mock_jwk_client = MagicMock()
+        mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("jwt.PyJWKClient", return_value=mock_jwk_client):
+            mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
+            mock_cfg.SUPABASE_JWT_SECRET = ""   # absent — must not matter for RS256
+            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            result = _validate_supabase_token(rs256_token)
+
+        assert result["sub"] == _TEST_UID
+        assert result["email"] == _TEST_EMAIL
+        mock_jwk_client.get_signing_key_from_jwt.assert_called_once()
 
 
 # ── 2. User provisioning (unit) ───────────────────────────────────────────────
@@ -286,13 +339,16 @@ class TestSSOEndpoint:
 
     @pytest.mark.anyio
     async def test_sso_not_configured_returns_503(self):
+        """SUPABASE_URL absent → 503 (endpoint disabled)."""
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
+        token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+            mock_cfg.SUPABASE_URL = ""
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                r = await c.post(_SSO_URL, json={"supabase_token": "any.fake.token.value.here"})
+                r = await c.post(_SSO_URL, json={"supabase_token": token})
         app.dependency_overrides.pop(get_db, None)
         assert r.status_code == 503
 

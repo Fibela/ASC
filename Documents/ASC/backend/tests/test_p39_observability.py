@@ -581,16 +581,17 @@ class TestRegressionP39:
         r = await client.get("/api/v1/alerts/")
         assert r.status_code == 401
 
-    def test_normalize_path_no_cardinality_explosion(self):
-        from app.core.metrics_registry import _normalize_path
-        endpoints = {_normalize_path(f"/api/v1/agents/{i}") for i in range(100)}
-        assert len(endpoints) == 1, "UUID path fragments should all collapse to /agents"
 
-    def test_metrics_registry_import_is_stable(self):
-        """Importing metrics_registry multiple times must not raise ValueError."""
-        import importlib
-        import app.core.metrics_registry as m1
-        # Second attribute access (not reload) — confirms no error at module level
-        from app.core.metrics_registry import REGISTRY, HTTP_REQUESTS
-        assert REGISTRY is not None
-        assert HTTP_REQUESTS is not None
+# Sync helpers — kept outside TestRegressionP39 so the class @pytest.mark.asyncio
+# decorator does not emit PytestWarning on non-async functions.
+def test_normalize_path_no_cardinality_explosion():
+    from app.core.metrics_registry import _normalize_path
+    endpoints = {_normalize_path(f"/api/v1/agents/{i}") for i in range(100)}
+    assert len(endpoints) == 1, "UUID path fragments should all collapse to /agents"
+
+
+def test_metrics_registry_import_is_stable():
+    """Importing metrics_registry multiple times must not raise ValueError."""
+    from app.core.metrics_registry import REGISTRY, HTTP_REQUESTS
+    assert REGISTRY is not None
+    assert HTTP_REQUESTS is not None

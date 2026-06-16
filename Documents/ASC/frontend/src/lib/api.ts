@@ -1,9 +1,8 @@
 import axios from 'axios'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+import { env } from './env'
 
 export const api = axios.create({
-  baseURL: `${API_URL}/api/v1`,
+  baseURL: `${env.API_URL}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 })
@@ -117,19 +116,77 @@ export async function resetApiKeyRateLimit(keyId: string): Promise<void> {
 }
 
 // --- Metrics ---
-export async function getSocMetrics(hours = 24) {
-  const { data } = await api.get('/metrics/soc', { params: { hours } })
+
+export interface SocSeverityBreakdown {
+  critical: number
+  high: number
+  medium: number
+  low: number
+}
+
+export interface SocMetrics {
+  period_hours: number
+  total_events: number
+  total_alerts: number
+  open_alerts?: number
+  contained_alerts?: number
+  false_positive_rate: number
+  ioc_coverage: number
+  mttd_seconds: number | null
+  mttd_minutes: number | null
+  mtta_seconds: number | null
+  mtta_minutes: number | null
+  mttr_seconds: number | null
+  mttr_minutes: number | null
+  risk_posture: 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'NORMAL'
+  by_severity: SocSeverityBreakdown
+  by_status: Record<string, number>
+}
+
+export interface TimelinePoint {
+  timestamp: string
+  critical: number
+  high: number
+  medium: number
+  low: number
+  total: number
+}
+
+export async function getSocMetrics(hours = 24): Promise<SocMetrics> {
+  const { data } = await api.get<SocMetrics>('/metrics/soc', { params: { hours } })
   return data
 }
 
-export async function getTimeline(hours = 24) {
-  const { data } = await api.get('/metrics/timeline', { params: { hours } })
+export async function getTimeline(hours = 24): Promise<TimelinePoint[]> {
+  const { data } = await api.get<TimelinePoint[]>('/metrics/timeline', { params: { hours } })
   return data
 }
 
 // --- Alerts ---
-export async function getAlerts(params?: { severity?: string; status?: string; limit?: number }) {
-  const { data } = await api.get('/alerts/', { params })
+
+export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low'
+export type AlertStatus   = 'open' | 'investigating' | 'contained' | 'resolved' | 'false_positive'
+
+export interface AlertItem {
+  id: string
+  title: string
+  description: string
+  severity: AlertSeverity
+  status: AlertStatus
+  risk_score: number | null
+  ttps: string[] | null
+  affected_hosts: string[] | null
+  recommended_actions: string[] | null
+  analyst_notes: string | null
+  assigned_to: string | null
+  false_positive: boolean
+  detected_at: string | null
+  acknowledged_at: string | null
+  resolved_at: string | null
+}
+
+export async function getAlerts(params?: { severity?: string; status?: string; limit?: number }): Promise<AlertItem[]> {
+  const { data } = await api.get<AlertItem[]>('/alerts/', { params })
   return data
 }
 
@@ -387,7 +444,7 @@ export function subscribeToNotifications(
   const token = typeof window !== 'undefined'
     ? localStorage.getItem('token') ?? ''
     : ''
-  const url = `${API_URL}/api/v1/notifications/stream`
+  const url = `${env.API_URL}/api/v1/notifications/stream`
   const es = new EventSource(`${url}?token=${encodeURIComponent(token)}`)
 
   es.onmessage = (e) => {
@@ -424,8 +481,24 @@ export async function fingerprintArtifact(filename: string, data_hex: string) {
   return data
 }
 
-export async function getDetectionRules() {
-  const { data } = await api.get('/detection/rules')
+export interface DetectionRule {
+  rule_id: string
+  name: string
+  mitre_ttp: string
+  severity: string
+  description: string
+  // Extended runtime fields (not in current API, reserved for future enrichment)
+  is_active?: boolean
+  hit_count?: number
+}
+
+export interface DetectionRulesResponse {
+  rules: DetectionRule[]
+  fingerprint_checks?: string[]
+}
+
+export async function getDetectionRules(): Promise<DetectionRulesResponse> {
+  const { data } = await api.get<DetectionRulesResponse>('/detection/rules')
   return data
 }
 

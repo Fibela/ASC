@@ -5,14 +5,17 @@ Allows users authenticated via Supabase (premoscorp.com) to obtain an ASC
 JWT without registering separately.
 
 Flow:
-  1. premoscorp.com client sends Supabase access token (HS256 JWT) to
-     POST /auth/supabase-sso
-  2. ASC validates the token using SUPABASE_JWT_SECRET
+  1. premoscorp.com client sends Supabase access token to POST /auth/supabase-sso
+  2. ASC validates the token — supports both:
+       a. New asymmetric JWT Signing Keys (RS256/EdDSA) via JWKS endpoint
+       b. Legacy HS256 symmetric secret (SUPABASE_JWT_SECRET)
+     Detection is automatic via the token's "alg" header claim.
   3. If the user (sub claim) is not in ASC → auto-provision: create User + Tenant
   4. Return an ASC JWT identical in structure to a normal login response
 
 Security invariants:
-  - SUPABASE_JWT_SECRET must be set in production (endpoint returns 503 if absent)
+  - SUPABASE_URL must be set (endpoint returns 503 if absent)
+  - SUPABASE_JWT_SECRET is only required for legacy HS256 tokens
   - supabase_uid is unique per user — no impersonation possible
   - SSO-provisioned users get role="analyst" by default (cannot escalate via SSO)
   - hashed_password is set to a cryptographically random value — no password login
@@ -69,25 +72,67 @@ def _validate_supabase_token(token: str) -> dict:
     Decode and validate a Supabase JWT.
     Returns the decoded payload or raises HTTPException.
 
-    Supabase JWTs are HS256 signed with the project's JWT Secret.
+    Supports two Supabase signing modes automatically:
+    - Asymmetric (RS256/EdDSA): new JWT Signing Keys — verified via JWKS endpoint
+    - Symmetric (HS256): legacy JWT secret — verified with SUPABASE_JWT_SECRET
+
     Required claims: sub (user UUID), email, aud ("authenticated").
     """
-    secret = _settings.SUPABASE_JWT_SECRET
-    if not secret:
+    supabase_url = _settings.SUPABASE_URL
+    if not supabase_url:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "sso_not_configured",
                     "message": "SSO bridge is not configured on this instance."},
         )
 
+    # Detect algorithm from token header without full verification
     try:
-        payload = pyjwt.decode(
-            token,
-            secret,
-            algorithms=["HS256"],
-            audience=_settings.SUPABASE_JWT_AUDIENCE,
-            options={"require": ["sub", "email", "exp", "aud"]},
+        header = pyjwt.get_unverified_header(token)
+    except pyjwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "supabase_token_invalid",
+                    "message": "Cannot parse token header."},
         )
+
+    algorithm = header.get("alg", "HS256")
+    decode_opts = {
+        "audience": _settings.SUPABASE_JWT_AUDIENCE,
+        "options": {"require": ["sub", "email", "exp", "aud"]},
+    }
+
+    try:
+        if algorithm in ("RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"):
+            # New Supabase JWT Signing Keys — verify via JWKS (no secret needed)
+            from jwt import PyJWKClient
+            jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
+            jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600)
+            signing_key = jwk_client.get_signing_key_from_jwt(token)
+            payload = pyjwt.decode(
+                token,
+                signing_key.key,
+                algorithms=[algorithm],
+                **decode_opts,
+            )
+        else:
+            # Legacy HS256 — requires symmetric SUPABASE_JWT_SECRET
+            secret = _settings.SUPABASE_JWT_SECRET
+            if not secret:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={"code": "sso_not_configured",
+                            "message": "SSO bridge (legacy HS256) requires SUPABASE_JWT_SECRET."},
+                )
+            payload = pyjwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                **decode_opts,
+            )
+
+    except HTTPException:
+        raise
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -105,6 +150,12 @@ def _validate_supabase_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "supabase_token_invalid",
                     "message": f"Supabase token validation failed: {exc}"},
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "sso_jwks_error",
+                    "message": f"Could not fetch JWKS from Supabase: {exc}"},
         )
 
     supabase_uid = payload.get("sub")

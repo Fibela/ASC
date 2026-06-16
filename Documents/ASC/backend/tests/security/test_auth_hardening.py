@@ -71,7 +71,7 @@ def _token_wrong_secret(user_id: str) -> str:
         "type": "access",
         "jti": str(uuid.uuid4()),
     }
-    return pyjwt.encode(payload, "totally-wrong-secret", algorithm=ALGORITHM)
+    return pyjwt.encode(payload, "totally-wrong-secret-but-long-enough-xxxxx", algorithm=ALGORITHM)
 
 
 def _token_missing_sub() -> str:

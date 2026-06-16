@@ -24,8 +24,6 @@ from app.services.praf import (
     _band,
 )
 
-pytestmark = pytest.mark.asyncio
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PRAFLedger
