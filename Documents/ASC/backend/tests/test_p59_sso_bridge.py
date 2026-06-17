@@ -251,7 +251,9 @@ class TestSupabaseJWTValidation:
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
              patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
-            mock_cfg.SUPABASE_JWT_SECRET = ""   # absent — must not matter for RS256
+            mock_cfg.SUPABASE_JWT_SECRET = ""
+            mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""   # force JWKS path, not direct PEM
+            mock_cfg.SUPABASE_ANON_KEY = ""
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             result = _validate_supabase_token(rs256_token)
 
@@ -572,6 +574,8 @@ class TestSecurityInvariants:
              patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
+            mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""   # force JWKS path
+            mock_cfg.SUPABASE_ANON_KEY = ""
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(tampered)

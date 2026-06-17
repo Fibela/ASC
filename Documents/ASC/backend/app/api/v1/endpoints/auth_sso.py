@@ -108,21 +108,32 @@ def _validate_supabase_token(token: str) -> dict:
 
     try:
         if algorithm in ("RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"):
-            # New Supabase JWT Signing Keys — verify via JWKS (no secret needed).
-            # Supabase API gateway requires the anon key as apikey header even for
-            # the public JWKS endpoint; without it the gateway returns 401.
-            jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
-            jwks_headers: dict = {}
-            if _settings.SUPABASE_ANON_KEY:
-                jwks_headers["apikey"] = _settings.SUPABASE_ANON_KEY
-            jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600, headers=jwks_headers)
-            signing_key = jwk_client.get_signing_key_from_jwt(token)
-            payload = pyjwt.decode(
-                token,
-                signing_key.key,
-                algorithms=[algorithm],
-                **decode_opts,
-            )
+            # New Supabase JWT Signing Keys.
+            # Priority: SUPABASE_JWT_PUBLIC_KEY (PEM) → JWKS endpoint.
+            # The direct PEM path avoids JWKS HTTP round-trips and API gateway auth
+            # issues; set it from Supabase dashboard → Settings → API → JWT Signing Keys.
+            public_key_pem = getattr(_settings, "SUPABASE_JWT_PUBLIC_KEY", "")
+            if public_key_pem:
+                payload = pyjwt.decode(
+                    token,
+                    public_key_pem,
+                    algorithms=[algorithm],
+                    **decode_opts,
+                )
+            else:
+                # Fall back to JWKS — Supabase API gateway needs apikey header.
+                jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
+                jwks_headers: dict = {}
+                if _settings.SUPABASE_ANON_KEY:
+                    jwks_headers["apikey"] = _settings.SUPABASE_ANON_KEY
+                jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600, headers=jwks_headers)
+                signing_key = jwk_client.get_signing_key_from_jwt(token)
+                payload = pyjwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[algorithm],
+                    **decode_opts,
+                )
         else:
             # Legacy HS256 — requires symmetric SUPABASE_JWT_SECRET
             secret = _settings.SUPABASE_JWT_SECRET

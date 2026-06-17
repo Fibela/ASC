@@ -188,6 +188,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""                   # https://xyz.supabase.co
     SUPABASE_ANON_KEY: str = ""              # nosec B105 — public anon key, safe to expose
     SUPABASE_JWT_SECRET: str = ""            # nosec B105 — legacy HS256 secret
+    SUPABASE_JWT_PUBLIC_KEY: str = ""        # PEM public key (Settings → API → JWT Signing Keys)
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
     # ASC plan assigned to new SSO-provisioned tenants: free | pro | enterprise
     SSO_DEFAULT_PLAN: str = "free"
