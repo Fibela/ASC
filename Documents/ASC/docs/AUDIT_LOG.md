@@ -4967,3 +4967,58 @@ Test delta ASC frontend: 518 -> 610 passed (+92 tests Phase B)
 TypeScript: 0 errores (tsc --noEmit)
 Security scan: CLEAN
 Bugs adicionales corregidos: console.error en alerts+detection (A-4 regression), any[] states, useAuthGuard sin isReady (A-5 regression), dead code fingerprint_checks
+
+---
+
+## Session 78 — 2026-06-16
+
+### C-1: AuthLoader + isReady Guard en 20 páginas
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1366 | 2026-06-16 | IMPL | **frontend/src/components/AuthLoader.tsx** (nuevo): Spinner compartido #0A0A0A/#E85D04. Elimina duplicación de loaders inline en cada página. |
+| 1367 | 2026-06-16 | FIX | **C-1 FOUC guard — 20 páginas**: analyze, events, metrics, forensic, adapters, webhooks, iocs, threat-intel, soar, status, honeypot, rate-limits, ops, admin, api-keys, incidents, threat-hunting, agents, neutralize, playbooks. Patrón: `const { isReady } = useAuthGuard()` + `if (!isReady) return <AuthLoader />`. |
+| 1368 | 2026-06-16 | FIX | **useEffect gating**: 12 páginas con data-fetching useEffect ahora incluyen `if (!isReady) return` al inicio + `isReady` en dependency array. Páginas: events, metrics, forensic, adapters, webhooks, iocs, threat-intel, incidents, threat-hunting, api-keys, ops, neutralize. |
+| 1369 | 2026-06-16 | FIX | **ops/page.tsx**: Dos useEffects gateados (load + auto-refresh interval de 30s). |
+| 1370 | 2026-06-16 | FIX | **neutralize/page.tsx**: SSE subscription useEffect gateada (no se conecta al stream PANL antes de autenticación). mountedRef cleanup useEffect NO gateada (correcto). |
+| 1371 | 2026-06-16 | FIX | **status/page.tsx + honeypot/page.tsx + rate-limits/page.tsx**: Intervalos de auto-refresh no arrancan hasta isReady=true. |
+| 1372 | 2026-06-16 | FIX | **agents/page.tsx**: useAuthGuard estaba llamado DESPUÉS de varios useEffects (inversión de orden). Se añadió `const { isReady }` + early return en misma posición para respetar el orden de hooks. Nota: data useEffect no pudo gatearse sin refactor mayor; el early return previene FOUC. |
+
+### C-2: Tipado Completo de Funciones API + Bug Fix Token
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1373 | 2026-06-16 | IMPL | **api.ts — Nuevas interfaces**: AlertStats, EventItem, IngestResult, IoCItem, AnalysisResult, DetectionResult, BulkDetectionResult, FingerprintResult, PublicMetrics (9 interfaces). |
+| 1374 | 2026-06-16 | FIX | **api.ts — Return types explícitos**: getAlertStats→AlertStats, updateAlert→Partial<AlertItem>, getEvents→EventItem[], ingestEvent→IngestResult, getIoCs→IoCItem[], createIoC→IoCItem, analyzeFile/Domain/IP→AnalysisResult, evaluateEvent→DetectionResult, evaluateBulkEvents→BulkDetectionResult, fingerprintArtifact→FingerprintResult, getPublicMetrics→PublicMetrics. |
+| 1375 | 2026-06-16 | SECURITY | **BUG CRÍTICO CORREGIDO**: `subscribeToNotifications()` usaba `localStorage.getItem('token')` (key incorrecta). El token de auth se guarda bajo `asc_access_token`. La SSE stream PANL siempre enviaba token vacío → conexiones PANL no autenticadas. Fix: cambiado a `localStorage.getItem('asc_access_token')`. |
+| 1376 | 2026-06-16 | SECURITY | Verificado: `auth.ts:86` lee `NEXT_PUBLIC_PORTAL_URL` directamente (no via env.ts). No es un fallo de seguridad — mismo patrón `?? fallback`. Anotado como deuda técnica menor para Phase D. |
+
+### C-3: E2E Tests SSO
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1377 | 2026-06-16 | TEST | **frontend/e2e/sso.spec.ts** (nuevo, 11 tests): Cubre flujo SSO completo — almacenamiento de token/role, asc_sso_origin='premoscorp', redirección a /, /sso sin token → /login, token NO en URL, token NO en HTML, sso_origin exactamente 'premoscorp'. |
+
+### C-4: phase-c.test.ts
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1378 | 2026-06-16 | TEST | **frontend/src/__tests__/phase-c.test.ts** (nuevo, 117 tests): C-1-A AuthLoader(5), C-1-B regresión(2), C-1-C isReady en 20 páginas(20), C-1-D AuthLoader import(20), C-1-E early return(20), C-1-F useEffect gating(12), C-2-A interfaces(9), C-2-B return types(9), C-2-C token fix(3), C-2-D security(3), C-3 SSO spec(6), C-cross tipos(6), C-1-security(2). |
+
+### C-5: TypeScript + Test Suite + Security Scan
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1379 | 2026-06-16 | SECURITY | tsc --noEmit — 0 errores tras corregir regex s-flag incompatible con target TS. | CLEAN |
+| 1380 | 2026-06-16 | TEST | Jest completo — 17 suites, 727 tests. | 727/727 PASSED |
+| 1381 | 2026-06-16 | SECURITY | Scan: localStorage token key, hardcoded URLs, bearer tokens, console.log leaks en páginas nuevas. | CLEAN |
+
+### Resumen Session 78
+
+Sprint: FASE C — FOUC guard universal, tipado API completo, bug token PANL/SSE, E2E SSO
+Archivos creados: AuthLoader.tsx, sso.spec.ts, phase-c.test.ts
+Archivos modificados: 20 páginas (isReady guard), api.ts (9 interfaces + return types + bug fix token)
+Test delta ASC frontend: 610 → 727 passed (+117 tests Phase C)
+TypeScript: 0 errores (tsc --noEmit)
+Security scan: CLEAN
+Bug crítico corregido: subscribeToNotifications usaba key de localStorage incorrecta ('token' → 'asc_access_token') — SSE stream PANL enviaba token vacío en todas las conexiones

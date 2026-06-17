@@ -248,8 +248,14 @@ class TestSupabaseJWTValidation:
         mock_jwk_client = MagicMock()
         mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
 
+        captured_url = []
+
+        def _capture_jwks_client(url, **kwargs):
+            captured_url.append(url)
+            return mock_jwk_client
+
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
-             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
+             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_capture_jwks_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""   # force JWKS path, not direct PEM
@@ -260,6 +266,51 @@ class TestSupabaseJWTValidation:
         assert result["sub"] == _TEST_UID
         assert result["email"] == _TEST_EMAIL
         mock_jwk_client.get_signing_key_from_jwt.assert_called_once()
+        # Verify correct OIDC discovery path — NOT the broken /auth/v1/jwks endpoint
+        assert len(captured_url) == 1
+        assert captured_url[0].endswith("/auth/v1/.well-known/jwks.json"), (
+            f"Wrong JWKS URL: {captured_url[0]!r} — must use /.well-known/jwks.json"
+        )
+
+    def test_jwks_url_uses_well_known_path(self):
+        """Regression: the JWKS URL must be /auth/v1/.well-known/jwks.json (not /auth/v1/jwks)."""
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.backends import default_backend
+        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+
+        private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
+        es256_token = pyjwt.encode(
+            {"sub": _TEST_UID, "email": _TEST_EMAIL, "aud": "authenticated",
+             "iat": int(time.time()), "exp": int(time.time()) + 3600,
+             "role": "authenticated"},
+            private_key, algorithm="ES256",
+        )
+
+        mock_signing_key = MagicMock()
+        mock_signing_key.key = private_key.public_key()
+        mock_jwk_client = MagicMock()
+        mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
+
+        captured = []
+
+        def _spy(url, **kwargs):
+            captured.append(url)
+            return mock_jwk_client
+
+        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_spy):
+            mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
+            mock_cfg.SUPABASE_JWT_SECRET = ""
+            mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""
+            mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
+            _validate_supabase_token(es256_token)
+
+        assert len(captured) == 1
+        url = captured[0]
+        assert ".well-known/jwks.json" in url, f"Expected .well-known/jwks.json in URL, got: {url!r}"
+        assert "/auth/v1/jwks" not in url.replace(".well-known/jwks.json", ""), (
+            f"Old broken /auth/v1/jwks path still present in: {url!r}"
+        )
 
 
 # ── 2. User provisioning (unit) ───────────────────────────────────────────────

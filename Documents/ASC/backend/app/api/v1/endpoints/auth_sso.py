@@ -126,15 +126,11 @@ def _validate_supabase_token(token: str) -> dict:
                     **decode_opts,
                 )
             else:
-                # Fall back to JWKS — Supabase API gateway needs apikey header.
-                jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
-                jwks_headers: dict = {}
-                anon_key = _settings.SUPABASE_ANON_KEY
-                if anon_key:
-                    jwks_headers["apikey"] = anon_key
-                _log.info("sso_jwks_attempt url=%s has_apikey=%s alg=%s",
-                          jwks_url, bool(anon_key), algorithm)
-                jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600, headers=jwks_headers)
+                # Fall back to JWKS. Supabase exposes the public JWKS at the
+                # OpenID Connect discovery path — the /auth/v1/jwks path returns 404.
+                jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/.well-known/jwks.json"
+                _log.info("sso_jwks_attempt url=%s alg=%s", jwks_url, algorithm)
+                jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600)
                 signing_key = jwk_client.get_signing_key_from_jwt(token)
                 payload = pyjwt.decode(
                     token,
