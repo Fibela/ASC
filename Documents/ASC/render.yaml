@@ -159,8 +159,10 @@ services:
         value: ""
 
       # ── P59 — SSO Bridge: Supabase → ASC JWT ─────────────────────────────
+      # SUPABASE_URL must be the project that signs tokens for premoscorp.com
+      # (premoscorp_data = xdgilxcmvpxhrpbuqyrr, NOT ASC_BD = kqxwtayzqujlddviskwl)
       - key: SUPABASE_URL
-        value: ""                # https://xyz.supabase.co — empty = SSO disabled
+        value: "https://xdgilxcmvpxhrpbuqyrr.supabase.co"
       - key: SUPABASE_JWT_SECRET
         sync: false              # JWT Secret from Supabase project Settings → API
                                  # Empty = SSO bridge returns 503
