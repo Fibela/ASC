@@ -179,11 +179,15 @@ class Settings(BaseSettings):
 
     # ── P59 SSO Bridge — Supabase → ASC JWT Exchange ─────────────────────────
     # SUPABASE_URL: your project URL (e.g. https://xyz.supabase.co)
-    # SUPABASE_JWT_SECRET: the JWT Secret from Supabase project settings (Settings → API → JWT Secret)
+    # SUPABASE_ANON_KEY: public anon key (Settings → API → Project API keys → anon public)
+    #   Required for JWKS fetch — Supabase API gateway returns 401 without apikey header.
+    #   Safe to expose: this is the same key used in browser clients.
+    # SUPABASE_JWT_SECRET: legacy HS256 secret (only needed if still using HS256 tokens)
     # SUPABASE_JWT_AUDIENCE: expected "aud" claim in Supabase JWTs (default: "authenticated")
-    # Empty SUPABASE_URL / SUPABASE_JWT_SECRET disables SSO bridge (returns 503).
+    # Empty SUPABASE_URL disables SSO bridge (returns 503).
     SUPABASE_URL: str = ""                   # https://xyz.supabase.co
-    SUPABASE_JWT_SECRET: str = ""            # nosec B105 — from Supabase project settings
+    SUPABASE_ANON_KEY: str = ""              # nosec B105 — public anon key, safe to expose
+    SUPABASE_JWT_SECRET: str = ""            # nosec B105 — legacy HS256 secret
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
     # ASC plan assigned to new SSO-provisioned tenants: free | pro | enterprise
     SSO_DEFAULT_PLAN: str = "free"
