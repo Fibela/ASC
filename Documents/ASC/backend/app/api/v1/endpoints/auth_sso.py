@@ -32,9 +32,12 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
+import logging
 import jwt as pyjwt
 from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
 from fastapi import APIRouter, Depends, HTTPException, status
+
+_log = logging.getLogger(__name__)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -114,6 +117,8 @@ def _validate_supabase_token(token: str) -> dict:
             # issues; set it from Supabase dashboard → Settings → API → JWT Signing Keys.
             public_key_pem = getattr(_settings, "SUPABASE_JWT_PUBLIC_KEY", "")
             if public_key_pem:
+                # Render stores env vars as single lines — convert literal \n to newlines
+                public_key_pem = public_key_pem.replace("\\n", "\n")
                 payload = pyjwt.decode(
                     token,
                     public_key_pem,
@@ -124,8 +129,11 @@ def _validate_supabase_token(token: str) -> dict:
                 # Fall back to JWKS — Supabase API gateway needs apikey header.
                 jwks_url = f"{supabase_url.rstrip('/')}/auth/v1/jwks"
                 jwks_headers: dict = {}
-                if _settings.SUPABASE_ANON_KEY:
-                    jwks_headers["apikey"] = _settings.SUPABASE_ANON_KEY
+                anon_key = _settings.SUPABASE_ANON_KEY
+                if anon_key:
+                    jwks_headers["apikey"] = anon_key
+                _log.info("sso_jwks_attempt url=%s has_apikey=%s alg=%s",
+                          jwks_url, bool(anon_key), algorithm)
                 jwk_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=600, headers=jwks_headers)
                 signing_key = jwk_client.get_signing_key_from_jwt(token)
                 payload = pyjwt.decode(
@@ -153,6 +161,7 @@ def _validate_supabase_token(token: str) -> dict:
     except HTTPException:
         raise
     except (PyJWKClientConnectionError, PyJWKClientError) as exc:
+        _log.error("sso_jwks_error detail=%s type=%s", exc, type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={"code": "sso_jwks_error",
