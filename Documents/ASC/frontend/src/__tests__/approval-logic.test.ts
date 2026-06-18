@@ -1,4 +1,4 @@
-/**
+﻿/**
  * P16.1 Human-in-the-Loop — Frontend pure-function unit tests
  * Tests every exported helper from src/app/neutralize/page.tsx
  */
@@ -10,7 +10,7 @@ import {
   requiresApproval,
   minutesRemaining,
   formatTs,
-} from '../app/neutralize/page'
+} from '../lib/neutralize-helpers'
 
 // ── statusColor ───────────────────────────────────────────────────────────────
 

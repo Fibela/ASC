@@ -1,4 +1,4 @@
-/**
+﻿/**
  * P16.2 SPECTER Bridge — Frontend pure-function unit tests
  * Tests every new exported helper from src/app/neutralize/page.tsx
  */
@@ -10,7 +10,7 @@ import {
   requiresApproval,
   statusColor,
   statusLabel,
-} from '../app/neutralize/page'
+} from '../lib/neutralize-helpers'
 
 // ── dispatchModeLabel ─────────────────────────────────────────────────────────
 

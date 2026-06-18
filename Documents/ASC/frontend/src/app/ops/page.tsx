@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
@@ -18,19 +18,19 @@ import {
 
 // ── Pure helpers (exported for tests) ────────────────────────────────────────
 
-export function formatAge(seconds: number | null): string {
+function formatAge(seconds: number | null): string {
   if (seconds === null) return '—'
   if (seconds < 60) return `${Math.round(seconds)}s`
   if (seconds < 3600) return `${Math.round(seconds / 60)}m`
   return `${Math.round(seconds / 3600)}h`
 }
 
-export function formatTs(ts: string | null | undefined): string {
+function formatTs(ts: string | null | undefined): string {
   if (!ts) return '—'
   try { return new Date(ts).toLocaleString() } catch { return ts }
 }
 
-export function statusColor(status: string): string {
+function statusColor(status: string): string {
   switch (status) {
     case 'completed':  return 'text-green-400'
     case 'executing':  return 'text-cyan-400'
@@ -42,7 +42,7 @@ export function statusColor(status: string): string {
   }
 }
 
-export function threatColor(level: string): string {
+function threatColor(level: string): string {
   switch (level) {
     case 'critical': return 'text-red-400 bg-red-400/10'
     case 'elevated': return 'text-yellow-400 bg-yellow-400/10'

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PANL Frontend Helpers — Unit Tests
  * Tests for all exported pure functions added in P16 PANL phase:
  *   multiSigLabel, multiSigColor, rollbackActionLabel
@@ -15,7 +15,7 @@ import {
   requiresApproval,
   minutesRemaining,
   formatTs,
-} from '../app/neutralize/page'
+} from '../lib/neutralize-helpers'
 
 // ── multiSigLabel ─────────────────────────────────────────────────────────────
 

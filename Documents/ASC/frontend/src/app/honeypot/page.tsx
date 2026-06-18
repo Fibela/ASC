@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { Flame, RefreshCw, ShieldCheck, ShieldX, ChevronDown, ChevronUp, X, ExternalLink } from 'lucide-react'
@@ -17,7 +17,7 @@ import { AuthLoader } from '@/components/AuthLoader'
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
-export function formatTs(ts: string | null | undefined): string {
+function formatTs(ts: string | null | undefined): string {
   if (!ts) return '—'
   try {
     return new Date(ts).toLocaleString()
@@ -26,11 +26,11 @@ export function formatTs(ts: string | null | undefined): string {
   }
 }
 
-export function truncateId(id: string, len = 12): string {
+function truncateId(id: string, len = 12): string {
   return id.length > len ? `${id.slice(0, len)}…` : id
 }
 
-export function severityClasses(severity: string): string {
+function severityClasses(severity: string): string {
   switch (severity.toLowerCase()) {
     case 'critical': return 'bg-red-600/20 text-red-400 border border-red-700'
     case 'high':     return 'bg-orange-600/20 text-orange-400 border border-orange-700'
@@ -40,32 +40,32 @@ export function severityClasses(severity: string): string {
   }
 }
 
-export function accessCountClasses(count: number): string {
+function accessCountClasses(count: number): string {
   if (count === 0) return 'text-gray-500'
   if (count >= 5)  return 'text-red-400 font-semibold'
   if (count >= 2)  return 'text-orange-400 font-semibold'
   return 'text-yellow-400'
 }
 
-export function endpointLabel(endpoint: string): string {
+function endpointLabel(endpoint: string): string {
   if (endpoint.includes('probe'))  return 'PROBE'
   if (endpoint.includes('dump'))   return 'DUMP'
   if (endpoint.includes('export')) return 'EXPORT'
   return endpoint.toUpperCase()
 }
 
-export function endpointClasses(endpoint: string): string {
+function endpointClasses(endpoint: string): string {
   if (endpoint.includes('probe'))  return 'bg-blue-900/30 text-blue-300 border border-blue-800'
   if (endpoint.includes('dump'))   return 'bg-purple-900/30 text-purple-300 border border-purple-800'
   if (endpoint.includes('export')) return 'bg-red-900/30 text-red-300 border border-red-800'
   return 'bg-gray-800 text-gray-400 border border-gray-700'
 }
 
-export function totalAccesses(tokens: CanaryToken[]): number {
+function totalAccesses(tokens: CanaryToken[]): number {
   return tokens.reduce((sum, t) => sum + t.access_count, 0)
 }
 
-export function uniqueIps(tokens: CanaryToken[]): number {
+function uniqueIps(tokens: CanaryToken[]): number {
   const ips = new Set<string>()
   for (const t of tokens) {
     for (const a of t.accesses) {

@@ -19,7 +19,7 @@ import { Bot, RefreshCw } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-export function agentStatusColor(status: SprecterAgent['status']): string {
+function agentStatusColor(status: SprecterAgent['status']): string {
   switch (status) {
     case 'active':      return 'text-[#3FD175]'
     case 'inactive':    return 'text-[#5A5A5A]'
@@ -29,7 +29,7 @@ export function agentStatusColor(status: SprecterAgent['status']): string {
   }
 }
 
-export function threatBadgeColor(level: SprecterAgent['threat_level']): string {
+function threatBadgeColor(level: SprecterAgent['threat_level']): string {
   switch (level) {
     case 'critical': return 'bg-[#C0152E] text-white'
     case 'elevated': return 'bg-[#E85D04] text-white'
@@ -38,7 +38,7 @@ export function threatBadgeColor(level: SprecterAgent['threat_level']): string {
   }
 }
 
-export function severityColor(severity: string): string {
+function severityColor(severity: string): string {
   switch (severity) {
     case 'critical': return 'text-[#E8526E]'
     case 'high':     return 'text-[#FF7A25]'
@@ -59,7 +59,7 @@ function cmdStatusColor(s: AgentCommand['status']): string {
   }
 }
 
-export function formatTs(ts: string): string {
+function formatTs(ts: string): string {
   try { return new Date(ts).toLocaleString() } catch { return ts }
 }
 
