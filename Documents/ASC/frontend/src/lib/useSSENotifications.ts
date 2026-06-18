@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { getAccessToken } from './auth'
+import { env } from './env'
 
 export interface SSENotification {
   type: string
@@ -42,7 +43,6 @@ interface SSEState {
   reconnectCount: number
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const MAX_BACKOFF_MS = 30_000
 const BASE_BACKOFF_MS = 1_000
 
@@ -63,7 +63,7 @@ export function useSSENotifications({ onEvent, enabled = true }: UseSSEOptions =
     const token = getAccessToken()
     if (!token || !enabled) return
 
-    const url = `${API_URL}/api/v1/notifications/stream?token=${encodeURIComponent(token)}`
+    const url = `${env.API_URL}/api/v1/notifications/stream?token=${encodeURIComponent(token)}`
     const es = new EventSource(url)
     esRef.current = es
 

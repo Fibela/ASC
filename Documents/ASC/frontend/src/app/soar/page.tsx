@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   listSOARTriggers, createSOARTrigger, deleteSOARTrigger, toggleSOARTrigger, testSOARTrigger,
   listScheduledReports, createScheduledReport, deleteScheduledReport, toggleScheduledReport, deliverScheduledReport,
@@ -365,7 +366,7 @@ function ReportRow({ r, onRefresh }: { r: ScheduledReport; onRefresh: () => void
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SOARPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [tab, setTab]             = useState<Tab>('triggers')
   const [triggers, setTriggers]   = useState<SOARTrigger[]>([])
@@ -392,13 +393,16 @@ export default function SOARPage() {
   }, [])
 
   useEffect(() => {
+    if (!isReady) return
     if (tab === 'triggers') loadTriggers()
     else loadReports()
-  }, [tab, loadTriggers, loadReports])
+  }, [tab, loadTriggers, loadReports, isReady])
 
   const enabledTriggers  = triggers.filter(t => t.enabled).length
   const enabledReports   = reports.filter(r => r.enabled).length
   const totalFired       = triggers.reduce((a, t) => a + t.trigger_count, 0)
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-gray-950 text-white">

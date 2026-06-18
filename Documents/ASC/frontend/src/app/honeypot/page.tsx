@@ -13,6 +13,7 @@ import {
   EvidenceReportFull,
 } from '@/lib/api'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -193,7 +194,7 @@ function ReportRow({
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function HoneypotPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [tokens, setTokens]               = useState<CanaryToken[]>([])
   const [reports, setReports]             = useState<EvidenceReportSummary[]>([])
@@ -223,11 +224,12 @@ export default function HoneypotPage() {
   }, [])
 
   useEffect(() => {
+    if (!isReady) return
     load()
     if (!autoRefresh) return
     const interval = setInterval(load, 30_000)
     return () => clearInterval(interval)
-  }, [load, autoRefresh])
+  }, [load, autoRefresh, isReady])
 
   const handleSelectToken = useCallback(async (token: CanaryToken) => {
     if (selectedToken?.token_id === token.token_id) {
@@ -276,6 +278,8 @@ export default function HoneypotPage() {
       </div>
     )
   }
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="p-6 space-y-6">

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   getFleetSummary, getCommandMetrics, getInflightCommands, getNeutralizationMetrics,
   getCrossDomainMetrics,
@@ -94,7 +95,7 @@ function StatPill({ label, value, cls = 'text-gray-300' }: { label: string; valu
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OpsDashboardPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [fleet, setFleet]         = useState<FleetSummary | null>(null)
   const [cmdMetrics, setCmdMetrics]   = useState<CommandMetrics | null>(null)
@@ -140,13 +141,16 @@ export default function OpsDashboardPage() {
     }
   }, [hours])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
+    if (!isReady) return
     const id = setInterval(load, 30_000)
     return () => clearInterval(id)
-  }, [load])
+  }, [load, isReady])
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-navy-900 text-white">

@@ -8,6 +8,9 @@ import {
   Wifi, WifiOff,
 } from 'lucide-react'
 import clsx from 'clsx'
+import { Sidebar } from '@/components/dashboard/Sidebar'
+import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { useSSENotifications } from '@/lib/useSSENotifications'
 import {
   getIncidentSummary, listIncidents, createIncident, getIncident,
@@ -20,22 +23,22 @@ import {
 // ── Constants & helpers ───────────────────────────────────────────────────────
 
 const SEV_COLORS: Record<string, string> = {
-  critical: 'text-red-400 bg-red-400/10 border-red-400/30',
-  high:     'text-orange-400 bg-orange-400/10 border-orange-400/30',
-  medium:   'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
-  low:      'text-cyan-400 bg-cyan-400/10 border-cyan-400/30',
-  info:     'text-gray-400 bg-gray-400/10 border-gray-400/30',
+  critical: 'text-[#E8526E] bg-[rgba(192,21,46,0.1)] border-[rgba(192,21,46,0.3)]',
+  high:     'text-[#FF7A25] bg-[rgba(232,93,4,0.1)]  border-[rgba(232,93,4,0.3)]',
+  medium:   'text-[#F2C205] bg-[rgba(242,194,5,0.1)] border-[rgba(242,194,5,0.3)]',
+  low:      'text-[#3FD175] bg-[rgba(45,184,99,0.1)] border-[rgba(45,184,99,0.3)]',
+  info:     'text-[#A0A0A0] bg-[rgba(160,160,160,0.08)] border-[rgba(160,160,160,0.2)]',
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  detected:      'text-red-400 bg-red-400/10',
-  triaged:       'text-orange-400 bg-orange-400/10',
-  contained:     'text-yellow-400 bg-yellow-400/10',
-  eradicated:    'text-lime-400 bg-lime-400/10',
-  recovered:     'text-green-400 bg-green-400/10',
-  post_incident: 'text-blue-400 bg-blue-400/10',
-  closed:        'text-gray-400 bg-gray-400/10',
-  dismissed:     'text-gray-600 bg-gray-800',
+  detected:      'text-[#E8526E] bg-[rgba(192,21,46,0.1)]',
+  triaged:       'text-[#FF7A25] bg-[rgba(232,93,4,0.1)]',
+  contained:     'text-[#F2C205] bg-[rgba(242,194,5,0.1)]',
+  eradicated:    'text-[#3FD175] bg-[rgba(45,184,99,0.12)]',
+  recovered:     'text-[#3FD175] bg-[rgba(45,184,99,0.1)]',
+  post_incident: 'text-[#4A90D9] bg-[rgba(74,144,217,0.1)]',
+  closed:        'text-[#5A5A5A] bg-[rgba(90,90,90,0.1)]',
+  dismissed:     'text-[#3A3A3A] bg-[rgba(58,58,58,0.3)]',
 }
 
 const NIST_PHASES = [
@@ -102,14 +105,20 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
   icon: React.ElementType; label: string; value: string | number; sub?: string; accent?: string
 }) {
   return (
-    <div className="bg-navy-800 rounded-lg p-4 border border-navy-700 flex items-start gap-3">
-      <div className={clsx('mt-0.5 p-2 rounded', accent ?? 'bg-cyan-400/10')}>
-        <Icon size={16} className="text-cyan-400" />
+    <div
+      className="rounded-xl p-4 flex items-start gap-3"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <div
+        className="mt-0.5 p-2 rounded-lg flex-shrink-0"
+        style={{ background: accent ?? 'rgba(232,93,4,0.1)' }}
+      >
+        <Icon size={16} style={{ color: '#E85D04' }} />
       </div>
       <div>
-        <p className="text-2xl font-bold text-white">{value}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{label}</p>
-        {sub && <p className="text-xs text-gray-600 mt-0.5">{sub}</p>}
+        <p className="text-2xl font-bold" style={{ color: '#EAEAEA' }}>{value}</p>
+        <p className="text-xs mt-0.5" style={{ color: '#A0A0A0' }}>{label}</p>
+        {sub && <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>{sub}</p>}
       </div>
     </div>
   )
@@ -130,16 +139,19 @@ function NistPhaseBar({ status }: { status: string }) {
         const active = idx === phaseIdx && !isClosed && !isDismissed
         return (
           <div key={phase.key} className="flex-1 text-center">
-            <div className={clsx(
-              'h-1.5 rounded-full mb-1',
-              isDismissed ? 'bg-gray-700' :
-              done ? 'bg-green-500' :
-              active ? 'bg-cyan-400' : 'bg-navy-700'
-            )} />
-            <p className={clsx(
-              'text-[9px] leading-tight hidden sm:block',
-              active ? 'text-cyan-400 font-semibold' : 'text-gray-600'
-            )}>{phase.label}</p>
+            <div
+              className="h-1.5 rounded-full mb-1"
+              style={{
+                background: isDismissed ? 'rgba(58,58,58,0.5)'
+                  : done   ? '#3FD175'
+                  : active ? '#E85D04'
+                  :          'rgba(255,255,255,0.05)',
+              }}
+            />
+            <p
+              className="text-[9px] leading-tight hidden sm:block"
+              style={{ color: active ? '#E85D04' : '#3A3A3A', fontWeight: active ? 600 : 400 }}
+            >{phase.label}</p>
           </div>
         )
       })}
@@ -266,7 +278,7 @@ function TimelinePanel({ incidentId }: { incidentId: string }) {
       )}
       <div className="flex gap-2 mt-2">
         <input
-          className="flex-1 bg-navy-900 border border-navy-600 rounded px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500"
+          className="input-asc flex-1 text-sm"
           placeholder="Agregar nota de analista…"
           value={note}
           onChange={e => setNote(e.target.value)}
@@ -275,7 +287,7 @@ function TimelinePanel({ incidentId }: { incidentId: string }) {
         <button
           onClick={submitNote}
           disabled={submitting || !note.trim()}
-          className="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-navy-900 font-semibold text-sm rounded disabled:opacity-40"
+          className="btn-primary text-xs px-3 disabled:opacity-40"
         >
           Enviar
         </button>
@@ -366,7 +378,10 @@ function IncidentDetail({
   }, [tab])
 
   return (
-    <div className="bg-navy-800 border border-navy-700 rounded-lg p-5 space-y-5">
+    <div
+      className="rounded-xl p-5 space-y-5"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -398,18 +413,20 @@ function IncidentDetail({
 
       {/* KPI metrics */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-navy-900 rounded p-3 text-center">
-          <p className="text-lg font-bold text-white">{fmtMins(incident.mttd_minutes)}</p>
-          <p className="text-xs text-gray-500">MTTD</p>
-        </div>
-        <div className="bg-navy-900 rounded p-3 text-center">
-          <p className="text-lg font-bold text-white">{fmtMins(incident.mttc_minutes)}</p>
-          <p className="text-xs text-gray-500">MTTC</p>
-        </div>
-        <div className="bg-navy-900 rounded p-3 text-center">
-          <p className="text-lg font-bold text-white">{fmtMins(incident.mttr_minutes)}</p>
-          <p className="text-xs text-gray-500">MTTR</p>
-        </div>
+        {[
+          { label: 'MTTD', val: fmtMins(incident.mttd_minutes) },
+          { label: 'MTTC', val: fmtMins(incident.mttc_minutes) },
+          { label: 'MTTR', val: fmtMins(incident.mttr_minutes) },
+        ].map(({ label, val }) => (
+          <div
+            key={label}
+            className="rounded-xl p-3 text-center"
+            style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.04)' }}
+          >
+            <p className="text-lg font-bold" style={{ color: '#EAEAEA' }}>{val}</p>
+            <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>{label}</p>
+          </div>
+        ))}
       </div>
 
       {/* Meta */}
@@ -440,7 +457,12 @@ function IncidentDetail({
               key={t}
               onClick={() => doTransition(t)}
               disabled={transitioning}
-              className="px-3 py-1 text-xs rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 disabled:opacity-40"
+              className="px-3 py-1 text-xs rounded-lg disabled:opacity-40 transition-all"
+              style={{
+                background: 'rgba(232,93,4,0.08)',
+                color:      '#E85D04',
+                border:     '1px solid rgba(232,93,4,0.25)',
+              }}
             >
               → {t.replace('_', ' ')}
             </button>
@@ -505,7 +527,7 @@ function IncidentDetail({
 
       {/* Tabs */}
       <div>
-        <div className="flex border-b border-navy-700 mb-3">
+        <div className="flex mb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           {([
             { key: 'timeline', label: 'Línea de Tiempo' },
             { key: 'links',    label: 'Entidades' },
@@ -514,12 +536,11 @@ function IncidentDetail({
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={clsx(
-                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                tab === key
-                  ? 'border-cyan-400 text-cyan-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-300'
-              )}
+              className="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+              style={{
+                borderColor: tab === key ? '#E85D04' : 'transparent',
+                color:       tab === key ? '#FF7A25' : '#5A5A5A',
+              }}
             >
               {key === 'piil' ? (
                 <span className="flex items-center gap-1">
@@ -536,13 +557,17 @@ function IncidentDetail({
         {tab === 'links' && (
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {loadingLinks ? (
-              <p className="text-gray-500 text-sm">Cargando...</p>
+              <p className="text-sm" style={{ color: '#5A5A5A' }}>Cargando...</p>
             ) : links.length === 0 ? (
-              <p className="text-gray-600 text-sm">Sin entidades vinculadas.</p>
+              <p className="text-sm" style={{ color: '#3A3A3A' }}>Sin entidades vinculadas.</p>
             ) : (
               links.map(l => (
-                <div key={l.id} className="flex items-center gap-2 bg-navy-900 rounded p-2">
-                  <Link2 size={12} className="text-cyan-400 shrink-0" />
+                <div
+                  key={l.id}
+                  className="flex items-center gap-2 rounded-lg p-2"
+                  style={{ background: 'rgba(0,0,0,0.25)' }}
+                >
+                  <Link2 size={12} style={{ color: '#E85D04' }} className="shrink-0" />
                   <span className="text-xs text-gray-400">{l.entity_type}</span>
                   <span className="text-xs font-mono text-gray-300">{l.entity_id}</span>
                   {l.notes && <span className="text-xs text-gray-600 ml-auto">{l.notes}</span>}
@@ -628,13 +653,16 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
   }
 
   return (
-    <div className="bg-navy-800 border border-navy-700 rounded-lg p-5 space-y-4">
-      <h3 className="text-white font-semibold text-sm">Nuevo Incidente</h3>
+    <div
+      className="rounded-xl p-5 space-y-4"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <h3 className="text-sm font-semibold" style={{ color: '#EAEAEA' }}>Nuevo Incidente</h3>
 
       <div>
-        <label className="text-xs text-gray-500 mb-1 block">Título *</label>
+        <label className="text-xs mb-1 block" style={{ color: '#5A5A5A' }}>Título *</label>
         <input
-          className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+          className="input-asc"
           value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Descripción breve del incidente"
@@ -643,9 +671,9 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Tipo</label>
+          <label className="text-xs mb-1 block" style={{ color: '#5A5A5A' }}>Tipo</label>
           <select
-            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+            className="input-asc"
             value={form.incident_type}
             onChange={e => setForm(f => ({ ...f, incident_type: e.target.value }))}
           >
@@ -653,9 +681,9 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Severidad</label>
+          <label className="text-xs mb-1 block" style={{ color: '#5A5A5A' }}>Severidad</label>
           <select
-            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+            className="input-asc"
             value={form.severity}
             onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}
           >
@@ -667,9 +695,9 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       </div>
 
       <div>
-        <label className="text-xs text-gray-500 mb-1 block">Descripción</label>
+        <label className="text-xs mb-1 block" style={{ color: '#5A5A5A' }}>Descripción</label>
         <textarea
-          className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white placeholder-gray-700 focus:outline-none focus:border-cyan-500 min-h-[80px]"
+          className="input-asc min-h-[80px]"
           value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
           placeholder="Contexto inicial del incidente…"
@@ -681,7 +709,7 @@ function CreateForm({ onCreated }: { onCreated: () => void }) {
       <button
         onClick={submit}
         disabled={saving}
-        className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-navy-900 font-bold text-sm rounded disabled:opacity-40"
+        className="w-full btn-primary py-2 text-sm disabled:opacity-40"
       >
         {saving ? 'Creando…' : 'Crear Incidente'}
       </button>
@@ -703,12 +731,11 @@ function IncidentRow({
   return (
     <div
       onClick={onSelect}
-      className={clsx(
-        'flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors',
-        selected
-          ? 'bg-cyan-400/10 border border-cyan-400/30'
-          : 'bg-navy-800 border border-navy-700 hover:border-navy-600',
-      )}
+      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all"
+      style={{
+        background:  selected ? 'rgba(232,93,4,0.08)' : 'rgba(255,255,255,0.02)',
+        border:      selected ? '1px solid rgba(232,93,4,0.3)' : '1px solid rgba(255,255,255,0.05)',
+      }}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-0.5">
@@ -734,6 +761,7 @@ function IncidentRow({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function IncidentsPage() {
+  const { isReady } = useAuthGuard()
   const [summary, setSummary] = useState<IncidentSummary | null>(null)
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [selected, setSelected] = useState<Incident | null>(null)
@@ -768,7 +796,7 @@ export default function IncidentsPage() {
     },
   })
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   async function refreshSelected() {
     await load()
@@ -778,42 +806,62 @@ export default function IncidentsPage() {
     }
   }
 
+  if (!isReady) return <AuthLoader />
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+      {/* Sticky header */}
+      <div
+        className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+        style={{
+          background:     'rgba(10,10,10,0.92)',
+          borderBottom:   '1px solid rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-cyan-400/10 rounded">
-            <ClipboardList size={20} className="text-cyan-400" />
-          </div>
+          <ClipboardList size={18} style={{ color: '#E85D04' }} />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-white">Incident Response</h1>
-              <span title={connected ? 'SSE conectado — actualizaciones en tiempo real' : 'SSE desconectado'}
-                className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${connected ? 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10' : 'text-gray-500 border-gray-700 bg-gray-800'}`}>
+              <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>
+                Incident Response
+              </h1>
+              <span
+                className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg"
+                style={{
+                  background: connected ? 'rgba(45,184,99,0.1)'  : 'rgba(58,58,58,0.3)',
+                  border:     connected ? '1px solid rgba(45,184,99,0.3)' : '1px solid rgba(58,58,58,0.4)',
+                  color:      connected ? '#3FD175' : '#5A5A5A',
+                }}
+              >
                 {connected ? <Wifi size={11} /> : <WifiOff size={11} />}
                 {connected ? 'live' : 'offline'}
               </span>
             </div>
-            <p className="text-xs text-gray-500">NIST 800-61 — Gestión formal de incidentes de seguridad</p>
+            <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
+              NIST 800-61 — Gestión formal de incidentes de seguridad
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowCreate(v => !v)}
-            className="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-400 text-navy-900 font-semibold rounded"
+            className="btn-primary text-xs py-1.5 px-3"
           >
             + Nuevo
           </button>
           <button
             onClick={load}
             disabled={loading}
-            className="p-1.5 text-gray-400 hover:text-white disabled:opacity-40"
+            className="btn-secondary p-1.5 disabled:opacity-40"
           >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
+      <div className="p-6 space-y-5 animate-fade-in">
 
       {/* Create form */}
       {showCreate && (
@@ -836,7 +884,8 @@ export default function IncidentsPage() {
       {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <select
-          className="bg-navy-800 border border-navy-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+          className="input-asc"
+          style={{ width: 'auto', minWidth: 180 }}
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
         >
@@ -846,7 +895,8 @@ export default function IncidentsPage() {
           ))}
         </select>
         <select
-          className="bg-navy-800 border border-navy-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+          className="input-asc"
+          style={{ width: 'auto', minWidth: 180 }}
           value={filterSev}
           onChange={e => setFilterSev(e.target.value)}
         >
@@ -892,13 +942,18 @@ export default function IncidentsPage() {
               onClose={() => setSelected(null)}
             />
           ) : (
-            <div className="bg-navy-800 border border-dashed border-navy-600 rounded-lg p-12 text-center">
-              <Shield size={40} className="text-gray-700 mx-auto mb-3" />
-              <p className="text-gray-500 text-sm">Selecciona un incidente para ver el detalle</p>
+            <div
+              className="rounded-xl p-12 text-center"
+              style={{ border: '1px dashed rgba(255,255,255,0.08)' }}
+            >
+              <Shield size={40} className="mx-auto mb-3 opacity-10" style={{ color: '#E85D04' }} />
+              <p className="text-sm" style={{ color: '#5A5A5A' }}>Selecciona un incidente para ver el detalle</p>
             </div>
           )}
         </div>
       </div>
+      </div>
+      </main>
     </div>
   )
 }

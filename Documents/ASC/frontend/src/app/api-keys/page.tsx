@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   listApiKeys, createApiKey, revokeApiKey, rotateApiKey, updateApiKey,
   getApiKeyRateLimitStatus,
@@ -456,7 +457,7 @@ function KeyRow({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ApiKeysPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [keys, setKeys]           = useState<APIKeyResponse[]>([])
   const [loading, setLoading]     = useState(true)
@@ -481,7 +482,7 @@ export default function ApiKeysPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   async function handleCreate(payload: { name: string; scopes: string[]; expires_at: string | null }) {
     const created = await createApiKey({ name: payload.name, scopes: payload.scopes, expires_at: payload.expires_at })
@@ -530,6 +531,8 @@ export default function ApiKeysPage() {
   const inactive = keys.filter(k => !k.is_active).length
   const expired  = keys.filter(k => isExpired(k)).length
   const cap = 20
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-navy-950 text-gray-100">

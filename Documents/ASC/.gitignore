@@ -1,5 +1,7 @@
 # Security scan reports — generated artifacts, never commit
 reports/
+# Exception: Next.js app route named 'reports' is source code, not a report artifact
+!frontend/src/app/reports/
 
 # TypeScript build cache — contains hashes, triggers false-positive secret scans
 *.tsbuildinfo

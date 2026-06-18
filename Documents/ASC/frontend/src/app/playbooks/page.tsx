@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { Semaphore } from '@/components/dashboard/Semaphore'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   getPlaybookCatalog, getPlaybookRuns, getPlaybookRun,
   triggerPlaybook, approvePlaybookRun, abortPlaybookRun,
@@ -18,18 +19,18 @@ type Tab = 'catalog' | 'runs' | 'detail'
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const SEMAPHORE_COLOR: Record<string, string> = {
-  green:  'text-green-400 bg-green-400/10 border-green-400/30',
-  yellow: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
-  red:    'text-red-400 bg-red-400/10 border-red-400/30',
+  green:  'text-[#3FD175] bg-[rgba(45,184,99,0.08)]  border-[rgba(45,184,99,0.3)]',
+  yellow: 'text-[#F2C205] bg-[rgba(242,194,5,0.08)]  border-[rgba(242,194,5,0.3)]',
+  red:    'text-[#E8526E] bg-[rgba(192,21,46,0.1)]   border-[rgba(192,21,46,0.3)]',
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  pending:           'text-gray-400',
-  running:           'text-cyan-400',
-  awaiting_approval: 'text-yellow-400',
-  completed:         'text-green-400',
-  failed:            'text-red-400',
-  aborted:           'text-orange-400',
+  pending:           'text-[#5A5A5A]',
+  running:           'text-[#E85D04]',
+  awaiting_approval: 'text-[#F2C205]',
+  completed:         'text-[#3FD175]',
+  failed:            'text-[#E8526E]',
+  aborted:           'text-[#FF7A25]',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -111,50 +112,63 @@ function TriggerForm({ pb, onDone }: { pb: PlaybookDef; onDone: (run: PlaybookRu
   if (!open) {
     return (
       <button onClick={() => setOpen(true)}
-        className="flex items-center gap-1 px-3 py-1.5 rounded bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-400 text-xs font-semibold transition-colors">
+        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+        style={{
+          background: 'rgba(232,93,4,0.08)',
+          color:      '#E85D04',
+          border:     '1px solid rgba(232,93,4,0.2)',
+        }}
+      >
         <Play size={12} /> Disparar
       </button>
     )
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 bg-navy-900 rounded p-4 space-y-3 border border-navy-700">
-      <p className="text-xs text-gray-400 font-semibold">Parámetros del trigger</p>
+    <form onSubmit={submit}
+      className="mt-3 rounded-xl p-4 space-y-3"
+      style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}
+    >
+      <p className="text-xs font-semibold" style={{ color: '#A0A0A0' }}>Parámetros del trigger</p>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Host</label>
+          <label className="block text-xs mb-1" style={{ color: '#5A5A5A' }}>Host</label>
           <input value={host} onChange={e => setHost(e.target.value)} placeholder="PREMOS-WS-01"
-            className="w-full bg-navy-800 border border-navy-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-cyan-400" />
+            className="input-asc text-xs" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Risk Score</label>
+          <label className="block text-xs mb-1" style={{ color: '#5A5A5A' }}>Risk Score</label>
           <input value={risk} onChange={e => setRisk(e.target.value)} type="number" step="0.01" min={pb.min_risk} max={pb.max_risk}
-            className="w-full bg-navy-800 border border-navy-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-cyan-400" />
+            className="input-asc text-xs" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">IP Destino</label>
+          <label className="block text-xs mb-1" style={{ color: '#5A5A5A' }}>IP Destino</label>
           <input value={dstIp} onChange={e => setDstIp(e.target.value)} placeholder="10.0.0.1"
-            className="w-full bg-navy-800 border border-navy-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-cyan-400" />
+            className="input-asc text-xs" />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Dominio Destino</label>
+          <label className="block text-xs mb-1" style={{ color: '#5A5A5A' }}>Dominio Destino</label>
           <input value={dstDomain} onChange={e => setDstDomain(e.target.value)} placeholder="evil.com"
-            className="w-full bg-navy-800 border border-navy-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-cyan-400" />
+            className="input-asc text-xs" />
         </div>
         <div className="col-span-2">
-          <label className="block text-xs text-gray-500 mb-1">Proceso</label>
+          <label className="block text-xs mb-1" style={{ color: '#5A5A5A' }}>Proceso</label>
           <input value={process} onChange={e => setProcess(e.target.value)} placeholder="acord32.exe"
-            className="w-full bg-navy-800 border border-navy-700 rounded px-2 py-1 text-white text-xs outline-none focus:border-cyan-400" />
+            className="input-asc text-xs" />
         </div>
       </div>
-      {err && <p className="text-red-400 text-xs bg-red-400/10 rounded px-2 py-1">{err}</p>}
+      {err && (
+        <p className="text-xs rounded-lg px-2 py-1" style={{ background: 'rgba(192,21,46,0.08)', color: '#E8526E' }}>
+          {err}
+        </p>
+      )}
       <div className="flex gap-2">
         <button type="submit" disabled={loading}
-          className="flex-1 py-1.5 rounded bg-cyan-400 text-navy-900 text-xs font-bold hover:bg-cyan-300 disabled:opacity-50 transition-colors">
+          className="flex-1 btn-primary text-xs py-1.5 disabled:opacity-50">
           {loading ? 'Disparando...' : 'Confirmar'}
         </button>
         <button type="button" onClick={() => { setOpen(false); setErr('') }}
-          className="px-3 py-1.5 rounded bg-navy-800 text-gray-400 text-xs hover:text-white transition-colors">
+          className="btn-secondary text-xs px-3 py-1.5">
           Cancelar
         </button>
       </div>
@@ -339,16 +353,16 @@ function RunsTab({ onViewDetail, refresh }: {
       {/* Filters */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0) }}
-          className="bg-navy-800 border border-navy-700 rounded px-3 py-1.5 text-gray-300 text-xs outline-none focus:border-cyan-400">
+          className="input-asc text-xs" style={{ width: 'auto', minWidth: 180 }}>
           {STATUS_OPTS.map(s => (
             <option key={s} value={s}>{s ? STATUS_LABEL[s] : 'Todos los estados'}</option>
           ))}
         </select>
         <button onClick={() => load()}
-          className="flex items-center gap-1 px-3 py-1.5 rounded bg-navy-800 border border-navy-700 text-gray-400 hover:text-white text-xs transition-colors">
+          className="btn-secondary flex items-center gap-1 text-xs py-1.5 px-3">
           <RefreshCw size={12} /> Actualizar
         </button>
-        <span className="ml-auto text-xs text-gray-600">{total} ejecucion{total !== 1 ? 'es' : ''}</span>
+        <span className="ml-auto text-xs" style={{ color: '#3A3A3A' }}>{total} ejecucion{total !== 1 ? 'es' : ''}</span>
       </div>
 
       {loading && <p className="text-gray-500 text-sm">Cargando ejecuciones...</p>}
@@ -362,10 +376,10 @@ function RunsTab({ onViewDetail, refresh }: {
       )}
 
       {!loading && runs.length > 0 && (
-        <div className="card p-0 overflow-hidden">
-          <table className="w-full text-xs">
+        <div className="card overflow-x-auto">
+          <table className="table-asc">
             <thead>
-              <tr className="border-b border-navy-700 text-gray-500">
+              <tr>
                 <th className="px-4 py-2 text-left font-medium">Run ID</th>
                 <th className="px-4 py-2 text-left font-medium">Playbook</th>
                 <th className="px-4 py-2 text-left font-medium">Semáforo</th>
@@ -378,14 +392,14 @@ function RunsTab({ onViewDetail, refresh }: {
             </thead>
             <tbody>
               {runs.map(run => (
-                <tr key={run.id} className="border-b border-navy-800 hover:bg-navy-800/40 transition-colors">
+                <tr key={run.id}>
                   <td className="px-4 py-2.5 font-mono text-gray-500">{run.id.slice(0, 8)}…</td>
                   <td className="px-4 py-2.5">
                     <span className="text-gray-400">{run.playbook_id}</span>
                     <span className="text-gray-600 ml-1 hidden md:inline">· {run.playbook_name.slice(0, 20)}</span>
                   </td>
                   <td className="px-4 py-2.5"><SemaphoreBadge level={run.semaphore} /></td>
-                  <td className="px-4 py-2.5 text-cyan-400">{fmtRisk(run.risk_score)}</td>
+                  <td className="px-4 py-2.5 font-mono font-bold text-xs" style={{ color: '#E85D04' }}>{fmtRisk(run.risk_score)}</td>
                   <td className="px-4 py-2.5"><StatusBadge status={run.status} /></td>
                   <td className="px-4 py-2.5 text-gray-600">{fmtTs(run.started_at)}</td>
                   <td className="px-4 py-2.5 text-gray-500 font-mono">{run.initiated_by.slice(0, 8)}…</td>
@@ -416,16 +430,21 @@ function RunsTab({ onViewDetail, refresh }: {
 
           {/* Pagination */}
           {total > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-navy-700">
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+            >
               <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
-                className="text-xs text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+                className="text-xs disabled:opacity-40 transition-colors"
+                style={{ color: '#5A5A5A' }}>
                 ← Anterior
               </button>
-              <span className="text-xs text-gray-600">
+              <span className="text-xs" style={{ color: '#3A3A3A' }}>
                 Pág. {page + 1} / {Math.ceil(total / PAGE_SIZE)}
               </span>
               <button disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage(p => p + 1)}
-                className="text-xs text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+                className="text-xs disabled:opacity-40 transition-colors"
+                style={{ color: '#5A5A5A' }}>
                 Siguiente →
               </button>
             </div>
@@ -468,12 +487,12 @@ function DetailTab({ run, onRefresh }: { run: PlaybookRun | null; onRefresh: () 
   return (
     <div className="space-y-4">
       {/* Header card */}
-      <div className="card">
+      <div className="card p-5">
         <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
           <div>
-            <p className="font-mono text-xs text-gray-500 mb-0.5">Run ID: {detail.id}</p>
-            <h2 className="text-white font-bold text-lg">{detail.playbook_name}</h2>
-            <p className="text-gray-500 text-xs">{detail.playbook_id} · Trigger: {detail.trigger_source}</p>
+            <p className="font-mono text-xs mb-0.5" style={{ color: '#5A5A5A' }}>Run ID: {detail.id}</p>
+            <h2 className="font-bold text-lg" style={{ color: '#EAEAEA' }}>{detail.playbook_name}</h2>
+            <p className="text-xs" style={{ color: '#5A5A5A' }}>{detail.playbook_id} · Trigger: {detail.trigger_source}</p>
           </div>
           <div className="flex items-center gap-3">
             <SemaphoreBadge level={detail.semaphore} />
@@ -530,8 +549,8 @@ function DetailTab({ run, onRefresh }: { run: PlaybookRun | null; onRefresh: () 
       </div>
 
       {/* Steps timeline */}
-      <div className="card">
-        <h3 className="text-cyan-400 font-semibold mb-4">Timeline de Pasos</h3>
+      <div className="card p-5">
+        <h3 className="font-semibold mb-4 text-sm" style={{ color: '#E85D04' }}>Timeline de Pasos</h3>
         {detail.steps_log.length === 0 && (
           <p className="text-gray-600 text-sm">Sin pasos registrados aún</p>
         )}
@@ -605,7 +624,7 @@ function DetailTab({ run, onRefresh }: { run: PlaybookRun | null; onRefresh: () 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PlaybooksPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
   const [tab, setTab]               = useState<Tab>('catalog')
   const [selectedRun, setSelectedRun] = useState<PlaybookRun | null>(null)
   const [runsRefresh, setRunsRefresh] = useState(0)
@@ -627,32 +646,51 @@ export default function PlaybooksPage() {
     { id: 'detail',  label: 'Detalle',     icon: Zap },
   ]
 
+  if (!isReady) return <AuthLoader />
+
   return (
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="flex-1 p-6 overflow-auto">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
-              <BookOpen className="text-cyan-400" size={22} />
-              Playbooks SOC
-            </h1>
-            <p className="text-gray-500 text-xs">
-              PB-001 Verde · PB-002 Amarillo · PB-003 Rojo · PB-004 Targeted — Human-in-the-Loop activo
-            </p>
+        {/* Sticky header */}
+        <div
+          className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+          style={{
+            background:     'rgba(10,10,10,0.92)',
+            borderBottom:   '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <BookOpen size={18} style={{ color: '#E85D04' }} />
+            <div>
+              <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>Playbooks SOC</h1>
+              <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
+                PB-001 Verde · PB-002 Amarillo · PB-003 Rojo · PB-004 Targeted — HitL activo
+              </p>
+            </div>
           </div>
         </div>
 
+        <div className="p-6 space-y-5 animate-fade-in">
+
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {TABS.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-colors ${
-                tab === id
-                  ? 'bg-cyan-400 text-navy-900'
-                  : 'bg-navy-800 text-gray-400 hover:text-white'
-              }`}>
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              style={tab === id ? {
+                background: 'rgba(232,93,4,0.15)',
+                border:     '1px solid rgba(232,93,4,0.35)',
+                color:      '#FF7A25',
+              } : {
+                background: 'rgba(255,255,255,0.03)',
+                border:     '1px solid rgba(255,255,255,0.06)',
+                color:      '#5A5A5A',
+              }}
+            >
               <Icon size={14} />{label}
               {id === 'detail' && selectedRun && (
                 <span className="ml-1 font-mono text-xs opacity-70">
@@ -667,6 +705,7 @@ export default function PlaybooksPage() {
         {tab === 'catalog' && <CatalogTab onRunCreated={handleRunCreated} />}
         {tab === 'runs'    && <RunsTab onViewDetail={handleViewDetail} refresh={runsRefresh} />}
         {tab === 'detail'  && <DetailTab run={selectedRun} onRefresh={() => setRunsRefresh(n => n + 1)} />}
+        </div>
       </main>
     </div>
   )

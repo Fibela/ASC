@@ -1,5 +1,5 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 5.0 | Actualizado: 2026-06-15 | Auditoría Pre-Producción PASSED — ASC: 4491 tests (4316+175 security) / sc_system: 3416 tests, coverage 86.36% — LISTO PARA GO-LIVE
+> Versión 5.3 | Actualizado: 2026-06-16 | P64-DESIGN Phase 2 COMPLETO: 6 páginas secundarias redesignadas (iocs/incidents/playbooks/threat-hunting/reports/forensic) + 2 FIX CRÍTICOS (Sidebar faltante en incidents + threat-hunting) — Jest: 450/450 PASSED — ASC backend: 4491 tests (86.36% cov) / sc_system: 3416 tests — Dev server activo http://localhost:3000
 
 ## Auditoría Pre-Producción — Go-Live Readiness (Session 75, 2026-06-15)
 
@@ -1504,3 +1504,128 @@ pytest --html=reports/test-report.html --self-contained-html
 
 **Nota testing P44 (Webhook Dashboard Frontend - FASE 5):**
 39 tests en 6 clases. TestListWebhooksContract(4): 200 autenticado, campos requeridos presentes (id/url/events/is_active/user_id/created_at/failure_count), secret ausente en respuesta, 401 sin auth. TestCreateWebhookContract(5): 201+secret 64-char, signing_note presente, reject ftp:// con 422, reject evento desconocido con 422, 401 sin auth. TestGetPatchDeleteContract(7): GET sin secret en respuesta, GET 403 cross-user, PATCH toggle is_active sin exponer secret, PATCH reject javascript://xss con 422, DELETE 204, DELETE 403 cross-user, GET 404 missing. TestWebhookTestDeliveryContract(4): campos success/status_code/latency_ms/error presentes, success shape (200/None error), failure shape (None status/error string), 403 cross-user. TestAdminListWebhooksContract(4): admin 200 con todos los webhooks, analyst 403, secrets ausentes en admin list, 401 sin auth. TestP44DeploymentAndRegression(15): page.tsx existe, useAuthGuard presente, WebhookFormModal/SecretReveal/TestResultPanel en codigo, 7 funciones en api.ts, 3 interfaces TypeScript, VALID_WEBHOOK_EVENTS const, sidebar /webhooks, liveness 200, webhooks 401 sin auth, p42/p43/p40 imports, no mock data hardcoded. 2 bugs descubiertos: #20 patch location corrected (_resolve_user en app.api.deps no en endpoint module), #21 admin URL corrected (/webhooks/admin/all no /admin/webhooks/). Primera run post-fix: 39/39.
+
+
+---
+
+## P64 — PremosCorp Visual Identity Redesign (ASC Frontend) (2026-06-16)
+
+### Objetivo
+
+Rediseño estético completo del ASC frontend (Next.js 14) para alinear la identidad visual con el portal oficial PremosCorp (`sc_system`). Enfoque: paleta corporativa, glassmorphism, tipografía Inter + JetBrains Mono, componentes reutilizables con design tokens.
+
+**Mandato de usuario:** "sea más intuitivo y comercial, a modo de darle ese toque de PremosCorp y se vea atractivo — traiga muchas miradas. Sigue la estructura de diseño del portal oficial y la paleta de colores corporativa."
+
+### Paleta corporativa (extraída de sc_system/src/styles/main.css)
+
+| Token | Hex | Uso |
+|-------|-----|-----|
+| Premos Orange | `#E85D04` | Primary / active / CTA |
+| Premos Orange Dark | `#C44D03` | Gradientes, hover |
+| Premos Orange Light | `#FF7A25` | Active text, highlights |
+| Premos Black | `#0A0A0A` | Base background |
+| Premos Red | `#8B1E1E` | Danger / warnings |
+| Threat Critical | `#C0152E` | Alertas críticas |
+| Neutral | `#EAEAEA` | Texto primario |
+| Neutral Dark | `#D0D0D0` | Texto secundario |
+
+### Componentes rediseñados
+
+| Componente | Cambio principal |
+|-----------|-----------------|
+| `tailwind.config.ts` | Tokens `premos.*`, `surface.*`, `threat.*`, `ink.*` completos |
+| `globals.css` | Design system: cards, botones, badges, tabla, inputs, chips, dots |
+| `layout.tsx` | Inter + JetBrains Mono via next/font/google |
+| `Sidebar.tsx` | 8 grupos, colapsable 60px/220px, orange active state |
+| `MetricCard.tsx` | 5 colores semánticos, LucideIcon, trend indicators |
+| `login/page.tsx` | Glass card, orange gradient logo, btn-primary |
+| `page.tsx` (Dashboard) | Grid KPIs, Timeline AreaChart, BarChart, RuleBar, table |
+| `Semaphore.tsx` | Paleta PremosCorp, glow ring, pulse-red animación |
+| `RuleBar.tsx` | Gradiente + glow, hover naranja, chip severidad |
+| `SeverityBadge.tsx` | Clases `.severity-badge .severity-{level}` del design system |
+
+### Security Checklist P64
+
+| Check | Comando / Método | Resultado |
+|-------|-----------------|-----------|
+| XSS en JSX | Revisión manual — sin `dangerouslySetInnerHTML` | ✅ CLEAN |
+| Secretos en componentes | grep `localStorage.*token`, `hardcode.*key` en src/ | ✅ 0 matches |
+| Estilos inline sin sanitizar | Revisión — todos los `style={{}}` son constantes fijas | ✅ CLEAN |
+| Cambios backend | 0 archivos backend modificados | ✅ SIN NUEVOS RIESGOS |
+| Endpoints sin auth | 0 nuevos endpoints creados | ✅ SUPERFICIE INALTERADA |
+
+### Tests implementados P64 (`frontend/src/__tests__/components.test.tsx`)
+
+**Stack:** Jest 29 + jest-environment-jsdom + @testing-library/react + @testing-library/jest-dom
+
+| Suite (describe) | Tests | Qué verifica |
+|-----------------|-------|--------------|
+| `SeverityBadge — P64 design system` | 12 | Clases `.severity-badge .severity-{level}`, sin Tailwind genérico, XSS safety (render de `<script>` como texto), fallback, todas las severidades |
+| `MetricCard — P64 design system` | 14 | Color inline (`rgb(232, 93, 4)` orange / `rgb(232, 82, 110)` red / `rgb(63, 209, 117)` green), label/value/unit/sublabel/trend, em-dash para null/undefined, sin credenciales |
+| `Semaphore — P64 design system` | 15 | Niveles NORMAL/ELEVADO/CRÍTICO, label override, `getAllByText` para doble render, `[class*="animate-pulse"]` para animate-pulse-red, sin `border-red-500`/`border-green-500`, fallback a NORMAL para postura desconocida |
+| `RuleBar — P64 design system` | 15 | Render ruleId/name/TTP/count, width 50%/100%/4%/0%, `box-shadow` en style attr (proxy PremosCorp — jsdom filtra linear-gradient), chips CRI/ALT/MED/BAJ, sin `bg-orange-400`/`bg-red-500` |
+| `Security invariants — all components` | 4 | Sin `sk_live\|api_key\|password\|secret\|token` en innerHTML de ningún componente |
+
+**Resultado:** `npx jest --no-coverage --testPathPattern="components.test"` → **61/61 PASSED** en 0.773s
+
+**Nota técnica — limitación jsdom:** jsdom CSS parser filtra valores `linear-gradient()` de atributos inline `background:` y `backgroundImage:`. El test RuleBar usa `box-shadow` como proxy (SÍ preservado) para verificar que los estilos PremosCorp se aplican inline. El componente sí usa `backgroundImage: linear-gradient(...)` — la limitación es del entorno de test, no del componente.
+
+### Suite completa Jest post-P64
+
+| Archivo de test | Tests | Resultado |
+|----------------|-------|-----------|
+| `components.test.tsx` (nuevo P64) | 61 | ✅ VERDE |
+| `panl-logic.test.ts` | — | ✅ VERDE |
+| `specter-bridge-logic.test.ts` | — | ✅ VERDE |
+| `adapters-api.test.ts` | — | ✅ VERDE |
+| `playbooks-logic.test.ts` | — | ✅ VERDE |
+| `approval-logic.test.ts` | — | ✅ VERDE |
+| `honeypot-logic.test.ts` | — | ✅ VERDE |
+| `detection-logic.test.ts` | — | ✅ VERDE |
+| `auth.test.ts` | — | ✅ VERDE |
+| `adapters-logic.test.ts` | — | ✅ VERDE |
+| `agents-logic.test.ts` | — | ✅ VERDE |
+| `status-logic.test.ts` | — | ✅ VERDE |
+| **TOTAL (12 suites)** | **450** | **✅ 0 FAILED** |
+
+`npx jest --no-coverage` → **450/450 PASSED** en 1.488s — 0 regresiones.
+
+### Páginas secundarias rediseñadas (P64 Phase 1 — Session 76)
+
+| Página | Cambios clave |
+|--------|--------------|
+| `alerts/page.tsx` | SSE badge live/offline, risk score `#E85D04`, hunt button naranja, toast dismiss |
+| `events/page.tsx` | Orange host names, `input-asc` filtros, risk score naranja |
+| `detection/page.tsx` | Tab active state orange, editor dark, `.chip-orange`/`.chip-red`, metric cards surface |
+| `agents/page.tsx` | Sidebar integrado, helpers PremosCorp arbitrary values, `inputCls='input-asc'`, header Bot icon |
+
+### Páginas secundarias rediseñadas (P64 Phase 2 — Session 77)
+
+| Página | FIX Crítico | Cambios clave |
+|--------|-------------|---------------|
+| `reports/page.tsx` | — | Grid 2 cards, `input-asc`, `btn-primary`/`btn-secondary`, bullet icons orange |
+| `iocs/page.tsx` | — | `TYPE_STYLE` hex PremosCorp, `confidenceColor()`, range slider `accentColor`, orange spinner |
+| `forensic/page.tsx` | — | `table-asc`, Verify button hover inline, verification panels verde/rojo semánticos |
+| `incidents/page.tsx` | **Sidebar faltante** | `flex min-h-screen` wrapper, SEV/STATUS colors PremosCorp, KpiCard inline, `input-asc`, tabs orange |
+| `playbooks/page.tsx` | Closing tag | Semaphore colors, TriggerForm inline, `table-asc`, header sticky, tabs orange |
+| `threat-hunting/page.tsx` | **Sidebar faltante + closing tags** | All badges/modals/HuntDetail/HuntList → PremosCorp, `input-asc`, navy/cyan 0 remnants |
+
+### Métricas P64 (Phase 2 completo)
+
+- Archivos frontend modificados: 20 (14 phase 1 + 6 phase 2)
+- Archivos backend modificados: 0
+- Tests nuevos Jest (frontend): 61 (components.test.tsx) — sin nuevos en phase 2
+- Suite total Jest: 450/450 PASSED post-phase 2 (0 regresiones)
+- Suite ASC backend: 4,491 PASSED (86.36% cov)
+- Suite sc_system: 3,416 PASSED
+- Bandit scan: N/A (0 cambios backend)
+- Design tokens definidos: 35+ (paleta, surfaces, threats, ink)
+- Dev server: `http://localhost:3000` activo — prueba visual disponible
+
+### Security scan Phase 2
+
+| Check | Comando | Resultado |
+|-------|---------|-----------|
+| Secrets en páginas redesignadas | grep `sk-\|api_key\|secret\|password\|Bearer\|private_key` | ✅ 0 hardcoded — match único: `token` como state var HitL (legítimo) |
+| Navy/cyan remnants en threat-hunting | grep `navy\|text-cyan\|bg-cyan\|border-cyan` | ✅ 0 matches |
+| XSS / dangerouslySetInnerHTML | grep `dangerouslySetInnerHTML\|eval(` | ✅ 0 matches en archivos modificados |

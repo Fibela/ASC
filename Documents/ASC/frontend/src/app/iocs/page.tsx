@@ -2,36 +2,51 @@
 import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { getIoCs, createIoC } from '@/lib/api'
-import { Database, Plus, Copy, CheckCircle2 } from 'lucide-react'
+import { Database, Plus, Copy, CheckCircle2, RefreshCw, X } from 'lucide-react'
 
 const IOC_TYPES = ['hash_md5', 'hash_sha1', 'hash_sha256', 'ip', 'domain', 'url', 'mutex', 'registry_key']
+
+// P64: PremosCorp palette for IoC types
+const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
+  hash_md5:     { bg: 'rgba(90,90,90,0.12)',   color: '#5A5A5A' },
+  hash_sha1:    { bg: 'rgba(90,90,90,0.12)',   color: '#5A5A5A' },
+  hash_sha256:  { bg: 'rgba(90,90,90,0.12)',   color: '#5A5A5A' },
+  ip:           { bg: 'rgba(232,93,4,0.12)',   color: '#FF7A25' },
+  domain:       { bg: 'rgba(242,194,5,0.10)',  color: '#F2C205' },
+  url:          { bg: 'rgba(242,194,5,0.10)',  color: '#F2C205' },
+  mutex:        { bg: 'rgba(192,21,46,0.12)',  color: '#E8526E' },
+  registry_key: { bg: 'rgba(192,21,46,0.12)',  color: '#E8526E' },
+}
+
+function confidenceColor(c: number): string {
+  if (c >= 0.8) return '#E8526E'
+  if (c >= 0.5) return '#F2C205'
+  return '#3FD175'
+}
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
     return true
   } catch {
-    // Fallback for non-HTTPS or older browsers
     try {
       const el = document.createElement('textarea')
       el.value = text
       el.style.position = 'fixed'
       el.style.opacity  = '0'
       document.body.appendChild(el)
-      el.focus()
-      el.select()
+      el.focus(); el.select()
       document.execCommand('copy')
       document.body.removeChild(el)
       return true
-    } catch {
-      return false
-    }
+    } catch { return false }
   }
 }
 
 export default function IoCsPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
   const [iocs, setIoCs]       = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter]   = useState({ ioc_type: '', limit: 100 })
@@ -45,14 +60,11 @@ export default function IoCsPage() {
     try {
       const data = await getIoCs({ ioc_type: filter.ioc_type || undefined, limit: filter.limit })
       setIoCs(data)
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [filter])
+  useEffect(() => { if (!isReady) return; load() }, [filter, isReady])
 
   async function addIoC() {
     setSaving(true)
@@ -61,11 +73,8 @@ export default function IoCsPage() {
       setShowAdd(false)
       setForm({ ioc_type: 'hash_sha256', value: '', source: '', confidence: 0.9 })
       await load()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSaving(false)
-    }
+    } catch (e) { console.error(e) }
+    finally { setSaving(false) }
   }
 
   async function copy(val: string) {
@@ -76,128 +85,211 @@ export default function IoCsPage() {
     }
   }
 
-  const TYPE_COLOR: Record<string, string> = {
-    hash_md5: 'text-gray-400', hash_sha1: 'text-gray-400', hash_sha256: 'text-gray-400',
-    ip: 'text-orange-400', domain: 'text-yellow-400', url: 'text-yellow-400',
-    mutex: 'text-red-400', registry_key: 'text-red-400',
-  }
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-auto">
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Database className="text-cyan-400" size={22} />
-            Indicadores de Compromiso
-          </h1>
-          <button onClick={() => setShowAdd(v => !v)} className="btn-primary flex items-center gap-2 text-sm py-1.5">
-            <Plus size={14} /> Agregar IoC
-          </button>
-        </div>
-        <p className="text-gray-500 text-xs mb-6">Hashes, IPs, dominios, mutexes y claves de registro comprometidos</p>
+      <main className="flex-1 overflow-auto">
 
-        {/* Add form */}
-        {showAdd && (
-          <div className="card max-w-lg mb-6">
-            <h3 className="text-cyan-400 font-semibold mb-4">Nuevo Indicador de Compromiso</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Tipo</label>
-                <select value={form.ioc_type} onChange={e => setForm(f => ({ ...f, ioc_type: e.target.value }))}
-                  className="w-full bg-navy-900 border border-navy-700 text-sm text-gray-300 rounded px-3 py-2 outline-none focus:border-cyan-400">
-                  {IOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Valor</label>
-                <input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-                  placeholder="hash / IP / dominio / mutex..."
-                  className="w-full bg-navy-900 border border-navy-700 rounded px-3 py-2 text-white text-sm font-mono outline-none focus:border-cyan-400" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Fuente</label>
-                <input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-                  placeholder="VirusTotal, OSINT, análisis forense..."
-                  className="w-full bg-navy-900 border border-navy-700 rounded px-3 py-2 text-white text-sm outline-none focus:border-cyan-400" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">Confianza: {form.confidence}</label>
-                <input type="range" min={0} max={1} step={0.05} value={form.confidence}
-                  onChange={e => setForm(f => ({ ...f, confidence: parseFloat(e.target.value) }))}
-                  className="w-full accent-cyan-400" />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={addIoC} disabled={!form.value || saving} className="btn-primary flex-1 text-sm disabled:opacity-50">
-                  {saving ? 'Guardando...' : 'Guardar IoC'}
-                </button>
-                <button onClick={() => setShowAdd(false)} className="bg-navy-700 text-gray-300 px-4 py-2 rounded text-sm hover:bg-navy-600">
-                  Cancelar
-                </button>
-              </div>
+        {/* Sticky header */}
+        <div
+          className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+          style={{
+            background:     'rgba(10,10,10,0.92)',
+            borderBottom:   '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Database size={18} style={{ color: '#E85D04' }} />
+            <div>
+              <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>
+                Indicadores de Compromiso
+              </h1>
+              <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
+                Hashes · IPs · Dominios · Mutexes · Claves de registro
+              </p>
             </div>
           </div>
-        )}
-
-        {/* Filters */}
-        <div className="flex gap-3 mb-5">
-          <select value={filter.ioc_type} onChange={e => setFilter(f => ({ ...f, ioc_type: e.target.value }))}
-            className="bg-navy-800 border border-navy-700 text-sm text-gray-300 rounded px-3 py-1.5 outline-none focus:border-cyan-400">
-            <option value="">Todos los tipos</option>
-            {IOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={filter.limit} onChange={e => setFilter(f => ({ ...f, limit: Number(e.target.value) }))}
-            className="bg-navy-800 border border-navy-700 text-sm text-gray-300 rounded px-3 py-1.5 outline-none focus:border-cyan-400">
-            {[50, 100, 250, 500].map(n => <option key={n} value={n}>{n} IoCs</option>)}
-          </select>
-          <span className="text-xs text-gray-600 self-center">{iocs.length} registros</span>
+          <button
+            onClick={() => setShowAdd(v => !v)}
+            className="btn-primary flex items-center gap-2 text-xs py-1.5 px-3"
+          >
+            {showAdd ? <X size={12} /> : <Plus size={12} />}
+            {showAdd ? 'Cancelar' : 'Agregar IoC'}
+          </button>
         </div>
 
-        {loading ? (
-          <p className="text-gray-400 text-sm">Cargando IoCs...</p>
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="table-asc">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Valor</th>
-                  <th>Fuente</th>
-                  <th>Confianza</th>
-                  <th>Registrado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {iocs.length === 0 && (
-                  <tr><td colSpan={6} className="text-center text-gray-500 py-10">Sin IoCs registrados</td></tr>
-                )}
-                {iocs.map((ioc: any) => (
-                  <tr key={ioc.id}>
-                    <td>
-                      <span className={`text-xs font-mono px-2 py-0.5 rounded bg-navy-900 ${TYPE_COLOR[ioc.ioc_type] ?? 'text-gray-400'}`}>
-                        {ioc.ioc_type}
-                      </span>
-                    </td>
-                    <td className="font-mono text-xs text-gray-200 max-w-xs truncate">{ioc.value}</td>
-                    <td className="text-gray-500 text-xs">{ioc.source ?? '—'}</td>
-                    <td>
-                      <span className={`font-mono text-xs ${ioc.confidence >= 0.8 ? 'text-red-400' : ioc.confidence >= 0.5 ? 'text-yellow-400' : 'text-green-400'}`}>
-                        {Number(ioc.confidence).toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="text-gray-600 text-xs">{ioc.created_at?.slice(0, 10)}</td>
-                    <td>
-                      <button onClick={() => copy(ioc.value)} className="text-gray-600 hover:text-cyan-400 transition-colors">
-                        {copied === ioc.value ? <CheckCircle2 size={13} className="text-green-400" /> : <Copy size={13} />}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="p-6 space-y-5 animate-fade-in">
+
+          {/* Add IoC form */}
+          {showAdd && (
+            <div className="card p-5 max-w-lg animate-fade-in">
+              <h3 className="text-sm font-semibold mb-4" style={{ color: '#E85D04' }}>
+                Nuevo Indicador de Compromiso
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: '#A0A0A0' }}>Tipo</label>
+                  <select
+                    value={form.ioc_type}
+                    onChange={e => setForm(f => ({ ...f, ioc_type: e.target.value }))}
+                    className="input-asc"
+                  >
+                    {IOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: '#A0A0A0' }}>Valor</label>
+                  <input
+                    value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder="hash / IP / dominio / mutex..."
+                    className="input-asc font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: '#A0A0A0' }}>Fuente</label>
+                  <input
+                    value={form.source}
+                    onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
+                    placeholder="VirusTotal, OSINT, análisis forense..."
+                    className="input-asc"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1.5" style={{ color: '#A0A0A0' }}>
+                    Confianza:{' '}
+                    <span style={{ color: confidenceColor(form.confidence) }} className="font-mono font-bold">
+                      {form.confidence.toFixed(2)}
+                    </span>
+                  </label>
+                  <input
+                    type="range" min={0} max={1} step={0.05}
+                    value={form.confidence}
+                    onChange={e => setForm(f => ({ ...f, confidence: parseFloat(e.target.value) }))}
+                    className="w-full"
+                    style={{ accentColor: '#E85D04' }}
+                  />
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={addIoC}
+                    disabled={!form.value || saving}
+                    className="btn-primary flex-1 text-xs disabled:opacity-50"
+                  >
+                    {saving ? 'Guardando...' : 'Guardar IoC'}
+                  </button>
+                  <button
+                    onClick={() => setShowAdd(false)}
+                    className="btn-secondary text-xs px-4"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <select
+              value={filter.ioc_type}
+              onChange={e => setFilter(f => ({ ...f, ioc_type: e.target.value }))}
+              className="input-asc"
+              style={{ width: 'auto', minWidth: 180 }}
+            >
+              <option value="">Todos los tipos</option>
+              {IOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select
+              value={filter.limit}
+              onChange={e => setFilter(f => ({ ...f, limit: Number(e.target.value) }))}
+              className="input-asc"
+              style={{ width: 'auto', minWidth: 130 }}
+            >
+              {[50, 100, 250, 500].map(n => <option key={n} value={n}>{n} IoCs</option>)}
+            </select>
+            <span className="text-xs ml-auto" style={{ color: '#3A3A3A' }}>
+              {iocs.length} indicador{iocs.length !== 1 ? 'es' : ''}
+            </span>
           </div>
-        )}
+
+          {/* Table */}
+          {loading ? (
+            <div className="flex items-center gap-3 py-16 justify-center" style={{ color: '#3A3A3A' }}>
+              <RefreshCw size={18} className="animate-spin" style={{ color: '#E85D04' }} />
+              <span className="text-sm">Cargando indicadores...</span>
+            </div>
+          ) : (
+            <div className="card overflow-x-auto">
+              <table className="table-asc">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                    <th>Fuente</th>
+                    <th>Confianza</th>
+                    <th>Registrado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {iocs.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-12 text-sm" style={{ color: '#3A3A3A' }}>
+                        <Database size={28} className="mx-auto mb-2 opacity-20" />
+                        Sin IoCs registrados
+                      </td>
+                    </tr>
+                  )}
+                  {iocs.map((ioc: any) => {
+                    const ts = TYPE_STYLE[ioc.ioc_type] ?? TYPE_STYLE.hash_md5
+                    return (
+                      <tr key={ioc.id}>
+                        <td>
+                          <span
+                            className="text-xs font-mono px-2 py-0.5 rounded-lg"
+                            style={{ background: ts.bg, color: ts.color }}
+                          >
+                            {ioc.ioc_type}
+                          </span>
+                        </td>
+                        <td className="font-mono text-xs max-w-xs truncate" style={{ color: '#EAEAEA' }}>
+                          {ioc.value}
+                        </td>
+                        <td className="text-xs" style={{ color: '#5A5A5A' }}>{ioc.source ?? '—'}</td>
+                        <td>
+                          <span
+                            className="font-mono text-xs font-bold"
+                            style={{ color: confidenceColor(Number(ioc.confidence)) }}
+                          >
+                            {Number(ioc.confidence).toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="text-xs font-mono" style={{ color: '#3A3A3A' }}>
+                          {ioc.created_at?.slice(0, 10)}
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => copy(ioc.value)}
+                            className="transition-colors"
+                            style={{ color: copied === ioc.value ? '#3FD175' : '#3A3A3A' }}
+                          >
+                            {copied === ioc.value
+                              ? <CheckCircle2 size={13} />
+                              : <Copy size={13} />}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   )

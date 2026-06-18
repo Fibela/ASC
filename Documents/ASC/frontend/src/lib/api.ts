@@ -190,55 +190,103 @@ export async function getAlerts(params?: { severity?: string; status?: string; l
   return data
 }
 
-export async function getAlertStats() {
-  const { data } = await api.get('/alerts/stats/summary')
+export interface AlertStats {
+  total: number
+  open: number
+  by_severity: Record<string, number>
+  by_status: Record<string, number>
+  false_positive_count: number
+  avg_risk_score: number | null
+}
+
+export async function getAlertStats(): Promise<AlertStats> {
+  const { data } = await api.get<AlertStats>('/alerts/stats/summary')
   return data
 }
 
-export async function updateAlert(id: string, payload: Record<string, unknown>) {
-  const { data } = await api.patch(`/alerts/${id}`, payload)
+export async function updateAlert(id: string, payload: Record<string, unknown>): Promise<Partial<AlertItem>> {
+  const { data } = await api.patch<Partial<AlertItem>>(`/alerts/${id}`, payload)
   return data
 }
 
 // --- Events ---
-export async function getEvents(params?: { severity?: string; limit?: number }) {
-  const { data } = await api.get('/events/', { params })
+export interface EventItem {
+  id: string
+  source: string
+  event_type: string
+  severity: string
+  data: Record<string, unknown>
+  signature_valid: boolean | null
+  is_anomaly: boolean
+  ts: string
+  received_at: string
+}
+
+export async function getEvents(params?: { severity?: string; limit?: number }): Promise<EventItem[]> {
+  const { data } = await api.get<EventItem[]>('/events/', { params })
   return data
 }
 
-export async function ingestEvent(payload: Record<string, unknown>) {
-  const { data } = await api.post('/events/ingest', payload)
+export interface IngestResult {
+  event_id: string
+  status: string
+  alert_triggered: boolean
+  alert_id: string | null
+}
+
+export async function ingestEvent(payload: Record<string, unknown>): Promise<IngestResult> {
+  const { data } = await api.post<IngestResult>('/events/ingest', payload)
   return data
 }
 
 // --- IoCs ---
-export async function getIoCs(params?: { ioc_type?: string; limit?: number }) {
-  const { data } = await api.get('/iocs/', { params })
+export interface IoCItem {
+  id: string
+  ioc_type: string
+  value: string
+  source: string
+  confidence: number
+  threat_level: string
+  tags: string[]
+  created_at: string
+  last_seen: string | null
+}
+
+export async function getIoCs(params?: { ioc_type?: string; limit?: number }): Promise<IoCItem[]> {
+  const { data } = await api.get<IoCItem[]>('/iocs/', { params })
   return data
 }
 
-export async function createIoC(payload: Record<string, unknown>) {
-  const { data } = await api.post('/iocs/', payload)
+export async function createIoC(payload: Record<string, unknown>): Promise<IoCItem> {
+  const { data } = await api.post<IoCItem>('/iocs/', payload)
   return data
 }
 
 // --- Analysis ---
-export async function analyzeFile(file: File) {
+export interface AnalysisResult {
+  verdict: 'malicious' | 'suspicious' | 'clean' | 'unknown'
+  confidence: number
+  indicators: string[]
+  details: Record<string, unknown>
+  analyzed_at: string
+}
+
+export async function analyzeFile(file: File): Promise<AnalysisResult> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post('/analyze/file', form, {
+  const { data } = await api.post<AnalysisResult>('/analyze/file', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return data
 }
 
-export async function analyzeDomain(domain: string) {
-  const { data } = await api.post('/analyze/domain', null, { params: { domain } })
+export async function analyzeDomain(domain: string): Promise<AnalysisResult> {
+  const { data } = await api.post<AnalysisResult>('/analyze/domain', null, { params: { domain } })
   return data
 }
 
-export async function analyzeIP(ip: string) {
-  const { data } = await api.post('/analyze/ip', null, { params: { ip } })
+export async function analyzeIP(ip: string): Promise<AnalysisResult> {
+  const { data } = await api.post<AnalysisResult>('/analyze/ip', null, { params: { ip } })
   return data
 }
 
@@ -442,7 +490,7 @@ export function subscribeToNotifications(
   onError?: (err: Event) => void
 ): () => void {
   const token = typeof window !== 'undefined'
-    ? localStorage.getItem('token') ?? ''
+    ? localStorage.getItem('asc_access_token') ?? ''
     : ''
   const url = `${env.API_URL}/api/v1/notifications/stream`
   const es = new EventSource(`${url}?token=${encodeURIComponent(token)}`)
@@ -465,19 +513,44 @@ export function subscribeToNotifications(
 }
 
 // --- Detection ---
-export async function evaluateEvent(event: Record<string, unknown>, original_analysis_ts?: string) {
+export interface DetectionResult {
+  triggered: boolean
+  matched_rules: string[]
+  risk_score: number
+  alert_id: string | null
+  details: Record<string, unknown>
+  evaluated_at: string
+}
+
+export interface BulkDetectionResult {
+  processed: number
+  triggered_count: number
+  results: DetectionResult[]
+}
+
+export interface FingerprintResult {
+  filename: string
+  sha256: string
+  md5: string | null
+  file_type: string | null
+  matched_signatures: string[]
+  is_known_malware: boolean
+  confidence: number
+}
+
+export async function evaluateEvent(event: Record<string, unknown>, original_analysis_ts?: string): Promise<DetectionResult> {
   const params = original_analysis_ts ? { original_analysis_ts } : {}
-  const { data } = await api.post('/detection/evaluate', event, { params })
+  const { data } = await api.post<DetectionResult>('/detection/evaluate', event, { params })
   return data
 }
 
-export async function evaluateBulkEvents(events: Record<string, unknown>[], original_analysis_ts?: string) {
-  const { data } = await api.post('/detection/evaluate/bulk', { events, original_analysis_ts })
+export async function evaluateBulkEvents(events: Record<string, unknown>[], original_analysis_ts?: string): Promise<BulkDetectionResult> {
+  const { data } = await api.post<BulkDetectionResult>('/detection/evaluate/bulk', { events, original_analysis_ts })
   return data
 }
 
-export async function fingerprintArtifact(filename: string, data_hex: string) {
-  const { data } = await api.post('/detection/fingerprint', { filename, data_hex })
+export async function fingerprintArtifact(filename: string, data_hex: string): Promise<FingerprintResult> {
+  const { data } = await api.post<FingerprintResult>('/detection/fingerprint', { filename, data_hex })
   return data
 }
 
@@ -917,8 +990,16 @@ export async function getEvidenceReport(reportId: string): Promise<EvidenceRepor
 }
 
 // --- Public (no auth) ---
-export async function getPublicMetrics() {
-  const { data } = await api.get('/metrics/public')
+export interface PublicMetrics {
+  total_events_24h: number
+  total_alerts_24h: number
+  active_agents: number
+  system_status: 'operational' | 'degraded' | 'down'
+  ts: string
+}
+
+export async function getPublicMetrics(): Promise<PublicMetrics> {
+  const { data } = await api.get<PublicMetrics>('/metrics/public')
   return data
 }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   getTIStats, listTIIndicators, createTIIndicator, enrichTI, deleteTIIndicator,
   ThreatIntelIndicator, ThreatIntelStats, ThreatIntelListResponse, EnrichResult,
@@ -213,7 +214,7 @@ function EnrichPanel() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ThreatIntelPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
   const role = typeof window !== 'undefined' ? getRole() : null
 
   const [stats, setStats]     = useState<ThreatIntelStats | null>(null)
@@ -247,7 +248,7 @@ export default function ThreatIntelPage() {
     }
   }, [page, typeFilter, sevFilter])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   async function handleDelete(id: string) {
     setDeleting(id)
@@ -260,6 +261,8 @@ export default function ThreatIntelPage() {
   }
 
   const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-navy-900 text-white">

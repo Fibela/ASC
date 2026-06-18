@@ -1,4 +1,4 @@
-/**
+﻿/**
  * E2E — Authentication Flow (P50)
  *
  * Covers:
@@ -42,7 +42,7 @@ test.describe('Authentication — Login / Logout / Guard', () => {
     await page.goto('/login')
 
     await expect(page.getByText('ASC PremosCorp')).toBeVisible()
-    await expect(page.getByText('Advanced Security Center')).toBeVisible()
+    await expect(page.getByText('Analizador de Seguridad Cibernética')).toBeVisible()
     await expect(page.locator('input[type="email"]')).toBeVisible()
     await expect(page.locator('input[type="password"]')).toBeVisible()
     await expect(page.locator('button[type="submit"]')).toContainText('Iniciar sesión')

@@ -4,12 +4,13 @@ import { Sidebar } from '@/components/dashboard/Sidebar'
 import { analyzeFile, analyzeDomain, analyzeIP } from '@/lib/api'
 import { SeverityBadge } from '@/components/dashboard/SeverityBadge'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { Upload, Globe, Network } from 'lucide-react'
 
 type Tab = 'file' | 'domain' | 'ip'
 
 export default function AnalyzePage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
   const [tab, setTab]       = useState<Tab>('file')
   const [file, setFile]     = useState<File | null>(null)
   const [domain, setDomain] = useState('')
@@ -34,6 +35,8 @@ export default function AnalyzePage() {
   const verdict = result?.verdict ?? ''
   const verdictColorMap: Record<string, string> = { malicious: 'text-red-400', suspicious: 'text-orange-400', clean: 'text-green-400' }
   const verdictColor = verdictColorMap[verdict] ?? 'text-cyan-400'
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">

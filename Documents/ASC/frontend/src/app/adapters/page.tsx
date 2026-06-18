@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   listAdapters, testAdapterStatus,
   elkPushAlert, elkPushEvent, elkPullEvents,
@@ -135,7 +136,7 @@ function NumInput({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AdaptersPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [adapters, setAdapters]   = useState<AdapterInfo[]>([])
   const [loading, setLoading]     = useState(true)
@@ -189,7 +190,7 @@ export default function AdaptersPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   // ── Test connection ───────────────────────────────────────────────────────
 
@@ -232,6 +233,8 @@ export default function AdaptersPage() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">

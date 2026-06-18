@@ -1,0 +1,37 @@
+# Next.js build output
+.next/
+out/
+
+# Vercel build cache
+.vercel/
+
+# Local environment — NEVER commit secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Dependencies
+node_modules/
+
+# TypeScript incremental build cache (triggers false-positive secret scanners)
+*.tsbuildinfo
+next-env.d.ts
+
+# Playwright / E2E artifacts
+playwright-report/
+playwright-results.xml
+playwright-artifacts/
+test-results/
+
+# Jest coverage
+coverage/
+lcov.info
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/settings.json
+.idea/

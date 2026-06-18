@@ -1,8 +1,9 @@
 import { api } from './api'
 
-const ACCESS_KEY  = 'asc_access_token'
-const REFRESH_KEY = 'asc_refresh_token'
-const ROLE_KEY    = 'asc_role'
+const ACCESS_KEY     = 'asc_access_token'
+const REFRESH_KEY    = 'asc_refresh_token'
+const ROLE_KEY       = 'asc_role'
+const SSO_ORIGIN_KEY = 'asc_sso_origin'
 
 export interface AuthTokens {
   access_token:  string
@@ -24,7 +25,18 @@ export function clearTokens() {
   localStorage.removeItem(ACCESS_KEY)
   localStorage.removeItem(REFRESH_KEY)
   localStorage.removeItem(ROLE_KEY)
+  localStorage.removeItem(SSO_ORIGIN_KEY)
   delete api.defaults.headers.common['Authorization']
+}
+
+/** Mark the current session as originated from an SSO provider.
+ *  Used by the /sso callback page to enable transparent re-auth on expiry. */
+export function markSSOSession(origin: 'premoscorp') {
+  localStorage.setItem(SSO_ORIGIN_KEY, origin)
+}
+
+export function getSSOOrigin(): string | null {
+  return localStorage.getItem(SSO_ORIGIN_KEY)
 }
 
 export function getAccessToken(): string | null {
@@ -65,7 +77,19 @@ export async function getMe() {
 
 export async function refreshAccessToken(): Promise<boolean> {
   const refresh_token = localStorage.getItem(REFRESH_KEY)
-  if (!refresh_token) return false
+
+  if (!refresh_token) {
+    // SSO sessions carry no refresh_token — redirect to portal for seamless re-auth
+    // instead of dropping the user on /login with no context.
+    const ssoOrigin = typeof window !== 'undefined' ? localStorage.getItem(SSO_ORIGIN_KEY) : null
+    if (ssoOrigin === 'premoscorp') {
+      const portalUrl = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://premoscorp.com'
+      clearTokens()
+      window.location.href = `${portalUrl}/portal/seguridad`
+    }
+    return false
+  }
+
   try {
     const { data } = await api.post<AuthTokens>('/auth/refresh', { refresh_token })
     saveTokens(data)

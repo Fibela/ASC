@@ -1,8 +1,8 @@
-'use client'
+﻿'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { login, isAuthenticated, initAuth } from '@/lib/auth'
-import { Shield, Eye, EyeOff } from 'lucide-react'
+import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const router  = useRouter()
@@ -32,82 +32,137 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0d1b2a]">
-      <div className="w-full max-w-sm">
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{
+        background: '#0A0A0A',
+        backgroundImage:
+          'radial-gradient(ellipse at 20% 50%, rgba(232,93,4,0.07) 0%, transparent 55%), ' +
+          'radial-gradient(ellipse at 80% 20%, rgba(139,30,30,0.07) 0%, transparent 55%)',
+      }}
+    >
+      <div className="w-full max-w-sm animate-fade-in">
 
-        {/* Logo / Header */}
+        {/* ── Brand header ─────────────────────────────────── */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-            style={{ background: 'rgba(0,180,216,0.1)', border: '1px solid rgba(0,180,216,0.3)' }}>
-            <Shield className="text-cyan-400" size={28} />
+          {/* Logo */}
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
+            style={{
+              background: 'linear-gradient(135deg, #C44D03 0%, #E85D04 100%)',
+              boxShadow: '0 0 32px rgba(232,93,4,0.35), 0 8px 24px rgba(0,0,0,0.5)',
+            }}>
+            <Shield size={30} color="#fff" />
           </div>
-          <h1 className="text-2xl font-bold text-white">ASC PremosCorp</h1>
-          <p className="text-gray-500 text-sm mt-1">Advanced Security Center</p>
+
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#EAEAEA' }}>
+            Premos<span style={{ color: '#E85D04' }}>Corp</span>
+          </h1>
+          <p className="text-sm mt-1 font-medium" style={{ color: '#5A5A5A' }}>
+            Analizador de Seguridad Cibernética
+          </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit}
-          className="rounded-xl p-8"
-          style={{ background: '#1a2d42', border: '1px solid rgba(0,180,216,0.15)' }}>
+        {/* ── Form card ────────────────────────────────────── */}
+        <div
+          className="rounded-2xl p-8"
+          style={{
+            background: 'rgba(16,16,16,0.85)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          {/* Card inner top accent */}
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 pointer-events-none"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(232,93,4,0.3), transparent)' }}
+          />
 
-          <div className="mb-5">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              placeholder="analista@premoscorp.com"
-              className="w-full rounded-lg px-4 py-3 text-sm text-white outline-none transition-colors"
-              style={{ background: '#0d1b2a', border: '1px solid rgba(0,180,216,0.2)' }}
-              onFocus={e => e.target.style.borderColor = 'rgba(0,180,216,0.6)'}
-              onBlur={e => e.target.style.borderColor = 'rgba(0,180,216,0.2)'}
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
 
-          <div className="mb-6">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-              Contraseña
-            </label>
-            <div className="relative">
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest mb-2"
+                     style={{ color: '#5A5A5A' }}>
+                Correo electrónico
+              </label>
               <input
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="w-full rounded-lg px-4 py-3 pr-10 text-sm text-white outline-none transition-colors"
-                style={{ background: '#0d1b2a', border: '1px solid rgba(0,180,216,0.2)' }}
-                onFocus={e => e.target.style.borderColor = 'rgba(0,180,216,0.6)'}
-                onBlur={e => e.target.style.borderColor = 'rgba(0,180,216,0.2)'}
+                autoComplete="email"
+                placeholder="analista@premoscorp.com"
+                className="input-asc"
               />
-              <button type="button" onClick={() => setShowPass(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors">
-                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
             </div>
-          </div>
 
-          {error && (
-            <div className="mb-4 px-4 py-2 rounded-lg text-sm text-red-400"
-              style={{ background: 'rgba(217,43,43,0.1)', border: '1px solid rgba(217,43,43,0.3)' }}>
-              {error}
+            {/* Password */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-widest mb-2"
+                     style={{ color: '#5A5A5A' }}>
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="input-asc pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: '#3A3A3A' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#A0A0A0')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#3A3A3A')}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
-          )}
 
-          <button type="submit" disabled={loading}
-            className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #0096c7 0%, #00b4d8 100%)', color: '#0d1b2a' }}>
-            {loading ? 'Autenticando...' : 'Iniciar sesión'}
-          </button>
-        </form>
+            {/* Error */}
+            {error && (
+              <div
+                className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm"
+                style={{
+                  background: 'rgba(192,21,46,0.1)',
+                  border: '1px solid rgba(192,21,46,0.3)',
+                  color: '#E8526E',
+                }}
+              >
+                <AlertCircle size={15} className="flex-shrink-0" />
+                {error}
+              </div>
+            )}
 
-        <p className="text-center text-xs text-gray-600 mt-6">
-          PremosCorp ASC — Acceso restringido a personal autorizado
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-3 mt-2"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                  Autenticando...
+                </span>
+              ) : 'Iniciar sesión'}
+            </button>
+          </form>
+        </div>
+
+        {/* Footer note */}
+        <p className="text-center text-xs mt-6" style={{ color: '#2A2A2A' }}>
+          Acceso restringido — Personal autorizado PremosCorp
         </p>
       </div>
     </div>

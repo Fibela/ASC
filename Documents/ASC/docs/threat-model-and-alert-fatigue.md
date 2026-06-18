@@ -1,4 +1,4 @@
-# ASC PremosCorp — Threat Model & Gestión de Fatiga de Alertas
+﻿# ASC PremosCorp — Threat Model & Gestión de Fatiga de Alertas
 > Versión 1.0 | Fecha: 2026-06-08 | Clasificación: INTERNO — USO EXCLUSIVO EQUIPO SOC
 >
 > **Principio rector:** *Teoría en ofensiva, práctica en defensa.*
@@ -23,7 +23,7 @@
 
 ## 1. Resumen Ejecutivo
 
-ASC (Advanced Security Center) es la plataforma SOC de PremosCorp. Por su naturaleza
+ASC (Analizador de Seguridad Cibernética) es la plataforma SOC de PremosCorp. Por su naturaleza
 — recibe telemetría de endpoints, emite comandos de respuesta, gestiona identidades y
 controla integraciones con CrowdStrike/Palo Alto/Active Directory — **ASC es un objetivo
 de alto valor para cualquier atacante que quiera operar sin ser detectado dentro de

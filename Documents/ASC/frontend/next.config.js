@@ -1,59 +1,56 @@
 /** @type {import('next').NextConfig} */
+
+// On Vercel, security headers are served by vercel.json at the CDN edge layer.
+// Duplicating them here would cause the browser to receive two CSP headers and
+// enforce only the intersection — which blocks API calls to Render.
+// On non-Vercel runtimes (Docker, local server) we apply headers here as fallback.
+const IS_VERCEL = !!process.env.VERCEL
+
 const nextConfig = {
-  output: 'standalone',
+  // standalone mode is for Docker / self-hosted servers.
+  // Vercel uses its own optimised Next.js output pipeline — this flag is a no-op
+  // on Vercel but would bloat the build artefact unnecessarily.
+  ...(IS_VERCEL ? {} : { output: 'standalone' }),
+
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   },
 
-  // P50 — Security headers applied to all routes
-  // Verified by E2E tests in frontend/e2e/security-headers.spec.ts
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          // Prevent MIME-type sniffing attacks
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-
-          // Deny embedding in iframes (clickjacking protection)
-          { key: 'X-Frame-Options', value: 'DENY' },
-
-          // Only send origin on cross-origin requests (no full URL leak)
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-
-          // Restrict browser feature access — SOC dashboards don't need camera/mic
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-
-          // Force HTTPS for all future requests (31536000 = 1 year)
-          // Note: only effective over HTTPS — no-op in local HTTP dev
-          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
-
-          // Content Security Policy:
-          // - default-src 'self': only load resources from same origin
-          // - script-src 'self' 'unsafe-eval': Next.js requires unsafe-eval in dev
-          // - style-src 'self' 'unsafe-inline': Tailwind + inline styles
-          // - img-src 'self' data:: allow inline SVG data URLs
-          // - connect-src 'self' + API URL: allow XHR/fetch to backend
-          // - frame-ancestors 'none': secondary clickjacking protection (CSP layer)
-          {
-            key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob:",
-              "font-src 'self'",
-              "connect-src 'self' http://localhost:8000 https://*.premoscorp.com",
-              "frame-ancestors 'none'",
-            ].join('; '),
-          },
-
-          // Prevent XSS via reflected content in legacy browsers
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
-        ],
-      },
-    ]
-  },
+  // Security headers — only applied when NOT running on Vercel.
+  // On Vercel, vercel.json owns all headers (single source of truth, no duplicates).
+  ...(!IS_VERCEL && {
+    async headers() {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      return [
+        {
+          source: '/(.*)',
+          headers: [
+            { key: 'X-Content-Type-Options',  value: 'nosniff' },
+            { key: 'X-Frame-Options',          value: 'DENY' },
+            { key: 'X-XSS-Protection',         value: '1; mode=block' },
+            { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
+            { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()' },
+            { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+            {
+              key: 'Content-Security-Policy',
+              value: [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: blob:",
+                "font-src 'self'",
+                `connect-src 'self' ${apiUrl} https://*.onrender.com https://*.premoscorp.com`,
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "object-src 'none'",
+              ].join('; '),
+            },
+          ],
+        },
+      ]
+    },
+  }),
 }
 
 module.exports = nextConfig

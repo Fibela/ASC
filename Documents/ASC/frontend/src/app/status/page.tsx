@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   getSystemLiveness, getSystemReadiness, getSystemInfo, getObservabilitySummary,
   HealthLiveness, HealthReadiness, HealthSystem, ObservabilitySummary,
@@ -108,7 +109,7 @@ function CheckRow({ label, check }: { label: string; check: { ok: boolean; detai
 const AUTO_REFRESH_MS = 30_000
 
 export default function StatusPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [liveness,   setLiveness]   = useState<StatusState<HealthLiveness>>({ status: 'loading', data: null, error: null, lastUpdated: null })
   const [readiness,  setReadiness]  = useState<StatusState<HealthReadiness>>({ status: 'loading', data: null, error: null, lastUpdated: null })
@@ -162,15 +163,18 @@ export default function StatusPage() {
   }, [])
 
   useEffect(() => {
+    if (!isReady) return
     fetchAll()
     const timer = setInterval(fetchAll, AUTO_REFRESH_MS)
     return () => clearInterval(timer)
-  }, [fetchAll])
+  }, [fetchAll, isReady])
 
   // Overall posture
   const allOk = liveness.status === 'ok' && readiness.status === 'ok' && systemInfo.status === 'ok'
   const anyError = liveness.status === 'error' || readiness.status === 'error' || systemInfo.status === 'error'
   const overallStatus: FetchStatus = allOk ? 'ok' : anyError ? 'error' : 'loading'
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">

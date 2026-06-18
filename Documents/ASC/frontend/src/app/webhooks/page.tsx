@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   listWebhooks, createWebhook, updateWebhook, deleteWebhook, testWebhook,
   WebhookResponse, WebhookCreated, WebhookTestResult, VALID_WEBHOOK_EVENTS,
@@ -386,7 +387,7 @@ function WebhookRow({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WebhooksPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [webhooks, setWebhooks]     = useState<WebhookResponse[]>([])
   const [loading, setLoading]       = useState(true)
@@ -409,7 +410,7 @@ export default function WebhooksPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   async function handleCreate(payload: { url: string; events: string[]; description: string | null }) {
     const created: WebhookCreated = await createWebhook(payload)
@@ -450,6 +451,8 @@ export default function WebhooksPage() {
   const active  = webhooks.filter(w => w.is_active).length
   const failed  = webhooks.filter(w => w.failure_count > 0).length
   const healthy = active - failed < 0 ? 0 : active - failed
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-navy-950 text-gray-100">

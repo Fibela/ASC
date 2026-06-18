@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   listAdminUsers, unlockAdminUser, AdminUser,
   listApiKeys, createApiKey, revokeApiKey, rotateApiKey, APIKeyResponse, APIKeyCreated,
@@ -528,7 +529,7 @@ function ApiKeysTab({ showToast }: { showToast: (msg: string, ok: boolean) => vo
 type Tab = 'users' | 'api-keys'
 
 export default function AdminPage() {
-  useAuthGuard('admin')
+  const { isReady } = useAuthGuard('admin')
 
   const [activeTab, setActiveTab] = useState<Tab>('users')
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
@@ -545,6 +546,8 @@ export default function AdminPage() {
     { id: 'users',    label: 'Usuarios',  icon: <Users size={14} /> },
     { id: 'api-keys', label: 'API Keys',  icon: <Key size={14} /> },
   ]
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen bg-navy-900 text-white">

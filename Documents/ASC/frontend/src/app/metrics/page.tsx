@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/dashboard/Sidebar'
 import { MetricCard } from '@/components/dashboard/MetricCard'
 import { Semaphore } from '@/components/dashboard/Semaphore'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { getSocMetrics, getTimeline, getAlertStats } from '@/lib/api'
 import { BarChart3, RefreshCw, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import {
@@ -14,7 +15,7 @@ import {
 const COLORS = ['#d92b2b', '#e5720d', '#f2c205', '#34b85a']
 
 export default function MetricsPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
   const [metrics24, setMetrics24]   = useState<any>(null)
   const [metrics7d, setMetrics7d]   = useState<any>(null)
   const [timeline, setTimeline]     = useState<any[]>([])
@@ -42,7 +43,7 @@ export default function MetricsPage() {
     }
   }
 
-  useEffect(() => { load() }, [period])
+  useEffect(() => { if (!isReady) return; load() }, [period, isReady])
 
   const sevPie = metrics24?.by_severity
     ? [
@@ -67,6 +68,8 @@ export default function MetricsPage() {
     { name: 'IoC Coverage', value: iocCovPct, fill: '#00b4d8' },
     { name: 'FP Rate',      value: fpRatePct, fill: '#d92b2b' },
   ]
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">

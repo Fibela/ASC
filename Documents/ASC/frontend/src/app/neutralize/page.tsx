@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import {
   requestNeutralizeAction,
   approveNeutralizeAction,
@@ -317,7 +318,7 @@ function PendingCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function NeutralizePage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const mountedRef = useRef(true)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
@@ -367,12 +368,14 @@ export default function NeutralizePage() {
   }, [])
 
   useEffect(() => {
+    if (!isReady) return
     loadPending()
     loadHistory()
-  }, [loadPending, loadHistory])
+  }, [loadPending, loadHistory, isReady])
 
   // PANL: SSE subscription — auto-refresh on state changes
   useEffect(() => {
+    if (!isReady) return
     const unsub = subscribeToNotifications(
       (notif) => {
         if (!mountedRef.current) return
@@ -396,7 +399,7 @@ export default function NeutralizePage() {
       () => { /* SSE error — silently ignore, polling still works */ }
     )
     return unsub
-  }, [loadPending, loadHistory])
+  }, [loadPending, loadHistory, isReady])
 
   async function handleApprove(actionId: string) {
     await approveNeutralizeAction(actionId)
@@ -474,6 +477,8 @@ export default function NeutralizePage() {
   }
 
   const selectedDef = ACTIONS.find(a => a.value === form.action_type)
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="flex min-h-screen">

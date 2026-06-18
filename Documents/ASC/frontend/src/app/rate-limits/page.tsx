@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { getRole } from '@/lib/auth'
 import {
   listApiKeys,
@@ -140,7 +141,7 @@ function KpiStrip({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function RateLimitsPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [entries, setEntries] = useState<KeyWithStatus[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
@@ -187,13 +188,14 @@ export default function RateLimitsPage() {
   }, [])
 
   useEffect(() => {
+    if (!isReady) return
     setRole(getRole())
     loadStatuses()
     intervalRef.current = setInterval(loadStatuses, 30_000)
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [loadStatuses])
+  }, [loadStatuses, isReady])
 
   const handleReset = async (keyId: string, keyName: string) => {
     try {
@@ -205,6 +207,8 @@ export default function RateLimitsPage() {
     }
     setResetConfirm(null)
   }
+
+  if (!isReady) return <AuthLoader />
 
   return (
     <div className="p-6 min-h-screen bg-navy-900 text-white">

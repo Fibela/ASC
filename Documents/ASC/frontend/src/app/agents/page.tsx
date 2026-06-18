@@ -12,35 +12,39 @@ import {
   AgentCommand,
   AgentEvent,
 } from '@/lib/api'
+import { Sidebar } from '@/components/dashboard/Sidebar'
+import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
+import { Bot, RefreshCw } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 export function agentStatusColor(status: SprecterAgent['status']): string {
   switch (status) {
-    case 'active':      return 'text-green-400'
-    case 'inactive':    return 'text-gray-400'
-    case 'isolated':    return 'text-yellow-400'
-    case 'compromised': return 'text-red-500'
-    default:            return 'text-gray-400'
+    case 'active':      return 'text-[#3FD175]'
+    case 'inactive':    return 'text-[#5A5A5A]'
+    case 'isolated':    return 'text-[#F2C205]'
+    case 'compromised': return 'text-[#E8526E]'
+    default:            return 'text-[#5A5A5A]'
   }
 }
 
 export function threatBadgeColor(level: SprecterAgent['threat_level']): string {
   switch (level) {
-    case 'critical': return 'bg-red-600 text-white'
-    case 'elevated': return 'bg-yellow-500 text-black'
-    case 'normal':   return 'bg-green-700 text-white'
-    default:         return 'bg-gray-600 text-white'
+    case 'critical': return 'bg-[#C0152E] text-white'
+    case 'elevated': return 'bg-[#E85D04] text-white'
+    case 'normal':   return 'bg-[#1a3a25] text-[#3FD175]'
+    default:         return 'bg-[#222222] text-[#5A5A5A]'
   }
 }
 
 export function severityColor(severity: string): string {
   switch (severity) {
-    case 'critical': return 'text-red-500'
-    case 'high':     return 'text-orange-400'
-    case 'medium':   return 'text-yellow-400'
-    case 'low':      return 'text-blue-400'
-    default:         return 'text-gray-300'
+    case 'critical': return 'text-[#E8526E]'
+    case 'high':     return 'text-[#FF7A25]'
+    case 'medium':   return 'text-[#F2C205]'
+    case 'low':      return 'text-[#3FD175]'
+    default:         return 'text-[#A0A0A0]'
   }
 }
 
@@ -118,8 +122,8 @@ function CommandParamForm({ commandType, onParamsChange }: CommandFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commandType, pid, ip, unblockDir, domain, ascIp, ascPort, dryRun, pattern, dataSource, logPath, sinceMinutes, isRegex])
 
-  const inputCls = 'w-full bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded px-2 py-1.5 focus:outline-none focus:border-blue-500'
-  const labelCls = 'text-xs text-gray-400 mb-1'
+  const inputCls = 'input-asc'
+  const labelCls = 'text-xs font-semibold uppercase tracking-widest mb-1.5'
   const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <div>
       <p className={labelCls}>{label}</p>
@@ -433,66 +437,95 @@ export default function AgentsPage() {
 
   const cmdDef = COMMANDS.find(c => c.type === commandType)!
 
+  const { isReady } = useAuthGuard()
+
+  if (!isReady) return <AuthLoader />
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <span className="text-gray-400 text-sm">Loading SPECTER agents…</span>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-3" style={{ color: '#3A3A3A' }}>
+            <RefreshCw size={18} className="animate-spin" style={{ color: '#E85D04' }} />
+            <span className="text-sm">Cargando agentes SPECTER…</span>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">SPECTER Agents</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {agents.length} endpoint{agents.length !== 1 ? 's' : ''} registered
-          </p>
-        </div>
-        <button
-          onClick={loadAgents}
-          className="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition"
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        {/* Header */}
+        <div
+          className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+          style={{
+            background:   'rgba(10,10,10,0.92)',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(12px)',
+          }}
         >
-          Refresh
-        </button>
-      </div>
+          <div className="flex items-center gap-3">
+            <Bot size={18} style={{ color: '#E85D04' }} />
+            <div>
+              <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>
+                Agentes SPECTER
+              </h1>
+              <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
+                {agents.length} endpoint{agents.length !== 1 ? 's' : ''} registrados
+              </p>
+            </div>
+          </div>
+          <button onClick={loadAgents} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+            <RefreshCw size={13} />
+            Actualizar
+          </button>
+        </div>
 
+      <div className="p-6 space-y-5 animate-fade-in">
       {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded p-3 text-red-300 text-sm">
+        <div className="rounded-xl px-4 py-3 text-sm"
+          style={{ background: 'rgba(192,21,46,0.1)', border: '1px solid rgba(192,21,46,0.3)', color: '#E8526E' }}>
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Agent list */}
         <div className="lg:col-span-1 space-y-2">
           {agents.length === 0 && (
-            <p className="text-gray-500 text-sm">No agents registered yet.</p>
+            <p className="text-sm" style={{ color: '#3A3A3A' }}>
+              Sin agentes registrados aún.
+            </p>
           )}
           {agents.map(agent => (
             <button
               key={agent.id}
               onClick={() => selectAgent(agent)}
-              className={`w-full text-left rounded-lg border p-3 transition ${
+              className="w-full text-left rounded-xl p-3 transition-all duration-150"
+              style={
                 selected?.id === agent.id
-                  ? 'border-blue-500 bg-blue-900/20'
-                  : 'border-gray-700 bg-gray-800 hover:border-gray-500'
-              }`}
+                  ? { background: 'rgba(232,93,4,0.1)', border: '1px solid rgba(232,93,4,0.35)' }
+                  : { background: 'rgba(14,14,14,0.8)', border: '1px solid rgba(255,255,255,0.06)' }
+              }
+              onMouseEnter={e => { if (selected?.id !== agent.id) (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)') }}
+              onMouseLeave={e => { if (selected?.id !== agent.id) (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)') }}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-white text-sm font-medium truncate">{agent.hostname}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded ${threatBadgeColor(agent.threat_level)}`}>
+                <span className="text-sm font-medium truncate" style={{ color: '#EAEAEA' }}>{agent.hostname}</span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider ${threatBadgeColor(agent.threat_level)}`}>
                   {agent.threat_level}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs">
                 <span className={agentStatusColor(agent.status)}>{agent.status}</span>
-                <span className="text-gray-500">·</span>
-                <span className="text-gray-400">{agent.os_type} {agent.arch}</span>
+                <span style={{ color: '#3A3A3A' }}>·</span>
+                <span style={{ color: '#5A5A5A' }}>{agent.os_type} {agent.arch}</span>
               </div>
-              <div className="text-xs text-gray-500 mt-1 truncate">{agent.ip_address}</div>
+              <div className="text-xs mt-1 truncate font-mono" style={{ color: '#3A3A3A' }}>{agent.ip_address}</div>
             </button>
           ))}
         </div>
@@ -501,17 +534,17 @@ export default function AgentsPage() {
         {selected ? (
           <div className="lg:col-span-2 space-y-4">
             {/* Detail card */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              <div className="flex items-start justify-between mb-3">
+            <div className="card p-5">
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">{selected.hostname}</h2>
-                  <p className="text-gray-400 text-xs">{selected.id}</p>
+                  <h2 className="text-base font-semibold" style={{ color: '#EAEAEA' }}>{selected.hostname}</h2>
+                  <p className="text-xs font-mono mt-0.5" style={{ color: '#3A3A3A' }}>{selected.id}</p>
                 </div>
                 <button
                   onClick={handleDeregister}
-                  className="text-xs text-red-400 hover:text-red-300 border border-red-800 hover:border-red-600 px-2 py-1 rounded transition"
+                  className="btn-danger text-xs py-1 px-3"
                 >
-                  Deregister
+                  Deregistrar
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
@@ -527,17 +560,19 @@ export default function AgentsPage() {
             </div>
 
             {/* Threat level controls */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-300 mb-3">Threat Level</h3>
+            <div className="card p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#5A5A5A' }}>
+                Nivel de Amenaza
+              </h3>
               <div className="flex gap-2">
                 {(['normal', 'elevated', 'critical'] as const).map(level => (
                   <button
                     key={level}
                     onClick={() => handleSetThreat(level)}
-                    className={`flex-1 py-1.5 text-xs rounded border transition ${
+                    className={`flex-1 py-1.5 text-xs rounded-xl border transition-all font-semibold uppercase tracking-wider ${
                       selected.threat_level === level
                         ? threatBadgeColor(level) + ' border-transparent'
-                        : 'border-gray-600 text-gray-300 hover:border-gray-400'
+                        : 'border-[rgba(255,255,255,0.08)] text-[#5A5A5A] hover:border-[rgba(255,255,255,0.16)]'
                     }`}
                   >
                     {level}
@@ -547,19 +582,27 @@ export default function AgentsPage() {
             </div>
 
             {/* Tabs: Command / History / Timeline */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
-              <div className="flex border-b border-gray-700">
+            <div className="card overflow-hidden">
+              <div
+                className="flex"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+              >
                 {(['command', 'history', 'timeline'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`flex-1 py-2 text-xs capitalize transition ${
+                    className="flex-1 py-2.5 text-xs capitalize transition-all"
+                    style={
                       activeTab === tab
-                        ? 'text-blue-400 border-b-2 border-blue-500 bg-gray-700/40'
-                        : 'text-gray-400 hover:text-gray-200'
-                    }`}
+                        ? {
+                            color:       '#FF7A25',
+                            borderBottom: '2px solid #E85D04',
+                            background:  'rgba(232,93,4,0.06)',
+                          }
+                        : { color: '#5A5A5A' }
+                    }
                   >
-                    {tab === 'command' ? 'Issue Command' : tab === 'history' ? 'Command History' : 'Event Timeline'}
+                    {tab === 'command' ? 'Emitir Comando' : tab === 'history' ? 'Historial' : 'Timeline'}
                   </button>
                 ))}
               </div>
@@ -698,11 +741,18 @@ export default function AgentsPage() {
             </div>
           </div>
         ) : (
-          <div className="lg:col-span-2 flex items-center justify-center h-48 border border-dashed border-gray-700 rounded-lg">
-            <p className="text-gray-500 text-sm">Select an agent to view details and issue commands</p>
+          <div
+            className="lg:col-span-2 flex items-center justify-center h-48 rounded-2xl"
+            style={{ border: '1px dashed rgba(255,255,255,0.08)' }}
+          >
+            <p className="text-sm" style={{ color: '#3A3A3A' }}>
+              Selecciona un agente para ver detalles y emitir comandos
+            </p>
           </div>
         )}
       </div>
+      </div>
+      </main>
     </div>
   )
 }

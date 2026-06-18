@@ -15,7 +15,9 @@ import {
   PCDIScore, PCDICorrelation, PCDISignedReport,
 } from '@/lib/api'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 import { getRole } from '@/lib/auth'
+import { Sidebar } from '@/components/dashboard/Sidebar'
 
 // ── MITRE ATT&CK — curated common techniques ──────────────────────────────────
 const MITRE_TECHNIQUES: { id: string; name: string; tactic: string }[] = [
@@ -54,10 +56,10 @@ const MITRE_TECHNIQUES: { id: string; name: string; tactic: string }[] = [
 // ── Badge helpers ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    draft: 'bg-gray-700 text-gray-300',
-    active: 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40',
-    completed: 'bg-green-500/20 text-green-400',
-    archived: 'bg-gray-600/30 text-gray-500',
+    draft:     'bg-[rgba(90,90,90,0.15)]         text-[#5A5A5A]',
+    active:    'bg-[rgba(232,93,4,0.12)]  text-[#FF7A25]  border border-[rgba(232,93,4,0.3)]',
+    completed: 'bg-[rgba(45,184,99,0.1)]  text-[#3FD175]',
+    archived:  'bg-[rgba(58,58,58,0.3)]   text-[#3A3A3A]',
   }
   const icons: Record<string, React.ReactNode> = {
     draft: <Clock size={11} />,
@@ -75,10 +77,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function PriorityBadge({ priority }: { priority: string }) {
   const map: Record<string, string> = {
-    critical: 'bg-red-500/20 text-red-400',
-    high: 'bg-orange-500/20 text-orange-400',
-    medium: 'bg-yellow-500/20 text-yellow-400',
-    low: 'bg-green-500/20 text-green-400',
+    critical: 'bg-[rgba(192,21,46,0.1)]  text-[#E8526E]',
+    high:     'bg-[rgba(232,93,4,0.1)]   text-[#FF7A25]',
+    medium:   'bg-[rgba(242,194,5,0.1)]  text-[#F2C205]',
+    low:      'bg-[rgba(45,184,99,0.1)]  text-[#3FD175]',
   }
   return (
     <span className={`px-2 py-0.5 rounded text-xs font-medium ${map[priority] ?? 'bg-gray-700 text-gray-300'}`}>
@@ -89,11 +91,11 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function SevBadge({ sev }: { sev: string }) {
   const map: Record<string, string> = {
-    critical: 'bg-red-600 text-white',
-    high: 'bg-orange-500 text-white',
-    medium: 'bg-yellow-500 text-black',
-    low: 'bg-blue-500 text-white',
-    info: 'bg-gray-600 text-gray-300',
+    critical: 'bg-[#C0152E] text-white',
+    high:     'bg-[#E85D04] text-white',
+    medium:   'bg-[rgba(242,194,5,0.15)] text-[#F2C205]',
+    low:      'bg-[rgba(45,184,99,0.1)] text-[#3FD175]',
+    info:     'bg-[rgba(90,90,90,0.15)] text-[#5A5A5A]',
   }
   return (
     <span className={`px-1.5 py-0.5 rounded text-xs font-bold uppercase ${map[sev] ?? 'bg-gray-600 text-gray-300'}`}>
@@ -142,33 +144,38 @@ function CreateHuntModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-navy-900 border border-navy-700 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b border-navy-700">
-          <h2 className="text-white font-semibold flex items-center gap-2"><Crosshair size={18} className="text-cyan-400" /> Nueva Sesión de Hunting</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl"
+        style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <h2 className="font-semibold flex items-center gap-2 text-sm" style={{ color: '#EAEAEA' }}>
+            <Crosshair size={16} style={{ color: '#E85D04' }} /> Nueva Sesión de Hunting
+          </h2>
+          <button onClick={onClose} style={{ color: '#5A5A5A' }}>✕</button>
         </div>
         <div className="p-4 space-y-3">
-          {err && <p className="text-red-400 text-sm">{err}</p>}
+          {err && <p className="text-sm" style={{ color: '#E8526E' }}>{err}</p>}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Nombre *</label>
-            <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Nombre *</label>
+            <input className="input-asc"
               value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Hunt name" />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Descripción</label>
-            <textarea rows={2} className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white resize-none"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Descripción</label>
+            <textarea rows={2} className="input-asc resize-none"
               value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Hipótesis</label>
-            <textarea rows={2} className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white resize-none"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Hipótesis</label>
+            <textarea rows={2} className="input-asc resize-none"
               value={form.hypothesis} onChange={e => setForm(f => ({ ...f, hypothesis: e.target.value }))}
               placeholder="Sospechamos que..." />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Técnica MITRE ATT&CK</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Técnica MITRE ATT&CK</label>
+              <select className="input-asc"
                 value={form.mitre_technique} onChange={e => setForm(f => ({ ...f, mitre_technique: e.target.value }))}>
                 <option value="">— Seleccionar —</option>
                 {MITRE_TECHNIQUES.map(t => (
@@ -176,12 +183,12 @@ function CreateHuntModal({
                 ))}
               </select>
               {selectedTech && (
-                <p className="text-xs text-cyan-400 mt-1">Táctica: {selectedTech.tactic}</p>
+                <p className="text-xs mt-1" style={{ color: '#E85D04' }}>Táctica: {selectedTech.tactic}</p>
               )}
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Alcance</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Alcance</label>
+              <select className="input-asc"
                 value={form.scope} onChange={e => setForm(f => ({ ...f, scope: e.target.value }))}>
                 <option value="all">all</option>
                 <option value="host">host</option>
@@ -192,8 +199,8 @@ function CreateHuntModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Prioridad</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Prioridad</label>
+              <select className="input-asc"
                 value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                 <option value="critical">critical</option>
                 <option value="high">high</option>
@@ -202,23 +209,23 @@ function CreateHuntModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Asignado a</label>
-              <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Asignado a</label>
+              <input className="input-asc"
                 value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
                 placeholder="email@asc.local" />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Tags (separados por coma)</label>
-            <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Tags (separados por coma)</label>
+            <input className="input-asc"
               value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
               placeholder="ransomware, apt, lateral-movement" />
           </div>
         </div>
-        <div className="flex gap-2 justify-end p-4 border-t border-navy-700">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancelar</button>
+        <div className="flex gap-2 justify-end p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={onClose} className="btn-secondary text-xs px-4 py-2">Cancelar</button>
           <button onClick={submit} disabled={saving}
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-black text-sm font-medium rounded disabled:opacity-50">
+            className="btn-primary text-xs px-4 py-2 disabled:opacity-50">
             {saving ? 'Creando...' : 'Crear Hunt'}
           </button>
         </div>
@@ -265,29 +272,32 @@ function AddFindingModal({ huntId, onClose, onAdded }: { huntId: string; onClose
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <div className="bg-navy-900 border border-navy-700 rounded-lg w-full max-w-xl">
-        <div className="flex items-center justify-between p-4 border-b border-navy-700">
-          <h2 className="text-white font-semibold">Agregar Hallazgo</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
+      <div
+        className="w-full max-w-xl rounded-2xl"
+        style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <h2 className="font-semibold text-sm" style={{ color: '#EAEAEA' }}>Agregar Hallazgo</h2>
+          <button onClick={onClose} style={{ color: '#5A5A5A' }}>✕</button>
         </div>
         <div className="p-4 space-y-3">
-          {err && <p className="text-red-400 text-sm">{err}</p>}
+          {err && <p className="text-sm" style={{ color: '#E8526E' }}>{err}</p>}
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Título *</label>
-            <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Título *</label>
+            <input className="input-asc"
               value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Severidad</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Severidad</label>
+              <select className="input-asc"
                 value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))}>
                 {['critical','high','medium','low','info'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Fuente de datos</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Fuente de datos</label>
+              <select className="input-asc"
                 value={form.data_source} onChange={e => setForm(f => ({ ...f, data_source: e.target.value }))}>
                 {['elk','wazuh','specter_agent','manual'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -295,14 +305,14 @@ function AddFindingModal({ huntId, onClose, onAdded }: { huntId: string; onClose
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Valor indicador</label>
-              <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Valor indicador</label>
+              <input className="input-asc"
                 value={form.indicator_value} onChange={e => setForm(f => ({ ...f, indicator_value: e.target.value }))}
                 placeholder="1.2.3.4 / evil.com / hash..." />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Tipo indicador</label>
-              <select className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Tipo indicador</label>
+              <select className="input-asc"
                 value={form.indicator_type} onChange={e => setForm(f => ({ ...f, indicator_type: e.target.value }))}>
                 <option value="">— Tipo —</option>
                 {['ip','domain','url','hash_sha256','hash_md5','file_path','other'].map(t => (
@@ -313,26 +323,26 @@ function AddFindingModal({ huntId, onClose, onAdded }: { huntId: string; onClose
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Host afectado</label>
-              <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Host afectado</label>
+              <input className="input-asc"
                 value={form.affected_host} onChange={e => setForm(f => ({ ...f, affected_host: e.target.value }))} />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Usuario afectado</label>
-              <input className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+              <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Usuario afectado</label>
+              <input className="input-asc"
                 value={form.affected_user} onChange={e => setForm(f => ({ ...f, affected_user: e.target.value }))} />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Notas del analista</label>
-            <textarea rows={2} className="w-full bg-navy-800 border border-navy-600 rounded px-3 py-2 text-sm text-white resize-none"
+            <label className="block text-xs mb-1" style={{ color: '#A0A0A0' }}>Notas del analista</label>
+            <textarea rows={2} className="input-asc resize-none"
               value={form.analyst_notes} onChange={e => setForm(f => ({ ...f, analyst_notes: e.target.value }))} />
           </div>
         </div>
-        <div className="flex gap-2 justify-end p-4 border-t border-navy-700">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancelar</button>
+        <div className="flex gap-2 justify-end p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button onClick={onClose} className="btn-secondary text-xs px-4 py-2">Cancelar</button>
           <button onClick={submit} disabled={saving}
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-black text-sm font-medium rounded disabled:opacity-50">
+            className="btn-primary text-xs px-4 py-2 disabled:opacity-50">
             {saving ? 'Guardando...' : 'Agregar Hallazgo'}
           </button>
         </div>
@@ -533,9 +543,12 @@ function HuntDetail({
 
   return (
     <div className="fixed inset-0 bg-black/70 z-40 flex items-start justify-end p-4">
-      <div className="bg-navy-900 border border-navy-700 rounded-lg w-full max-w-2xl h-full max-h-[95vh] flex flex-col">
+      <div
+        className="w-full max-w-2xl h-full max-h-[95vh] flex flex-col rounded-2xl"
+        style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
         {/* Header */}
-        <div className="p-4 border-b border-navy-700 flex-shrink-0">
+        <div className="p-4 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -547,12 +560,12 @@ function HuntDetail({
                   </span>
                 )}
               </div>
-              <h2 className="text-white font-semibold mt-1 truncate">{hunt.name}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <h2 className="font-semibold mt-1 truncate text-sm" style={{ color: '#EAEAEA' }}>{hunt.name}</h2>
+              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
                 {hunt.findings_count} hallazgos · {hunt.true_positive_count} TP · creado por {hunt.created_by}
               </p>
             </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-white flex-shrink-0">✕</button>
+            <button onClick={onClose} className="flex-shrink-0" style={{ color: '#5A5A5A' }}>✕</button>
           </div>
 
           {/* Status workflow */}
@@ -560,13 +573,21 @@ function HuntDetail({
             <div className="mt-3 flex gap-2">
               {nextOptions.map(s => (
                 <button key={s} onClick={() => handleStatusChange(s)} disabled={statusChanging}
-                  className="px-3 py-1 text-xs bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 border border-cyan-500/40 rounded disabled:opacity-50">
+                  className="px-3 py-1 text-xs rounded disabled:opacity-50"
+                  style={{
+                    background: 'rgba(232,93,4,0.08)',
+                    border: '1px solid rgba(232,93,4,0.3)',
+                    color: '#FF7A25',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,93,4,0.15)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(232,93,4,0.08)')}
+                >
                   {statusChanging ? '...' : `→ ${s}`}
                 </button>
               ))}
               {isAdmin && hunt.status !== 'archived' && (
                 <button onClick={async () => { await archiveHunt(hunt.id); onRefresh(); onClose() }}
-                  className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-400 rounded flex items-center gap-1">
+                  className="btn-secondary px-3 py-1 text-xs flex items-center gap-1">
                   <Archive size={11} /> Archivar
                 </button>
               )}
@@ -575,10 +596,15 @@ function HuntDetail({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-navy-700 flex-shrink-0">
+        <div className="flex flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           {(['findings', 'queries', 'info', 'report', 'pcdi'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-2 text-sm capitalize transition-colors flex items-center gap-1 ${tab === t ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-gray-400 hover:text-white'}`}>
+              className="px-3 py-2 text-xs capitalize transition-colors flex items-center gap-1"
+              style={tab === t
+                ? { color: '#FF7A25', borderBottom: '2px solid #E85D04' }
+                : { color: '#5A5A5A' }
+              }
+            >
               {t === 'pcdi' && <Brain size={11} />}
               {t === 'findings' ? `Hallazgos (${findings.length})` : t === 'queries' ? `Queries (${queries.length})` : t === 'report' ? 'Reporte' : t === 'pcdi' ? 'PCDI' : 'Info'}
             </button>
@@ -589,25 +615,45 @@ function HuntDetail({
         <div className="flex-1 overflow-y-auto p-4">
           {/* Toast */}
           {toast && (
-            <div className="mb-3 px-3 py-2 bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-400 text-sm">{toast}</div>
+            <div
+              className="mb-3 px-3 py-2 rounded text-sm"
+              style={{
+                background: 'rgba(232,93,4,0.10)',
+                border: '1px solid rgba(232,93,4,0.3)',
+                color: '#FF7A25',
+              }}
+            >{toast}</div>
           )}
 
           {/* Findings tab */}
           {tab === 'findings' && (
             <div className="space-y-2">
-              <button onClick={() => setShowAddFinding(true)}
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 mb-3">
+              <button
+                onClick={() => setShowAddFinding(true)}
+                className="flex items-center gap-1 text-xs mb-3"
+                style={{ color: '#E85D04' }}
+              >
                 <Plus size={12} /> Agregar hallazgo
               </button>
               {findings.length === 0 && (
-                <p className="text-gray-500 text-sm text-center py-8">Sin hallazgos registrados</p>
+                <p className="text-sm text-center py-8" style={{ color: '#3A3A3A' }}>Sin hallazgos registrados</p>
               )}
               {findings.map(f => (
-                <div key={f.id} className={`border rounded p-3 space-y-1 ${f.is_confirmed ? 'border-red-500/40 bg-red-500/5' : f.is_false_positive ? 'border-gray-600 bg-gray-800/30' : 'border-navy-600 bg-navy-800/50'}`}>
+                <div
+                  key={f.id}
+                  className="border rounded-xl p-3 space-y-1"
+                  style={
+                    f.is_confirmed
+                      ? { border: '1px solid rgba(192,21,46,0.3)', background: 'rgba(192,21,46,0.05)' }
+                      : f.is_false_positive
+                        ? { border: '1px solid rgba(90,90,90,0.3)', background: 'rgba(90,90,90,0.05)' }
+                        : { border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }
+                  }
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <SevBadge sev={f.severity} />
-                      <span className="text-white text-sm font-medium">{f.title}</span>
+                      <span className="text-sm font-medium" style={{ color: '#EAEAEA' }}>{f.title}</span>
                     </div>
                     <div className="flex gap-1 flex-shrink-0 items-center">
                       {/* PCDI Adaptive Score */}
@@ -669,37 +715,50 @@ function HuntDetail({
           {/* Queries tab */}
           {tab === 'queries' && (
             <div className="space-y-3">
-              <button onClick={() => setShowAddQuery(v => !v)}
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300">
+              <button
+                onClick={() => setShowAddQuery(v => !v)}
+                className="flex items-center gap-1 text-xs"
+                style={{ color: '#E85D04' }}
+              >
                 <Plus size={12} /> {showAddQuery ? 'Cancelar' : 'Guardar query'}
               </button>
               {showAddQuery && (
-                <div className="border border-navy-600 rounded p-3 space-y-2 bg-navy-800/50">
-                  <input className="w-full bg-navy-700 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+                <div
+                  className="rounded-xl p-3 space-y-2"
+                  style={{ border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.3)' }}
+                >
+                  <input className="input-asc"
                     placeholder="Nombre de la query" value={queryForm.name}
                     onChange={e => setQueryForm(f => ({ ...f, name: e.target.value }))} />
-                  <select className="w-full bg-navy-700 border border-navy-600 rounded px-3 py-2 text-sm text-white"
+                  <select className="input-asc"
                     value={queryForm.data_source} onChange={e => setQueryForm(f => ({ ...f, data_source: e.target.value }))}>
                     {['elk','wazuh','specter_agent','manual'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <textarea rows={4} className="w-full bg-navy-700 border border-navy-600 rounded px-3 py-2 text-sm text-white font-mono resize-none"
+                  <textarea rows={4} className="input-asc font-mono resize-none"
                     placeholder="query DSL / KQL / SQL / notas..." value={queryForm.query_text}
                     onChange={e => setQueryForm(f => ({ ...f, query_text: e.target.value }))} />
                   <button onClick={handleSaveQuery} disabled={savingQuery}
-                    className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-black text-sm rounded disabled:opacity-50">
+                    className="btn-primary text-xs px-4 py-1.5 disabled:opacity-50">
                     {savingQuery ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               )}
               {queries.length === 0 && !showAddQuery && (
-                <p className="text-gray-500 text-sm text-center py-8">Sin queries guardadas</p>
+                <p className="text-sm text-center py-8" style={{ color: '#3A3A3A' }}>Sin queries guardadas</p>
               )}
               {queries.map(q => (
-                <div key={q.id} className="border border-navy-600 rounded p-3 bg-navy-800/50">
+                <div
+                  key={q.id}
+                  className="rounded-xl p-3"
+                  style={{ border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}
+                >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-white text-sm font-medium">{q.name}</span>
+                    <span className="text-sm font-medium" style={{ color: '#EAEAEA' }}>{q.name}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 bg-navy-700 px-2 py-0.5 rounded">{q.data_source}</span>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ background: 'rgba(90,90,90,0.2)', color: '#5A5A5A' }}
+                      >{q.data_source}</span>
                       <button onClick={() => handleExecuteQuery(q.id)} disabled={executing[q.id]}
                         className="flex items-center gap-1 text-xs text-green-400 hover:text-green-300 disabled:opacity-40 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded">
                         <Play size={10} /> {executing[q.id] ? '...' : 'Ejecutar'}
@@ -730,7 +789,7 @@ function HuntDetail({
             <div className="space-y-4">
               <div className="flex gap-2 flex-wrap">
                 <button onClick={loadReport} disabled={reportLoading}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/40 rounded disabled:opacity-50">
+                  className="btn-secondary flex items-center gap-2 text-xs px-3 py-1.5 disabled:opacity-50">
                   <FileText size={12} className={reportLoading ? 'animate-pulse' : ''} />
                   {reportLoading ? 'Generando...' : report ? 'Regenerar Reporte' : 'Generar Reporte'}
                 </button>
@@ -755,9 +814,12 @@ function HuntDetail({
                   <div className="text-xs text-gray-500">
                     Generado: {new Date(report.report_generated_at).toLocaleString()}
                   </div>
-                  <div className="p-3 bg-navy-800 border border-navy-600 rounded">
-                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Resumen ejecutivo</p>
-                    <p className="text-gray-300">{report.executive_summary}</p>
+                  <div
+                    className="p-3 rounded-xl"
+                    style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}
+                  >
+                    <p className="text-xs uppercase tracking-wider mb-1" style={{ color: '#5A5A5A' }}>Resumen ejecutivo</p>
+                    <p style={{ color: '#A0A0A0' }}>{report.executive_summary}</p>
                   </div>
                   {report.hypothesis && (
                     <div>
@@ -784,7 +846,7 @@ function HuntDetail({
                             <SevBadge sev={sev} /> {list.length} hallazgo(s)
                           </p>
                           {list.map((f: HuntFinding) => (
-                            <div key={f.id} className="ml-2 text-xs text-gray-400 py-0.5 border-l border-navy-600 pl-2">
+                            <div key={f.id} className="ml-2 text-xs py-0.5 pl-2" style={{ color: '#5A5A5A', borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
                               {f.title}{f.indicator_value ? ` — ${f.indicator_value}` : ''}
                               {f.is_confirmed && <span className="ml-1 text-green-400">TP</span>}
                               {f.is_false_positive && <span className="ml-1 text-gray-500">FP</span>}
@@ -840,17 +902,17 @@ function HuntDetail({
               {correlation && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-navy-800 border border-navy-600 rounded p-2 text-center">
-                      <p className="text-xs text-gray-500">Hallazgos</p>
-                      <p className="text-lg font-bold text-white">{correlation.findings_analyzed}</p>
+                    <div className="rounded-xl p-2 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <p className="text-xs" style={{ color: '#5A5A5A' }}>Hallazgos</p>
+                      <p className="text-lg font-bold" style={{ color: '#EAEAEA' }}>{correlation.findings_analyzed}</p>
                     </div>
-                    <div className="bg-navy-800 border border-orange-500/30 rounded p-2 text-center">
-                      <p className="text-xs text-gray-500">Acciones PANL</p>
-                      <p className="text-lg font-bold text-orange-400">{correlation.total_panl_matches}</p>
+                    <div className="rounded-xl p-2 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(232,93,4,0.25)' }}>
+                      <p className="text-xs" style={{ color: '#5A5A5A' }}>Acciones PANL</p>
+                      <p className="text-lg font-bold" style={{ color: '#FF7A25' }}>{correlation.total_panl_matches}</p>
                     </div>
-                    <div className="bg-navy-800 border border-red-500/30 rounded p-2 text-center">
-                      <p className="text-xs text-gray-500">Indicadores TI</p>
-                      <p className="text-lg font-bold text-red-400">{correlation.total_ti_matches}</p>
+                    <div className="rounded-xl p-2 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(192,21,46,0.25)' }}>
+                      <p className="text-xs" style={{ color: '#5A5A5A' }}>Indicadores TI</p>
+                      <p className="text-lg font-bold" style={{ color: '#E8526E' }}>{correlation.total_ti_matches}</p>
                     </div>
                   </div>
 
@@ -860,7 +922,7 @@ function HuntDetail({
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Acciones PANL correlacionadas</p>
                       <div className="space-y-1">
                         {correlation.panl_correlations.map(a => (
-                          <div key={a.action_id} className="flex items-center gap-2 text-xs border border-navy-600 rounded px-2 py-1">
+                          <div key={a.action_id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
                             <span className={`px-1.5 rounded font-medium ${a.status === 'completed' ? 'bg-green-500/20 text-green-400' : a.status === 'failed' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{a.status}</span>
                             <span className="text-gray-400">{a.action_type}</span>
                             <span className="font-mono text-gray-300 truncate">{a.target}</span>
@@ -877,7 +939,7 @@ function HuntDetail({
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Indicadores TI correlacionados</p>
                       <div className="space-y-1">
                         {correlation.ti_correlations.map(ti => (
-                          <div key={ti.indicator_id} className="flex items-center gap-2 text-xs border border-navy-600 rounded px-2 py-1">
+                          <div key={ti.indicator_id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
                             <span className="text-gray-500">[{ti.type}]</span>
                             <span className="font-mono text-gray-300 truncate">{ti.value}</span>
                             <span className={`ml-auto px-1.5 rounded font-bold text-xs ${ti.severity === 'critical' ? 'bg-red-600 text-white' : ti.severity === 'high' ? 'bg-orange-500 text-white' : 'bg-yellow-500 text-black'}`}>{ti.severity}</span>
@@ -901,7 +963,7 @@ function HuntDetail({
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Scores PCDI calculados ({Object.keys(pcdiScores).length})</p>
                   <div className="space-y-1">
                     {Object.values(pcdiScores).map(s => (
-                      <div key={s.finding_id} className="flex items-center gap-2 text-xs border border-navy-600 rounded px-2 py-1">
+                      <div key={s.finding_id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1" style={{ border: '1px solid rgba(255,255,255,0.05)' }}>
                         <span className={`w-8 text-center font-bold rounded px-1 ${s.adaptive_score >= 80 ? 'bg-red-600 text-white' : s.adaptive_score >= 60 ? 'bg-orange-500 text-white' : s.adaptive_score >= 40 ? 'bg-yellow-500 text-black' : 'bg-gray-600 text-gray-200'}`}>{s.adaptive_score}</span>
                         <span className="text-gray-400">{s.original_severity} → <span className="font-medium text-gray-300">{s.adapted_severity}</span></span>
                         {s.severity_escalated && <span className="text-orange-400 text-xs">⬆ escalado</span>}
@@ -912,7 +974,7 @@ function HuntDetail({
                 </div>
               )}
 
-              <p className="text-xs text-gray-600 border-t border-navy-700 pt-2">
+              <p className="text-xs pt-2" style={{ color: '#3A3A3A', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 PCDI combina Threat Intelligence, historial PANL y contexto del hunt para calcular scores adaptativos y correlaciones cross-dominio.
               </p>
             </div>
@@ -961,7 +1023,7 @@ function HuntDetail({
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Tags</p>
                   <div className="flex flex-wrap gap-1">
                     {hunt.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 bg-navy-700 text-gray-300 rounded text-xs">{tag}</span>
+                      <span key={tag} className="px-2 py-0.5 rounded text-xs" style={{ background: 'rgba(90,90,90,0.15)', color: '#A0A0A0' }}>{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -983,7 +1045,7 @@ function HuntDetail({
 const PAGE_SIZE = 25
 
 export default function ThreatHuntingPage() {
-  useAuthGuard()
+  const { isReady } = useAuthGuard()
 
   const [stats, setStats] = useState<HuntStats | null>(null)
   const [hunts, setHunts] = useState<Hunt[]>([])
@@ -1020,7 +1082,7 @@ export default function ThreatHuntingPage() {
     }
   }, [statusFilter, priorityFilter, offset])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
 
   const filtered = search
     ? hunts.filter(h =>
@@ -1033,47 +1095,63 @@ export default function ThreatHuntingPage() {
   const pages = Math.ceil(total / PAGE_SIZE)
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1
 
+  if (!isReady) return <AuthLoader />
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Crosshair className="text-cyan-400" size={24} />
-            Threat Hunting
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Cazería proactiva de amenazas — análisis pasivo de logs y eventos recolectados
-          </p>
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+      {/* Sticky header */}
+      <div
+        className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
+        style={{
+          background:     'rgba(10,10,10,0.92)',
+          borderBottom:   '1px solid rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <Crosshair size={18} style={{ color: '#E85D04' }} />
+          <div>
+            <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>Threat Hunting</h1>
+            <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
+              Cazería proactiva — análisis pasivo de logs y eventos
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={load} className="p-2 text-gray-400 hover:text-white transition-colors" title="Recargar">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        <div className="flex items-center gap-2">
+          <button onClick={load} className="btn-secondary p-1.5">
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           </button>
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-black text-sm font-medium rounded">
-            <Plus size={16} /> Nueva Hunt
+            className="btn-primary flex items-center gap-2 text-xs py-1.5 px-3">
+            <Plus size={14} /> Nueva Hunt
           </button>
         </div>
       </div>
+      <div className="p-6 space-y-5 animate-fade-in">
 
       {err && <div className="px-4 py-3 bg-red-500/20 border border-red-500/40 rounded text-red-400 text-sm">{err}</div>}
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {[
-            { label: 'Hunts totales', value: stats.total_hunts, icon: <Crosshair size={18} />, color: 'text-cyan-400' },
-            { label: 'Activas', value: stats.active_hunts, icon: <Activity size={18} />, color: 'text-green-400' },
-            { label: 'Completadas', value: stats.completed_hunts, icon: <CheckCircle2 size={18} />, color: 'text-blue-400' },
-            { label: 'Total Hallazgos', value: stats.total_findings, icon: <Target size={18} />, color: 'text-orange-400' },
-            { label: 'True Positives', value: stats.confirmed_findings, icon: <AlertTriangle size={18} />, color: 'text-red-400' },
-            { label: 'Tasa FP', value: `${(stats.false_positive_rate * 100).toFixed(0)}%`, icon: <Eye size={18} />, color: 'text-purple-400' },
+            { label: 'Hunts totales',  value: stats.total_hunts,       icon: <Crosshair  size={16} />, color: '#E85D04' },
+            { label: 'Activas',        value: stats.active_hunts,       icon: <Activity   size={16} />, color: '#3FD175' },
+            { label: 'Completadas',    value: stats.completed_hunts,    icon: <CheckCircle2 size={16} />, color: '#4A90D9' },
+            { label: 'Total Hallazgos', value: stats.total_findings,    icon: <Target     size={16} />, color: '#FF7A25' },
+            { label: 'True Positives', value: stats.confirmed_findings, icon: <AlertTriangle size={16} />, color: '#E8526E' },
+            { label: 'Tasa FP',        value: `${(stats.false_positive_rate * 100).toFixed(0)}%`, icon: <Eye size={16} />, color: '#A0A0A0' },
           ].map(({ label, value, icon, color }) => (
-            <div key={label} className="bg-navy-800 border border-navy-700 rounded-lg p-4">
-              <div className={`${color} mb-2`}>{icon}</div>
-              <p className="text-2xl font-bold text-white">{value}</p>
-              <p className="text-xs text-gray-400 mt-1">{label}</p>
+            <div
+              key={label}
+              className="rounded-xl p-4"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <div className="mb-2" style={{ color }}>{icon}</div>
+              <p className="text-2xl font-bold" style={{ color: '#EAEAEA' }}>{value}</p>
+              <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>{label}</p>
             </div>
           ))}
         </div>
@@ -1081,9 +1159,12 @@ export default function ThreatHuntingPage() {
 
       {/* Top techniques */}
       {stats && stats.top_techniques.length > 0 && (
-        <div className="bg-navy-800 border border-navy-700 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
-            <BarChart3 size={14} className="text-purple-400" /> Técnicas más investigadas
+        <div
+          className="rounded-xl p-4"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <h3 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: '#A0A0A0' }}>
+            <BarChart3 size={14} style={{ color: '#A06CE8' }} /> Técnicas más investigadas
           </h3>
           <div className="flex flex-wrap gap-2">
             {stats.top_techniques.map(t => (
@@ -1099,17 +1180,19 @@ export default function ThreatHuntingPage() {
       {/* Filters + Search */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input className="w-full bg-navy-800 border border-navy-700 rounded pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500"
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#5A5A5A' }} />
+          <input
+            className="input-asc pl-9"
             placeholder="Buscar por nombre, técnica, tag..."
-            value={search} onChange={e => setSearch(e.target.value)} />
+            value={search} onChange={e => setSearch(e.target.value)}
+          />
         </div>
-        <select className="bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-gray-300"
+        <select className="input-asc" style={{ width: 'auto', minWidth: 160 }}
           value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setOffset(0) }}>
           <option value="">Todos los estados</option>
           {['draft','active','completed','archived'].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <select className="bg-navy-800 border border-navy-700 rounded px-3 py-2 text-sm text-gray-300"
+        <select className="input-asc" style={{ width: 'auto', minWidth: 160 }}
           value={priorityFilter} onChange={e => { setPriorityFilter(e.target.value); setOffset(0) }}>
           <option value="">Todas las prioridades</option>
           {['critical','high','medium','low'].map(p => <option key={p} value={p}>{p}</option>)}
@@ -1117,34 +1200,51 @@ export default function ThreatHuntingPage() {
       </div>
 
       {/* Hunt List */}
-      <div className="bg-navy-800 border border-navy-700 rounded-lg overflow-hidden">
-        <div className="px-4 py-3 border-b border-navy-700 flex items-center justify-between">
-          <span className="text-sm text-gray-400">
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        <div
+          className="px-4 py-3 flex items-center justify-between"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+        >
+          <span className="text-sm" style={{ color: '#5A5A5A' }}>
             {total} hunt{total !== 1 ? 's' : ''} · página {currentPage}/{pages || 1}
           </span>
         </div>
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Cargando...</div>
+          <div className="p-8 text-center text-sm" style={{ color: '#3A3A3A' }}>
+            <RefreshCw size={20} className="mx-auto mb-2 animate-spin" style={{ color: '#E85D04' }} />
+            Cargando...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Crosshair size={32} className="mx-auto mb-2 opacity-30" />
-            Sin hunts registradas
+          <div className="p-8 text-center" style={{ color: '#3A3A3A' }}>
+            <Crosshair size={32} className="mx-auto mb-2 opacity-20" style={{ color: '#E85D04' }} />
+            <p className="text-sm">Sin hunts registradas</p>
           </div>
         ) : (
-          <div className="divide-y divide-navy-700">
-            {filtered.map(hunt => (
-              <div key={hunt.id}
-                className="px-4 py-3 hover:bg-navy-700/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedHunt(hunt)}>
+          <div>
+            {filtered.map((hunt, idx) => (
+              <div
+                key={hunt.id}
+                className="px-4 py-3 cursor-pointer transition-colors"
+                style={{
+                  borderTop: idx > 0 ? '1px solid rgba(255,255,255,0.04)' : undefined,
+                }}
+                onClick={() => setSelectedHunt(hunt)}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,93,4,0.04)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <Crosshair size={14} className={
-                      hunt.status === 'active' ? 'text-cyan-400' :
-                      hunt.status === 'completed' ? 'text-green-400' :
-                      hunt.status === 'archived' ? 'text-gray-600' : 'text-gray-500'
-                    } />
+                    <Crosshair size={14} style={{
+                      color: hunt.status === 'active' ? '#E85D04'
+                           : hunt.status === 'completed' ? '#3FD175'
+                           : hunt.status === 'archived' ? '#3A3A3A'
+                           : '#5A5A5A'
+                    }} />
                     <div className="min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{hunt.name}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: '#EAEAEA' }}>{hunt.name}</p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <StatusBadge status={hunt.status} />
                         <PriorityBadge priority={hunt.priority} />
@@ -1152,26 +1252,26 @@ export default function ThreatHuntingPage() {
                           <span className="text-xs font-mono text-purple-400">{hunt.mitre_technique}</span>
                         )}
                         {hunt.tags.slice(0, 2).map(tag => (
-                          <span key={tag} className="text-xs text-gray-500 bg-navy-700 px-1.5 py-0.5 rounded">{tag}</span>
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(90,90,90,0.15)', color: '#5A5A5A' }}>{tag}</span>
                         ))}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 flex-shrink-0 text-right">
                     <div>
-                      <p className="text-white text-sm font-medium">{hunt.findings_count}</p>
-                      <p className="text-xs text-gray-500">hallazgos</p>
+                      <p className="text-sm font-medium" style={{ color: '#EAEAEA' }}>{hunt.findings_count}</p>
+                      <p className="text-xs" style={{ color: '#5A5A5A' }}>hallazgos</p>
                     </div>
                     {hunt.true_positive_count > 0 && (
                       <div>
-                        <p className="text-red-400 text-sm font-medium">{hunt.true_positive_count}</p>
-                        <p className="text-xs text-gray-500">TP</p>
+                        <p className="text-sm font-medium" style={{ color: '#E8526E' }}>{hunt.true_positive_count}</p>
+                        <p className="text-xs" style={{ color: '#5A5A5A' }}>TP</p>
                       </div>
                     )}
-                    <p className="text-xs text-gray-600 hidden md:block">
+                    <p className="text-xs hidden md:block" style={{ color: '#3A3A3A' }}>
                       {new Date(hunt.created_at).toLocaleDateString()}
                     </p>
-                    <ChevronRight size={14} className="text-gray-600" />
+                    <ChevronRight size={14} style={{ color: '#3A3A3A' }} />
                   </div>
                 </div>
               </div>
@@ -1180,12 +1280,23 @@ export default function ThreatHuntingPage() {
         )}
         {/* Pagination */}
         {pages > 1 && (
-          <div className="px-4 py-3 border-t border-navy-700 flex justify-between items-center">
+          <div
+            className="px-4 py-3 flex justify-between items-center"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+          >
             <button onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} disabled={offset === 0}
-              className="text-sm text-gray-400 hover:text-white disabled:opacity-40">← Anterior</button>
-            <span className="text-sm text-gray-500">{currentPage} / {pages}</span>
+              className="text-sm disabled:opacity-40 transition-colors"
+              style={{ color: '#5A5A5A' }}
+              onMouseEnter={e => { if (offset > 0) e.currentTarget.style.color = '#E85D04' }}
+              onMouseLeave={e => (e.currentTarget.style.color = '#5A5A5A')}
+            >← Anterior</button>
+            <span className="text-sm" style={{ color: '#3A3A3A' }}>{currentPage} / {pages}</span>
             <button onClick={() => setOffset(offset + PAGE_SIZE)} disabled={offset + PAGE_SIZE >= total}
-              className="text-sm text-gray-400 hover:text-white disabled:opacity-40">Siguiente →</button>
+              className="text-sm disabled:opacity-40 transition-colors"
+              style={{ color: '#5A5A5A' }}
+              onMouseEnter={e => { if (offset + PAGE_SIZE < total) e.currentTarget.style.color = '#E85D04' }}
+              onMouseLeave={e => (e.currentTarget.style.color = '#5A5A5A')}
+            >Siguiente →</button>
           </div>
         )}
       </div>
@@ -1198,6 +1309,8 @@ export default function ThreatHuntingPage() {
         <HuntDetail hunt={selectedHunt} isAdmin={isAdmin} onClose={() => setSelectedHunt(null)}
           onRefresh={() => { load(); setSelectedHunt(null) }} />
       )}
+      </div>
+      </main>
     </div>
   )
 }
