@@ -14,6 +14,10 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+// All pages require authentication (localStorage) — disable static generation globally.
+// Next.js would crash trying to access localStorage during SSG in Node.js.
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'ASC — Analizador de Seguridad Cibernética | PremosCorp',
   description: 'Plataforma SOC enterprise de detección, análisis y neutralización de amenazas cibernéticas.',
