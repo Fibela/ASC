@@ -4806,27 +4806,27 @@ Estado final P53-P55: **4103 passed, 14 skipped, 0 failed — 86.07% cobertura �
 
 ---
 
-## Session 76 � 2026-06-16 (FASE A � Frontend Critical Fixes)
+## Session 76 � 2026-06-16 (FASE A � Frontend Critical Fixes)
 
 ### Fase A: 5 Critical Frontend Bug Fixes
 
 | # | Date | Type | Description |
 |---|------|------|-------------|
-| 1329 | 2026-06-16 | FIX | **A-1 � `frontend/src/lib/auth.ts`**: SSO token expiry loop. SSO sessions (premoscorp.com ? /sso) have no refresh_token; the 401 interceptor was silently clearing tokens and redirecting to /login with no context. Fix: added `SSO_ORIGIN_KEY = 'asc_sso_origin'` localStorage flag, `markSSOSession('premoscorp')` helper, `getSSOOrigin()` getter. `refreshAccessToken()` now checks for SSO origin when refresh_token absent ? redirects to `${NEXT_PUBLIC_PORTAL_URL}/portal/seguridad` where auto-SSO re-fires. clearTokens() removes the flag on logout. |
-| 1330 | 2026-06-16 | FIX | **A-1 � `frontend/src/app/sso/page.tsx`**: SSO callback now calls `markSSOSession('premoscorp')` after storing access_token and role. Does NOT store asc_refresh_token (SSO sessions don't have one). Redirect uses `router.replace('/')` to prevent back-navigation to /sso with expired params. |
-| 1331 | 2026-06-16 | FIX | **A-2 � `frontend/src/app/page.tsx`**: Dashboard RULES hardcoded data replaced with live API data. Added `ApiRule` interface. `getDetectionRules()` fetched via `Promise.all`. Result filtered by `is_active !== false`, sliced to 4 entries. `hit_count` used for real counts (old code duplicated `bySeverity.critical` for two different rules). |
-| 1332 | 2026-06-16 | FIX | **A-3 � `frontend/src/app/page.tsx`**: Added `error` state (`useState<string \| null>(null)`). Catch block sets human-readable message using `e.message` (not raw Error object). Error banner renders with AlertCircle icon and "Reintentar" button when `error && !loading`. `setError(null)` called at start of each `load()`. |
-| 1333 | 2026-06-16 | FIX | **A-4 � `frontend/src/app/page.tsx`**: Removed `console.error()` call in catch block. Error surface is now UI-only (error state + banner). No log/warn/error calls in page.tsx. |
-| 1334 | 2026-06-16 | FIX | **A-5 � `frontend/src/lib/auth-guard.tsx`**: Complete rewrite. Old hook returned `boolean`; new hook returns `{ isReady: boolean }` (explicit object). `useState(false)` initial value prevents FOUC � caller renders `<AuthLoader>` until auth check resolves. `useEffect` sets `isReady=true` only when auth passes AND role matches. |
-| 1335 | 2026-06-16 | FIX | **A-5 � `frontend/src/app/page.tsx`**: Destructures `{ isReady }` from `useAuthGuard()`. Both `load()` useEffect and the interval useEffect guard with `if (!isReady) return`. Renders `<AuthLoader>` (animate-spin spinner, #0A0A0A bg, #E85D04 ring) when `!isReady`. |
+| 1329 | 2026-06-16 | FIX | **A-1 � `frontend/src/lib/auth.ts`**: SSO token expiry loop. SSO sessions (premoscorp.com ? /sso) have no refresh_token; the 401 interceptor was silently clearing tokens and redirecting to /login with no context. Fix: added `SSO_ORIGIN_KEY = 'asc_sso_origin'` localStorage flag, `markSSOSession('premoscorp')` helper, `getSSOOrigin()` getter. `refreshAccessToken()` now checks for SSO origin when refresh_token absent ? redirects to `${NEXT_PUBLIC_PORTAL_URL}/portal/seguridad` where auto-SSO re-fires. clearTokens() removes the flag on logout. |
+| 1330 | 2026-06-16 | FIX | **A-1 � `frontend/src/app/sso/page.tsx`**: SSO callback now calls `markSSOSession('premoscorp')` after storing access_token and role. Does NOT store asc_refresh_token (SSO sessions don't have one). Redirect uses `router.replace('/')` to prevent back-navigation to /sso with expired params. |
+| 1331 | 2026-06-16 | FIX | **A-2 � `frontend/src/app/page.tsx`**: Dashboard RULES hardcoded data replaced with live API data. Added `ApiRule` interface. `getDetectionRules()` fetched via `Promise.all`. Result filtered by `is_active !== false`, sliced to 4 entries. `hit_count` used for real counts (old code duplicated `bySeverity.critical` for two different rules). |
+| 1332 | 2026-06-16 | FIX | **A-3 � `frontend/src/app/page.tsx`**: Added `error` state (`useState<string \| null>(null)`). Catch block sets human-readable message using `e.message` (not raw Error object). Error banner renders with AlertCircle icon and "Reintentar" button when `error && !loading`. `setError(null)` called at start of each `load()`. |
+| 1333 | 2026-06-16 | FIX | **A-4 � `frontend/src/app/page.tsx`**: Removed `console.error()` call in catch block. Error surface is now UI-only (error state + banner). No log/warn/error calls in page.tsx. |
+| 1334 | 2026-06-16 | FIX | **A-5 � `frontend/src/lib/auth-guard.tsx`**: Complete rewrite. Old hook returned `boolean`; new hook returns `{ isReady: boolean }` (explicit object). `useState(false)` initial value prevents FOUC � caller renders `<AuthLoader>` until auth check resolves. `useEffect` sets `isReady=true` only when auth passes AND role matches. |
+| 1335 | 2026-06-16 | FIX | **A-5 � `frontend/src/app/page.tsx`**: Destructures `{ isReady }` from `useAuthGuard()`. Both `load()` useEffect and the interval useEffect guard with `if (!isReady) return`. Renders `<AuthLoader>` (animate-spin spinner, #0A0A0A bg, #E85D04 ring) when `!isReady`. |
 
-### Fase A � Nuevo archivo de entorno
+### Fase A � Nuevo archivo de entorno
 
 | # | Date | Type | Description |
 |---|------|------|-------------|
-| 1336 | 2026-06-16 | IMPL | **`frontend/.env.example`** � Creado. Documenta `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_PORTAL_URL`. Nunca commitear `.env.local`. Instrucciones de valores locales vs producci�n incluidas. |
+| 1336 | 2026-06-16 | IMPL | **`frontend/.env.example`** � Creado. Documenta `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_PORTAL_URL`. Nunca commitear `.env.local`. Instrucciones de valores locales vs producci�n incluidas. |
 
-### Fase A � Tests
+### Fase A � Tests
 
 | # | Date | Type | Description | Result |
 |---|------|------|-------------|--------|
@@ -4834,26 +4834,26 @@ Estado final P53-P55: **4103 passed, 14 skipped, 0 failed — 86.07% cobertura �
 | 1338 | 2026-06-16 | TEST | **`frontend/src/__tests__/auth-guard.test.ts`** (11 tests): unauthenticated ? /login redirect + isReady false, authenticated ? isReady true + no redirect, role mismatch ? / redirect + isReady false, role match ? isReady true + no redirect, FOUC: source-level useState(false) check + isReady=true after auth. Updated 2 previously failing FOUC tests (Jest JSDOM runs useEffect synchronously; switched from "before-effect" assertions to source-level invariant + behavioral). | 11/11 PASSED |
 | 1339 | 2026-06-16 | TEST | **`frontend/src/__tests__/dashboard-phase-a.test.ts`** (44 tests): A-2 (11 static tests: API import, no hardcoded RULES/DET-001/acord32, setRules/rules.map, hit_count, is_active filter, slice(0,4), loading skeleton, empty state), A-3 (7: error useState, setError(null), catch block, banner, AlertCircle, Reintentar, e.message not raw e), A-4 (3: no console.error/log/warn), A-5 (5: isReady destructure, AuthLoader render, useEffect gate, function defined, animate-spin), A-auth.ts static (8: SSO_ORIGIN_KEY, clearTokens, ssoOrigin check, NEXT_PUBLIC_PORTAL_URL, /portal/seguridad, markSSOSession, getSSOOrigin, no hardcoded URL outside fallback), A-sso page (6: import, markSSOSession call, access_token key, role key, no refresh_token, router.replace), security invariants (4: no hardcoded secrets, no dangerouslySetInnerHTML, no credentials in auth.ts, no console leaks in auth-guard). Fixed ROOT path (`../../..` ? `../..` + `src/` join) and lookbehind regex for URL default check. | 44/44 PASSED |
 
-### Fase A � Security Scan
+### Fase A � Security Scan
 
 | # | Date | Type | Description | Result |
 |---|------|------|-------------|--------|
 | 1340 | 2026-06-16 | SECURITY | **TypeScript strict check** (`npx tsc --noEmit`) on ASC frontend Phase A files. | ? 0 errors |
-| 1341 | 2026-06-16 | SECURITY | **API key / secret scan** � grep for `sk_live`, `api_key=`, `password=`, `secret=`, `bearer [long token]` in Phase A files (auth.ts, auth-guard.tsx, sso/page.tsx, page.tsx). | ? 0 matches |
+| 1341 | 2026-06-16 | SECURITY | **API key / secret scan** � grep for `sk_live`, `api_key=`, `password=`, `secret=`, `bearer [long token]` in Phase A files (auth.ts, auth-guard.tsx, sso/page.tsx, page.tsx). | ? 0 matches |
 | 1342 | 2026-06-16 | SECURITY | **console.log/error/warn scan** across Phase A files. | ? 0 matches |
-| 1343 | 2026-06-16 | SECURITY | **localStorage.setItem scan** � All setItem calls in Phase A files verified: `ACCESS_KEY` (asc_access_token), `REFRESH_KEY` (asc_refresh_token), `ROLE_KEY` (asc_role), `SSO_ORIGIN_KEY` (asc_sso_origin). Exact 4 authorized keys only. No JWT fragments in origin key. | ? CLEAN |
+| 1343 | 2026-06-16 | SECURITY | **localStorage.setItem scan** � All setItem calls in Phase A files verified: `ACCESS_KEY` (asc_access_token), `REFRESH_KEY` (asc_refresh_token), `ROLE_KEY` (asc_role), `SSO_ORIGIN_KEY` (asc_sso_origin). Exact 4 authorized keys only. No JWT fragments in origin key. | ? CLEAN |
 | 1344 | 2026-06-16 | SECURITY | **dangerouslySetInnerHTML scan** in Phase A files. | ? 0 matches |
-| 1345 | 2026-06-16 | SECURITY | **Hardcoded URL audit** � `https://premoscorp.com` appears only as env var fallback (`?? 'https://premoscorp.com'`) in auth.ts. No other hardcoded URLs outside `??` context. Verified via negative lookbehind regex in test. | ? CLEAN |
+| 1345 | 2026-06-16 | SECURITY | **Hardcoded URL audit** � `https://premoscorp.com` appears only as env var fallback (`?? 'https://premoscorp.com'`) in auth.ts. No other hardcoded URLs outside `??` context. Verified via negative lookbehind regex in test. | ? CLEAN |
 
 ### Resumen Session 76
 
-**Sprint:** FASE A � 5 critical frontend bug fixes (SSO, hardcoded RULES, error state, console.error, FOUC)
+**Sprint:** FASE A � 5 critical frontend bug fixes (SSO, hardcoded RULES, error state, console.error, FOUC)
 **Archivos modificados:** `frontend/src/lib/auth.ts`, `frontend/src/app/sso/page.tsx`, `frontend/src/lib/auth-guard.tsx`, `frontend/src/app/page.tsx`
 **Archivos creados:** `frontend/src/__tests__/sso-callback.test.ts`, `frontend/src/__tests__/auth-guard.test.ts`, `frontend/src/__tests__/dashboard-phase-a.test.ts`, `frontend/.env.example`
 **Test delta ASC frontend:** 474 ? **518 passed** (+44 nuevos tests)
 **TypeScript:** 0 errores (`tsc --noEmit`)
-**Security scan:** CLEAN � 0 API keys, 0 console leaks, 0 dangerouslySetInnerHTML, 4 localStorage keys autorizados �nicamente
-**Bugs cr�ticos resueltos:** SSO token expiry loop (A-1), hardcoded detection rules (A-2), silent API failures (A-3/A-4), FOUC on protected pages (A-5)
+**Security scan:** CLEAN � 0 API keys, 0 console leaks, 0 dangerouslySetInnerHTML, 4 localStorage keys autorizados �nicamente
+**Bugs cr�ticos resueltos:** SSO token expiry loop (A-1), hardcoded detection rules (A-2), silent API failures (A-3/A-4), FOUC on protected pages (A-5)
 
 
 ---
@@ -5022,3 +5022,112 @@ Test delta ASC frontend: 610 → 727 passed (+117 tests Phase C)
 TypeScript: 0 errores (tsc --noEmit)
 Security scan: CLEAN
 Bug crítico corregido: subscribeToNotifications usaba key de localStorage incorrecta ('token' → 'asc_access_token') — SSE stream PANL enviaba token vacío en todas las conexiones
+
+---
+
+## Session 79 — 2026-06-17 (P59-SSO-BRIDGE: JWKS Fix + Vercel Deploy Prep)
+
+### Contexto
+
+Sesión de corrección y preparación de deploy enfocada en el flujo SSO premoscorp.com → ASC backend → ASC frontend. El flujo completo requería 3 correcciones críticas: JWKS URL incorrecta en el backend, SUPABASE_URL apuntando al proyecto equivocado en Render, y el frontend ASC sin desplegar (redirigía a premoscorp.com/sso que no existe).
+
+### P59-FIX: JWKS URL Incorrecta
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1382 | 2026-06-17 | FIX | **`backend/app/api/v1/endpoints/auth_sso.py`** — JWKS URL corregida de `/auth/v1/jwks` (retorna 404) a `/auth/v1/.well-known/jwks.json` (retorna 200 OK con key ES256 P-256). Header `apikey` eliminado — el endpoint JWKS de Supabase es completamente público. `kid` correcto: `c86b03d6-c721-44df-a166-2c0dafc4a2e3`. | FIXED ✅ |
+| 1383 | 2026-06-17 | FIX | **`backend/app/core/config.py`** — Comentario actualizado: `SUPABASE_ANON_KEY` ahora documentado como opcional (ya no requerida para JWKS). Anotación `# nosec B105` añadida — es una llave pública anon, no un secreto. | FIXED ✅ |
+| 1384 | 2026-06-17 | TEST | **`backend/tests/test_p59_sso_bridge.py`** — 2 tests actualizados/añadidos: (1) `test_rs256_token_uses_jwks_not_secret` — ahora captura URL via `side_effect` spy y aserta que termina en `/auth/v1/.well-known/jwks.json`; (2) `test_jwks_url_uses_well_known_path` — nuevo test ES256, confirma presencia de `.well-known/jwks.json` y ausencia de la URL rota `/auth/v1/jwks`. Total P59: **71/71 PASSED**. | ✅ |
+
+### P59-FIX: SUPABASE_URL en Render — Proyecto Incorrecto
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1385 | 2026-06-17 | FIX | **`render.yaml`** — `SUPABASE_URL` cambiado de `""` a `"https://xdgilxcmvpxhrpbuqyrr.supabase.co"` (proyecto `premoscorp_data`). Comentario explica la razón arquitectural: este proyecto firma los JWTs de premoscorp.com; `kqxwtayzqujlddviskwl` (ASC_BD) es solo para almacenamiento de datos ASC. | FIXED ✅ |
+| 1386 | 2026-06-17 | REVIEW | **Diagnóstico del error "kid mismatch"**: Síntoma: `Unable to find a signing key that matches: "c86b03d6-..."`. Causa raíz: SUPABASE_URL apuntaba a `kqxwtayzqujlddviskwl` (JWKS de ASC_BD), pero los tokens son firmados por `xdgilxcmvpxhrpbuqyrr` (premoscorp_data). El `kid` del token no existe en el JWKS de ASC_BD → PyJWKClient no puede verificar. Solución: SUPABASE_URL = URL del proyecto que firma, no del que almacena. | DOCUMENTADO |
+
+### P59-VERIFY: Confirmación de 200 OK en Render
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1387 | 2026-06-17 | REVIEW | **POST /api/v1/auth/supabase-sso → 200 OK** confirmado en logs de Render tras corrección de SUPABASE_URL. Token decodificado: `{"alg":"HS256","typ":"JWT"}` con claims `sub`, `exp`, `type":"access"`, `jti`. Backend SSO bridge completamente funcional. | ✅ CONFIRMADO |
+
+### P59-FRONTEND: Identificación del Problema de Redirect
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1388 | 2026-06-17 | REVIEW | **Redirect a premoscorp.com/sso**: Tras SSO exitoso, el backend redirige a `${VITE_ASC_APP_URL}/sso?token=...`. `VITE_ASC_APP_URL` estaba seteado como `https://premoscorp.com` en Vercel de sc_system. `premoscorp.com/sso` no existe en sc_system (no hay ruta `/sso` en el router de Vite+React de premoscorp.com). Diagnóstico: el frontend ASC (Next.js) con la página `/sso/page.tsx` nunca se había desplegado. |
+| 1389 | 2026-06-17 | DESIGN | **Decisión de arquitectura — Opción A**: Desplegar ASC frontend en Vercel como proyecto independiente. Root directory: `frontend/`. Env var: `NEXT_PUBLIC_API_URL=https://asc-backend-ona9.onrender.com`. Post-deploy: actualizar `VITE_ASC_APP_URL` en Vercel de premoscorp.com con la nueva URL de Vercel ASC. |
+
+### P59-VERCEL-PREP: Preparación del Frontend ASC para Deploy
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1390 | 2026-06-17 | FIX | **`frontend/next.config.js`** — Bug crítico de CSP duplicado corregido. Cuando `next.config.js` y `vercel.json` ambos definen `Content-Security-Policy`, el browser aplica la INTERSECCIÓN — bloqueaba todas las llamadas a la API de Render. Solución: `IS_VERCEL = !!process.env.VERCEL`; los `headers()` ahora son condicionales `!IS_VERCEL`. `vercel.json` es la única fuente de verdad en Vercel. | FIXED ✅ |
+| 1391 | 2026-06-17 | FIX | **`frontend/next.config.js`** — `output: 'standalone'` hecho condicional `!IS_VERCEL`. En Vercel este flag es innecesario (Vercel usa su propio pipeline de build de Next.js) y causaba artefactos de build más grandes de lo necesario. | FIXED ✅ |
+| 1392 | 2026-06-17 | FIX | **`frontend/vercel.json`** — CSP `connect-src` expandido de `https://*.onrender.com` a `https://*.onrender.com https://*.premoscorp.com https://*.supabase.co`. `form-action` expandido: `https://*.premoscorp.com` añadido para el redirect SSO. Regiones: `["gru1", "iad1"]` (São Paulo + Washington DC). | FIXED ✅ |
+| 1393 | 2026-06-17 | IMPL | **`frontend/.gitignore`** — Creado dedicado al directorio `frontend/` (Vercel usa `frontend/` como root del proyecto). Cubre: `.next/`, `out/`, `.vercel/`, `.env*`, `node_modules/`, `*.tsbuildinfo`, artefactos Playwright/Jest, OS/IDE. | ADDED ✅ |
+| 1394 | 2026-06-17 | FIX | **`.gitignore` (raíz)** — Añadida excepción `!frontend/src/app/reports/` para que la ruta de Next.js no quede enmascarada por el patrón `reports/` (exclusión de artefactos de auditoría de seguridad). | FIXED ✅ |
+
+### P59-AUDIT: Security Scan Pre-Deploy
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1395 | 2026-06-17 | SECURITY | **Scan de llaves expuestas en frontend**: grep sobre `frontend/src/**` para `localStorage.*key\|hardcoded.*secret\|apiKey=\|password=\|NEXT_PUBLIC.*SECRET`. | **0 matches** ✅ |
+| 1396 | 2026-06-17 | SECURITY | **SSO page token exposure**: `frontend/src/app/sso/page.tsx` usa `router.replace('/')` (no `push`) — elimina el token de la URL de historial del browser. Token solo persiste en `localStorage` bajo key `asc_access_token`. | ✅ SEGURO |
+| 1397 | 2026-06-17 | SECURITY | **vercel.json CSP review**: `worker-src 'none'` bloquea WebWorkers (correcto para ASC). `frame-ancestors 'none'` bloquea embeds (anti-clickjacking). `object-src 'none'` bloquea plugins. `base-uri 'self'` previene base tag injection. | ✅ HARDENED |
+| 1398 | 2026-06-17 | SECURITY | **tsc --noEmit**: 0 errores de TypeScript en el frontend completo post-cambios. | ✅ CLEAN |
+
+### P59-TEST: Validación de Suite
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1399 | 2026-06-17 | TEST | **Backend full suite**: `python -m pytest` — **4493/4493 PASSED** (16 skipped, 41 warnings). Cobertura: **86.33%** (gate: 85%). 0 regresiones post-corrección JWKS. | ✅ VERDE |
+| 1400 | 2026-06-17 | TEST | **P59 SSO bridge aislado**: `python -m pytest tests/test_p59_sso_bridge.py -v` — **71/71 PASSED** en 9.49s. Los 2 nuevos tests de regresión de URL (`.well-known/jwks.json`) también PASSED. | ✅ VERDE |
+
+### Commits Session 79
+
+| Commit | Hash | Description |
+|--------|------|-------------|
+| fix(p59): correct Supabase JWKS URL | `abdc436` | JWKS URL `/auth/v1/.well-known/jwks.json`, sin apikey header |
+| fix(p59): set correct SUPABASE_URL | `85afffd` | premoscorp_data project en render.yaml |
+| feat(frontend): Vercel deploy prep | `64da6ba` | next.config.js CSP fix, vercel.json update, .gitignore, sso page, env.ts, tests |
+
+### Flujo SSO Completo — Arquitectura Documentada
+
+```
+premoscorp.com/portal/seguridad (sc_system)
+  → POST /api/v1/auth/supabase-sso (Render — asc-backend-ona9.onrender.com)
+      └─ PyJWKClient fetches JWKS from xdgilxcmvpxhrpbuqyrr.supabase.co/auth/v1/.well-known/jwks.json
+      └─ Verifica token ES256/HS256, mapea rol, emite ASC JWT propio
+      └─ Responde: { access_token: <ASC_JWT>, role: "admin" }
+  → window.location.href = ${VITE_ASC_APP_URL}/sso?token=<ASC_JWT>&role=admin
+      └─ VITE_ASC_APP_URL = <URL Vercel ASC frontend> (PENDIENTE SET)
+  → ASC frontend /sso/page.tsx (Vercel — PENDIENTE DEPLOY)
+      └─ Stores token in localStorage[asc_access_token]
+      └─ router.replace('/') → Dashboard ASC
+```
+
+### Dos proyectos Supabase — Distinción Crítica
+
+| Variable | Proyecto | Ref | Uso |
+|----------|----------|-----|-----|
+| `SUPABASE_URL` (Render) | premoscorp_data | `xdgilxcmvpxhrpbuqyrr` | Firma JWTs de usuarios premoscorp.com — JWKS source |
+| `DATABASE_URL` (Render) | ASC_BD | `kqxwtayzqujlddviskwl` | Almacenamiento de datos ASC (tablas, modelos) |
+
+### Estado P59-SSO Final
+
+| Ítem | Estado |
+|------|--------|
+| JWKS URL backend — `/auth/v1/.well-known/jwks.json` | ✅ CORREGIDO |
+| SUPABASE_URL en Render — premoscorp_data | ✅ CORREGIDO |
+| POST /api/v1/auth/supabase-sso → 200 OK | ✅ CONFIRMADO EN PROD |
+| `frontend/next.config.js` — CSP duplicado eliminado | ✅ CORREGIDO |
+| `frontend/vercel.json` — CSP premoscorp.com + supabase.co | ✅ ACTUALIZADO |
+| `frontend/.gitignore` — dedicado para Vercel root | ✅ CREADO |
+| Backend 4493 tests, 86.33% cobertura | ✅ VERDE |
+| tsc --noEmit frontend | ✅ 0 ERRORES |
+| Commit + push → master | ✅ `64da6ba` |
+| **Deploy ASC frontend a Vercel** | ⏳ PENDIENTE (siguiente paso) |
+| **Actualizar VITE_ASC_APP_URL en premoscorp.com Vercel** | ⏳ PENDIENTE post-deploy |
+| **Test E2E SSO completo** | ⏳ PENDIENTE post-deploy |
