@@ -5131,3 +5131,87 @@ premoscorp.com/portal/seguridad (sc_system)
 | **Deploy ASC frontend a Vercel** | ⏳ PENDIENTE (siguiente paso) |
 | **Actualizar VITE_ASC_APP_URL en premoscorp.com Vercel** | ⏳ PENDIENTE post-deploy |
 | **Test E2E SSO completo** | ⏳ PENDIENTE post-deploy |
+
+---
+
+## Session 80 — 2026-06-17 (BUSINESS: Análisis de Inversión Vercel Pro $20/mes)
+
+### Contexto
+
+Antes de proceder con el deploy del ASC frontend en Vercel, se solicitó un análisis de mercado para justificar el upgrade de Vercel Hobby → Pro ($20/mes), que es el requisito para tener 2 proyectos en producción simultáneos (premoscorp.com + ASC frontend).
+
+### DECISION: Vercel Pro — Qué desbloquea
+
+| Antes ($0/mes — Hobby) | Después ($20/mes — Pro) |
+|---|---|
+| premoscorp.com en producción ✅ | premoscorp.com en producción ✅ |
+| ASC frontend sin desplegar ❌ | ASC frontend en producción ✅ |
+| SSO roto (redirect a URL inválida) ❌ | SSO funcional end-to-end ✅ |
+| Producto ASC no vendible ❌ | Producto ASC listo para clientes ✅ |
+
+El producto no existe comercialmente sin este deploy. Los $20 son el interruptor que enciende el producto, no un costo operativo marginal.
+
+### MARKET: Tiers de Servicio ASC PremosCorp
+
+Definidos en `sc_system/src/locales/es/common.json → seguridad.socPlans`. CTAs de cotización (no precio publicado — correcto para B2B).
+
+| Tier | Alcance | Precio estimado mercado LatAm |
+|---|---|---|
+| Vigilancia | Monitoreo 24/7 + correlación + reporte mensual, ≤100 endpoints | $400–$900/mes |
+| Protección | Vigilancia + respuesta activa + threat hunting + analista dedicado, ≤500 endpoints | $1,200–$3,000/mes |
+| Enterprise | Equipo SOC dedicado + SLA personalizado + endpoints ilimitados + opción on-premise | $4,000–$15,000/mes |
+
+Benchmarks: IBM Security → $1,500–$5,000/cliente/mes. Arctic Wolf → $2,000–$8,000/mes. Startups MDR LatAm → $300–$1,500/mes SMB. PremosCorp compite en el segmento bajo-medio con ventaja estructural de costo.
+
+### FINANCE: Break-even y ROI
+
+| Escenario | Clientes | Ingreso/mes | Costo infra | Ganancia | ROI vs $20 |
+|---|---|---|---|---|---|
+| Mínimo viable | 1× Vigilancia $400 | $400 | $20 | $380 | **20x** |
+| Mes 3 realista | 2× Vigilancia $500 | $1,000 | $20 | $980 | **50x** |
+| Mes 6 | 1× Protección $1,500 | $1,500 | $20 | $1,480 | **75x** |
+| Año 1 | 3× Vigilancia + 1× Protección | $3,200 | $20 | $3,180 | **160x** |
+
+**Break-even de los $20: el primer cliente cubre 20 meses de Vercel Pro en el mes que paga.**
+
+### TIMELINE: Camino al primer ingreso
+
+| Período | Hito | Estado |
+|---|---|---|
+| Semana 1-2 | Deploy ASC frontend en Vercel → SSO E2E funcional → primeras demos posibles | ⏳ INMEDIATO |
+| Semana 2-4 | Contacto con leads del ecosistema premoscorp.com (usuarios MAESTRO/EXPERTO → early adopters) | ⏳ |
+| Mes 1-2 | Primer cliente piloto/beta (precio reducido $200-300) → validación en producción | ⏳ |
+| Mes 2-3 | Primer cliente pagante full price (Vigilancia $400-600) → **break-even** | ⏳ |
+| Mes 3-6 | 2-3 clientes Vigilancia → $800-1,800/mes. Primer Protección → +$1,200/mes | ⏳ |
+| Mes 6-12 | $3,000-6,000/mes con 4-6 clientes mixtos → trigger Fase 2 infra | ⏳ |
+
+### COSTOS: Stack total al primer cliente
+
+| Servicio | Plan | Costo/mes |
+|---|---|---|
+| Vercel Pro | 2 proyectos producción | $20 |
+| Render | Free tier | $0 |
+| Supabase | Free tier (500 MB) | $0 |
+| **Total** | | **$20/mes** |
+
+Margen bruto primer cliente Vigilancia ($400): **$380/mes = 95%**. Cuando Render cold-start sea un problema (>3 clientes activos): Render Starter $7/mes → total $27/mes, margen >93%.
+
+### RISKS: Factores en contra
+
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Equipo pequeño: Vigilancia puede ser automatizado pero Protección/Enterprise requieren analistas | Alto | Lanzar solo Vigilancia tier inicialmente; Protección solo con capacidad real |
+| Ciclo de ventas B2B: 1-3 meses típicamente | Medio | Pipeline de leads desde premoscorp.com (usuarios existentes del manual) |
+| Credibilidad de marca nueva en mercado de confianza | Medio | Demostración técnica (ASC funcional live) como diferenciador |
+
+### CONCLUSION
+
+| Métrica | Valor |
+|---|---|
+| Inversión mensual | $20 |
+| Break-even | Mes 2-3 (primer cliente pagante) |
+| ROI mes 6 | 75x–160x |
+| Riesgo de la inversión en infra | Mínimo — irrelevante vs valor que desbloquea |
+| Riesgo real | Tiempo de cierre de primera venta (ejecución comercial, no infra) |
+
+**Veredicto: invertir.** La pregunta no es si $20 se recuperan — se recuperan con el primer cliente. La pregunta real es cuánto tarda ese primer cliente, y eso depende de ejecución comercial, no de infraestructura. Sin el deploy, el producto no puede demostrarse ni venderse.
