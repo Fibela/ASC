@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* v2 — force PostCSS recompile with tailwindcss plugin */
 
 /* ── PremosCorp Design Tokens ──────────────────────────────────── */
 :root {
