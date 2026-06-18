@@ -7,6 +7,17 @@
 const IS_VERCEL = !!process.env.VERCEL
 
 const nextConfig = {
+  // Bake NEXT_PUBLIC_* vars into webpack at build time.
+  // Fallbacks are the production URLs — safe to hardcode because they are not secrets.
+  // This guarantees the correct URL even if Vercel's env injection has a timing issue
+  // on the very first build of a new project (env vars set after the build starts).
+  env: {
+    NEXT_PUBLIC_API_URL:
+      process.env.NEXT_PUBLIC_API_URL || 'https://asc-backend-ona9.onrender.com',
+    NEXT_PUBLIC_PORTAL_URL:
+      process.env.NEXT_PUBLIC_PORTAL_URL || 'https://premoscorp.com',
+  },
+
   // standalone mode is for Docker / self-hosted servers.
   // Vercel uses its own optimised Next.js output pipeline — this flag is a no-op
   // on Vercel but would bloat the build artefact unnecessarily.

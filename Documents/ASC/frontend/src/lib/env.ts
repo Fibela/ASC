@@ -3,15 +3,14 @@
 // process.env directly, eliminating duplication and providing a single place
 // to validate configuration at runtime.
 
-const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? ''
+const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'https://asc-backend-ona9.onrender.com'
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://premoscorp.com'
 
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-  if (!API_URL || API_URL.includes('localhost')) {
+  if (API_URL.includes('localhost')) {
     console.error(
-      '[ASC] NEXT_PUBLIC_API_URL no está configurada o apunta a localhost. ' +
-      `Valor actual: "${API_URL || '(vacío)'}". ` +
-      'Configura NEXT_PUBLIC_API_URL=https://asc-backend-ona9.onrender.com en Vercel.'
+      '[ASC] NEXT_PUBLIC_API_URL apunta a localhost en producción. ' +
+      `Valor: "${API_URL}". Revisa las env vars en Vercel.`
     )
   }
 }
