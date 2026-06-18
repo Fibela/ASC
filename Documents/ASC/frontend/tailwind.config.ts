@@ -35,6 +35,17 @@ const config: Config = {
           low:      '#2DB863',  // green
           info:     '#4A90D9',  // blue-steel
         },
+        // ── Navy — dark blue surface scale (used by SOC detail pages) ──
+        navy: {
+          950: '#020817',
+          900: '#0F172A',
+          850: '#131C30',
+          800: '#1E293B',
+          750: '#243042',
+          700: '#334155',
+          600: '#475569',
+          500: '#64748B',
+        },
         // ── Text hierarchy ────────────────────────────────────────
         ink: {
           primary:   '#EAEAEA',

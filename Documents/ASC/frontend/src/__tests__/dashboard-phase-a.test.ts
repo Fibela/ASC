@@ -153,7 +153,8 @@ describe('A-1 — auth.ts SSO refresh fix (static)', () => {
   })
 
   it('clearTokens removes SSO_ORIGIN_KEY', () => {
-    expect(AUTH_SRC).toMatch(/localStorage\.removeItem\s*\(\s*SSO_ORIGIN_KEY\s*\)/)
+    // auth.ts uses `ls` alias (SSR-safe wrapper for localStorage) — accept either form
+    expect(AUTH_SRC).toMatch(/(?:ls|localStorage)\??\.\s*removeItem\s*\(\s*SSO_ORIGIN_KEY\s*\)/)
   })
 
   it('refreshAccessToken checks for SSO origin before giving up', () => {

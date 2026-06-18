@@ -14,6 +14,7 @@ import {
 } from '@/lib/api'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { AuthLoader } from '@/components/AuthLoader'
+import { Sidebar } from '@/components/dashboard/Sidebar'
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -271,6 +272,8 @@ export default function HoneypotPage() {
   const activeTokens     = tokens.filter(t => t.access_count > 0).length
   const criticalReports  = reports.filter(r => r.severity === 'high' || r.severity === 'critical').length
 
+  if (!isReady) return <AuthLoader />
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
@@ -279,10 +282,11 @@ export default function HoneypotPage() {
     )
   }
 
-  if (!isReady) return <AuthLoader />
-
   return (
-    <div className="p-6 space-y-6">
+    <div className="flex min-h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+      <div className="p-6 space-y-6">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between">
@@ -573,6 +577,8 @@ export default function HoneypotPage() {
           </div>
         </div>
       </div>
+    </div>
+      </main>
     </div>
   )
 }

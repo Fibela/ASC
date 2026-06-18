@@ -11,6 +11,8 @@ import {
   verifyExecutiveReport, deleteExecutiveReport,
   ExecutiveReport, ReportingSummary, VerifyReportResult,
 } from '@/lib/api'
+import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -390,6 +392,8 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ExecutiveReportsPage() {
+  const { isReady } = useAuthGuard()
+
   const [summary, setSummary] = useState<ReportingSummary | null>(null)
   const [reports, setReports] = useState<ExecutiveReport[]>([])
   const [selected, setSelected] = useState<ExecutiveReport | null>(null)
@@ -411,7 +415,9 @@ export default function ExecutiveReportsPage() {
     }
   }, [filterType])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (isReady) load() }, [load, isReady])
+
+  if (!isReady) return <AuthLoader />
 
   function onVerified(r: VerifyReportResult) {
     // Update signature_valid in the list

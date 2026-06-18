@@ -11,6 +11,8 @@ import {
   updateClusterStatus, getClusterGraph, triggerCorrelationSweep,
   CorrelationCluster, CorrelationSummary, CorrelationRule, CorrelationGraph,
 } from '@/lib/api'
+import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -211,6 +213,8 @@ function ClusterRow({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CorrelationPage() {
+  const { isReady } = useAuthGuard()
+
   const [summary, setSummary] = useState<CorrelationSummary | null>(null)
   const [clusters, setClusters] = useState<CorrelationCluster[]>([])
   const [rules, setRules] = useState<CorrelationRule[]>([])
@@ -245,7 +249,9 @@ export default function CorrelationPage() {
     }
   }, [filterStatus, filterType, campaignsOnly])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (isReady) load() }, [load, isReady])
+
+  if (!isReady) return <AuthLoader />
 
   const handleExpand = useCallback(async (id: string) => {
     if (expandedId === id) {

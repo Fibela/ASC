@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ShieldCheck, User, Clock, Hash, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react'
 import { listIdentityActions, verifyIdentityAction, getPidsSummary, IdentityAction } from '@/lib/api'
+import { useAuthGuard } from '@/lib/auth-guard'
+import { AuthLoader } from '@/components/AuthLoader'
 
 const ACTION_TYPE_LABELS: Record<string, string> = {
   disable_account: 'Deshabilitar cuenta',
@@ -140,6 +142,8 @@ function VerifyModal({ result, onClose }: { result: Record<string, unknown>; onC
 }
 
 export default function PIDSPage() {
+  const { isReady } = useAuthGuard()
+
   const [actions, setActions] = useState<IdentityAction[]>([])
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -165,7 +169,9 @@ export default function PIDSPage() {
     }
   }, [filterType, filterSuccess])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (isReady) load() }, [load, isReady])
+
+  if (!isReady) return <AuthLoader />
 
   const handleVerify = async (actionId: string) => {
     setVerifyError('')

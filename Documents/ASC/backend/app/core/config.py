@@ -21,8 +21,14 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # CORS
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "https://premoscorp.com"]
+    # CORS — include all production frontend origins.
+    # Override via CORS_ORIGINS env var (JSON array) in Render for additional domains.
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "https://premoscorp.com",
+        "https://asc.premoscorp.com",      # custom domain (production)
+        "https://asc-opal-five.vercel.app", # Vercel deployment
+    ]
 
     # SOC Thresholds
     ALERT_CRITICAL_THRESHOLD: float = 0.85

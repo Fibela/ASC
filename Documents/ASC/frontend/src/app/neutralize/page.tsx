@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
+import { getMe } from '@/lib/auth'
 import { AuthLoader } from '@/components/AuthLoader'
 import {
   requestNeutralizeAction,
@@ -224,10 +225,15 @@ export default function NeutralizePage() {
   const mountedRef = useRef(true)
   useEffect(() => { return () => { mountedRef.current = false } }, [])
 
+  useEffect(() => {
+    if (!isReady) return
+    getMe().then(me => { if (mountedRef.current) setCurrentUser(me.email ?? '') }).catch(() => {})
+  }, [isReady])
+
   const [specterCmds, setSprecterCmds] = useState<SprecterCommandSummary[]>([])
   const [cmdsMode, setCmdsMode]         = useState<string>('')
 
-  const currentUser = 'analyst@premos.com' // replaced by JWT context in P16.3
+  const [currentUser, setCurrentUser] = useState('')
 
   const [pending, setPending]     = useState<NeutralizeAction[]>([])
   const [history, setHistory]     = useState<NeutralizeAction[]>([])
