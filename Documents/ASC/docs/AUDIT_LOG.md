@@ -5215,3 +5215,36 @@ Margen bruto primer cliente Vigilancia ($400): **$380/mes = 95%**. Cuando Render
 | Riesgo real | Tiempo de cierre de primera venta (ejecución comercial, no infra) |
 
 **Veredicto: invertir.** La pregunta no es si $20 se recuperan — se recuperan con el primer cliente. La pregunta real es cuánto tarda ese primer cliente, y eso depende de ejecución comercial, no de infraestructura. Sin el deploy, el producto no puede demostrarse ni venderse.
+
+---
+
+## Session 81 — 2026-06-17 (Rediseño completo `/login` — Gateway SSO centralizado)
+
+### Contexto
+
+La página `/login` del ASC tenía un formulario email/contraseña que llamaba directamente al backend ASC (`/auth/login`). Esto era incorrecto dado el flujo SSO establecido: toda la autenticación debe pasar por `premoscorp.com` (Supabase Auth → OAuth Google/GitHub → SSO token → ASC). La página se rediseñó completamente como "gateway" que redirige al portal oficial con contexto claro.
+
+### Implementation — Session 81
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1401 | 2026-06-17 | IMPL | **`frontend/src/app/login/page.tsx`** — Rediseño completo. Eliminado formulario email/contraseña y el import de `login()`. Nuevo diseño: gateway que redirige a `premoscorp.com/portal/seguridad` con countdown auto-redirect (8s cancelable). Secciones: (1) brand header Shield icon + PremosCorp ASC, (2) card con badge "Autenticación centralizada" / "Sesión expirada" según `?expired=1`, (3) 3-step flow visual (01→02→03), (4) countdown strip con botón Cancelar, (5) CTA `btn-primary` "Ir a premoscorp.com", (6) chips de capacidades ASC como preview. Usa `Suspense` para `useSearchParams` — patrón consistente con `sso/page.tsx`. No llama a ningún endpoint del backend. | ✅ |
+| 1402 | 2026-06-17 | FIX | **`frontend/src/lib/auth.ts`** — Interceptor Axios 401: redirección de `/login` a `/login?expired=1`. Permite que la página gateway distinga entre primera visita y sesión expirada, mostrando mensaje contextual diferente. El flujo SSO (`ssoOrigin === 'premoscorp'`) ya redirigía a `portalUrl/portal/seguridad` correctamente — sin cambios en ese path. | ✅ |
+
+### Security — Session 81
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1403 | 2026-06-17 | SECURITY | **Eliminación de formulario de credenciales**: La página `/login` ya no acepta email/contraseña. No hay POST a `/auth/login`, no hay inputs sensibles, no hay manejo de credenciales en el frontend. Attack surface de la página de login reducida a cero. | CLEAN ✅ |
+| 1404 | 2026-06-17 | SECURITY | **Security scan `login/page.tsx`**: `grep` por `console.log`, `dangerouslySetInnerHTML`, `Bearer [token]`, credenciales hardcodeadas. | 0 hallazgos ✅ |
+| 1405 | 2026-06-17 | SECURITY | **PORTAL_URL desde env var**: El URL de redirección usa `process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://premoscorp.com'` — no hardcodeado, configurable por entorno. `.env.example` ya documenta esta variable. | ✅ |
+
+### Design — Session 81
+
+| Decisión | Razón |
+|----------|-------|
+| Gateway en lugar de formulario | Auth centralizada en premoscorp.com (Supabase). Tener dos flujos de login paralelos crea superficie de ataque doble y confunde al usuario. |
+| Auto-countdown 8s cancelable | UX: la mayoría de los usuarios que llegan a `/login` deben ir a premoscorp.com. El countdown evita que tengan que hacer clic manualmente. Cancelar disponible para quien quiera leer primero. |
+| Badge "Sesión expirada" con `?expired=1` | Contexto claro cuando el interceptor 401 manda al usuario aquí. Sin el param, se asume primera visita — mensaje de bienvenida. |
+| Chips de capacidades ASC | La página no debe verse vacía. Muestra valor: qué obtendrán tras autenticarse. Reutiliza clase `chip-orange` del design system existente. |
+| Suspense wrapper | `useSearchParams` en Next.js 13+ App Router requiere Suspense. Mismo patrón que `sso/page.tsx`. |

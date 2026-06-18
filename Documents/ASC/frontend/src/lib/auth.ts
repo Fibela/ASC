@@ -116,7 +116,7 @@ api.interceptors.response.use(
         original.headers['Authorization'] = `Bearer ${getAccessToken()}`
         return api(original)
       }
-      window.location.href = '/login'
+      window.location.href = '/login?expired=1'
     }
     return Promise.reject(err)
   }

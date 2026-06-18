@@ -1,170 +1,265 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { login, isAuthenticated, initAuth } from '@/lib/auth'
-import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react'
+'use client'
 
-export default function LoginPage() {
-  const router  = useRouter()
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { isAuthenticated, initAuth } from '@/lib/auth'
+import { Shield } from 'lucide-react'
 
+const PORTAL_URL    = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://premoscorp.com'
+const PORTAL_PATH   = '/portal/seguridad'
+const COUNTDOWN_SEC = 8
+
+const SOC_CAPS = [
+  'Alertas en tiempo real',
+  'Threat Hunting MITRE ATT&CK',
+  'Neutralizaciones PANL',
+  'Ledger Forense PFN',
+  'Reportes PCDI',
+  'IoCs & TTPs globales',
+]
+
+const FLOW_STEPS = [
+  { n: '01', text: 'Ir a premoscorp.com → Portal de Seguridad' },
+  { n: '02', text: 'Iniciar sesión con Google o GitHub (OAuth)' },
+  { n: '03', text: 'Redirección automática al ASC — sin contraseña adicional' },
+]
+
+function ArrowRightIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+      <polyline points="10 17 15 12 10 7" />
+      <line x1="15" y1="12" x2="3" y2="12" />
+    </svg>
+  )
+}
+
+function LoginGateway() {
+  const router         = useRouter()
+  const params         = useSearchParams()
+  const isExpired      = params.get('expired') === '1'
+
+  const [seconds,  setSeconds]  = useState(COUNTDOWN_SEC)
+  const [paused,   setPaused]   = useState(false)
+  const [leaving,  setLeaving]  = useState(false)
+
+  const goToPortal = useCallback(() => {
+    setLeaving(true)
+    window.location.href = `${PORTAL_URL}${PORTAL_PATH}`
+  }, [])
+
+  // If already authenticated, go straight to the app
   useEffect(() => {
     initAuth()
     if (isAuthenticated()) router.replace('/')
   }, [router])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await login(email, password)
-      router.replace('/')
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Credenciales inválidas')
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Auto-countdown → redirect
+  useEffect(() => {
+    if (paused || leaving) return
+    if (seconds <= 0) { goToPortal(); return }
+    const t = setTimeout(() => setSeconds(s => s - 1), 1000)
+    return () => clearTimeout(t)
+  }, [seconds, paused, leaving, goToPortal])
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
+      className="min-h-screen flex items-center justify-center px-4 py-14"
       style={{
         background: '#0A0A0A',
         backgroundImage:
-          'radial-gradient(ellipse at 20% 50%, rgba(232,93,4,0.07) 0%, transparent 55%), ' +
-          'radial-gradient(ellipse at 80% 20%, rgba(139,30,30,0.07) 0%, transparent 55%)',
+          'radial-gradient(ellipse at 15% 50%, rgba(232,93,4,0.065) 0%, transparent 55%),' +
+          'radial-gradient(ellipse at 85% 15%, rgba(139,30,30,0.065) 0%, transparent 55%),' +
+          'radial-gradient(ellipse at 50% 90%, rgba(232,93,4,0.04) 0%, transparent 45%)',
       }}
     >
-      <div className="w-full max-w-sm animate-fade-in">
+      <div
+        className="w-full max-w-[420px] animate-fade-in"
+        style={{ opacity: leaving ? 0 : undefined, transition: 'opacity 0.3s ease' }}
+      >
 
-        {/* ── Brand header ─────────────────────────────────── */}
+        {/* ── Brand header ─────────────────────────────────────────────── */}
         <div className="text-center mb-8">
-          {/* Logo */}
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
+          <div
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
             style={{
               background: 'linear-gradient(135deg, #C44D03 0%, #E85D04 100%)',
-              boxShadow: '0 0 32px rgba(232,93,4,0.35), 0 8px 24px rgba(0,0,0,0.5)',
-            }}>
+              boxShadow: '0 0 36px rgba(232,93,4,0.38), 0 8px 24px rgba(0,0,0,0.55)',
+            }}
+          >
             <Shield size={30} color="#fff" />
           </div>
-
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#EAEAEA' }}>
-            Premos<span style={{ color: '#E85D04' }}>Corp</span>
+            Premos<span style={{ color: '#E85D04' }}>Corp</span> ASC
           </h1>
-          <p className="text-sm mt-1 font-medium" style={{ color: '#5A5A5A' }}>
+          <p className="text-sm mt-1" style={{ color: '#5A5A5A' }}>
             Analizador de Seguridad Cibernética
           </p>
         </div>
 
-        {/* ── Form card ────────────────────────────────────── */}
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: 'rgba(16,16,16,0.85)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(12px)',
-          }}
-        >
-          {/* Card inner top accent */}
+        {/* ── Gateway card ─────────────────────────────────────────────── */}
+        <div className="card-orange p-8 mb-4 relative overflow-hidden">
+
+          {/* Top accent line */}
           <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 pointer-events-none"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(232,93,4,0.3), transparent)' }}
+            className="absolute top-0 left-1/2 -translate-x-1/2 h-px pointer-events-none"
+            style={{
+              width: '70%',
+              background: 'linear-gradient(90deg, transparent, rgba(232,93,4,0.35), transparent)',
+            }}
           />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-widest mb-2"
-                     style={{ color: '#5A5A5A' }}>
-                Correo electrónico
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                placeholder="analista@premoscorp.com"
-                className="input-asc"
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-widest mb-2"
-                     style={{ color: '#5A5A5A' }}>
-                Contraseña
-              </label>
-              <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="input-asc pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: '#3A3A3A' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#A0A0A0')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#3A3A3A')}
+          {/* ── State: expired vs first-visit ─────────────────────────── */}
+          <div className="text-center mb-7">
+            {isExpired ? (
+              <>
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mb-4"
+                  style={{
+                    background: 'rgba(242,194,5,0.08)',
+                    border: '1px solid rgba(242,194,5,0.22)',
+                    color: '#F2C205',
+                  }}
                 >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div
-                className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm"
-                style={{
-                  background: 'rgba(192,21,46,0.1)',
-                  border: '1px solid rgba(192,21,46,0.3)',
-                  color: '#E8526E',
-                }}
-              >
-                <AlertCircle size={15} className="flex-shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full py-3 mt-2"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                  </svg>
-                  Autenticando...
+                  <span
+                    className="w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{ background: '#F2C205' }}
+                  />
+                  Sesión expirada
                 </span>
-              ) : 'Iniciar sesión'}
+                <h2 className="text-xl font-bold mb-2" style={{ color: '#EAEAEA' }}>
+                  Tu sesión ha expirado
+                </h2>
+                <p className="text-sm leading-relaxed max-w-xs mx-auto" style={{ color: '#5A5A5A' }}>
+                  Reanuda el acceso desde el portal PremosCorp —
+                  el SSO te devolverá al ASC automáticamente sin contraseña.
+                </p>
+              </>
+            ) : (
+              <>
+                <span className="chip-orange inline-flex items-center gap-1.5 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#E85D04' }} />
+                  Autenticación centralizada
+                </span>
+                <h2 className="text-xl font-bold mb-2" style={{ color: '#EAEAEA' }}>
+                  Accede vía Portal Premos
+                </h2>
+                <p className="text-sm leading-relaxed max-w-xs mx-auto" style={{ color: '#5A5A5A' }}>
+                  El ASC usa el sistema de identidad de PremosCorp.
+                  Inicia sesión una vez y serás redirigido automáticamente.
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* ── 3-step flow ──────────────────────────────────────────── */}
+          <div className="space-y-2.5 mb-7">
+            {FLOW_STEPS.map((step) => (
+              <div key={step.n} className="flex items-center gap-3">
+                <span
+                  className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center
+                             text-xs font-bold font-mono"
+                  style={{
+                    background: 'rgba(232,93,4,0.10)',
+                    border: '1px solid rgba(232,93,4,0.22)',
+                    color: '#E85D04',
+                  }}
+                >
+                  {step.n}
+                </span>
+                <span className="text-sm leading-snug" style={{ color: '#A0A0A0' }}>
+                  {step.text}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Divider ──────────────────────────────────────────────── */}
+          <div className="divider mb-6" />
+
+          {/* ── Countdown strip ──────────────────────────────────────── */}
+          {!paused && !leaving && (
+            <div
+              className="flex items-center gap-3 px-4 py-2.5 rounded-xl mb-3"
+              style={{
+                background: 'rgba(232,93,4,0.05)',
+                border: '1px solid rgba(232,93,4,0.14)',
+              }}
+            >
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse"
+                style={{ background: '#E85D04' }}
+              />
+              <p className="text-xs flex-1" style={{ color: '#6b7280' }}>
+                Redirigiendo en{' '}
+                <span className="font-bold font-mono tabular-nums" style={{ color: '#E85D04' }}>
+                  {seconds}s
+                </span>
+              </p>
+              <button
+                onClick={() => setPaused(true)}
+                className="text-xs transition-colors"
+                style={{ color: '#3A3A3A' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#6b7280')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#3A3A3A')}
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+
+          {/* ── Primary CTA ──────────────────────────────────────────── */}
+          <button
+            onClick={goToPortal}
+            disabled={leaving}
+            className="btn-primary w-full py-3"
+          >
+            <ArrowRightIcon />
+            {leaving ? 'Redirigiendo…' : 'Ir a premoscorp.com'}
+          </button>
+
+          {/* ── Resume auto-redirect ─────────────────────────────────── */}
+          {paused && !leaving && (
+            <button
+              onClick={() => { setPaused(false); setSeconds(COUNTDOWN_SEC) }}
+              className="btn-secondary w-full mt-3"
+            >
+              Reactivar redirección automática
             </button>
-          </form>
+          )}
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-xs mt-6" style={{ color: '#2A2A2A' }}>
+        {/* ── Capabilities preview ─────────────────────────────────────── */}
+        <div className="mb-6">
+          <p
+            className="text-xs font-semibold uppercase tracking-widest text-center mb-3"
+            style={{ color: '#2A2A2A' }}
+          >
+            Accederás a
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {SOC_CAPS.map(cap => (
+              <span key={cap} className="chip-orange text-xs">
+                {cap}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Footer ───────────────────────────────────────────────────── */}
+        <p className="text-center text-xs" style={{ color: '#1E1E1E' }}>
           Acceso restringido — Personal autorizado PremosCorp
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" style={{ background: '#0A0A0A' }} />}>
+      <LoginGateway />
+    </Suspense>
   )
 }
