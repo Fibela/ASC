@@ -163,9 +163,13 @@ async def generate_report(
             title=body.title,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        msg = str(exc)
+        http_status = (
+            status.HTTP_503_SERVICE_UNAVAILABLE
+            if "SPECTER_SIGNING_PRIVATE_KEY" in msg
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
         )
+        raise HTTPException(status_code=http_status, detail=msg)
     return _report_full(report)
 
 

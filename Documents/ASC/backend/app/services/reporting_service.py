@@ -59,15 +59,17 @@ def _sign_report(hash_hex: str) -> tuple[str, str]:
     """
     Sign hash_hex with SPECTER_SIGNING_PRIVATE_KEY.
     Returns (signature_b64, pubkey_fingerprint).
-    Falls back to a deterministic placeholder when no key is configured
-    (dev/test environments) — clearly marked as UNSIGNED.
+    Raises ValueError if the key is not configured — callers must surface this
+    as HTTP 503 rather than silently producing an unsigned report.
     """
     private_key_b64 = _s.SPECTER_SIGNING_PRIVATE_KEY
     public_key_b64 = _s.SPECTER_SIGNING_PUBLIC_KEY
 
     if not private_key_b64:
-        placeholder = base64.b64encode(b"PIIL-UNSIGNED-NO-KEY-CONFIGURED").decode()
-        return placeholder, "0000000000000000"
+        raise ValueError(
+            "PIIL signing unavailable: SPECTER_SIGNING_PRIVATE_KEY is not configured. "
+            "Set this env var in Render before generating signed executive reports."
+        )
 
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -75,17 +77,16 @@ def _sign_report(hash_hex: str) -> tuple[str, str]:
         key = Ed25519PrivateKey.from_private_bytes(priv_bytes)
         sig = base64.b64encode(key.sign(hash_hex.encode())).decode()
 
-        # Fingerprint: first 16 hex chars of SHA3-512 of the raw public key bytes
         if public_key_b64:
             pub_bytes = base64.b64decode(public_key_b64)
             fp = hashlib.sha3_512(pub_bytes).hexdigest()[:16]
         else:
             fp = "unknown"
         return sig, fp
+    except ValueError:
+        raise
     except Exception as exc:
-        log.warning("PIIL signing failed — report will be UNSIGNED: %s", exc)
-        placeholder = base64.b64encode(b"PIIL-SIGN-ERROR").decode()
-        return placeholder, "error"
+        raise ValueError(f"PIIL signing error: {exc}") from exc
 
 
 def verify_report_signature(report: ExecutiveReport) -> bool:

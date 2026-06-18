@@ -10,6 +10,7 @@ from app.models.alert import Alert
 from app.models.user import User
 from app.services.reporter import generate_pdf_report, generate_html_report
 from app.api.deps import get_current_user
+from app.models.event import Event
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -22,6 +23,12 @@ async def _build_report_data(db: AsyncSession, hours: int, analyst: str = "Syste
     )
     alerts = alerts_result.scalars().all()
 
+    # Real event count for the period
+    events_result = await db.execute(
+        select(func.count()).select_from(Event).where(Event.timestamp >= since)
+    )
+    total_events = events_result.scalar_one() or 0
+
     total = len(alerts)
     critical = sum(1 for a in alerts if a.severity == "critical")
     fp = sum(1 for a in alerts if a.false_positive)
@@ -33,6 +40,13 @@ async def _build_report_data(db: AsyncSession, hours: int, analyst: str = "Syste
         mttr_secs = [(a.resolved_at - a.detected_at).total_seconds() for a in resolved]
         mttr = round(sum(mttr_secs) / len(mttr_secs) / 60, 1)
 
+    # MTTD = avg(detected_at - threat_start_at) for alerts that have threat_start_at
+    detectable = [a for a in alerts if a.threat_start_at and a.detected_at]
+    mttd = None
+    if detectable:
+        mttd_secs = [(a.detected_at - a.threat_start_at).total_seconds() for a in detectable]
+        mttd = round(sum(mttd_secs) / len(mttd_secs) / 60, 1)
+
     posture = "CRITICAL" if critical > 0 else ("HIGH" if total > 10 else "NORMAL")
 
     return {
@@ -43,15 +57,15 @@ async def _build_report_data(db: AsyncSession, hours: int, analyst: str = "Syste
             "total_alerts":   total,
             "critical_count": critical,
             "risk_posture":   posture,
-            "total_events":   total * 5,  # placeholder ratio
+            "total_events":   total_events,
         },
         "metrics": {
             "total_alerts":     total,
-            "total_events":     total * 5,
+            "total_events":     total_events,
             "true_positives":   total - fp,
             "fp_rate":          fp_rate,
             "mttr_minutes":     mttr,
-            "mttd_minutes":     None,
+            "mttd_minutes":     mttd,
             "ioc_coverage":     0.0,
             "endpoint_coverage": 0.0,
         },

@@ -17,7 +17,9 @@ import struct
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Any
+
+import httpx
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
@@ -665,21 +667,78 @@ async def analyze_artifact(filename: str, data: bytes) -> dict:
     return result
 
 
-# ─── Domain + IP analysis (unchanged) ────────────────────────────────────────
+# ─── External threat-feed helpers ─────────────────────────────────────────────
+
+async def _vt_lookup(resource_type: str, resource: str, api_key: str) -> dict[str, Any]:
+    """
+    Query VirusTotal API v3 for a domain or IP.
+    Returns {} gracefully on error or missing key.
+    resource_type: 'domains' | 'ip_addresses'
+    """
+    if not api_key:
+        return {}
+    url = f"https://www.virustotal.com/api/v3/{resource_type}/{resource}"
+    try:
+        async with httpx.AsyncClient(timeout=6) as client:
+            r = await client.get(url, headers={"x-apikey": api_key})
+            if r.status_code == 200:
+                attrs = r.json().get("data", {}).get("attributes", {})
+                stats = attrs.get("last_analysis_stats", {})
+                return {
+                    "vt_malicious":   stats.get("malicious", 0),
+                    "vt_suspicious":  stats.get("suspicious", 0),
+                    "vt_harmless":    stats.get("harmless", 0),
+                    "vt_undetected":  stats.get("undetected", 0),
+                    "vt_reputation":  attrs.get("reputation", None),
+                }
+    except Exception:  # nosec B110 — VT is best-effort enrichment, non-fatal
+        pass
+    return {}
+
+
+async def _abuseipdb_lookup(ip: str, api_key: str) -> dict[str, Any]:
+    """Query AbuseIPDB for IP abuse confidence score. Returns {} on error."""
+    if not api_key:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=6) as client:
+            r = await client.get(
+                "https://api.abuseipdb.com/api/v2/check",
+                headers={"Key": api_key, "Accept": "application/json"},
+                params={"ipAddress": ip, "maxAgeInDays": 90},
+            )
+            if r.status_code == 200:
+                data = r.json().get("data", {})
+                return {
+                    "abuse_confidence_score": data.get("abuseConfidenceScore"),
+                    "abuse_total_reports":    data.get("totalReports"),
+                    "abuse_country_code":     data.get("countryCode"),
+                    "abuse_isp":              data.get("isp"),
+                    "abuse_usage_type":       data.get("usageType"),
+                }
+    except Exception:  # nosec B110 — AbuseIPDB is best-effort enrichment, non-fatal
+        pass
+    return {}
+
+
+# ─── Domain + IP analysis ─────────────────────────────────────────────────────
 
 async def analyze_domain(domain: str) -> dict:
-    """Basic domain reputation check."""
+    """
+    Domain reputation check — local heuristics + VirusTotal enrichment.
+    VT enrichment only fires when VIRUSTOTAL_API_KEY is configured.
+    """
+    import math
     suspicious_tlds = {".xyz", ".tk", ".ml", ".ga", ".cf", ".gq", ".pw"}
     risk  = 0.0
-    flags = []
+    flags: list[str] = []
 
     tld = "." + domain.split(".")[-1].lower()
     if tld in suspicious_tlds:
         risk += 0.30
         flags.append("suspicious_tld")
 
-    import math
-    freq    = {}
+    freq = {}
     for c in domain.lower():
         freq[c] = freq.get(c, 0) + 1
     entropy = -sum((f / len(domain)) * math.log2(f / len(domain)) for f in freq.values())
@@ -691,21 +750,43 @@ async def analyze_domain(domain: str) -> dict:
         risk += 0.15
         flags.append("long_domain")
 
+    # External enrichment
+    vt = await _vt_lookup("domains", domain, settings.VIRUSTOTAL_API_KEY)
+    if vt:
+        malicious = vt.get("vt_malicious", 0) or 0
+        suspicious_vt = vt.get("vt_suspicious", 0) or 0
+        if malicious > 0:
+            risk = min(risk + 0.4 + malicious * 0.02, 1.0)
+            flags.append(f"vt_malicious_detections:{malicious}")
+        elif suspicious_vt > 0:
+            risk = min(risk + 0.2, 1.0)
+            flags.append(f"vt_suspicious_detections:{suspicious_vt}")
+        if (vt.get("vt_reputation") or 0) < -5:
+            risk = min(risk + 0.15, 1.0)
+            flags.append("vt_negative_reputation")
+
     return {
-        "domain":     domain,
-        "risk_score": min(round(risk, 3), 1.0),
-        "flags":      flags,
-        "verdict":    "suspicious" if risk > 0.4 else "clean",
+        "domain":       domain,
+        "risk_score":   min(round(risk, 3), 1.0),
+        "flags":        flags,
+        "verdict":      "malicious" if risk > 0.7 else ("suspicious" if risk > 0.4 else "clean"),
+        "enrichment":   vt or None,
     }
 
 
 async def analyze_ip(ip: str) -> dict:
-    """Basic IP reputation check (local heuristics only)."""
+    """
+    IP reputation check — local heuristics + VirusTotal + AbuseIPDB enrichment.
+    External feeds only fire when API keys are configured.
+    """
     import ipaddress
-    flags = []
+    flags: list[str] = []
     risk  = 0.0
+    is_private = False
+
     try:
         addr = ipaddress.ip_address(ip)
+        is_private = addr.is_private
         if addr.is_private:
             flags.append("private_ip")
         if addr.is_loopback:
@@ -717,9 +798,39 @@ async def analyze_ip(ip: str) -> dict:
         risk = 0.5
         flags.append("invalid_ip")
 
+    vt: dict[str, Any] = {}
+    abuse: dict[str, Any] = {}
+
+    if not is_private:
+        vt, abuse = await asyncio.gather(
+            _vt_lookup("ip_addresses", ip, settings.VIRUSTOTAL_API_KEY),
+            _abuseipdb_lookup(ip, settings.ABUSEIPDB_API_KEY),
+        )
+
+    if vt:
+        malicious = vt.get("vt_malicious", 0) or 0
+        if malicious > 0:
+            risk = min(risk + 0.4 + malicious * 0.02, 1.0)
+            flags.append(f"vt_malicious_detections:{malicious}")
+        if (vt.get("vt_reputation") or 0) < -5:
+            risk = min(risk + 0.15, 1.0)
+            flags.append("vt_negative_reputation")
+
+    if abuse:
+        score = abuse.get("abuse_confidence_score") or 0
+        if score >= 80:
+            risk = min(risk + 0.5, 1.0)
+            flags.append(f"abuseipdb_high_confidence:{score}")
+        elif score >= 25:
+            risk = min(risk + 0.2, 1.0)
+            flags.append(f"abuseipdb_moderate_confidence:{score}")
+
+    enrichment = {**(vt or {}), **(abuse or {})} or None
+
     return {
-        "ip":         ip,
-        "risk_score": min(round(risk, 3), 1.0),
-        "flags":      flags,
-        "verdict":    "suspicious" if risk > 0.4 else "clean",
+        "ip":           ip,
+        "risk_score":   min(round(risk, 3), 1.0),
+        "flags":        flags,
+        "verdict":      "malicious" if risk > 0.7 else ("suspicious" if risk > 0.4 else "clean"),
+        "enrichment":   enrichment,
     }
