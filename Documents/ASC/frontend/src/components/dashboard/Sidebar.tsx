@@ -126,7 +126,7 @@ export function Sidebar() {
               Premos<span style={{ color: '#E85D04' }}>Corp</span>
             </p>
             <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
-              Security Center
+              Analizador de Seguridad Cibernética
             </p>
           </div>
         )}
