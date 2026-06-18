@@ -12,10 +12,6 @@ const nextConfig = {
   // on Vercel but would bloat the build artefact unnecessarily.
   ...(IS_VERCEL ? {} : { output: 'standalone' }),
 
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-  },
-
   // Security headers — only applied when NOT running on Vercel.
   // On Vercel, vercel.json owns all headers (single source of truth, no duplicates).
   ...(!IS_VERCEL && {
