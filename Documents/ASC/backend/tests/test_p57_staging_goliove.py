@@ -40,8 +40,8 @@ _BACKEND    = Path(__file__).parent.parent          # backend/
 _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
-_EXPECTED_MIGRATION_HEAD  = "v2p45s4u7o09"
-_EXPECTED_MIGRATION_COUNT = 18
+_EXPECTED_MIGRATION_HEAD  = "w3q56t5v8p10"  # P61 honeypot tables (latest)
+_EXPECTED_MIGRATION_COUNT = 19  # P61 honeypot tables added
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
@@ -531,11 +531,21 @@ class TestMigrationChain:
         p55_files = [f for f in self.migration_files if "s9m12p1r4l06" in f.name]
         assert len(p55_files) == 1, "P55 migration (s9m12p1r4l06) not found"
 
-    def test_head_migration_has_stripe_checkout(self):
-        head_files = [f for f in self.migration_files if _EXPECTED_MIGRATION_HEAD in f.name]
-        content = head_files[0].read_text(encoding="utf-8", errors="ignore")
+    def test_p60_migration_has_stripe_checkout(self):
+        # P60 revision ID — head is now P61 (honeypot), so we target P60 directly
+        p60_files = [f for f in self.migration_files if "v2p45s4u7o09" in f.name]
+        assert len(p60_files) == 1, "P60 migration (v2p45s4u7o09) not found"
+        content = p60_files[0].read_text(encoding="utf-8", errors="ignore")
         assert "stripe_checkout_session_id" in content, (
-            "P60 head migration must add stripe_checkout_session_id column"
+            "P60 migration must add stripe_checkout_session_id column"
+        )
+
+    def test_head_migration_has_honeypot_tables(self):
+        head_files = [f for f in self.migration_files if _EXPECTED_MIGRATION_HEAD in f.name]
+        assert len(head_files) == 1, f"Head migration {_EXPECTED_MIGRATION_HEAD} not found"
+        content = head_files[0].read_text(encoding="utf-8", errors="ignore")
+        assert "honeypot_tokens" in content, (
+            "P61 head migration must create honeypot_tokens table"
         )
 
     def test_p59_migration_has_supabase_uid(self):

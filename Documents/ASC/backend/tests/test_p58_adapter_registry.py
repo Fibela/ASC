@@ -739,7 +739,7 @@ class TestSecurityInvariants:
 class TestMigrationAndStructure:
 
     _HEAD = "t0n23q2s5m07"
-    _TOTAL = 18
+    _TOTAL = 19  # P61 honeypot tables added
 
     def test_migration_file_exists(self):
         files = list(_MIGRATIONS_DIR.glob(f"*{self._HEAD}*.py"))
@@ -807,7 +807,7 @@ class TestMigrationAndStructure:
         src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
             encoding="utf-8"
         )
-        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src)
+        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src)
 
     def test_p57_references_current_count(self):
         """test_p57 must reference migration count >= 16 after P58."""
@@ -816,4 +816,5 @@ class TestMigrationAndStructure:
         )
         assert ("_EXPECTED_MIGRATION_COUNT = 16" in src or
                 "_EXPECTED_MIGRATION_COUNT = 17" in src or
-                "_EXPECTED_MIGRATION_COUNT = 18" in src)
+                "_EXPECTED_MIGRATION_COUNT = 18" in src or
+                "_EXPECTED_MIGRATION_COUNT = 19" in src)

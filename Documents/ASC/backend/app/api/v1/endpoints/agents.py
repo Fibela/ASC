@@ -59,6 +59,7 @@ from app.core.honeypot import (
 )
 from app.db.session import get_db
 from app.models.agent import Agent, AgentCommand, AgentEvent
+from app.models.honeypot import HoneypotEvidenceReport
 from app.models.user import User
 from app.services.agent_commander import (
     compute_poll_interval,
@@ -349,10 +350,13 @@ async def get_enrollment_token(
 # Any access triggers a security audit event indicating reconnaissance.
 
 @router.get("/probe", summary="[HONEYPOT] Reconnaissance detection endpoint", include_in_schema=False)
-async def _honeypot_probe(request: Request) -> dict:
+async def _honeypot_probe(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """
     Advanced honeypot: returns realistic system-status decoy with embedded canary token URL.
-    Any access fingerprints the attacker and generates a signed evidence report.
+    Any access fingerprints the attacker and generates a signed evidence report persisted to DB.
     """
     client_ip = request.client.host if request.client else "unknown"
     headers = dict(request.headers)
@@ -367,7 +371,6 @@ async def _honeypot_probe(request: Request) -> dict:
     except Exception:
         ip_rep = {}
 
-    from app.api.v1.endpoints.honeypot import _evidence_reports
     report = generate_evidence_report(
         event_type="honeypot_probe_accessed",
         fingerprint=fp,
@@ -376,14 +379,29 @@ async def _honeypot_probe(request: Request) -> dict:
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "system_probe", "canary_label": token.label},
     )
-    _evidence_reports.append(report)
+    db.add(HoneypotEvidenceReport(
+        report_id=report["report_id"],
+        token_id=token.token_id,
+        event_type="honeypot_probe_accessed",
+        attacker_ip=client_ip,
+        severity=report["report"]["incident_summary"]["severity"],
+        generated_at=datetime.now(timezone.utc),
+        report_json=report["report"],
+        signature=report["signature"],
+        fingerprint_hash=fp.fingerprint_hash,
+    ))
+    await db.commit()
     return decoy
 
 
 @router.get("/dump", summary="[HONEYPOT] Agent dump endpoint", include_in_schema=False)
-async def _honeypot_dump(request: Request) -> dict:
+async def _honeypot_dump(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """
     Advanced honeypot: returns realistic agent inventory decoy with embedded canary token.
+    Evidence report persisted to DB (replaces removed in-memory _evidence_reports list).
     """
     client_ip = request.client.host if request.client else "unknown"
     headers = dict(request.headers)
@@ -398,7 +416,6 @@ async def _honeypot_dump(request: Request) -> dict:
     except Exception:
         ip_rep = {}
 
-    from app.api.v1.endpoints.honeypot import _evidence_reports
     report = generate_evidence_report(
         event_type="honeypot_dump_accessed",
         fingerprint=fp,
@@ -407,15 +424,30 @@ async def _honeypot_dump(request: Request) -> dict:
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "agent_inventory", "canary_label": token.label},
     )
-    _evidence_reports.append(report)
+    db.add(HoneypotEvidenceReport(
+        report_id=report["report_id"],
+        token_id=token.token_id,
+        event_type="honeypot_dump_accessed",
+        attacker_ip=client_ip,
+        severity=report["report"]["incident_summary"]["severity"],
+        generated_at=datetime.now(timezone.utc),
+        report_json=report["report"],
+        signature=report["signature"],
+        fingerprint_hash=fp.fingerprint_hash,
+    ))
+    await db.commit()
     return decoy
 
 
 @router.get("/export", summary="[HONEYPOT] Agent export endpoint", include_in_schema=False)
-async def _honeypot_export(request: Request) -> dict:
+async def _honeypot_export(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     """
     Advanced honeypot: returns realistic credentials-export decoy with embedded canary token.
     Fake DB credentials reference non-routable internal hostnames — completely inert.
+    Evidence report persisted to DB (replaces removed in-memory _evidence_reports list).
     """
     client_ip = request.client.host if request.client else "unknown"
     headers = dict(request.headers)
@@ -430,7 +462,6 @@ async def _honeypot_export(request: Request) -> dict:
     except Exception:
         ip_rep = {}
 
-    from app.api.v1.endpoints.honeypot import _evidence_reports
     report = generate_evidence_report(
         event_type="honeypot_export_accessed",
         fingerprint=fp,
@@ -439,7 +470,18 @@ async def _honeypot_export(request: Request) -> dict:
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "credentials_export", "canary_label": token.label},
     )
-    _evidence_reports.append(report)
+    db.add(HoneypotEvidenceReport(
+        report_id=report["report_id"],
+        token_id=token.token_id,
+        event_type="honeypot_export_accessed",
+        attacker_ip=client_ip,
+        severity=report["report"]["incident_summary"]["severity"],
+        generated_at=datetime.now(timezone.utc),
+        report_json=report["report"],
+        signature=report["signature"],
+        fingerprint_hash=fp.fingerprint_hash,
+    ))
+    await db.commit()
     return decoy
 
 

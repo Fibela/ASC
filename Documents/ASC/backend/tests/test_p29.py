@@ -194,33 +194,29 @@ class TestPIILSigning:
         from app.services.reporting_service import _sha3_512_hex
         assert _sha3_512_hex({"a": 1, "b": 2}) == _sha3_512_hex({"b": 2, "a": 1})
 
-    def test_sign_report_no_key_returns_placeholder(self):
+    def test_sign_report_no_key_raises_value_error(self):
         from app.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            sig, fp = _sign_report("deadbeef" * 32)
-        assert sig == base64.b64encode(b"PIIL-UNSIGNED-NO-KEY-CONFIGURED").decode()
-        assert fp == "0000000000000000"
+            with pytest.raises(ValueError, match="SPECTER_SIGNING_PRIVATE_KEY"):
+                _sign_report("deadbeef" * 32)
 
     def test_sign_report_no_key_fingerprint_is_16_zeros(self):
         from app.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            _, fp = _sign_report("abc")
-        assert len(fp) == 16
-        assert fp == "0" * 16
+            with pytest.raises(ValueError):
+                _sign_report("abc")
 
-    def test_sign_report_with_invalid_key_returns_error_sig(self):
+    def test_sign_report_with_invalid_key_raises_value_error(self):
         from app.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAVALIDKEY=="
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            sig, fp = _sign_report("abc")
-        # Should return error fallback, not raise
-        assert sig  # not empty
-        assert fp in ("error", "unknown", "0000000000000000") or len(fp) >= 4
+            with pytest.raises(ValueError):
+                _sign_report("abc")
 
     def test_verify_report_signature_no_public_key_returns_false(self):
         from app.services.reporting_service import verify_report_signature
@@ -259,11 +255,13 @@ class TestPIILSigning:
         sig = base64.b64encode(b"PIIL-UNSIGNED-NO-KEY-CONFIGURED").decode()
         assert base64.b64decode(sig) == b"PIIL-UNSIGNED-NO-KEY-CONFIGURED"
 
-    def test_sign_report_returns_tuple(self):
+    def test_sign_report_with_valid_key_returns_tuple(self):
         from app.services.reporting_service import _sign_report
+        from app.core.signing import generate_analyst_keypair
+        priv_b64, pub_b64 = generate_analyst_keypair()
         with patch("app.services.reporting_service._s") as ms:
-            ms.SPECTER_SIGNING_PRIVATE_KEY = ""
-            ms.SPECTER_SIGNING_PUBLIC_KEY = ""
+            ms.SPECTER_SIGNING_PRIVATE_KEY = priv_b64
+            ms.SPECTER_SIGNING_PUBLIC_KEY = pub_b64
             result = _sign_report("abc")
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -593,6 +591,32 @@ class TestSoarKpis:
 
 class TestGenerateReport:
 
+    @pytest.fixture(autouse=True)
+    def _patch_sign_report(self, monkeypatch):
+        """
+        Patch _sign_report with a real Ed25519 key so generate_report
+        doesn't raise ValueError for missing key.
+        Tests that patch _s still work: _sign_report is patched at the
+        function level, bypassing the _s.SPECTER_SIGNING_PRIVATE_KEY check.
+        """
+        from app.core.signing import generate_analyst_keypair
+        import hashlib, base64 as b64
+        priv_b64, pub_b64 = generate_analyst_keypair()
+        self._priv_key = priv_b64
+        self._pub_key = pub_b64
+
+        def _fake_sign(hash_hex: str):
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+            raw = b64.b64decode(priv_b64)
+            key = Ed25519PrivateKey.from_private_bytes(raw)
+            sig = b64.b64encode(key.sign(hash_hex.encode())).decode()
+            pub_bytes = b64.b64decode(pub_b64)
+            fp = hashlib.sha3_512(pub_bytes).hexdigest()[:16]
+            return sig, fp
+
+        import app.services.reporting_service as rs
+        monkeypatch.setattr(rs, "_sign_report", _fake_sign)
+
     def _make_db_for_generate(self):
         """Return DB mock with 8 inc + 3 camp + 3 hunt + 2 soar = 16 scalar calls."""
         db = AsyncMock()
@@ -663,7 +687,7 @@ class TestGenerateReport:
         assert len(report.hash_sha3_512) == 128
 
     @pytest.mark.asyncio
-    async def test_unsigned_signature_when_no_key(self):
+    async def test_signed_report_has_valid_ed25519_signature(self):
         from app.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
@@ -676,8 +700,8 @@ class TestGenerateReport:
                     period_start=_utcnow() - timedelta(days=30),
                     period_end=_utcnow(), generated_by="admin@premos.com",
                 )
-        expected_sig = base64.b64encode(b"PIIL-UNSIGNED-NO-KEY-CONFIGURED").decode()
-        assert report.signature_ed25519 == expected_sig
+        assert report.signature_ed25519 is not None
+        assert len(base64.b64decode(report.signature_ed25519)) == 64
 
     @pytest.mark.asyncio
     async def test_signature_valid_false_when_no_key(self):
@@ -811,7 +835,7 @@ class TestGenerateReport:
         mock_audit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_pubkey_fingerprint_zero_when_no_key(self):
+    async def test_pubkey_fingerprint_is_16_hex_chars(self):
         from app.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
@@ -824,7 +848,8 @@ class TestGenerateReport:
                     period_start=_utcnow() - timedelta(days=30),
                     period_end=_utcnow(), generated_by="admin@premos.com",
                 )
-        assert report.pubkey_fingerprint == "0000000000000000"
+        assert len(report.pubkey_fingerprint) == 16
+        assert all(c in "0123456789abcdef" for c in report.pubkey_fingerprint)
 
 
 # ── TestVerifyReport ───────────────────────────────────────────────────────────

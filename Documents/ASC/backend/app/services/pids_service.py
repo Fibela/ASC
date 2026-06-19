@@ -45,6 +45,10 @@ _VALID_ACTION_TYPES = frozenset({
 
 def _build_canonical(action: IdentityAction) -> dict[str, Any]:
     """Deterministic canonical dict bound to every immutable field of an action."""
+    dt = action.executed_at
+    if dt is not None and dt.tzinfo is None:
+        # SQLite returns naive datetimes even for timezone=True columns; treat as UTC
+        dt = dt.replace(tzinfo=timezone.utc)
     return {
         "pids_version": "1",
         "action_id": action.id,
@@ -59,7 +63,7 @@ def _build_canonical(action: IdentityAction) -> dict[str, Any]:
         "success": action.success,
         "result_detail": action.result_detail,
         "initiated_by": action.initiated_by,
-        "executed_at": action.executed_at.isoformat() if action.executed_at else None,
+        "executed_at": dt.isoformat() if dt else None,
     }
 
 

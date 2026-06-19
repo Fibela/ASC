@@ -490,6 +490,18 @@ class TestExecutiveReportsList:
 
 
 class TestExecutiveReportsGenerate:
+    @pytest.fixture(autouse=True)
+    def _signing_key(self, monkeypatch):
+        """
+        Provide a real Ed25519 keypair so generate endpoint returns 201.
+        get_settings() is @lru_cache — patch the cached object directly.
+        """
+        from app.core.signing import generate_analyst_keypair
+        import app.services.reporting_service as rs
+        priv_b64, pub_b64 = generate_analyst_keypair()
+        monkeypatch.setattr(rs._s, "SPECTER_SIGNING_PRIVATE_KEY", priv_b64)
+        monkeypatch.setattr(rs._s, "SPECTER_SIGNING_PUBLIC_KEY", pub_b64)
+
     def _body(self, **overrides) -> dict:
         base = {
             "report_type": "full_executive",
@@ -550,6 +562,20 @@ class TestExecutiveReportsGenerate:
 
 
 class TestExecutiveReportsGetVerifyDelete:
+    @pytest.fixture(autouse=True)
+    def _signing_key(self, monkeypatch):
+        """
+        Generate a test Ed25519 keypair and patch the cached settings object
+        so the generate endpoint doesn't return 503.
+        get_settings() uses @lru_cache, so monkeypatch.setenv has no effect —
+        we must patch the already-instantiated settings object directly.
+        """
+        from app.core.signing import generate_analyst_keypair
+        import app.services.reporting_service as rs
+        priv_b64, pub_b64 = generate_analyst_keypair()
+        monkeypatch.setattr(rs._s, "SPECTER_SIGNING_PRIVATE_KEY", priv_b64)
+        monkeypatch.setattr(rs._s, "SPECTER_SIGNING_PUBLIC_KEY", pub_b64)
+
     async def _create_report(self, client, admin_headers) -> dict:
         resp = await client.post(
             "/api/v1/reports/executive/generate",

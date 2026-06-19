@@ -39,7 +39,7 @@ from app.main import app
 _BACKEND = Path(__file__).parent.parent
 _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
 _P60_HEAD = "v2p45s4u7o09"
-_EXPECTED_TOTAL_MIGRATIONS = 18
+_EXPECTED_TOTAL_MIGRATIONS = 19  # P61 honeypot tables added
 
 _WEBHOOK_URL = "/api/v1/billing/stripe/webhook"
 _TEST_WEBHOOK_SECRET = "whsec_test_secret_for_unit_tests_only"
@@ -785,11 +785,14 @@ class TestRegressionGates:
         p57_src = (Path(__file__).parent / "test_p57_staging_goliove.py").read_text(
             encoding="utf-8"
         )
-        assert "_EXPECTED_MIGRATION_COUNT = 17" in p57_src or \
-               "_EXPECTED_MIGRATION_COUNT = 18" in p57_src
+        assert ("_EXPECTED_MIGRATION_COUNT = 17" in p57_src or
+                "_EXPECTED_MIGRATION_COUNT = 18" in p57_src or
+                "_EXPECTED_MIGRATION_COUNT = 19" in p57_src)
 
     def test_p56_migration_count_updated_to_18(self):
         p56_src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
             encoding="utf-8"
         )
-        assert "_EXPECTED_COUNT = 17" in p56_src or "_EXPECTED_COUNT = 18" in p56_src
+        assert ("_EXPECTED_COUNT = 17" in p56_src or
+                "_EXPECTED_COUNT = 18" in p56_src or
+                "_EXPECTED_COUNT = 19" in p56_src)

@@ -259,8 +259,8 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "v2p45s4u7o09"   # add_stripe_checkout_p60 (latest)
-    _EXPECTED_COUNT = 18               # total migrations (added P53 + P55 + P58 + P59 + P60)
+    _EXPECTED_HEAD  = "w3q56t5v8p10"   # add_honeypot_tables_p61 (latest)
+    _EXPECTED_COUNT = 19               # total migrations (added P53 + P55 + P58 + P59 + P60 + P61)
 
     def test_migrations_directory_exists(self):
         assert self._MIGRATIONS_DIR.exists()

@@ -5330,3 +5330,52 @@ El marco legal ASC queda 100% completo con 7 documentos en docs/legal/.
 | TERMINOS_USO_PLATAFORMA.md | ✅ Completo |
 
 **Marco Legal ASC: 8 documentos — FRAMEWORK COMPLETO ✅**
+
+---
+
+## Session 84 — 2026-06-18 (SPECTER/PIDS: Security Scan + Tests + Bug Fixes)
+
+### Security Scan — Session 84
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1422 | 2026-06-18 | SECURITY | **Bandit SAST scan**: `bandit -r backend/app -ll` — escaneado código de producción completo en busca de vulnerabilidades Python. | Ejecutado; sin vulnerabilidades CRÍTICAS en código de aplicación |
+| 1423 | 2026-06-18 | SECURITY | **Honeypot ImportError (seguridad operacional)**: `agents.py` importaba `_evidence_reports` (lista en memoria) de `honeypot.py`, pero P61 eliminó esa lista al migrar a PostgreSQL. Endpoints de honeypot (`_honeypot_probe`, `_honeypot_dump`, `_honeypot_export`) fallaban en producción con `ImportError`. | ✅ CORREGIDO |
+| 1424 | 2026-06-18 | SECURITY | **Persistencia de evidencia forense**: Honeypot endpoints ahora persisten `HoneypotEvidenceReport` en PostgreSQL vía `db.add()` + `await db.commit()`. Evidencia forense ya no se pierde en reinicios. | ✅ IMPLEMENTADO |
+| 1425 | 2026-06-18 | SECURITY | **Hash PIDS normalization**: `_build_canonical()` en `pids_service.py` normalizaba `executed_at` sin manejar datetimes naive (SQLite retorna datetimes sin tzinfo en columnas `DateTime(timezone=True)`). Bug causaba que `verify_identity_action()` NUNCA confirmara hash_match=True en SQLite. Fix: normalize naive→UTC antes de `.isoformat()`. | ✅ CORREGIDO |
+
+### Testing — Session 84
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1426 | 2026-06-18 | TEST | **55+ tests PIDS Service creados** (`test_pids_service.py`): `_build_canonical` determinism, `_compute_hash` SHA3-512, `_sign_hash` no-key path, `_verify_signature`, `_action_to_dict`, `create_identity_action` (5 tipos válidos), `verify_identity_action` (tamper detection), `list_identity_actions` (5 filtros), `get_identity_timeline` (orden ASC), `get_pids_summary` (totales, success rate, 24h, hunt-scoped). | ✅ |
+| 1427 | 2026-06-18 | TEST | **`_bare_action` helper corregido**: usaba `IdentityAction.__new__()` + `object.__setattr__()` que falla en atributos SQLAlchemy instrumentados (`AttributeError: 'NoneType' has no attribute 'set'`). Fix: usar `IdentityAction(**defaults)` (constructor normal). | ✅ |
+| 1428 | 2026-06-18 | TEST | **Conteo migraciones actualizado (P61)**: 5 archivos de test (p56, p57, p58, p59, p60) actualizados de 18→19 migraciones y head de `v2p45s4u7o09`→`w3q56t5v8p10` (P61 honeypot). | ✅ |
+| 1429 | 2026-06-18 | TEST | **Cross-validation gates actualizados**: `test_p58_adapter_registry.py` y `test_p59_sso_bridge.py` tenían verificaciones que leían el código fuente de p57/p58 esperando counts ≤18. Actualizados para aceptar 19. | ✅ |
+| 1430 | 2026-06-18 | TEST | **`test_head_migration_has_stripe_checkout` corregido en p57**: cambiado a `test_p60_migration_has_stripe_checkout` (busca P60 por revision ID `v2p45s4u7o09`, no por head dinámico). Añadido `test_head_migration_has_honeypot_tables` para P61. | ✅ |
+| 1431 | 2026-06-18 | TEST | **`TestExecutiveReportsGetVerifyDelete` corregido en p33**: fixture `_signing_key` autouse genera keypair Ed25519 real y parchea `rs._s.SPECTER_SIGNING_PRIVATE_KEY` directamente (workaround para `@lru_cache` que hace que `monkeypatch.setenv` no tenga efecto). 9/9 tests pasan. | ✅ |
+
+### Fixes — Session 84
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1432 | 2026-06-18 | FIX | **`backend/app/api/v1/endpoints/agents.py`**: Eliminados 3 lazy imports de `_evidence_reports`. Añadida dependencia `db: AsyncSession` a 3 endpoints honeypot. Persistencia en `HoneypotEvidenceReport` ORM model. |
+| 1433 | 2026-06-18 | FIX | **`backend/app/services/pids_service.py`**: `_build_canonical()` — normalize `executed_at` naive datetime a UTC antes de `.isoformat()`. Afecta hash consistency en SQLite (tests) y PostgreSQL sin `timezone=True` mapping. |
+
+### Fixes adicionales — Session 84
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1434 | 2026-06-18 | FIX | **`test_p29.py::TestPIILSigning`**: 4 tests actualizados — `_sign_report` con key vacía ahora levanta `ValueError` (no retorna placeholder "PIIL-UNSIGNED"). Tests actualizados a `pytest.raises(ValueError)`. `test_sign_report_returns_tuple` ahora usa keypair real. |
+| 1435 | 2026-06-18 | FIX | **`test_p29.py::TestGenerateReport`**: 13 tests fallando. Root cause: `_sign_report` levanta `ValueError` con clave vacía — `generate_report` nunca completa. Fix: fixture autouse `_patch_sign_report` que parchea `_sign_report` directamente (bypassa el lru_cache de `_s`). Assertions de "no key" actualizadas para comportamiento actual. |
+| 1436 | 2026-06-18 | FIX | **`test_p33_coverage.py::TestExecutiveReportsGenerate`**: fixture `_signing_key` autouse añadida — mismo patrón que `TestExecutiveReportsGetVerifyDelete` (monkeypatcha `rs._s` directamente). `test_generate_admin_returns_201` ya devuelve 201. |
+| 1437 | 2026-06-18 | FIX | **`test_p58_adapter_registry.py::test_p56_references_current_head`**: añadido `w3q56t5v8p10` (P61) a la lista de heads aceptados. P56 fue actualizado a P61 como head. |
+
+### Cobertura — Session 84
+
+| Módulo | Cobertura previa | Estimado post-fix |
+|--------|-----------------|-------------------|
+| `pids_service.py` | ~23% | ~88% (55+ tests) |
+| `agents.py` (honeypot endpoints) | ~30% | ~55% |
+| Coverage total del suite | ~50.81% | Por determinar (suite en curso) |
+
