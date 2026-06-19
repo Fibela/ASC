@@ -5248,3 +5248,43 @@ La página `/login` del ASC tenía un formulario email/contraseña que llamaba d
 | Badge "Sesión expirada" con `?expired=1` | Contexto claro cuando el interceptor 401 manda al usuario aquí. Sin el param, se asume primera visita — mensaje de bienvenida. |
 | Chips de capacidades ASC | La página no debe verse vacía. Muestra valor: qué obtendrán tras autenticarse. Reutiliza clase `chip-orange` del design system existente. |
 | Suspense wrapper | `useSearchParams` en Next.js 13+ App Router requiere Suspense. Mismo patrón que `sso/page.tsx`. |
+
+---
+
+## Session 82 — 2026-06-18 (LEGAL: Marco Legal completo — docs/legal/)
+
+### Overview
+
+Creación del marco legal completo de PremosCorp ASC. Documentos templates profesionales
+alineados con LFPDPPP (México) + GDPR (UE) para formalizar engagements de ciberseguridad.
+Motivación: sin marco legal, las pruebas de penetración pueden constituir un delito
+(CP Federal Art. 211 bis) incluso con buena intención.
+
+### Implementation — Session 82
+
+| # | Date | Type | Description | Status |
+|---|------|------|-------------|--------|
+| 1406 | 2026-06-18 | DESIGN | **Marco legal framework**: Definida jerarquía de documentos — Contrato de Servicios (maestro) → Anexos A-E (Autorización, NDA, Aviso Privacidad, SoW, Tarifas). Proceso de onboarding legal en 8 pasos documentado. | ✅ |
+| 1407 | 2026-06-18 | IMPL | **`docs/legal/MARCO_LEGAL.md`**: Overview completo. Stack normativo (LFPDPPP, RLFPDPPP, INAI, CP Federal Art. 211 bis, GDPR, CCPA, LGPD). Estándares ISO 27001, NIST CSF 2.0, OWASP. Clasificación de información 4 niveles (CRÍTICA/CONFIDENCIAL/RESTRINGIDA/INTERNA). Checklist legal por engagement. Guía de seguros (Cyber Liability $1M USD, E&O $500K, RC $300K). | ✅ |
+| 1408 | 2026-06-18 | IMPL | **`docs/legal/AUTORIZACION_PENTEST.md`**: Template carta de autorización para pruebas activas. Incluye: identificación de partes, declaración de autorización, scope con tabla de sistemas, rangos IP, técnicas autorizadas (22 técnicas marcables), exclusiones explícitas, ventana de tiempo, contactos de emergencia 24/7, clasificación de hallazgos por severidad (CRÍTICA <2h / ALTA <24h / MEDIA <72h), política de datos sensibles, limitación de responsabilidad, registro con hash SHA-256. | ✅ |
+| 1409 | 2026-06-18 | IMPL | **`docs/legal/NDA_BILATERAL.md`**: Acuerdo de confidencialidad bilateral. 12 cláusulas: definición de Info Confidencial, exclusiones, obligaciones recíprocas, carácter bilateral, vigencia ([2/3/5] años + perpetua para secretos comerciales), devolución/destrucción en 10 días hábiles, PI, ausencia de obligación de contratación, recurso por incumplimiento, pena convencional, jurisdicción México, disposiciones generales (firma electrónica aceptada). | ✅ |
+| 1410 | 2026-06-18 | IMPL | **`docs/legal/CONTRATO_SERVICIOS.md`**: Contrato Marco de Servicios. 14 cláusulas: declaraciones, objeto (5 módulos: VA/Pentest/SOC/IR/Consultoría), duración, contraprestación con tabla de pagos, mora 1.5-2% mensual, CFDI 4.0, obligaciones mutuas, PI y uso de reportes, limitación de responsabilidad (tope al monto pagado 12 meses), transferencias internacionales, subcontratación, terminación (ordinaria/anticipada/inmediata), independencia de partes, resolución de controversias (negociación → mediación → jurisdicción). | ✅ |
+| 1411 | 2026-06-18 | IMPL | **`docs/legal/AVISO_PRIVACIDAD.md`**: Aviso de privacidad LFPDPPP + GDPR. Responsable del tratamiento + DPO (Art. 37 GDPR). Categorías de datos (identificación, contacto, laborales, financieros, digitales). Finalidades primarias y secundarias. Tabla de transferencias (autoridades, cloud providers, facturación). Medidas de seguridad técnicas/administrativas/físicas. Tabla de retención por categoría. Derechos ARCO (20 días hábiles) + derechos GDPR adicionales (portabilidad, restricción, oposición a perfilado, 30 días). Cookies de la plataforma ASC documentadas. Contactos INAI. | ✅ |
+
+### Security — Session 82
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1412 | 2026-06-18 | SECURITY | **Revisión legal-security**: Verificado que los templates no exponen información sensible de clientes reales. Todos los campos de identificación usan placeholders `[CAMPO]`. No se incluyen datos de engagements previos. | ✅ CLEAN |
+| 1413 | 2026-06-18 | SECURITY | **Principio Art. 211 bis documentado**: La Carta de Autorización establece explícitamente que las pruebas sin este documento pueden constituir delito penal. Crea conciencia en los analistas. | ✅ |
+| 1414 | 2026-06-18 | SECURITY | **Seguro cyber liability**: Documentada la necesidad de Cyber Liability ($1M USD) + E&O ($500K) + RC ($300K). Proveedores en México: Chubb, AIG, Zurich, HDI Seguros. | ✅ |
+
+### Notas de arquitectura legal
+
+| Decisión | Razón |
+|----------|-------|
+| Templates en Markdown, no PDF | Los PDFs son inmutables y difíciles de versionar. Los Markdown permiten evolución controlada con git. Se generan PDFs firmados por engagement. |
+| Jerarquía Contrato → Anexos | El Contrato es el documento maestro. Modificar solo un Anexo no requiere refirmar todo el contrato — ahorra fricción en actualizaciones de scope. |
+| NDA antes del discovery comercial | No se puede compartir arquitectura técnica del cliente en la fase de venta sin NDA previo. El orden del proceso de onboarding es crítico. |
+| LFPDPPP + GDPR simultáneo | ASC tiene usuarios internacionales. Cumplir solo LFPDPPP crea riesgo si un cliente UE activa sus derechos GDPR. Mejor tener ambos cubiertos desde el inicio. |
+| Limitación de responsabilidad al monto pagado | Estándar en la industria de servicios tecnológicos. Sin esto, una falla en detección podría generar reclamaciones desproporcionadas. |
