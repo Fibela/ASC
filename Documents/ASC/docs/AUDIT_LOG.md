@@ -5288,3 +5288,45 @@ Motivación: sin marco legal, las pruebas de penetración pueden constituir un d
 | NDA antes del discovery comercial | No se puede compartir arquitectura técnica del cliente en la fase de venta sin NDA previo. El orden del proceso de onboarding es crítico. |
 | LFPDPPP + GDPR simultáneo | ASC tiene usuarios internacionales. Cumplir solo LFPDPPP crea riesgo si un cliente UE activa sus derechos GDPR. Mejor tener ambos cubiertos desde el inicio. |
 | Limitación de responsabilidad al monto pagado | Estándar en la industria de servicios tecnológicos. Sin esto, una falla en detección podría generar reclamaciones desproporcionadas. |
+
+---
+
+## Session 83 — 2026-06-18 (LEGAL: Marco Legal completo — SLA, GDPR, Términos)
+
+### Overview
+
+Completar el marco legal con los 3 documentos restantes: SLA con métricas operacionales,
+checklist GDPR de 10 módulos para clientes UE, y Términos de Uso de la plataforma ASC.
+El marco legal ASC queda 100% completo con 7 documentos en docs/legal/.
+
+### Implementation — Session 83
+
+| # | Date | Type | Description | Status |
+|---|------|------|-------------|--------|
+| 1415 | 2026-06-18 | IMPL | **`docs/legal/SLA_SERVICIOS.md`**: SLA completo. Tier Enterprise 99.9% (43.8 min downtime/mes) y Business 99.5%. Tiempos de respuesta P1–P4 (P1: notificación <15 min, resolución <4h). Métricas SOC: MTTD <15 min, MTTR <4h, falsos positivos <5%, cobertura MITRE ≥95%. Tablas de créditos por incumplimiento (5–25% según tier). Ventanas de mantenimiento. Árbol de escalación L1-L5. Reportes incluidos (diario/semanal/mensual/QBR). | ✅ |
+| 1416 | 2026-06-18 | IMPL | **`docs/legal/GDPR_CHECKLIST.md`**: 10 módulos de cumplimiento GDPR. Módulo 1: base legal Art. 6/7/9. Módulo 2: RAT (Registro de Actividades). Módulo 3: derechos de interesados Arts. 15–22 con plazos. Módulo 4: transferencias internacionales (México decisión adecuación 2023, EE.UU. SCCs/DPF, subencargados: Supabase/Vercel/Render/Resend). Módulo 5: Responsable vs. Encargado + DPA Art. 28 (10 cláusulas obligatorias). Módulo 6: DPIA Art. 35. Módulo 7: seguridad + gestión de brechas (72h a autoridad, template de registro). Módulo 8: DPO Art. 37. Módulo 9: información a interesados. Módulo 10: revisión y auditoría. | ✅ |
+| 1417 | 2026-06-18 | IMPL | **`docs/legal/TERMINOS_USO_PLATAFORMA.md`**: Términos de Uso del portal ASC. Roles y permisos (viewer/analyst/responder/admin). Política de uso aceptable (usos prohibidos, bug bounty / reporte responsable con 90 días de divulgación coordinada). Tipos de datos procesados y retención (hot 90 días, cold 1 año, ledger forense 2 años). Portabilidad y exportación (60 días post-contrato). API y rate limits. Integraciones de terceros. Limitación de responsabilidad para acceso sin contrato = $0 SLA. | ✅ |
+| 1418 | 2026-06-18 | IMPL | **`docs/legal/MARCO_LEGAL.md`**: Actualizado el índice de documentos para incluir los 3 nuevos archivos con descripciones completas. 7 documentos totales en el marco legal. | ✅ |
+
+### Security — Session 83
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| 1419 | 2026-06-18 | SECURITY | **GDPR transfer risk**: Documentado que Vercel/Render (EE.UU.) requieren SCCs. Supabase permite región EU (Frankfurt) — recomendado para clientes UE que requieran datos residentes en EU. | ✅ |
+| 1420 | 2026-06-18 | SECURITY | **Bug bounty documentado**: Términos de Uso incluyen política de reporte responsable de vulnerabilidades en la plataforma ASC — 90 días de divulgación coordinada. Reduce riesgo de 0-day público. | ✅ |
+| 1421 | 2026-06-18 | SECURITY | **GDPR Brecha 72h**: Checklist documenta el proceso y template de registro de brechas. Cumplimiento Art. 33 GDPR (notificación a autoridad en 72h) y Art. 34 (notificación a interesados). | ✅ |
+
+### Estado final del Marco Legal ASC
+
+| Documento | Estado |
+|-----------|--------|
+| MARCO_LEGAL.md | ✅ Completo |
+| AUTORIZACION_PENTEST.md | ✅ Completo |
+| CONTRATO_SERVICIOS.md | ✅ Completo |
+| NDA_BILATERAL.md | ✅ Completo |
+| AVISO_PRIVACIDAD.md | ✅ Completo |
+| SLA_SERVICIOS.md | ✅ Completo |
+| GDPR_CHECKLIST.md | ✅ Completo |
+| TERMINOS_USO_PLATAFORMA.md | ✅ Completo |
+
+**Marco Legal ASC: 8 documentos — FRAMEWORK COMPLETO ✅**

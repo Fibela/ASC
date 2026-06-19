@@ -161,12 +161,13 @@ PremosCorp debe mantener vigentes:
 
 | Archivo | Descripción |
 |---------|-------------|
-| `AUTORIZACION_PENTEST.md` | Template: Carta de Autorización para pruebas activas |
-| `CONTRATO_SERVICIOS.md` | Template: Contrato Marco de Servicios de Ciberseguridad |
-| `NDA_BILATERAL.md` | Template: Acuerdo de No Divulgación Bilateral |
-| `AVISO_PRIVACIDAD.md` | Template: Aviso de Privacidad (LFPDPPP + GDPR) |
-| `SLA_SERVICIOS.md` | Template: Service Level Agreement |
-| `GDPR_CHECKLIST.md` | Checklist de cumplimiento GDPR para clientes UE |
+| `AUTORIZACION_PENTEST.md` | Template: Carta de Autorización para pruebas activas (obligatoria antes de cualquier pentest) |
+| `CONTRATO_SERVICIOS.md` | Template: Contrato Marco de Servicios de Ciberseguridad (documento maestro) |
+| `NDA_BILATERAL.md` | Template: Acuerdo de No Divulgación Bilateral (firmar ANTES del discovery) |
+| `AVISO_PRIVACIDAD.md` | Template: Aviso de Privacidad (LFPDPPP + GDPR — derechos ARCO + portabilidad) |
+| `SLA_SERVICIOS.md` | Template: Service Level Agreement (uptime 99.9%, tiempos de respuesta, créditos) |
+| `GDPR_CHECKLIST.md` | Checklist de cumplimiento GDPR (10 módulos — obligatorio para clientes UE) |
+| `TERMINOS_USO_PLATAFORMA.md` | Términos de Uso del portal ASC (roles, uso aceptable, API, retención de datos) |
 
 ---
 
