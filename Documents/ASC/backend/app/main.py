@@ -37,8 +37,9 @@ async def lifespan(app: FastAPI):
     # Validate configuration before accepting traffic
     run_startup_checks(settings)
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # Schema creation is managed by Alembic migrations (run once via `alembic upgrade head`).
+    # On Vercel serverless, create_all on every cold start wastes a connection and adds
+    # latency. The tables already exist in production — skip create_all entirely.
 
     # Notification bus: connect to Redis if configured, fall back to local mode
     bus_mode = await notification_bus.connect(settings.REDIS_URL)

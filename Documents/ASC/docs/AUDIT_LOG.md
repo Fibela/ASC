@@ -5377,5 +5377,39 @@ El marco legal ASC queda 100% completo con 7 documentos en docs/legal/.
 |--------|-----------------|-------------------|
 | `pids_service.py` | ~23% | ~88% (55+ tests) |
 | `agents.py` (honeypot endpoints) | ~30% | ~55% |
-| Coverage total del suite | ~50.81% | Por determinar (suite en curso) |
+| Coverage total del suite | ~50.81% | **85.92%** (4546 passed, 0 failed) ✅ |
+
+---
+
+## Session 85 — 2026-06-30 (INFRA: Migración Render → Vercel)
+
+### Contexto
+El servicio `asc-backend-ona9.onrender.com` devolvía **410 GONE** — Render discontinuó el free tier para web services. Decisión: migrar backend a Vercel (Opción C), consolidando frontend y backend en la misma plataforma.
+
+### Implementación — Session 85
+
+| # | Date | Type | Description |
+|---|------|------|-------------|
+| 1438 | 2026-06-30 | DESIGN | **Migración Render → Vercel**: Backend FastAPI ahora se despliega como Vercel Python Serverless (`@vercel/python` runtime). Frontend Next.js sigue en Vercel. Un solo proveedor, sin cold-start de 90s, sin risk de suspensión por free tier. |
+| 1439 | 2026-06-30 | IMPL | **`backend/api/__init__.py` + `backend/api/index.py`**: Entrypoint Vercel ASGI. `from app.main import app` — Vercel detecta la variable `app` y la sirve como ASGI handler. |
+| 1440 | 2026-06-30 | IMPL | **`backend/vercel.json`**: Configuración Vercel Python — `@vercel/python`, `maxLambdaSize: 50mb`, `runtime: python3.11`, `regions: [gru1]`, routing `/(.*) → api/index.py`, security headers. |
+| 1441 | 2026-06-30 | IMPL | **`backend/requirements-vercel.txt`**: Requirements slim para Vercel — eliminados `uvicorn`, `celery`, `flower`, `yara-python`, `python-magic` (incompatibles con Lambda environment o ya en no-op). |
+| 1442 | 2026-06-30 | FIX | **`backend/app/db/session.py`**: Detección serverless vía `VERCEL` env var → `NullPool` (una conexión por request, sin pool persistente). En Docker/local usa `AsyncAdaptedQueuePool` (pool_size=10). Evita connection leaks en Lambda. |
+| 1443 | 2026-06-30 | FIX | **`backend/app/main.py` lifespan**: Eliminado `Base.metadata.create_all` del lifespan — Alembic maneja migraciones. En serverless, create_all en cada cold start era wasteful y añadía latencia. |
+| 1444 | 2026-06-30 | FIX | **`frontend/vercel.json` CSP**: `connect-src` actualizado de `https://*.onrender.com` → `https://*.vercel.app`. Permite llamadas del frontend al nuevo backend Vercel. |
+| 1445 | 2026-06-30 | FIX | **`frontend/next.config.js`**: URL fallback actualizada de `asc-backend-ona9.onrender.com` → `asc-api.premoscorp.com` (dominio personalizado a configurar en Vercel). |
+
+### Pasos manuales requeridos (Vercel Dashboard)
+
+| Paso | Acción | Dónde |
+|------|--------|-------|
+| 1 | Crear nuevo proyecto Vercel para el backend | vercel.com/new |
+| 2 | Conectar al mismo repo GitHub (Fibela/ASC) | Import Git Repository |
+| 3 | Root Directory: `Documents/ASC/backend` | Project Settings → General |
+| 4 | Framework Preset: **Other** (no Next.js) | Build & Development |
+| 5 | Build Command: vacío (Python, sin build) | Build & Development |
+| 6 | Copiar env vars del .env.example | Settings → Environment Variables |
+| 7 | `NEXT_PUBLIC_API_URL` en proyecto frontend → nueva URL backend | Frontend project env vars |
+| 8 | Añadir dominio `asc-api.premoscorp.com` al backend | Backend project → Domains |
+| 9 | Actualizar CORS_ORIGINS en backend con URLs frontend | Backend env var |
 

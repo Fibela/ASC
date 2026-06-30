@@ -13,7 +13,7 @@ const nextConfig = {
   // on the very first build of a new project (env vars set after the build starts).
   env: {
     NEXT_PUBLIC_API_URL:
-      process.env.NEXT_PUBLIC_API_URL || 'https://asc-backend-ona9.onrender.com',
+      process.env.NEXT_PUBLIC_API_URL || 'https://asc-api.premoscorp.com',
     NEXT_PUBLIC_PORTAL_URL:
       process.env.NEXT_PUBLIC_PORTAL_URL || 'https://premoscorp.com',
   },
