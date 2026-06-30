@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "https://premoscorp.com",
-        "https://asc.premoscorp.com",      # custom domain (production)
-        "https://asc-opal-five.vercel.app", # Vercel deployment
+        "https://asc.premoscorp.com",           # custom domain (production)
+        "https://asc-frontend-delta.vercel.app", # Vercel frontend project
     ]
 
     # SOC Thresholds
