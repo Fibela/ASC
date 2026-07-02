@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from typing import Callable, Sequence
 
-from app.models.alert import Alert
+from asc_api.models.alert import Alert
 
 
 # ─── SLA thresholds (SOC standard defaults) ──────────────────────────────────

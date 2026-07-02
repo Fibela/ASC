@@ -17,12 +17,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.api_key_rate_limit import api_key_limiter
-from app.core.audit import log_security_action
+from asc_api.core.api_key_rate_limit import api_key_limiter
+from asc_api.core.audit import log_security_action
 
 # Prometheus metrics — imported lazily to avoid test-import ordering issues
 try:
-    from app.core.metrics_registry import HTTP_REQUESTS, HTTP_DURATION, _normalize_path
+    from asc_api.core.metrics_registry import HTTP_REQUESTS, HTTP_DURATION, _normalize_path
     _METRICS_ENABLED = True
 except Exception:  # pragma: no cover
     _METRICS_ENABLED = False

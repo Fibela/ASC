@@ -46,7 +46,7 @@ from typing import Any, Optional
 
 import httpx
 
-from app.core.audit import log_security_action
+from asc_api.core.audit import log_security_action
 
 
 # ── Canary Token System ────────────────────────────────────────────────────────

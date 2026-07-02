@@ -11,7 +11,7 @@ making it appear benign in sandboxes that don't replicate the target environment
 import re
 import math
 from dataclasses import dataclass, field
-from app.core.logging import get_logger
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 

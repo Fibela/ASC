@@ -11,8 +11,8 @@ Available adapters:
   PaloAltoAdapter  — PAN-OS XML API (works on PAN-OS 8.0+)
   FortinetAdapter  — FortiGate REST API v2 (FortiOS 6.4+)
 """
-from app.adapters.firewall.base import BaseFirewallAdapter
-from app.adapters.firewall.paloalto import PaloAltoAdapter
-from app.adapters.firewall.fortinet import FortinetAdapter
+from asc_api.adapters.firewall.base import BaseFirewallAdapter
+from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
+from asc_api.adapters.firewall.fortinet import FortinetAdapter
 
 __all__ = ["BaseFirewallAdapter", "PaloAltoAdapter", "FortinetAdapter"]

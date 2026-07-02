@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Integer, Text, JSON, ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
+from asc_api.db.base import Base
 
 
 class HoneypotToken(Base):

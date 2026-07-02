@@ -5,7 +5,7 @@ import bcrypt
 import jwt
 from jwt.exceptions import PyJWTError
 from fastapi import HTTPException, status
-from app.core.config import get_settings
+from asc_api.core.config import get_settings
 
 settings = get_settings()
 

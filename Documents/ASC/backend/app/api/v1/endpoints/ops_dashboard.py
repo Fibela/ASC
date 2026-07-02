@@ -24,13 +24,13 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin
-from app.core.rate_limit import limiter
-from app.core.config import get_settings
-from app.db.session import get_db
-from app.models.agent import Agent, AgentCommand
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.agent import Agent, AgentCommand
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/ops", tags=["Operational Dashboard"])
 _s = get_settings()
@@ -293,12 +293,12 @@ async def cross_domain_dashboard(
     Designed for the SOC manager's single-pane-of-glass view.
     """
     from datetime import timedelta
-    from app.models.hunt import Hunt, HuntFinding
-    from app.models.threat_intel import ThreatIntelIndicator
-    from app.models.pcdi import PCDISignedReport
-    from app.models.soar import PlaybookTrigger, ScheduledReport
-    from app.models.identity_action import IdentityAction
-    from app.models.correlation import CorrelationCluster, CorrelationRule
+    from asc_api.models.hunt import Hunt, HuntFinding
+    from asc_api.models.threat_intel import ThreatIntelIndicator
+    from asc_api.models.pcdi import PCDISignedReport
+    from asc_api.models.soar import PlaybookTrigger, ScheduledReport
+    from asc_api.models.identity_action import IdentityAction
+    from asc_api.models.correlation import CorrelationCluster, CorrelationRule
 
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=hours)
@@ -473,7 +473,7 @@ async def cross_domain_dashboard(
 
 
 async def _correlation_summary_inline(db: AsyncSession) -> dict:
-    from app.services.correlation_service import get_correlation_summary
+    from asc_api.services.correlation_service import get_correlation_summary
     summary = await get_correlation_summary(db)
     return {
         "active_clusters": summary["active_clusters"],
@@ -484,7 +484,7 @@ async def _correlation_summary_inline(db: AsyncSession) -> dict:
 
 
 async def _incident_summary_inline(db: AsyncSession) -> dict:
-    from app.services.incident_service import get_incident_summary
+    from asc_api.services.incident_service import get_incident_summary
     summary = await get_incident_summary(db)
     return {
         "total": summary["total"],

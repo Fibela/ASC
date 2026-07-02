@@ -34,9 +34,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
-from app.models.soar import PlaybookTrigger
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
+from asc_api.models.soar import PlaybookTrigger
 
 log = get_logger("asc.soar")
 
@@ -239,7 +239,7 @@ async def _is_dedup_active(
     created within the dedup window.  Prevents duplicate approval queues.
     """
     from datetime import timedelta
-    from app.models.playbook_run import PlaybookRun
+    from asc_api.models.playbook_run import PlaybookRun
 
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=dedup_window_minutes)
     stmt = (
@@ -268,7 +268,7 @@ async def _fire_trigger(
     Imports trigger_playbook lazily to avoid circular imports.
     Updates trigger metadata (count + timestamp) after firing.
     """
-    from app.services.playbook import PlaybookContext, trigger_playbook
+    from asc_api.services.playbook import PlaybookContext, trigger_playbook
 
     pb_context = PlaybookContext(
         semaphore="red" if context.get("pcdi_score", 0) >= 80 else "yellow",
@@ -497,7 +497,7 @@ async def create_scheduled_report(
     created_by: str,
 ) -> dict:
     """Create and persist a new ScheduledReport."""
-    from app.models.soar import ScheduledReport
+    from asc_api.models.soar import ScheduledReport
 
     if frequency not in _VALID_FREQUENCIES:
         return {"error": f"Invalid frequency '{frequency}'. Valid: {sorted(_VALID_FREQUENCIES)}"}
@@ -537,7 +537,7 @@ async def list_scheduled_reports(
     hunt_id: str | None = None,
     enabled_only: bool = False,
 ) -> list[dict]:
-    from app.models.soar import ScheduledReport
+    from asc_api.models.soar import ScheduledReport
 
     q = select(ScheduledReport).order_by(ScheduledReport.created_at.desc())
     if hunt_id:
@@ -549,7 +549,7 @@ async def list_scheduled_reports(
 
 
 async def get_scheduled_report(db: AsyncSession, report_id: str) -> dict | None:
-    from app.models.soar import ScheduledReport
+    from asc_api.models.soar import ScheduledReport
 
     result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
     r = result.scalar_one_or_none()
@@ -557,7 +557,7 @@ async def get_scheduled_report(db: AsyncSession, report_id: str) -> dict | None:
 
 
 async def delete_scheduled_report(db: AsyncSession, report_id: str, *, deleted_by: str) -> bool:
-    from app.models.soar import ScheduledReport
+    from asc_api.models.soar import ScheduledReport
 
     result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
     r = result.scalar_one_or_none()
@@ -580,7 +580,7 @@ async def delete_scheduled_report(db: AsyncSession, report_id: str, *, deleted_b
 async def toggle_scheduled_report(
     db: AsyncSession, report_id: str, *, enabled: bool, updated_by: str
 ) -> dict | None:
-    from app.models.soar import ScheduledReport
+    from asc_api.models.soar import ScheduledReport
 
     result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
     r = result.scalar_one_or_none()
@@ -605,9 +605,9 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
     """
     import hashlib
     import json
-    from app.models.soar import ScheduledReport
-    from app.models.hunt import Hunt, HuntFinding
-    from app.services.pids_service import get_identity_timeline, _sign_hash
+    from asc_api.models.soar import ScheduledReport
+    from asc_api.models.hunt import Hunt, HuntFinding
+    from asc_api.services.pids_service import get_identity_timeline, _sign_hash
 
     result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
     r = result.scalar_one_or_none()

@@ -15,8 +15,8 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.hunt import HuntQuery
+from asc_api.core.logging import get_logger
+from asc_api.models.hunt import HuntQuery
 
 log = get_logger("asc.query_executor")
 
@@ -157,11 +157,11 @@ async def _dispatch(
 async def _call_adapter(data_source: str, query_text: str) -> dict:
     """Dispatch to ELK, Wazuh, or manual adapter (all synchronous results)."""
     if data_source == "elk":
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         return await ELKAdapter().search_raw(query_text, limit=MAX_RESULTS)
 
     if data_source == "wazuh":
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         return await WazuhAdapter().search_raw(query_text, limit=MAX_RESULTS)
 
     if data_source == "manual":
@@ -235,8 +235,8 @@ async def _dispatch_to_specter(
     Returns immediately — results arrive when agents respond via record_command_result.
     """
     from sqlalchemy import select as _select
-    from app.models.agent import Agent
-    from app.services.agent_commander import issue_command
+    from asc_api.models.agent import Agent
+    from asc_api.services.agent_commander import issue_command
 
     q = await db.execute(
         _select(Agent).where(Agent.status == "active")

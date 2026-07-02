@@ -20,19 +20,19 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.audit import log_iam_event
-from app.core.signing import (
+from asc_api.core.config import get_settings
+from asc_api.core.audit import log_iam_event
+from asc_api.core.signing import (
     generate_analyst_keypair,
     encrypt_analyst_private_key,
     verify_approval_signature,
 )
-from app.db.session import get_db
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
-from app.api.deps import get_current_admin
-from app.core.jwt_blacklist import jwt_blacklist
-from app.services.iam_service import (
+from asc_api.db.session import get_db
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.api.deps import get_current_admin
+from asc_api.core.jwt_blacklist import jwt_blacklist
+from asc_api.services.iam_service import (
     disable_account,
     enable_account,
     lock_account,

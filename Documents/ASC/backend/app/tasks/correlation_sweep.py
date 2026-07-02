@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import asyncio
 
-from app.tasks.celery_app import celery_app
-from app.core.logging import get_logger
+from asc_api.tasks.celery_app import celery_app
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -27,8 +27,8 @@ def run_sweep(self):  # type: ignore[override]
 
 
 async def _async_sweep() -> None:
-    from app.db.session import AsyncSessionLocal
-    from app.services.correlation_service import run_correlation_sweep
+    from asc_api.db.session import AsyncSessionLocal
+    from asc_api.services.correlation_service import run_correlation_sweep
 
     async with AsyncSessionLocal() as db:
         stats = await run_correlation_sweep(db)

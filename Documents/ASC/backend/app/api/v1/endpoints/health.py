@@ -16,10 +16,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_analyst_or_admin
-from app.core.config import get_settings
-from app.db.session import get_db
-from app.models.user import User
+from asc_api.api.deps import get_current_user, get_analyst_or_admin
+from asc_api.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.user import User
 
 _proc = psutil.Process()
 
@@ -130,7 +130,7 @@ async def adapter_health(_: User = Depends(get_analyst_or_admin)):
     are returned with status "not_configured" so operators know what to set up.
     Requires analyst or admin JWT — adapter details must not leak publicly.
     """
-    from app.adapters import ADAPTERS
+    from asc_api.adapters import ADAPTERS
 
     async def _probe(name: str, adapter_cls) -> dict:
         adapter = adapter_cls()

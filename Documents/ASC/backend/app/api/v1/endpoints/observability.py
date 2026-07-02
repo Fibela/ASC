@@ -27,9 +27,9 @@ from fastapi.responses import PlainTextResponse
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin
-from app.core.config import get_settings
-from app.core.metrics_registry import (
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.config import get_settings
+from asc_api.core.metrics_registry import (
     AGENTS_GAUGE,
     ALERTS_GAUGE,
     CONTENT_TYPE_LATEST,
@@ -39,11 +39,11 @@ from app.core.metrics_registry import (
     REGISTRY,
     generate_latest,
 )
-from app.db.session import get_db
-from app.models.agent import Agent
-from app.models.alert import Alert
-from app.models.event import Event
-from app.models.user import User
+from asc_api.db.session import get_db
+from asc_api.models.agent import Agent
+from asc_api.models.alert import Alert
+from asc_api.models.event import Event
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/observability", tags=["Observability"])
 settings = get_settings()
@@ -114,7 +114,7 @@ async def prometheus_metrics(
         if not auth_header.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Authentication required")
         try:
-            from app.core.security import decode_token_payload
+            from asc_api.core.security import decode_token_payload
             payload = decode_token_payload(auth_header[7:])
             user_id = payload.get("sub")
             if not user_id:

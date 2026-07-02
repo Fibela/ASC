@@ -27,8 +27,8 @@ from typing import Any
 from sqlalchemy import and_, asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.identity_action import IdentityAction
+from asc_api.core.logging import get_logger
+from asc_api.models.identity_action import IdentityAction
 
 log = get_logger("asc.pids")
 

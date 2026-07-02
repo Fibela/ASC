@@ -39,9 +39,9 @@ import asyncio
 import ssl
 from typing import Any
 
-from app.adapters import BaseAdapter
-from app.core.config import get_settings
-from app.core.logging import get_logger
+from asc_api.adapters import BaseAdapter
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 

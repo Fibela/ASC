@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from asc_api.db.base import Base
 
 # ---------------------------------------------------------------------------
 # Pivot types — define HOW signals are grouped

@@ -30,13 +30,13 @@ from sqlalchemy import select
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
 
-from app.db.session import get_db
-from app.models.alert import Alert
-from app.models.event import Event
-from app.models.ioc   import IoC
-from app.models.user  import User
-from app.api.deps import get_analyst_or_admin
-from app.adapters import (
+from asc_api.db.session import get_db
+from asc_api.models.alert import Alert
+from asc_api.models.event import Event
+from asc_api.models.ioc   import IoC
+from asc_api.models.user  import User
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.adapters import (
     ELKAdapter, WazuhAdapter, TheHiveAdapter, ADAPTERS,
     PaloAltoAdapter, FortinetAdapter, ActiveDirectoryAdapter,
     get_firewall_adapter, get_identity_adapter,
@@ -360,7 +360,7 @@ async def thehive_export_hunt(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    from app.services.thehive_service import export_hunt_to_thehive
+    from asc_api.services.thehive_service import export_hunt_to_thehive
 
     result = await export_hunt_to_thehive(
         db,

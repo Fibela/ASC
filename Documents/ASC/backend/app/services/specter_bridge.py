@@ -64,13 +64,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
-from app.core.panl import subnet_proximity
-from app.models.agent import Agent, AgentCommand
-from app.services.agent_commander import issue_command
-from app.services.iam_service import disable_account as iam_disable_account
-from app.services.neutralizer import NeutralizationResult, execute_action
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
+from asc_api.core.panl import subnet_proximity
+from asc_api.models.agent import Agent, AgentCommand
+from asc_api.services.agent_commander import issue_command
+from asc_api.services.iam_service import disable_account as iam_disable_account
+from asc_api.services.neutralizer import NeutralizationResult, execute_action
 
 log = get_logger(__name__)
 
@@ -80,8 +80,8 @@ log = get_logger(__name__)
 def _get_firewall_adapter():
     """Return the active firewall adapter or None if none is configured."""
     try:
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
-        from app.adapters.firewall.fortinet import FortinetAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.adapters.firewall.fortinet import FortinetAdapter
         pa = PaloAltoAdapter()
         if pa.is_configured():
             return pa
@@ -96,7 +96,7 @@ def _get_firewall_adapter():
 def _get_identity_adapter():
     """Return the Active Directory adapter or None if not configured."""
     try:
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         ad = ActiveDirectoryAdapter()
         if ad.is_configured():
             return ad

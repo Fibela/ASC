@@ -70,14 +70,14 @@ class BaseAdapter(abc.ABC):
 
 # ─── Registry ────────────────────────────────────────────────────────────────
 
-from app.adapters.elk     import ELKAdapter      # noqa: E402
-from app.adapters.wazuh   import WazuhAdapter    # noqa: E402
-from app.adapters.thehive import TheHiveAdapter  # noqa: E402
+from asc_api.adapters.elk     import ELKAdapter      # noqa: E402
+from asc_api.adapters.wazuh   import WazuhAdapter    # noqa: E402
+from asc_api.adapters.thehive import TheHiveAdapter  # noqa: E402
 
 # F1 — Firewall and Identity adapters
-from app.adapters.firewall.paloalto import PaloAltoAdapter   # noqa: E402
-from app.adapters.firewall.fortinet import FortinetAdapter   # noqa: E402
-from app.adapters.identity.active_directory import ActiveDirectoryAdapter  # noqa: E402
+from asc_api.adapters.firewall.paloalto import PaloAltoAdapter   # noqa: E402
+from asc_api.adapters.firewall.fortinet import FortinetAdapter   # noqa: E402
+from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter  # noqa: E402
 
 ADAPTERS: dict[str, type[BaseAdapter]] = {
     # SIEM / SOAR

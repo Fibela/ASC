@@ -17,7 +17,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base import Base
+from asc_api.db.base import Base
 
 
 class Tenant(Base):

@@ -70,7 +70,7 @@ class Settings(BaseSettings):
 
     # ── SPECTER Agent (P13) ────────────────────────────────────────────────────
     # Ed25519 keypair for signing commands sent to SPECTER agents.
-    # Generate with: python -c "from app.core.signing import generate_keypair; p,q=generate_keypair(); print('PRIVATE:',p); print('PUBLIC:',q)"
+    # Generate with: python -c "from asc_api.core.signing import generate_keypair; p,q=generate_keypair(); print('PRIVATE:',p); print('PUBLIC:',q)"
     SPECTER_SIGNING_PRIVATE_KEY: str = ""    # base64 raw Ed25519 private key (32 bytes)
     SPECTER_SIGNING_PUBLIC_KEY: str = ""     # base64 raw Ed25519 public key  (32 bytes)
     SPECTER_AGENT_VERSION: str = "1.0.0"    # minimum accepted agent version
@@ -165,7 +165,7 @@ class Settings(BaseSettings):
 
     # ── SPECTER Security Hardening (P14) ──────────────────────────────────────
     # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
-    # Generate a token with: python -c "from app.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"
+    # Generate a token with: python -c "from asc_api.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"
     SPECTER_ENROLLMENT_SECRET: str = ""      # nosec B105 — empty means dev mode
     # Strict signature mode: reject telemetry events whose Ed25519 signature is invalid.
     # In dev/test mode keep False; enable in production for zero-trust enforcement.

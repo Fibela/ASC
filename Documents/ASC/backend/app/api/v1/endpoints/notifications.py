@@ -33,9 +33,9 @@ from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from app.api.deps import get_analyst_or_admin
-from app.core.notifications import notification_bus
-from app.models.user import User
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.notifications import notification_bus
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 

@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from asc_api.db.base import Base
 
 REPORT_TYPES = frozenset({
     "period_kpi",

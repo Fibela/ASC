@@ -14,9 +14,9 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
-from app.core.logging import get_logger
-from app.db.session import AsyncSessionLocal
-from app.tasks.celery_app import celery_app
+from asc_api.core.logging import get_logger
+from asc_api.db.session import AsyncSessionLocal
+from asc_api.tasks.celery_app import celery_app
 
 log = get_logger("asc.tasks.scheduled_reports")
 
@@ -36,8 +36,8 @@ def _is_due(last_sent_at: datetime | None, frequency: str) -> bool:
 
 async def _run() -> dict:
     from sqlalchemy import select
-    from app.models.soar import ScheduledReport
-    from app.services.soar_service import deliver_scheduled_report
+    from asc_api.models.soar import ScheduledReport
+    from asc_api.services.soar_service import deliver_scheduled_report
 
     sent = 0
     skipped = 0

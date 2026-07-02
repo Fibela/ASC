@@ -8,12 +8,12 @@ from sqlalchemy import select, desc
 from datetime import datetime, timezone
 import uuid
 
-from app.db.session import get_db
-from app.models.ioc import IoC
-from app.models.user import User
-from app.api.deps import get_current_user, get_analyst_or_admin, get_current_admin
-from app.core.rate_limit import limiter
-from app.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.ioc import IoC
+from asc_api.models.user import User
+from asc_api.api.deps import get_current_user, get_analyst_or_admin, get_current_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.core.config import get_settings
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/iocs", tags=["IoCs"])

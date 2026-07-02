@@ -25,8 +25,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.security import decode_token_payload
-from app.core.tenant_context import set_tenant_id
+from asc_api.core.security import decode_token_payload
+from asc_api.core.tenant_context import set_tenant_id
 
 
 class TenantMiddleware(BaseHTTPMiddleware):

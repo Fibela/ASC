@@ -42,11 +42,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.security import create_access_token, get_password_hash
-from app.db.session import get_db
-from app.models.tenant import Tenant
-from app.models.user import User
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token, get_password_hash
+from asc_api.db.session import get_db
+from asc_api.models.tenant import Tenant
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["SSO"])
 

@@ -3,17 +3,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from datetime import datetime, timezone, timedelta
 
-from app.db.session import get_db
-from app.models.event import Event
-from app.models.alert import Alert
-from app.models.metric import SocMetric
-from app.models.user import User
-from app.services.correlator import get_ioc_coverage
-from app.services.metrics import (
+from asc_api.db.session import get_db
+from asc_api.models.event import Event
+from asc_api.models.alert import Alert
+from asc_api.models.metric import SocMetric
+from asc_api.models.user import User
+from asc_api.services.correlator import get_ioc_coverage
+from asc_api.services.metrics import (
     calculate_mttd, calculate_mtta, calculate_mttr, calculate_mttr_respond,
     breakdown_by_severity, status_funnel, daily_mttr_trend, build_soc_summary,
 )
-from app.api.deps import get_current_user
+from asc_api.api.deps import get_current_user
 
 router = APIRouter(prefix="/metrics", tags=["SOC Metrics"])
 

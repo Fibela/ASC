@@ -42,10 +42,10 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.adapters import HTTP_TIMEOUT, USER_AGENT
-from app.adapters.firewall.base import BaseFirewallAdapter
-from app.core.config import get_settings
-from app.core.logging import get_logger
+from asc_api.adapters import HTTP_TIMEOUT, USER_AGENT
+from asc_api.adapters.firewall.base import BaseFirewallAdapter
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 

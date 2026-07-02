@@ -20,9 +20,9 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_iam_event
-from app.core.logging import get_logger
-from app.models.user import User
+from asc_api.core.audit import log_iam_event
+from asc_api.core.logging import get_logger
+from asc_api.models.user import User
 
 log = get_logger(__name__)
 

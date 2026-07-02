@@ -8,9 +8,9 @@ Schedule: every SLA_ESCALATION_CHECK_INTERVAL_SECONDS (default 120s).
 """
 import asyncio
 
-from app.db.session import AsyncSessionLocal
-from app.services.soar_incident_bridge import escalate_sla_breaches
-from app.tasks.celery_app import celery_app
+from asc_api.db.session import AsyncSessionLocal
+from asc_api.services.soar_incident_bridge import escalate_sla_breaches
+from asc_api.tasks.celery_app import celery_app
 
 
 async def _run() -> dict:

@@ -5,13 +5,13 @@ from datetime import datetime, timezone
 from typing import Any
 import uuid
 
-from app.db.session import get_db
-from app.models.event import Event
-from app.models.alert import Alert
-from app.models.user import User
-from app.api.deps import get_analyst_or_admin
-from app.services.correlator import normalize_event, evaluate_correlation_rules, match_iocs
-from app.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.event import Event
+from asc_api.models.alert import Alert
+from asc_api.models.user import User
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.services.correlator import normalize_event, evaluate_correlation_rules, match_iocs
+from asc_api.core.config import get_settings
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/events", tags=["Events"])

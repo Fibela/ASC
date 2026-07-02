@@ -3,7 +3,7 @@
 // process.env directly, eliminating duplication and providing a single place
 // to validate configuration at runtime.
 
-const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? 'https://asc-opal-five.vercel.app'
+const API_URL    = process.env.NEXT_PUBLIC_API_URL    ?? ''
 const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? 'https://premoscorp.com'
 
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {

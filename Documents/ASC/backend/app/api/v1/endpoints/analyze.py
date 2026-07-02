@@ -14,13 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 import uuid
 
-from app.db.session import get_db
-from app.models.artifact import Artifact
-from app.models.user import User
-from app.api.deps import get_current_user, get_analyst_or_admin
-from app.core.rate_limit import limiter
-from app.services import analyzer
-from app.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.artifact import Artifact
+from asc_api.models.user import User
+from asc_api.api.deps import get_current_user, get_analyst_or_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.services import analyzer
+from asc_api.core.config import get_settings
 
 router = APIRouter(prefix="/analyze", tags=["Analysis"])
 settings = get_settings()

@@ -19,9 +19,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
-from app.api.deps import get_current_admin
-from app.core.config import get_settings
-from app.core.honeypot import (
+from asc_api.api.deps import get_current_admin
+from asc_api.core.config import get_settings
+from asc_api.core.honeypot import (
     AttackerFingerprint,
     CanaryToken,
     canary_store,
@@ -29,10 +29,10 @@ from app.core.honeypot import (
     generate_evidence_report,
     lookup_ip_reputation,
 )
-from app.core.audit import log_security_action
-from app.db.session import get_db
-from app.models.honeypot import HoneypotToken, HoneypotTokenAccess, HoneypotEvidenceReport
-from app.models.user import User
+from asc_api.core.audit import log_security_action
+from asc_api.db.session import get_db
+from asc_api.models.honeypot import HoneypotToken, HoneypotTokenAccess, HoneypotEvidenceReport
+from asc_api.models.user import User
 
 router = APIRouter(tags=["SPECTER Honeypot"])
 settings = get_settings()

@@ -22,8 +22,8 @@ from typing import Any
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.threat_intel import ThreatIntelIndicator
+from asc_api.core.logging import get_logger
+from asc_api.models.threat_intel import ThreatIntelIndicator
 
 log = get_logger("asc.threat_intel")
 

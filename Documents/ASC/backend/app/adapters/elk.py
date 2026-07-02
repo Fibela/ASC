@@ -15,8 +15,8 @@ import httpx
 from datetime import datetime, timezone
 from typing import Any
 
-from app.adapters import BaseAdapter, HTTP_TIMEOUT, USER_AGENT
-from app.core.config import get_settings
+from asc_api.adapters import BaseAdapter, HTTP_TIMEOUT, USER_AGENT
+from asc_api.core.config import get_settings
 
 
 # ─── ASC → ECS severity mapping ──────────────────────────────────────────────

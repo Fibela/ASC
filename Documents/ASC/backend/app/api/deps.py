@@ -8,13 +8,13 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHea
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core.config import get_settings
-from app.core.tenant_context import set_tenant_id
-from app.db.session import get_db
-from app.models.user import User
-from app.models.api_key import APIKey
-from app.core.security import verify_token, decode_token_payload
-from app.core.jwt_blacklist import jwt_blacklist
+from asc_api.core.config import get_settings
+from asc_api.core.tenant_context import set_tenant_id
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.models.api_key import APIKey
+from asc_api.core.security import verify_token, decode_token_payload
+from asc_api.core.jwt_blacklist import jwt_blacklist
 
 bearer_scheme = HTTPBearer(auto_error=True)
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)

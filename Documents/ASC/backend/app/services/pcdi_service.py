@@ -29,11 +29,11 @@ from typing import Any
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.hunt import Hunt, HuntFinding
-from app.models.neutralization import NeutralizationAction
-from app.models.pcdi import PCDISignedReport
-from app.models.threat_intel import ThreatIntelIndicator
+from asc_api.core.logging import get_logger
+from asc_api.models.hunt import Hunt, HuntFinding
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.pcdi import PCDISignedReport
+from asc_api.models.threat_intel import ThreatIntelIndicator
 
 log = get_logger("asc.pcdi")
 
@@ -533,7 +533,7 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
 
     Returns the ordered timeline, chain root hash, and integrity status.
     """
-    from app.models.hunt import HuntQuery
+    from asc_api.models.hunt import HuntQuery
 
     hunt_result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
     hunt = hunt_result.scalar_one_or_none()

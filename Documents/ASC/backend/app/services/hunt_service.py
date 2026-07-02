@@ -13,8 +13,8 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.hunt import Hunt, HuntFinding, HuntQuery
+from asc_api.core.logging import get_logger
+from asc_api.models.hunt import Hunt, HuntFinding, HuntQuery
 
 log = get_logger("asc.hunt")
 
@@ -523,7 +523,7 @@ async def create_hunt_from_alert(
     - First finding pre-populated from alert data
     - Hunt starts in 'active' status (alert already triggered investigation)
     """
-    from app.models.alert import Alert
+    from asc_api.models.alert import Alert
 
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
@@ -616,7 +616,7 @@ async def enrich_finding(
     Passive — read-only lookup, no external calls.
     Returns match list and updates finding.analyst_notes if matches found.
     """
-    from app.services.threat_intel import enrich as ti_enrich
+    from asc_api.services.threat_intel import enrich as ti_enrich
 
     finding = await get_finding(db, finding_id)
     if finding is None:
@@ -660,7 +660,7 @@ async def enrich_finding(
         match_count=len(matches),
     )
 
-    from app.services.threat_intel import _indicator_to_dict
+    from asc_api.services.threat_intel import _indicator_to_dict
     return {
         "finding_id": finding_id,
         "hunt_id": finding.hunt_id,

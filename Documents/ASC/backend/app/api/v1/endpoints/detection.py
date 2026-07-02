@@ -3,11 +3,11 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from typing import Literal
 
-from app.api.deps import get_current_user, get_analyst_or_admin
-from app.models.user import User
-from app.services.detection import evaluate_event, evaluate_bulk, DetectionResult
-from app.services.fingerprint import analyze_environmental_keying
-from app.core.logging import get_logger
+from asc_api.api.deps import get_current_user, get_analyst_or_admin
+from asc_api.models.user import User
+from asc_api.services.detection import evaluate_event, evaluate_bulk, DetectionResult
+from asc_api.services.fingerprint import analyze_environmental_keying
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 

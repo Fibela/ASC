@@ -4,11 +4,11 @@ Event Correlation & IoC Matching Service — SIEM logic.
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.models.event import Event
-from app.models.ioc import IoC
-from app.models.alert import Alert
-from app.core.logging import get_logger
-from app.core.config import get_settings
+from asc_api.models.event import Event
+from asc_api.models.ioc import IoC
+from asc_api.models.alert import Alert
+from asc_api.core.logging import get_logger
+from asc_api.core.config import get_settings
 
 settings = get_settings()
 log = get_logger(__name__)

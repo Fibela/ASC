@@ -18,7 +18,7 @@ a logged simulation because those require a live agent on the endpoint.
 import asyncio
 from datetime import datetime, timezone
 
-from app.core.logging import get_logger
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -43,7 +43,7 @@ async def isolate_endpoint(host: str, reason: str = "") -> NeutralizationResult:
 
 async def block_ip(ip: str, direction: str = "both", reason: str = "") -> NeutralizationResult:
     """Attempt real firewall adapter; fall back to simulation if unconfigured."""
-    from app.adapters import get_firewall_adapter
+    from asc_api.adapters import get_firewall_adapter
 
     fw = get_firewall_adapter()
     if fw is not None:
@@ -71,7 +71,7 @@ async def block_ip(ip: str, direction: str = "both", reason: str = "") -> Neutra
 
 async def block_domain(domain: str, reason: str = "") -> NeutralizationResult:
     """Attempt real firewall adapter; fall back to simulation if unconfigured."""
-    from app.adapters import get_firewall_adapter
+    from asc_api.adapters import get_firewall_adapter
 
     fw = get_firewall_adapter()
     if fw is not None:
@@ -137,7 +137,7 @@ async def remove_persistence(host: str, persistence_type: str, target: str) -> N
 
 async def disable_account(username: str, domain: str = "LOCAL") -> NeutralizationResult:
     """Attempt real AD adapter; fall back to simulation if unconfigured."""
-    from app.adapters import get_identity_adapter
+    from asc_api.adapters import get_identity_adapter
 
     iam = get_identity_adapter()
     if iam is not None:

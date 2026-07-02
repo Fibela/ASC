@@ -28,12 +28,12 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
-from app.core.audit import log_security_action
-from app.core.config import get_settings
-from app.db.session import get_db
-from app.models.tenant import Tenant
-from app.models.user import User
+from asc_api.api.deps import get_current_user
+from asc_api.core.audit import log_security_action
+from asc_api.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.tenant import Tenant
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/onboarding", tags=["Onboarding"])
 _settings = get_settings()
@@ -161,7 +161,7 @@ async def register(
     await db.flush()  # populate tenant.id before referencing it in User
 
     # Hash password — import here to avoid circular deps at module level
-    from app.core.security import get_password_hash  # noqa: PLC0415
+    from asc_api.core.security import get_password_hash  # noqa: PLC0415
     raw_token, token_hash, expires_at = _make_verification_token()
 
     user = User(

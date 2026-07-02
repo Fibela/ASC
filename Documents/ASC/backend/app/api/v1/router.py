@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import (
+from asc_api.api.v1.endpoints import (
     auth, analyze, events, alerts, iocs, metrics,
     neutralize, reports, detection, playbooks, adapters, health, agents, honeypot,
     notifications, iam, forensic, ops_dashboard, threat_intel, threat_hunting, pcdi,

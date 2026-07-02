@@ -35,11 +35,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin, get_current_admin, get_current_user
-from app.core.audit import log_security_action
-from app.core.config import get_settings
-from app.core.signing import verify_agent_event
-from app.core.specter_security import (
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin, get_current_user
+from asc_api.core.audit import log_security_action
+from asc_api.core.config import get_settings
+from asc_api.core.signing import verify_agent_event
+from asc_api.core.specter_security import (
     SprecterRateLimiter,
     check_injection,
     check_suspicious_registration,
@@ -48,7 +48,7 @@ from app.core.specter_security import (
     validate_command_params,
     verify_enrollment_token,
 )
-from app.core.honeypot import (
+from asc_api.core.honeypot import (
     build_probe_decoy,
     build_dump_decoy,
     build_export_decoy,
@@ -57,11 +57,11 @@ from app.core.honeypot import (
     generate_evidence_report,
     lookup_ip_reputation,
 )
-from app.db.session import get_db
-from app.models.agent import Agent, AgentCommand, AgentEvent
-from app.models.honeypot import HoneypotEvidenceReport
-from app.models.user import User
-from app.services.agent_commander import (
+from asc_api.db.session import get_db
+from asc_api.models.agent import Agent, AgentCommand, AgentEvent
+from asc_api.models.honeypot import HoneypotEvidenceReport
+from asc_api.models.user import User
+from asc_api.services.agent_commander import (
     compute_poll_interval,
     escalate_threat_level,
     deescalate_threat_level,

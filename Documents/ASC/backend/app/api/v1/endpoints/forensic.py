@@ -11,13 +11,13 @@ from fastapi import APIRouter, HTTPException, Depends, status, Query, Request
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
-from app.models.forensic_entry import ForensicEntry
-from app.models.user import User
-from app.api.deps import get_current_user, get_current_admin
-from app.core.rate_limit import limiter
-from app.core.config import get_settings
-from app.services.pfn import (
+from asc_api.db.session import get_db
+from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.user import User
+from asc_api.api.deps import get_current_user, get_current_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.core.config import get_settings
+from asc_api.services.pfn import (
     get_entry_by_action,
     get_entry_by_id,
     list_entries,

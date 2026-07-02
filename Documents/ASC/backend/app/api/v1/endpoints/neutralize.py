@@ -12,13 +12,13 @@ Security layers applied at the endpoint level:
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from app.models.agent import AgentCommand
+from asc_api.models.agent import AgentCommand
 
-from app.db.session import get_db
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
-from app.services.neutralizer import RECOMMENDED_ACTIONS
-from app.services.approval import (
+from asc_api.db.session import get_db
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.services.neutralizer import RECOMMENDED_ACTIONS
+from asc_api.services.approval import (
     request_action,
     approve_action,
     reject_action,
@@ -26,9 +26,9 @@ from app.services.approval import (
     escalate_expired,
     create_rollback_action,
 )
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.core.audit import log_security_action
-from app.core.panl import request_rate_limiter
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.core.audit import log_security_action
+from asc_api.core.panl import request_rate_limiter
 from pydantic import BaseModel, field_validator
 
 router = APIRouter(prefix="/neutralize", tags=["Neutralization"])
@@ -156,7 +156,7 @@ async def neutralize(
     5. Multi-signature: CRITICAL requires 2 distinct analyst approvals
     6. SSE notification published to connected analyst browsers
     """
-    from app.core.panl import AdaptiveContext
+    from asc_api.core.panl import AdaptiveContext
     try:
         ctx = AdaptiveContext.from_dict(payload.adaptive_context) if payload.adaptive_context else None
         action = await request_action(

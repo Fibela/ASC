@@ -28,17 +28,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_current_admin
-from app.core.api_key_rate_limit import api_key_limiter
-from app.core.audit import log_security_action
-from app.core.config import get_settings
-from app.core.plan_caps import enforce_api_key_cap
-from app.core.tenant_context import get_tenant_id
-from app.db.session import get_db
-from app.db.tenant_filter import apply_tenant_filter
-from app.models.api_key import APIKey
-from app.models.tenant import Tenant
-from app.models.user import User
+from asc_api.api.deps import get_current_user, get_current_admin
+from asc_api.core.api_key_rate_limit import api_key_limiter
+from asc_api.core.audit import log_security_action
+from asc_api.core.config import get_settings
+from asc_api.core.plan_caps import enforce_api_key_cap
+from asc_api.core.tenant_context import get_tenant_id
+from asc_api.db.session import get_db
+from asc_api.db.tenant_filter import apply_tenant_filter
+from asc_api.models.api_key import APIKey
+from asc_api.models.tenant import Tenant
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/api-keys", tags=["API Keys"])
 _settings = get_settings()

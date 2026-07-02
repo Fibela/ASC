@@ -2,7 +2,7 @@ import os
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool, AsyncAdaptedQueuePool
-from app.core.config import get_settings
+from asc_api.core.config import get_settings
 
 settings = get_settings()
 

@@ -4,21 +4,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import uuid
 
-from app.db.session import get_db
-from app.models.user import User
-from app.core.security import (
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.core.security import (
     verify_password, get_password_hash, validate_password_strength,
     create_access_token, create_refresh_token, verify_token,
     decode_token_payload, REFRESH_EXPIRE_DAYS,
 )
-from app.core.signing import (
+from asc_api.core.signing import (
     generate_analyst_keypair, encrypt_analyst_private_key,
 )
-from app.core.jwt_blacklist import jwt_blacklist
-from app.core.config import get_settings
-from app.core.audit import log_auth_event, log_iam_event
-from app.core.rate_limit import limiter
-from app.api.deps import (
+from asc_api.core.jwt_blacklist import jwt_blacklist
+from asc_api.core.config import get_settings
+from asc_api.core.audit import log_auth_event, log_iam_event
+from asc_api.core.rate_limit import limiter
+from asc_api.api.deps import (
     get_current_user, get_current_user_allow_reset, get_current_admin,
 )
 from pydantic import BaseModel, Field, field_validator

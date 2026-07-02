@@ -17,7 +17,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Index, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from asc_api.db.base import Base
 
 
 class PCDISignedReport(Base):

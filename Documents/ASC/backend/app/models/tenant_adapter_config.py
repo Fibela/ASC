@@ -21,7 +21,7 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Boolean, DateTime, JSON, UniqueConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column
-from app.db.base import Base
+from asc_api.db.base import Base
 
 # Supported adapter types and their allowed providers
 ADAPTER_TYPES: frozenset[str] = frozenset({

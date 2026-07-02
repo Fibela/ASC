@@ -40,16 +40,16 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_current_user
-from app.core.audit import log_security_action
-from app.core.tenant_context import get_tenant_id
-from app.db.session import get_db
-from app.models.alert import Alert
-from app.models.api_key import APIKey
-from app.models.incident import Incident
-from app.models.tenant import Tenant
-from app.models.user import User
-from app.models.webhook import Webhook
+from asc_api.api.deps import get_current_admin, get_current_user
+from asc_api.core.audit import log_security_action
+from asc_api.core.tenant_context import get_tenant_id
+from asc_api.db.session import get_db
+from asc_api.models.alert import Alert
+from asc_api.models.api_key import APIKey
+from asc_api.models.incident import Incident
+from asc_api.models.tenant import Tenant
+from asc_api.models.user import User
+from asc_api.models.webhook import Webhook
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
 

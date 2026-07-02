@@ -20,12 +20,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin
-from app.core.rate_limit import limiter
-from app.core.logging import get_logger
-from app.db.session import get_db
-from app.models.user import User
-from app.services import soar_service
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.core.logging import get_logger
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.services import soar_service
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/soar", tags=["SOAR"])
@@ -214,8 +214,8 @@ async def evaluate_context(
     if body.dry_run:
         # Dry-run: evaluate conditions without firing
         from sqlalchemy import select as sa_select
-        from app.models.soar import PlaybookTrigger
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.models.soar import PlaybookTrigger
+        from asc_api.services.soar_service import _evaluate_condition
 
         result = await db.execute(
             sa_select(PlaybookTrigger).where(PlaybookTrigger.enabled.is_(True))

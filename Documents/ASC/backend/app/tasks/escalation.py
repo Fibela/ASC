@@ -20,12 +20,12 @@ import asyncio
 import json
 from datetime import datetime, timezone
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.core.notifications import NOTIFICATION_CHANNEL
-from app.db.session import AsyncSessionLocal
-from app.services.approval import escalate_expired
-from app.tasks.celery_app import celery_app
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.core.notifications import NOTIFICATION_CHANNEL
+from asc_api.db.session import AsyncSessionLocal
+from asc_api.services.approval import escalate_expired
+from asc_api.tasks.celery_app import celery_app
 
 log = get_logger("asc.tasks.escalation")
 

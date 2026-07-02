@@ -25,9 +25,9 @@ import asyncio
 import json
 from datetime import datetime, timezone
 
-from app.core.logging import get_logger
-from app.db.session import AsyncSessionLocal
-from app.tasks.celery_app import celery_app
+from asc_api.core.logging import get_logger
+from asc_api.db.session import AsyncSessionLocal
+from asc_api.tasks.celery_app import celery_app
 
 log = get_logger("asc.tasks.pcdi_escalation")
 
@@ -37,11 +37,11 @@ PCDI_CRITICAL_THRESHOLD = 80
 async def _run() -> dict:
     """Core async logic: score unreviewed high-risk findings, escalate critical hunts."""
     from sqlalchemy import select
-    from app.models.hunt import Hunt, HuntFinding
-    from app.services.pcdi_service import compute_adaptive_score
-    from app.core.audit import log_security_action
-    from app.core.config import get_settings
-    from app.core.notifications import notification_bus
+    from asc_api.models.hunt import Hunt, HuntFinding
+    from asc_api.services.pcdi_service import compute_adaptive_score
+    from asc_api.core.audit import log_security_action
+    from asc_api.core.config import get_settings
+    from asc_api.core.notifications import notification_bus
 
     settings = get_settings()
     escalated_hunts: list[str] = []

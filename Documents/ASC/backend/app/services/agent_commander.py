@@ -16,9 +16,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.signing import sign_command, verify_agent_event, is_fresh
-from app.models.agent import Agent, AgentCommand, AgentEvent
+from asc_api.core.config import get_settings
+from asc_api.core.signing import sign_command, verify_agent_event, is_fresh
+from asc_api.models.agent import Agent, AgentCommand, AgentEvent
 
 settings = get_settings()
 
@@ -225,7 +225,7 @@ async def record_command_result(
     # original key (detecting compromised agents running with copied credentials).
     if cmd.command_type == "canary_ping" and success:
         from sqlalchemy import select as _select
-        from app.core.audit import log_security_action
+        from asc_api.core.audit import log_security_action
         agent_q = await db.execute(_select(Agent).where(Agent.id == cmd.agent_id))
         agent_obj = agent_q.scalar_one_or_none()
         if agent_obj:

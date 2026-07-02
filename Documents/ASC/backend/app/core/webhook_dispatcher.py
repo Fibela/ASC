@@ -145,7 +145,7 @@ async def _deliver_webhook_background(webhook_id: str, webhook_url: str, webhook
     )
     try:
         from sqlalchemy import select
-        from app.models.webhook import Webhook
+        from asc_api.models.webhook import Webhook
 
         async with db_factory() as db:
             result = await db.execute(select(Webhook).where(Webhook.id == webhook_id))
@@ -181,7 +181,7 @@ async def emit_webhook_event(
     If db_factory is None, delivery stats are not persisted (for tests / fire-and-forget).
     """
     from sqlalchemy import select
-    from app.models.webhook import Webhook
+    from asc_api.models.webhook import Webhook
 
     payload = {
         "event": event_type,

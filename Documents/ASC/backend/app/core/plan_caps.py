@@ -17,9 +17,9 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
-from app.models.user import User
-from app.models.api_key import APIKey
-from app.models.tenant import Tenant
+from asc_api.models.user import User
+from asc_api.models.api_key import APIKey
+from asc_api.models.tenant import Tenant
 
 # ── Plan defaults ─────────────────────────────────────────────────────────────
 

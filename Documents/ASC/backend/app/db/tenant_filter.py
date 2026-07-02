@@ -12,7 +12,7 @@ it sees ONLY its own rows. NULL rows (single-tenant legacy data) are invisible
 to scoped tenants, preventing data bleed across organizational boundaries.
 
 Usage:
-    from app.db.tenant_filter import apply_tenant_filter
+    from asc_api.db.tenant_filter import apply_tenant_filter
 
     stmt = select(APIKey).where(APIKey.user_id == user.id)
     stmt = apply_tenant_filter(stmt, APIKey)
@@ -21,7 +21,7 @@ Usage:
 
 from sqlalchemy import Select
 
-from app.core.tenant_context import get_tenant_id
+from asc_api.core.tenant_context import get_tenant_id
 
 
 def apply_tenant_filter(stmt: Select, model) -> Select:

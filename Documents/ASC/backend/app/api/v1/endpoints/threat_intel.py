@@ -22,11 +22,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.core.rate_limit import limiter
-from app.db.session import get_db
-from app.models.user import User
-from app.services import threat_intel as ti_svc
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.services import threat_intel as ti_svc
 
 router = APIRouter(prefix="/threat-intel", tags=["Threat Intelligence"])
 

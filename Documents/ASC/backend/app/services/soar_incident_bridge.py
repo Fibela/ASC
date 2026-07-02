@@ -45,11 +45,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.models.forensic_entry import ForensicEntry
-from app.models.incident import Incident, IncidentTimeline
+from asc_api.core.audit import log_security_action
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.incident import Incident, IncidentTimeline
 
 log = get_logger(__name__)
 _s = get_settings()
@@ -206,7 +206,7 @@ async def evaluate_soar_for_incident(
     This is the PIIL Adaptive SOAR Binding entry point — called from
     incident_service.transition_status() after a successful commit.
     """
-    from app.services.soar_service import evaluate_triggers_for_context
+    from asc_api.services.soar_service import evaluate_triggers_for_context
 
     context = _build_incident_context(incident, new_status, actor)
     now = datetime.now(timezone.utc)
@@ -288,8 +288,8 @@ async def escalate_sla_breaches(db: AsyncSession) -> int:
     Called periodically by a Celery task (every ESCALATION_CHECK_INTERVAL_SECONDS).
     Returns count of incidents escalated.
     """
-    from app.services.incident_service import _check_sla_breach, _utcnow
-    from app.models.incident import VALID_TRANSITIONS
+    from asc_api.services.incident_service import _check_sla_breach, _utcnow
+    from asc_api.models.incident import VALID_TRANSITIONS
 
     result = await db.execute(
         select(Incident).where(
@@ -305,7 +305,7 @@ async def escalate_sla_breaches(db: AsyncSession) -> int:
             inc.sla_breach = True
             inc.updated_at = _utcnow()
 
-            from app.models.incident import IncidentTimeline
+            from asc_api.models.incident import IncidentTimeline
             now = _utcnow()
             entry = IncidentTimeline(
                 id=str(uuid.uuid4()),

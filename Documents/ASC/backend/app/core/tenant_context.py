@@ -9,7 +9,7 @@ The value is set by TenantMiddleware at the start of each request and cleared
 in the finally block after the response is sent.
 
 Usage in endpoint or service code:
-    from app.core.tenant_context import get_tenant_id
+    from asc_api.core.tenant_context import get_tenant_id
     tid = get_tenant_id()   # str | None
 """
 

@@ -5,12 +5,12 @@ from sqlalchemy import select, desc, func
 from datetime import datetime, timezone, timedelta
 import uuid
 
-from app.db.session import get_db
-from app.models.alert import Alert
-from app.models.user import User
-from app.services.reporter import generate_pdf_report, generate_html_report
-from app.api.deps import get_current_user
-from app.models.event import Event
+from asc_api.db.session import get_db
+from asc_api.models.alert import Alert
+from asc_api.models.user import User
+from asc_api.services.reporter import generate_pdf_report, generate_html_report
+from asc_api.api.deps import get_current_user
+from asc_api.models.event import Event
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 

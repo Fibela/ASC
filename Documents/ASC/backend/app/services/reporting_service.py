@@ -35,15 +35,15 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.models.alert import Alert
-from app.models.correlation import CorrelationCluster
-from app.models.executive_report import ExecutiveReport
-from app.models.hunt import Hunt, HuntFinding
-from app.models.incident import Incident
-from app.models.soar import PlaybookTrigger
+from asc_api.core.audit import log_security_action
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.models.alert import Alert
+from asc_api.models.correlation import CorrelationCluster
+from asc_api.models.executive_report import ExecutiveReport
+from asc_api.models.hunt import Hunt, HuntFinding
+from asc_api.models.incident import Incident
+from asc_api.models.soar import PlaybookTrigger
 
 log = get_logger(__name__)
 _s = get_settings()

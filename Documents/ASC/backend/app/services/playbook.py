@@ -20,10 +20,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
-from app.models.alert import Alert
-from app.models.playbook_run import PlaybookRun
-from app.services import neutralizer
+from asc_api.core.logging import get_logger
+from asc_api.models.alert import Alert
+from asc_api.models.playbook_run import PlaybookRun
+from asc_api.services import neutralizer
 
 log = get_logger(__name__)
 
@@ -370,8 +370,8 @@ async def _execute_identity_step(
     Identity context is read from ctx.affected_user + ctx.affected_domain.
     If no affected_user is set in context, the step is skipped.
     """
-    from app.adapters.identity.active_directory import ActiveDirectoryAdapter
-    from app.services import pids_service
+    from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
+    from asc_api.services import pids_service
 
     username = ctx.affected_user
     if not username:

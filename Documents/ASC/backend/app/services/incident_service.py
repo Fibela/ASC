@@ -26,9 +26,9 @@ from typing import Any
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
-from app.models.incident import (
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
+from asc_api.models.incident import (
     DEFAULT_SLA_MINUTES,
     NIST_PHASE,
     VALID_TRANSITIONS,
@@ -362,7 +362,7 @@ async def transition_status(
 
     # PIIL Adaptive SOAR Binding — non-blocking, never raises
     try:
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         await evaluate_soar_for_incident(db, incident, new_status, actor)
     except Exception as _bridge_exc:
         log.warning("PIIL bridge call failed (non-fatal): %s", _bridge_exc)

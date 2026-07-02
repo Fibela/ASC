@@ -22,10 +22,10 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.thehive import TheHiveAdapter, _IOC_TYPE_MAP
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
-from app.models.hunt import Hunt, HuntFinding
+from asc_api.adapters.thehive import TheHiveAdapter, _IOC_TYPE_MAP
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
+from asc_api.models.hunt import Hunt, HuntFinding
 
 log = get_logger("asc.thehive_service")
 

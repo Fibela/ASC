@@ -2,7 +2,7 @@
 P17 Rate Limiting — SlowAPI singleton.
 
 Usage in endpoints:
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
 
     @router.post("/login")
     @limiter.limit(settings.RATE_LIMIT_LOGIN)
@@ -24,7 +24,7 @@ from __future__ import annotations
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.core.config import get_settings
+from asc_api.core.config import get_settings
 
 _settings = get_settings()
 

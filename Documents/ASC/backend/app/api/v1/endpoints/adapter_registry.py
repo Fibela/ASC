@@ -31,12 +31,12 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_admin, get_analyst_or_admin
-from app.core.adapter_crypto import encrypt_credential, credential_hint as make_hint
-from app.core.config import get_settings
-from app.db.session import get_db
-from app.models.tenant import Tenant
-from app.models.tenant_adapter_config import (
+from asc_api.api.deps import get_current_admin, get_analyst_or_admin
+from asc_api.core.adapter_crypto import encrypt_credential, credential_hint as make_hint
+from asc_api.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.tenant import Tenant
+from asc_api.models.tenant_adapter_config import (
     TenantAdapterConfig,
     ADAPTER_TYPES,
     ADAPTER_PROVIDERS,

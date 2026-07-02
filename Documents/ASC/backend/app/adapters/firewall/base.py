@@ -10,7 +10,7 @@ All implementing classes MUST follow the no-raise contract: catch all exceptions
 and return {"success": False, "error": "..."}.
 """
 from abc import abstractmethod
-from app.adapters import BaseAdapter
+from asc_api.adapters import BaseAdapter
 
 
 class BaseFirewallAdapter(BaseAdapter):

@@ -21,7 +21,7 @@ import threading
 import time
 from typing import Any
 
-from app.core.audit import log_security_action
+from asc_api.core.audit import log_security_action
 
 
 # ── Enrollment token — HMAC-SHA256, 1-hour rolling window ─────────────────────
@@ -46,7 +46,7 @@ def generate_enrollment_token(secret: str, window_offset: int = 0) -> str:
     the SPECTER_ENROLLMENT_TOKEN environment variable.
 
     Usage (admin):
-        python -c "from app.core.specter_security import generate_enrollment_token; \\
+        python -c "from asc_api.core.specter_security import generate_enrollment_token; \\
                    print(generate_enrollment_token('your-secret'))"
     """
     msg = f"{_ENROLL_PREFIX}:{_current_window() + window_offset}"

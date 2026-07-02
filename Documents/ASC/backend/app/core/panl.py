@@ -28,8 +28,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 
@@ -126,7 +126,7 @@ def required_approvals_for(severity: str, action_type: str) -> int:
     Others    → 0 (immediate execution — no HitL gate)
     """
     # Lazy import to avoid circular import (approval.py imports panl.py)
-    from app.services.approval import ALWAYS_REQUIRE_APPROVAL, APPROVAL_SEVERITIES
+    from asc_api.services.approval import ALWAYS_REQUIRE_APPROVAL, APPROVAL_SEVERITIES
 
     s = severity.lower()
     if s == "critical":

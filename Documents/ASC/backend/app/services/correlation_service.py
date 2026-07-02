@@ -35,20 +35,20 @@ from typing import Any
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.audit import log_security_action
-from app.core.logging import get_logger
-from app.models.alert import Alert
-from app.models.correlation import (
+from asc_api.core.audit import log_security_action
+from asc_api.core.logging import get_logger
+from asc_api.models.alert import Alert
+from asc_api.models.correlation import (
     CorrelationCluster,
     CorrelationRule,
     CorrelationSignal,
     SIGNAL_TYPES,
 )
-from app.models.event import Event
-from app.models.hunt import HuntFinding
-from app.models.identity_action import IdentityAction
-from app.models.neutralization import NeutralizationAction
-from app.models.threat_intel import ThreatIntelIndicator
+from asc_api.models.event import Event
+from asc_api.models.hunt import HuntFinding
+from asc_api.models.identity_action import IdentityAction
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.threat_intel import ThreatIntelIndicator
 
 log = get_logger(__name__)
 

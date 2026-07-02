@@ -10,7 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from asc_api.db.base import Base
 
 # ---------------------------------------------------------------------------
 # Constants

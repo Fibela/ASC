@@ -28,14 +28,14 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_current_admin
-from app.core.audit import log_security_action
-from app.core.tenant_context import get_tenant_id
-from app.core.webhook_dispatcher import deliver_to_url
-from app.db.session import get_db
-from app.db.tenant_filter import apply_tenant_filter
-from app.models.webhook import Webhook, VALID_WEBHOOK_EVENTS, _MAX_WEBHOOKS_PER_USER
-from app.models.user import User
+from asc_api.api.deps import get_current_user, get_current_admin
+from asc_api.core.audit import log_security_action
+from asc_api.core.tenant_context import get_tenant_id
+from asc_api.core.webhook_dispatcher import deliver_to_url
+from asc_api.db.session import get_db
+from asc_api.db.tenant_filter import apply_tenant_filter
+from asc_api.models.webhook import Webhook, VALID_WEBHOOK_EVENTS, _MAX_WEBHOOKS_PER_USER
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 

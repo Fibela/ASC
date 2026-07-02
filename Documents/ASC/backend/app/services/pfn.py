@@ -31,12 +31,12 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.core.signing import decrypt_analyst_private_key
-from app.models.forensic_entry import ForensicEntry
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.core.signing import decrypt_analyst_private_key
+from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
 
 log = get_logger("asc.pfn")
 

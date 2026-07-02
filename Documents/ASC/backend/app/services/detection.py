@@ -8,7 +8,7 @@ it analyses events forwarded by EDR/SIEM agents.
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from typing import Literal
-from app.core.logging import get_logger
+from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
 

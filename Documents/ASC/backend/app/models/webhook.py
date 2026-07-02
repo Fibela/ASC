@@ -29,7 +29,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base
+from asc_api.db.base import Base
 
 # Supported event types (subset exposed at P42; expand in future sprints)
 VALID_WEBHOOK_EVENTS = frozenset({

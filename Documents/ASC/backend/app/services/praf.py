@@ -36,9 +36,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from app.core.config import get_settings
-from app.core.logging import get_logger
-from app.core.signing import generate_keypair, sign_command
+from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.core.signing import generate_keypair, sign_command
 
 log = get_logger("asc.praf")
 

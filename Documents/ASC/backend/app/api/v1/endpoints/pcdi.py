@@ -19,14 +19,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin
-from app.core.config import get_settings
-from app.core.rate_limit import limiter
-from app.core.signing import decrypt_analyst_private_key
-from app.db.session import get_db
-from app.models.user import User
-from app.services import pcdi_service as svc
-from app.services.hunt_service import generate_report
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
+from asc_api.core.signing import decrypt_analyst_private_key
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.services import pcdi_service as svc
+from asc_api.services.hunt_service import generate_report
 
 router = APIRouter(prefix="/pcdi", tags=["pcdi"])
 _s = get_settings()

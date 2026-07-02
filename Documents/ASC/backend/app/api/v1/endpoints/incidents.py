@@ -34,20 +34,20 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.core.rate_limit import limiter
-from app.core.logging import get_logger
-from app.db.session import get_db
-from app.models.forensic_entry import ForensicEntry
-from app.models.incident import (
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.core.rate_limit import limiter
+from asc_api.core.logging import get_logger
+from asc_api.db.session import get_db
+from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.incident import (
     INCIDENT_STATUSES,
     INCIDENT_TYPES,
     LINK_ENTITY_TYPES,
     IncidentTimeline,
     VALID_TRANSITIONS,
 )
-from app.models.user import User
-from app.services import incident_service
+from asc_api.models.user import User
+from asc_api.services import incident_service
 
 log = get_logger(__name__)
 router = APIRouter(prefix="/incidents", tags=["Incident Response"])

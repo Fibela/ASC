@@ -8,22 +8,22 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from app.core.api_key_rate_limit import api_key_limiter
-from app.core.config import get_settings
-from app.core.logging import configure_logging, get_logger
-from app.core.middleware import (
+from asc_api.core.api_key_rate_limit import api_key_limiter
+from asc_api.core.config import get_settings
+from asc_api.core.logging import configure_logging, get_logger
+from asc_api.core.middleware import (
     ApiKeyRateLimitMiddleware,
     BodySizeLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
 )
-from app.core.tenant_middleware import TenantMiddleware
-from app.core.notifications import notification_bus
-from app.core.rate_limit import limiter
-from app.core.startup_checks import run_startup_checks
-from app.db.base import Base
-from app.db.session import engine
-from app.api.v1.router import api_router
+from asc_api.core.tenant_middleware import TenantMiddleware
+from asc_api.core.notifications import notification_bus
+from asc_api.core.rate_limit import limiter
+from asc_api.core.startup_checks import run_startup_checks
+from asc_api.db.base import Base
+from asc_api.db.session import engine
+from asc_api.api.v1.router import api_router
 
 settings = get_settings()
 log = get_logger("asc.main")

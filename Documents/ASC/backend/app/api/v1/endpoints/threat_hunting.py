@@ -37,12 +37,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.core.config import get_settings
-from app.core.rate_limit import limiter
-from app.db.session import get_db
-from app.models.user import User
-from app.services import hunt_service as svc
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
+from asc_api.db.session import get_db
+from asc_api.models.user import User
+from asc_api.services import hunt_service as svc
 
 router = APIRouter(prefix="/hunt", tags=["threat-hunting"])
 _s = get_settings()
@@ -479,7 +479,7 @@ async def execute_query(
     current_user: User = Depends(get_analyst_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    from app.services.query_executor import execute_hunt_query
+    from asc_api.services.query_executor import execute_hunt_query
 
     # Verify hunt exists and query belongs to it
     hunt = await svc.get_hunt(db, hunt_id)

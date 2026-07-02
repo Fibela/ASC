@@ -33,7 +33,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.revoked_token import RevokedToken
+from asc_api.models.revoked_token import RevokedToken
 
 
 class JWTBlacklist:

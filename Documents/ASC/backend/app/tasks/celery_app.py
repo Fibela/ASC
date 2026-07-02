@@ -24,7 +24,7 @@ See docs/deployment-guide.md for the Fase 1 → Fase 2 migration plan.
 import logging
 
 from celery import Celery
-from app.core.config import get_settings
+from asc_api.core.config import get_settings
 
 settings = get_settings()
 
