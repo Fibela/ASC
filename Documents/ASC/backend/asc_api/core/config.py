@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "https://premoscorp.com",
         "https://asc.premoscorp.com",           # custom domain (production)
-        "https://asc-frontend-delta.vercel.app", # Vercel frontend project
+        "https://asc-mono.vercel.app",           # Vercel asc-mono
     ]
 
     # SOC Thresholds
