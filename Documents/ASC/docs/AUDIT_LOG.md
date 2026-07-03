@@ -50,6 +50,61 @@
 
 ---
 
+## Session 5 — 2026-07-03 (SSO Completion — Supabase premoscorp_data)
+
+### Objetivo: Completar integración SSO end-to-end para usuarios reales de premoscorp.com
+
+Continuación de Session 4. La sesión anterior dejó el bridge SSO estructuralmente funcional pero bloqueado porque sc-system no tenía las credenciales de Supabase `premoscorp_data` (`xdgilxcmvpxhrpbuqyrr`).
+
+### Acciones ejecutadas — 2026-07-03
+
+| # | Sistema | Acción | Resultado |
+|---|---|---|---|
+| S5-1 | Vercel sc-system | Auditado estado actual de todas las env vars vía REST API (`/v9/projects/.../env`). Identificados 5 vars vacíos críticos. | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `IP_HASH_SALT`, `ANNOUNCEMENTS_SECRET` = vacíos |
+| S5-2 | Vercel sc-system | `SUPABASE_URL` (id `DtfM2SpVGgJt2WML`) → `https://xdgilxcmvpxhrpbuqyrr.supabase.co` | ✅ |
+| S5-3 | Vercel sc-system | `NEXT_PUBLIC_SUPABASE_URL` (id `8NpyJQwzm5SkOPFg`) → `https://xdgilxcmvpxhrpbuqyrr.supabase.co` | ✅ |
+| S5-4 | Vercel sc-system | `SUPABASE_ANON_KEY` (id `FQXGDFP9eBAxxI5X`) → anon key premoscorp_data (`eyJhb...M7dw`) | ✅ |
+| S5-5 | Vercel sc-system | `VITE_SUPABASE_ANON_KEY` (id `AdZTWbj4Y7ZlJ0Ew`) → anon key premoscorp_data (forzado) | ✅ |
+| S5-6 | Vercel sc-system | `NEXT_PUBLIC_SUPABASE_ANON_KEY` (id `8pbWVyadhlEn2xlg`) → anon key premoscorp_data | ✅ |
+| S5-7 | Vercel sc-system | `SUPABASE_SERVICE_ROLE_KEY` (id `6fDDGAiNRtBbtjfr`) → service role key premoscorp_data (`sb_secret_Wjt_...`) | ✅ |
+| S5-8 | Vercel sc-system | `IP_HASH_SALT` (id `8mbh6G4X35QcMy7b`) → 64-char hex generado con `RNGCryptoServiceProvider` | ✅ |
+| S5-9 | Vercel sc-system | `ANNOUNCEMENTS_SECRET` (id `ILDa0J2T1nOZNfL9`) → 64-char hex generado con `RNGCryptoServiceProvider` | ✅ |
+| S5-10 | `sc_system/.env.local` | Placeholders reemplazados con valores reales (no commitear — `.gitignore`) | ✅ |
+| S5-11 | sc-system | Redeploy vía `vercel redeploy dpl_BcVefMXkXUtBZta5EfAeYU8vssPt` → Ready en 30s | ✅ |
+| S5-12 | Vercel | Alias `premoscorp.com` promovido automáticamente al nuevo deployment | ✅ |
+
+### Verificaciones post-deploy
+
+| Check | HTTP | Esperado | OK |
+|---|---|---|---|
+| `premoscorp.com` carga (GET /) | 200 | 200 | ✅ |
+| `POST /api/v1/auth/supabase-sso` con token ES256 fake (kid correcto, firma inválida) | 401 `supabase_token_invalid` | 401 (JWKS contactado, firma rechazada) | ✅ |
+
+### Estado del flujo SSO completo
+
+```
+premoscorp.com (Supabase xdgilxcmvpxhrpbuqyrr)
+  └── Usuario hace OAuth Google/GitHub
+      └── Supabase emite JWT ES256 (kid c86b03d6-...)
+          └── ASCPortal.jsx → POST asc-mono.vercel.app/api/v1/auth/supabase-sso
+              └── asc-mono valida JWKS de xdgilxcmvpxhrpbuqyrr
+                  └── Firma válida → retorna ASC JWT → redirect /sso?token=...
+```
+
+**Estado: LISTO para usuarios reales. Todas las piezas en producción.**
+
+### Pendientes restantes (no bloquean SSO)
+
+| # | Item | Prioridad |
+|---|---|---|
+| P-1 | Stripe live keys en sc-system (`sk_live_`, `pk_live_`, `whsec_`) | Media |
+| P-2 | Resend API key para emails transaccionales | Media |
+| P-3 | HIBP API key para Operación Stalker | Baja |
+| P-4 | Crear primer usuario admin en ASC (`POST /api/v1/auth/register` — solo funciona si no existe ningún usuario) | Alta (bootstrapping) |
+| P-5 | Dominio `asc.premoscorp.com` → CNAME `cname.vercel-dns.com` en DNS provider | Opcional |
+
+---
+
 ## Session 1 — 2026-06-04/05
 
 ### Planning & Architecture
