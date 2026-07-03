@@ -1,5 +1,5 @@
-"""
-Playbooks Engine — REST endpoints.
+﻿"""
+Playbooks Engine â€” REST endpoints.
 
 Endpoints:
   GET  /playbooks/                       Catalog of available playbooks
@@ -7,7 +7,7 @@ Endpoints:
   POST /playbooks/auto-trigger           Auto-select and trigger based on context
   GET  /playbooks/runs                   List execution history (paged)
   GET  /playbooks/runs/{run_id}          Single run detail
-  POST /playbooks/runs/{run_id}/approve  HitL approval — resume paused run
+  POST /playbooks/runs/{run_id}/approve  HitL approval â€” resume paused run
   POST /playbooks/runs/{run_id}/abort    Abort a pending/awaiting run
 """
 
@@ -38,7 +38,7 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/playbooks", tags=["Playbooks"])
 
 
-# ─── Request schemas ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Request schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TriggerRequest(BaseModel):
     playbook_id: str = Field(..., pattern=r"^PB-\d{3}$", description="e.g. PB-001")
@@ -70,7 +70,7 @@ class ApproveRequest(BaseModel):
     approval_token: str = Field(..., min_length=36, max_length=36, description="UUID token from awaiting_approval run")
 
 
-# ─── Response helper ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Response helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _run_to_dict(run: PlaybookRun) -> dict:
     return {
@@ -93,9 +93,9 @@ def _run_to_dict(run: PlaybookRun) -> dict:
     }
 
 
-# ─── Endpoints ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/", summary="Catalog of available playbooks")
+@router.get("", summary="Catalog of available playbooks")
 async def list_playbooks(
     _: User = Depends(get_current_user),
 ) -> list[dict]:

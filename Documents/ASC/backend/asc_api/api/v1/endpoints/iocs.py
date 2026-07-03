@@ -1,6 +1,6 @@
-"""
-IoCs endpoint — P21-F2: authentication enforced + rate limiting added.
-Previously iocs.py had NO auth dependency — security gap now closed.
+﻿"""
+IoCs endpoint â€” P21-F2: authentication enforced + rate limiting added.
+Previously iocs.py had NO auth dependency â€” security gap now closed.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,7 @@ class IoCBulkCreate(BaseModel):
     iocs: list[IoCCreate]
 
 
-@router.post("/", summary="Add a new IoC", status_code=201)
+@router.post("", summary="Add a new IoC", status_code=201)
 @limiter.limit(settings.RATE_LIMIT_IOCS)
 async def create_ioc(
     request: Request,
@@ -71,7 +71,7 @@ async def bulk_create_iocs(
     return {"created": created, "total_submitted": len(payload.iocs)}
 
 
-@router.get("/", summary="List IoCs")
+@router.get("", summary="List IoCs")
 @limiter.limit(settings.RATE_LIMIT_IOCS)
 async def list_iocs(
     request: Request,

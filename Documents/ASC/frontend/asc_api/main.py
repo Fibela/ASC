@@ -64,6 +64,7 @@ _openapi_url = "/openapi.json" if settings.DEBUG else None
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
+    redirect_slashes=False,
     description="""
 ## ASC PremosCorp — Advanced Security Center API
 

@@ -1,18 +1,18 @@
-"""
-P40 — API Key Management  (Toque Premos aplicado)
+﻿"""
+P40 â€” API Key Management  (Toque Premos aplicado)
 ==================================================
 Endpoints for creating, listing, rotating, and revoking API keys.
 
 Toque Premos design guarantees:
   - Autenticidad forense: raw key NEVER stored. Only an HMAC-SHA256 digest
-    (keyed with the app SECRET_KEY) is persisted — unforgeable without the
+    (keyed with the app SECRET_KEY) is persisted â€” unforgeable without the
     application secret even if the database is compromised.
   - One-time reveal: raw key returned exactly once (creation / rotation).
   - Scopes adaptativos: JSON-flexible permission list per key, validated at
     creation and enforceable at any endpoint via `require_api_key_scope()`.
   - Ledger Premos: every key lifecycle event (create, rotate, revoke) is
     emitted to the structured audit channel (asc.audit) with key_prefix,
-    owner, scopes, and UTC timestamp — providing a tamper-evident trail.
+    owner, scopes, and UTC timestamp â€” providing a tamper-evident trail.
 
 Key format: asc_<8-char prefix>_<40-char random hex>
 """
@@ -43,16 +43,16 @@ from asc_api.models.user import User
 router = APIRouter(prefix="/api-keys", tags=["API Keys"])
 _settings = get_settings()
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _PREFIX_LEN = 8
-_SECRET_LEN = 40   # hex chars from secrets.token_hex(20) → 40 hex chars
+_SECRET_LEN = 40   # hex chars from secrets.token_hex(20) â†’ 40 hex chars
 _MAX_KEYS_PER_USER = 20
 
 VALID_SCOPES = frozenset({"read", "write", "admin"})
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _generate_raw_key() -> str:
     """Return a new raw API key: asc_<prefix8>_<random40>"""
@@ -84,7 +84,7 @@ def _prefix_of(raw_key: str) -> str:
     return raw_key.split("_")[1]
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# â”€â”€ Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class APIKeyCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -107,7 +107,7 @@ class APIKeyResponse(BaseModel):
 
 
 class APIKeyCreated(APIKeyResponse):
-    raw_key: str  # only present on creation/rotation — never stored
+    raw_key: str  # only present on creation/rotation â€” never stored
 
 
 class APIKeyPatch(BaseModel):
@@ -117,7 +117,7 @@ class APIKeyPatch(BaseModel):
 
 
 class RateLimitStatus(BaseModel):
-    """P41 — Current rate limit usage for an API key."""
+    """P41 â€” Current rate limit usage for an API key."""
     key_prefix: str
     limit_per_minute: int
     limit_per_hour: int
@@ -128,7 +128,7 @@ class RateLimitStatus(BaseModel):
     backend: str            # 'redis' or 'memory'
 
 
-# ── Helpers (DB) ──────────────────────────────────────────────────────────────
+# â”€â”€ Helpers (DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _get_key_or_404(key_id: str, db: AsyncSession) -> APIKey:
     result = await db.execute(select(APIKey).where(APIKey.id == key_id))
@@ -143,11 +143,11 @@ def _validate_scopes(scopes: list[str]) -> None:
     if invalid:
         raise HTTPException(
             status_code=422,
-            detail=f"Scopes inválidos: {invalid}. Válidos: {sorted(VALID_SCOPES)}",
+            detail=f"Scopes invÃ¡lidos: {invalid}. VÃ¡lidos: {sorted(VALID_SCOPES)}",
         )
 
 
-# ── Ledger Premos helpers ─────────────────────────────────────────────────────
+# â”€â”€ Ledger Premos helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _ledger_create(user: User, key: APIKey) -> None:
     """Emit Ledger Premos entry for key creation."""
@@ -158,7 +158,7 @@ def _ledger_create(user: User, key: APIKey) -> None:
         resource="api_key",
         resource_id=key.id,
         detail=(
-            f"name={key.name!r} prefix=asc_{key.key_prefix}… "
+            f"name={key.name!r} prefix=asc_{key.key_prefix}â€¦ "
             f"scopes={key.scopes} "
             f"expires_at={key.expires_at.isoformat() if key.expires_at else 'never'}"
         ),
@@ -173,7 +173,7 @@ def _ledger_rotate(user: User, key: APIKey, old_prefix: str) -> None:
         role=user.role,
         resource="api_key",
         resource_id=key.id,
-        detail=f"old_prefix=asc_{old_prefix}… new_prefix=asc_{key.key_prefix}…",
+        detail=f"old_prefix=asc_{old_prefix}â€¦ new_prefix=asc_{key.key_prefix}â€¦",
     )
 
 
@@ -185,13 +185,13 @@ def _ledger_revoke(user: User, key_id: str, key_prefix: str) -> None:
         role=user.role,
         resource="api_key",
         resource_id=key_id,
-        detail=f"prefix=asc_{key_prefix}…",
+        detail=f"prefix=asc_{key_prefix}â€¦",
     )
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.post("/", response_model=APIKeyCreated, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=APIKeyCreated, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     payload: APIKeyCreate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -201,7 +201,7 @@ async def create_api_key(
     Create a new API key for the authenticated user.
 
     The raw key is returned **once** in this response and cannot be retrieved again.
-    Only the HMAC-SHA256 digest is stored (Toque Premos — autenticidad forense).
+    Only the HMAC-SHA256 digest is stored (Toque Premos â€” autenticidad forense).
     """
     _validate_scopes(payload.scopes)
 
@@ -228,7 +228,7 @@ async def create_api_key(
     await db.commit()
     await db.refresh(key)
 
-    # Ledger Premos — forensic audit trail
+    # Ledger Premos â€” forensic audit trail
     _ledger_create(current_user, key)
 
     return APIKeyCreated(
@@ -245,7 +245,7 @@ async def create_api_key(
     )
 
 
-@router.get("/", response_model=list[APIKeyResponse])
+@router.get("", response_model=list[APIKeyResponse])
 async def list_api_keys(
     current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
@@ -323,7 +323,7 @@ async def revoke_api_key(
     await db.delete(key)
     await db.commit()
 
-    # Ledger Premos — forensic audit trail
+    # Ledger Premos â€” forensic audit trail
     _ledger_revoke(current_user, key_id, key_prefix)
 
 
@@ -335,7 +335,7 @@ async def rotate_api_key(
 ):
     """
     Rotate an API key: generate a new raw key, update the HMAC-SHA256 digest and prefix.
-    Returns the new raw key once — store it securely.
+    Returns the new raw key once â€” store it securely.
     The key ID, name, scopes, and expiry are preserved.
     Emits Ledger Premos entry recording old and new prefix.
     """
@@ -353,7 +353,7 @@ async def rotate_api_key(
     await db.commit()
     await db.refresh(key)
 
-    # Ledger Premos — forensic audit trail
+    # Ledger Premos â€” forensic audit trail
     _ledger_rotate(current_user, key, old_prefix)
 
     return APIKeyCreated(
@@ -390,7 +390,7 @@ async def get_rate_limit_status(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    P41 — Return current rate limit usage for an API key.
+    P41 â€” Return current rate limit usage for an API key.
 
     Shows how many requests have been made in the current minute and hour
     windows, and how many remain. Available to the key owner or any admin.
@@ -423,7 +423,7 @@ async def reset_rate_limit(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    P41 — Admin-only: reset all rate limit counters for an API key.
+    P41 â€” Admin-only: reset all rate limit counters for an API key.
 
     Clears both the per-minute and per-hour sliding windows.
     Emits a Ledger Premos entry for the reset action.
@@ -437,5 +437,5 @@ async def reset_rate_limit(
         role=current_user.role,
         resource="api_key",
         resource_id=key_id,
-        detail=f"prefix=asc_{key.key_prefix}… rate limit counters cleared by admin",
+        detail=f"prefix=asc_{key.key_prefix}â€¦ rate limit counters cleared by admin",
     )

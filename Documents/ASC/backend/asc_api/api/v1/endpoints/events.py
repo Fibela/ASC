@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+﻿from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from datetime import datetime, timezone
@@ -97,7 +97,7 @@ async def ingest_bulk(
     # Run correlation rules
     alerts_to_create = await evaluate_correlation_rules(normalized_events, db)
     created_alerts = []
-    # Earliest event timestamp → threat_start_at for accurate MTTD calculation
+    # Earliest event timestamp â†’ threat_start_at for accurate MTTD calculation
     # Normalize to timezone-aware (SQLite returns naive UTC; PostgreSQL returns aware)
     def _ensure_aware(dt):
         if dt is not None and dt.tzinfo is None:
@@ -129,7 +129,7 @@ async def ingest_bulk(
     return {"events_ingested": len(created_ids), "alerts_created": len(created_alerts), "alert_ids": created_alerts}
 
 
-@router.get("/", summary="List recent events")
+@router.get("", summary="List recent events")
 async def list_events(
     limit: int = Query(50, le=500),
     offset: int = Query(0),

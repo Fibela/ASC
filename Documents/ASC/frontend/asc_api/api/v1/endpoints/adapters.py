@@ -1,28 +1,28 @@
-"""
-Adapters REST API — SIEM/EDR/SOAR/Firewall/IAM integration endpoints.
+﻿"""
+Adapters REST API â€” SIEM/EDR/SOAR/Firewall/IAM integration endpoints.
 
 All endpoints require JWT authentication (analyst+ role).
 Adapters that are not configured return HTTP 503 with a clear message.
 
 Routes:
-  GET  /adapters/                                    — list all adapters + configuration status
-  GET  /adapters/{adapter}/status                    — live connection test for one adapter
-  POST /adapters/elk/push/alert/{alert_id}           — index alert into Elasticsearch
-  POST /adapters/elk/push/event/{event_id}           — index event into Elasticsearch
-  POST /adapters/elk/pull/events                     — pull events from ELK into ASC
-  POST /adapters/wazuh/pull/alerts                   — pull Wazuh alerts and ingest into ASC
-  GET  /adapters/wazuh/agents                        — list active Wazuh agents
-  POST /adapters/thehive/cases                       — create TheHive case from ASC alert
-  POST /adapters/thehive/cases/{case_id}/observables — add IoC as observable
-  GET  /adapters/thehive/cases/{case_id}             — get TheHive case status
-  POST /adapters/firewall/block/ip                   — block IP via active firewall adapter
-  POST /adapters/firewall/unblock/ip                 — unblock IP via active firewall adapter
-  POST /adapters/firewall/block/domain               — block domain via active firewall adapter
-  POST /adapters/firewall/unblock/domain             — unblock domain via active firewall adapter
-  POST /adapters/identity/disable                    — disable AD account
-  POST /adapters/identity/enable                     — enable AD account
-  POST /adapters/identity/force-reset                — force password reset for AD account
-  POST /adapters/identity/quarantine                 — move AD account to quarantine OU
+  GET  /adapters/                                    â€” list all adapters + configuration status
+  GET  /adapters/{adapter}/status                    â€” live connection test for one adapter
+  POST /adapters/elk/push/alert/{alert_id}           â€” index alert into Elasticsearch
+  POST /adapters/elk/push/event/{event_id}           â€” index event into Elasticsearch
+  POST /adapters/elk/pull/events                     â€” pull events from ELK into ASC
+  POST /adapters/wazuh/pull/alerts                   â€” pull Wazuh alerts and ingest into ASC
+  GET  /adapters/wazuh/agents                        â€” list active Wazuh agents
+  POST /adapters/thehive/cases                       â€” create TheHive case from ASC alert
+  POST /adapters/thehive/cases/{case_id}/observables â€” add IoC as observable
+  GET  /adapters/thehive/cases/{case_id}             â€” get TheHive case status
+  POST /adapters/firewall/block/ip                   â€” block IP via active firewall adapter
+  POST /adapters/firewall/unblock/ip                 â€” unblock IP via active firewall adapter
+  POST /adapters/firewall/block/domain               â€” block domain via active firewall adapter
+  POST /adapters/firewall/unblock/domain             â€” unblock domain via active firewall adapter
+  POST /adapters/identity/disable                    â€” disable AD account
+  POST /adapters/identity/enable                     â€” enable AD account
+  POST /adapters/identity/force-reset                â€” force password reset for AD account
+  POST /adapters/identity/quarantine                 â€” move AD account to quarantine OU
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,10 +42,10 @@ from asc_api.adapters import (
     get_firewall_adapter, get_identity_adapter,
 )
 
-router = APIRouter(prefix="/adapters", tags=["Adapters — SIEM/EDR/SOAR"])
+router = APIRouter(prefix="/adapters", tags=["Adapters â€” SIEM/EDR/SOAR"])
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _raise_if_failed(result: dict, http_status: int = 503) -> None:
     """Raise HTTPException if adapter call failed."""
@@ -97,7 +97,7 @@ def _ioc_to_dict(i: IoC) -> dict:
     }
 
 
-# ─── Models ───────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class PullEventsRequest(BaseModel):
     since_hours: int = 1
@@ -129,9 +129,9 @@ class IdentityAccountRequest(BaseModel):
     reason: str = ""
 
 
-# ─── Adapter catalog ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Adapter catalog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/", summary="List all adapters and their configuration status")
+@router.get("", summary="List all adapters and their configuration status")
 async def list_adapters(_: User = Depends(get_analyst_or_admin)):
     elk      = ELKAdapter()
     wazuh    = WazuhAdapter()
@@ -203,7 +203,7 @@ async def adapter_status(adapter: str, _: User = Depends(get_analyst_or_admin)):
     return result
 
 
-# ─── ELK endpoints ───────────────────────────────────────────────────────────
+# â”€â”€â”€ ELK endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/elk/push/alert/{alert_id}", summary="Push ASC alert to Elasticsearch")
 async def elk_push_alert(
@@ -260,7 +260,7 @@ async def elk_pull_events(
     return outcome
 
 
-# ─── Wazuh endpoints ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Wazuh endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/wazuh/pull/alerts", summary="Pull Wazuh HIDS alerts and return as ASC events")
 async def wazuh_pull_alerts(
@@ -291,7 +291,7 @@ async def wazuh_agents(
     return outcome
 
 
-# ─── TheHive endpoints ────────────────────────────────────────────────────────
+# â”€â”€â”€ TheHive endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/thehive/cases", summary="Create TheHive case from ASC alert")
 async def thehive_create_case(
@@ -375,7 +375,7 @@ async def thehive_export_hunt(
     return result
 
 
-# ─── Firewall endpoints (F1 — PAN-OS preferred, Fortinet fallback) ────────────
+# â”€â”€â”€ Firewall endpoints (F1 â€” PAN-OS preferred, Fortinet fallback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _NO_FIREWALL = (
     "No firewall adapter configured. "
@@ -435,7 +435,7 @@ async def firewall_unblock_domain(
     return outcome
 
 
-# ─── Identity endpoints (F1 — Active Directory) ───────────────────────────────
+# â”€â”€â”€ Identity endpoints (F1 â€” Active Directory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _NO_IDENTITY = (
     "Active Directory adapter not configured. "

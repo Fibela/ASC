@@ -1,20 +1,20 @@
-"""
-SPECTER Agent REST API — P13 + P14 (Security Hardening).
+﻿"""
+SPECTER Agent REST API â€” P13 + P14 (Security Hardening).
 
 Endpoint map:
-  POST   /agents/register           — Agent self-registration (enrollment token required)
-  GET    /agents/                   — List agents          (analyst+)
-  GET    /agents/probe              — [HONEYPOT] Triggers security alert
-  GET    /agents/dump               — [HONEYPOT] Triggers security alert
-  GET    /agents/export             — [HONEYPOT] Triggers security alert
-  GET    /agents/{id}               — Agent detail         (analyst+)
-  DELETE /agents/{id}               — Deregister agent     (admin only)
-  POST   /agents/{id}/events        — Ingest telemetry     (rate-limited, agent auth)
-  GET    /agents/{id}/commands      — Poll for commands    (agent auth)
-  POST   /agents/{id}/results       — Report cmd result    (canary ping verified)
-  POST   /agents/{id}/command       — Issue command        (param schema + injection check)
-  PATCH  /agents/{id}/threat        — Set threat level     (analyst+)
-  GET    /agents/{id}/timeline      — Event timeline       (analyst+)
+  POST   /agents/register           â€” Agent self-registration (enrollment token required)
+  GET    /agents/                   â€” List agents          (analyst+)
+  GET    /agents/probe              â€” [HONEYPOT] Triggers security alert
+  GET    /agents/dump               â€” [HONEYPOT] Triggers security alert
+  GET    /agents/export             â€” [HONEYPOT] Triggers security alert
+  GET    /agents/{id}               â€” Agent detail         (analyst+)
+  DELETE /agents/{id}               â€” Deregister agent     (admin only)
+  POST   /agents/{id}/events        â€” Ingest telemetry     (rate-limited, agent auth)
+  GET    /agents/{id}/commands      â€” Poll for commands    (agent auth)
+  POST   /agents/{id}/results       â€” Report cmd result    (canary ping verified)
+  POST   /agents/{id}/command       â€” Issue command        (param schema + injection check)
+  PATCH  /agents/{id}/threat        â€” Set threat level     (analyst+)
+  GET    /agents/{id}/timeline      â€” Event timeline       (analyst+)
 
 P14 Security layers active on this router:
   - Enrollment token verification on registration (HMAC-SHA256, 1-hour window)
@@ -76,7 +76,7 @@ from asc_api.services.agent_commander import (
 router = APIRouter(prefix="/agents", tags=["SPECTER Agents"])
 settings = get_settings()
 
-# Module-level rate limiter — shared across all requests in this process.
+# Module-level rate limiter â€” shared across all requests in this process.
 # Each agent's key is its UUID, so fresh agents start with an empty bucket.
 _event_rate_limiter = SprecterRateLimiter(
     max_requests=settings.SPECTER_MAX_EVENTS_PER_WINDOW,
@@ -95,7 +95,7 @@ _VALID_COMMAND_TYPES = {
 }
 
 
-# ── Pydantic schemas ───────────────────────────────────────────────────────────
+# â”€â”€ Pydantic schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AgentRegisterRequest(BaseModel):
     hostname: str
@@ -164,7 +164,7 @@ class SetThreatRequest(BaseModel):
     threat_level: str   # normal | elevated | critical
 
 
-# ── Agent identity header dependency ───────────────────────────────────────────
+# â”€â”€ Agent identity header dependency â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _get_agent_by_header(
     x_specter_id: str = Header(..., alias="X-Specter-ID"),
@@ -178,7 +178,7 @@ async def _get_agent_by_header(
     return agent
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _get_agent_or_404(agent_id: str, db: AsyncSession) -> Agent:
     result = await db.execute(select(Agent).where(Agent.id == agent_id))
@@ -212,7 +212,7 @@ def _guard(response: Response) -> None:
     response.headers["X-Specter-Guard"] = _GUARD_HEADER
 
 
-# ── Endpoints ──────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/register", summary="SPECTER agent self-registration")
 async def register_agent(
@@ -245,11 +245,11 @@ async def register_agent(
             detail="Invalid or missing SPECTER enrollment token.",
         )
 
-    # Trap: suspicious registration frequency (non-blocking — log only)
+    # Trap: suspicious registration frequency (non-blocking â€” log only)
     client_ip = request.client.host if request.client else payload.ip_address
     check_suspicious_registration(payload.hostname, client_ip)
 
-    # Idempotent: same hostname → update existing agent record
+    # Idempotent: same hostname â†’ update existing agent record
     existing = await db.execute(
         select(Agent).where(Agent.hostname == payload.hostname)
     )
@@ -290,7 +290,7 @@ async def register_agent(
     }
 
 
-@router.get("/", summary="List all SPECTER agents")
+@router.get("", summary="List all SPECTER agents")
 async def list_agents(
     status_filter: str | None = None,
     threat_filter: str | None = None,
@@ -320,7 +320,7 @@ async def get_enrollment_token(
 
     The token is HMAC-SHA256(SPECTER_ENROLLMENT_SECRET, window) with a 1-hour rolling
     window.  It is safe to distribute to endpoint operators but expires within ~2 hours.
-    Never returns the raw secret — only the derived token.
+    Never returns the raw secret â€” only the derived token.
 
     Security: admin-only.  Analysts cannot retrieve the enrollment token (least privilege).
     """
@@ -331,7 +331,7 @@ async def get_enrollment_token(
             "configured": False,
             "token": None,
             "valid_for_seconds": None,
-            "note": "SPECTER_ENROLLMENT_SECRET not configured — dev mode (open registration)",
+            "note": "SPECTER_ENROLLMENT_SECRET not configured â€” dev mode (open registration)",
         }
 
     token = generate_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET)
@@ -345,7 +345,7 @@ async def get_enrollment_token(
     }
 
 
-# ── Honeypot endpoints (registered before /{agent_id} — order matters) ────────
+# â”€â”€ Honeypot endpoints (registered before /{agent_id} â€” order matters) â”€â”€â”€â”€â”€â”€â”€â”€
 # Legitimate SPECTER agents never call these paths.
 # Any access triggers a security audit event indicating reconnaissance.
 
@@ -446,7 +446,7 @@ async def _honeypot_export(
 ) -> dict:
     """
     Advanced honeypot: returns realistic credentials-export decoy with embedded canary token.
-    Fake DB credentials reference non-routable internal hostnames — completely inert.
+    Fake DB credentials reference non-routable internal hostnames â€” completely inert.
     Evidence report persisted to DB (replaces removed in-memory _evidence_reports list).
     """
     client_ip = request.client.host if request.client else "unknown"
@@ -485,7 +485,7 @@ async def _honeypot_export(
     return decoy
 
 
-# ── Agent-specific endpoints ───────────────────────────────────────────────────
+# â”€â”€ Agent-specific endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/{agent_id}", summary="SPECTER agent detail")
 async def get_agent(
@@ -531,7 +531,7 @@ async def ingest_agent_events(
     if agent.id != agent_id:
         raise HTTPException(status_code=403, detail="Agent ID mismatch.")
 
-    # Filter: rate limiting — max events per window per agent
+    # Filter: rate limiting â€” max events per window per agent
     if not _event_rate_limiter.is_allowed(agent_id):
         log_security_action(
             "specter_rate_limit_exceeded",
@@ -639,7 +639,7 @@ async def issue_agent_command(
             detail=f"Unknown command_type. Valid: {sorted(_VALID_COMMAND_TYPES)}",
         )
 
-    # Agent lookup first — 404 takes semantic priority over param errors
+    # Agent lookup first â€” 404 takes semantic priority over param errors
     agent = await _get_agent_or_404(agent_id, db)
 
     # Filter: param schema validation
@@ -701,7 +701,7 @@ async def set_threat_level(
         role=current_user.role,
         resource="agent",
         resource_id=agent_id,
-        detail=f"{old_level} → {payload.threat_level} hostname={agent.hostname}",
+        detail=f"{old_level} â†’ {payload.threat_level} hostname={agent.hostname}",
     )
     return {
         "agent_id":      agent.id,
@@ -762,14 +762,14 @@ async def agent_command_history(
     Returns the last N commands issued to this agent, including execution results.
 
     Useful for the analyst command center: poll this endpoint to see when a
-    queued command transitions from pending → delivered → completed/failed.
+    queued command transitions from pending â†’ delivered â†’ completed/failed.
 
     Results include the full result payload so log_query matches can be
     displayed directly in the UI without a separate fetch.
 
     Query params:
-      limit        — max commands to return (default 20, max 100)
-      status_filter— optional filter: pending|delivered|completed|failed
+      limit        â€” max commands to return (default 20, max 100)
+      status_filterâ€” optional filter: pending|delivered|completed|failed
     """
     agent = await _get_agent_or_404(agent_id, db)
     q = (

@@ -1,5 +1,5 @@
-"""
-Alerts endpoint — P21-F2: rate limiting added.
+﻿"""
+Alerts endpoint â€” P21-F2: rate limiting added.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,7 @@ class AlertUpdate(BaseModel):
     false_positive: bool | None = None
 
 
-@router.get("/", summary="List alerts")
+@router.get("", summary="List alerts")
 @limiter.limit(settings.RATE_LIMIT_ALERTS)
 async def list_alerts(
     request: Request,

@@ -1,33 +1,33 @@
-"""
-PremosCorp Threat Hunting API — P22-F3 + P23
+﻿"""
+PremosCorp Threat Hunting API â€” P22-F3 + P23
 
 Endpoints (P22)
 ---------------
-GET    /hunt/stats                           — aggregate stats (analyst+)
-GET    /hunt/                                — list hunt sessions (analyst+)
-POST   /hunt/                                — create hunt session (analyst+)
-GET    /hunt/{hunt_id}                       — get hunt detail (analyst+)
-PUT    /hunt/{hunt_id}                       — update hunt / change status (analyst+)
-DELETE /hunt/{hunt_id}                       — archive hunt (admin only)
+GET    /hunt/stats                           â€” aggregate stats (analyst+)
+GET    /hunt/                                â€” list hunt sessions (analyst+)
+POST   /hunt/                                â€” create hunt session (analyst+)
+GET    /hunt/{hunt_id}                       â€” get hunt detail (analyst+)
+PUT    /hunt/{hunt_id}                       â€” update hunt / change status (analyst+)
+DELETE /hunt/{hunt_id}                       â€” archive hunt (admin only)
 
-GET    /hunt/{hunt_id}/findings              — list findings for hunt (analyst+)
-POST   /hunt/{hunt_id}/findings              — add finding (analyst+)
-GET    /hunt/{hunt_id}/findings/{fid}        — get finding (analyst+)
-PUT    /hunt/{hunt_id}/findings/{fid}        — update finding (analyst+)
-POST   /hunt/{hunt_id}/findings/{fid}/verdict — set confirmed/false_positive (analyst+)
+GET    /hunt/{hunt_id}/findings              â€” list findings for hunt (analyst+)
+POST   /hunt/{hunt_id}/findings              â€” add finding (analyst+)
+GET    /hunt/{hunt_id}/findings/{fid}        â€” get finding (analyst+)
+PUT    /hunt/{hunt_id}/findings/{fid}        â€” update finding (analyst+)
+POST   /hunt/{hunt_id}/findings/{fid}/verdict â€” set confirmed/false_positive (analyst+)
 
-GET    /hunt/{hunt_id}/queries               — list saved queries (analyst+)
-POST   /hunt/{hunt_id}/queries               — save a query (analyst+)
-DELETE /hunt/{hunt_id}/queries/{qid}         — delete saved query (analyst+)
+GET    /hunt/{hunt_id}/queries               â€” list saved queries (analyst+)
+POST   /hunt/{hunt_id}/queries               â€” save a query (analyst+)
+DELETE /hunt/{hunt_id}/queries/{qid}         â€” delete saved query (analyst+)
 
 Endpoints (P23)
 ---------------
-POST   /hunt/from-alert/{alert_id}                      — create hunt from alert (analyst+)
-POST   /hunt/{hunt_id}/queries/{query_id}/execute        — execute query read-only (analyst+)
-POST   /hunt/{hunt_id}/findings/{fid}/enrich             — TI auto-enrichment (analyst+)
-GET    /hunt/{hunt_id}/report                            — export structured report (analyst+)
+POST   /hunt/from-alert/{alert_id}                      â€” create hunt from alert (analyst+)
+POST   /hunt/{hunt_id}/queries/{query_id}/execute        â€” execute query read-only (analyst+)
+POST   /hunt/{hunt_id}/findings/{fid}/enrich             â€” TI auto-enrichment (analyst+)
+GET    /hunt/{hunt_id}/report                            â€” export structured report (analyst+)
 
-All hunting is PASSIVE — no active probing of external systems.
+All hunting is PASSIVE â€” no active probing of external systems.
 """
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ from asc_api.services import hunt_service as svc
 router = APIRouter(prefix="/hunt", tags=["threat-hunting"])
 _s = get_settings()
 
-# ── Pydantic Schemas ───────────────────────────────────────────────────────────
+# â”€â”€ Pydantic Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class HuntCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=256)
@@ -153,16 +153,16 @@ class QueryCreate(BaseModel):
         return v
 
 
-# ── Helper ─────────────────────────────────────────────────────────────────────
+# â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _require_not_archived(hunt_dict: dict) -> None:
     if hunt_dict.get("status") == "archived":
         raise HTTPException(status_code=409, detail="Hunt is archived and cannot be modified")
 
 
-# ── Hunt Endpoints ─────────────────────────────────────────────────────────────
+# â”€â”€ Hunt Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/stats", summary="Hunt corpus stats (analyst+) — P22")
+@router.get("/stats", summary="Hunt corpus stats (analyst+) â€” P22")
 @limiter.limit("60/minute")
 async def hunt_stats(
     request: Request,
@@ -172,7 +172,7 @@ async def hunt_stats(
     return await svc.get_hunt_stats(db)
 
 
-@router.get("/", summary="List hunt sessions (analyst+) — P22")
+@router.get("", summary="List hunt sessions (analyst+) â€” P22")
 @limiter.limit("60/minute")
 async def list_hunts(
     request: Request,
@@ -195,7 +195,7 @@ async def list_hunts(
     }
 
 
-@router.post("/", status_code=201, summary="Create hunt session (analyst+) — P22")
+@router.post("", status_code=201, summary="Create hunt session (analyst+) â€” P22")
 @limiter.limit("30/minute")
 async def create_hunt(
     request: Request,
@@ -222,7 +222,7 @@ async def create_hunt(
     return svc._hunt_to_dict(hunt)
 
 
-@router.get("/{hunt_id}", summary="Get hunt detail (analyst+) — P22")
+@router.get("/{hunt_id}", summary="Get hunt detail (analyst+) â€” P22")
 @limiter.limit("120/minute")
 async def get_hunt(
     request: Request,
@@ -237,7 +237,7 @@ async def get_hunt(
     return svc._hunt_to_dict(hunt, include_relations=include_relations)
 
 
-@router.put("/{hunt_id}", summary="Update hunt (analyst+) — P22")
+@router.put("/{hunt_id}", summary="Update hunt (analyst+) â€” P22")
 @limiter.limit("60/minute")
 async def update_hunt(
     request: Request,
@@ -258,7 +258,7 @@ async def update_hunt(
     return svc._hunt_to_dict(hunt)
 
 
-@router.delete("/{hunt_id}", status_code=204, summary="Archive hunt (admin only) — P22")
+@router.delete("/{hunt_id}", status_code=204, summary="Archive hunt (admin only) â€” P22")
 @limiter.limit("30/minute")
 async def archive_hunt(
     request: Request,
@@ -271,9 +271,9 @@ async def archive_hunt(
         raise HTTPException(status_code=404, detail="Hunt not found")
 
 
-# ── Finding Endpoints ──────────────────────────────────────────────────────────
+# â”€â”€ Finding Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/{hunt_id}/findings", summary="List findings for hunt (analyst+) — P22")
+@router.get("/{hunt_id}/findings", summary="List findings for hunt (analyst+) â€” P22")
 @limiter.limit("120/minute")
 async def list_findings(
     request: Request,
@@ -290,7 +290,7 @@ async def list_findings(
     return {"findings": [svc._finding_to_dict(f) for f in findings], "total": len(findings)}
 
 
-@router.post("/{hunt_id}/findings", status_code=201, summary="Add finding (analyst+) — P22")
+@router.post("/{hunt_id}/findings", status_code=201, summary="Add finding (analyst+) â€” P22")
 @limiter.limit("60/minute")
 async def add_finding(
     request: Request,
@@ -326,7 +326,7 @@ async def add_finding(
     return svc._finding_to_dict(finding)
 
 
-@router.get("/{hunt_id}/findings/{finding_id}", summary="Get finding (analyst+) — P22")
+@router.get("/{hunt_id}/findings/{finding_id}", summary="Get finding (analyst+) â€” P22")
 @limiter.limit("120/minute")
 async def get_finding(
     request: Request,
@@ -341,7 +341,7 @@ async def get_finding(
     return svc._finding_to_dict(finding)
 
 
-@router.put("/{hunt_id}/findings/{finding_id}", summary="Update finding (analyst+) — P22")
+@router.put("/{hunt_id}/findings/{finding_id}", summary="Update finding (analyst+) â€” P22")
 @limiter.limit("60/minute")
 async def update_finding(
     request: Request,
@@ -363,7 +363,7 @@ async def update_finding(
 
 @router.post(
     "/{hunt_id}/findings/{finding_id}/verdict",
-    summary="Set finding verdict — confirmed/false-positive (analyst+) — P22",
+    summary="Set finding verdict â€” confirmed/false-positive (analyst+) â€” P22",
 )
 @limiter.limit("60/minute")
 async def set_verdict(
@@ -386,9 +386,9 @@ async def set_verdict(
     return svc._finding_to_dict(updated)
 
 
-# ── Query Endpoints ────────────────────────────────────────────────────────────
+# â”€â”€ Query Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/{hunt_id}/queries", summary="List saved queries for hunt (analyst+) — P22")
+@router.get("/{hunt_id}/queries", summary="List saved queries for hunt (analyst+) â€” P22")
 @limiter.limit("120/minute")
 async def list_queries(
     request: Request,
@@ -403,7 +403,7 @@ async def list_queries(
     return {"queries": [svc._query_to_dict(q) for q in queries], "total": len(queries)}
 
 
-@router.post("/{hunt_id}/queries", status_code=201, summary="Save a query for hunt (analyst+) — P22")
+@router.post("/{hunt_id}/queries", status_code=201, summary="Save a query for hunt (analyst+) â€” P22")
 @limiter.limit("30/minute")
 async def save_query(
     request: Request,
@@ -432,7 +432,7 @@ async def save_query(
 @router.delete(
     "/{hunt_id}/queries/{query_id}",
     status_code=204,
-    summary="Delete saved query (analyst+) — P22",
+    summary="Delete saved query (analyst+) â€” P22",
 )
 @limiter.limit("30/minute")
 async def delete_query(
@@ -447,12 +447,12 @@ async def delete_query(
         raise HTTPException(status_code=404, detail="Query not found")
 
 
-# ── P23 Endpoints ──────────────────────────────────────────────────────────────
+# â”€â”€ P23 Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post(
     "/from-alert/{alert_id}",
     status_code=201,
-    summary="Create hunt from alert — auto-populate hypothesis and first finding (analyst+) — P23",
+    summary="Create hunt from alert â€” auto-populate hypothesis and first finding (analyst+) â€” P23",
 )
 @limiter.limit("20/minute")
 async def create_hunt_from_alert(
@@ -469,7 +469,7 @@ async def create_hunt_from_alert(
 
 @router.post(
     "/{hunt_id}/queries/{query_id}/execute",
-    summary="Execute a saved query read-only against ELK/Wazuh (analyst+) — P23",
+    summary="Execute a saved query read-only against ELK/Wazuh (analyst+) â€” P23",
 )
 @limiter.limit("10/minute")
 async def execute_query(
@@ -496,7 +496,7 @@ async def execute_query(
 
 @router.post(
     "/{hunt_id}/findings/{finding_id}/enrich",
-    summary="Auto-enrich finding indicator against ThreatIntel (analyst+) — P23",
+    summary="Auto-enrich finding indicator against ThreatIntel (analyst+) â€” P23",
 )
 @limiter.limit("30/minute")
 async def enrich_finding(
@@ -518,7 +518,7 @@ async def enrich_finding(
 
 @router.get(
     "/{hunt_id}/report",
-    summary="Export structured hunt report (analyst+) — P23",
+    summary="Export structured hunt report (analyst+) â€” P23",
 )
 @limiter.limit("30/minute")
 async def export_report(

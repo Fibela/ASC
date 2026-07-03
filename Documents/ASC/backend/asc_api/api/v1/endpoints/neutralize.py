@@ -1,13 +1,13 @@
-"""
-Neutralization API — P16 + PANL
+﻿"""
+Neutralization API â€” P16 + PANL
 
 Security layers applied at the endpoint level:
-  RequestRateLimit    — max 20 POST /neutralize/ per user per minute (PANL)
-  BehavioralThrottle  — max 10 same-action_type per user per minute (in approval.py)
-  HitL gate           — CRITICAL/HIGH → pending_approval (in approval.py)
-  Multi-signature     — CRITICAL → 2 distinct analyst approvals (in approval.py)
-  Self-approval block — 403 Forbidden if approved_by == initiated_by
-  Rollback guard      — only completed, rollback_available actions can be reversed
+  RequestRateLimit    â€” max 20 POST /neutralize/ per user per minute (PANL)
+  BehavioralThrottle  â€” max 10 same-action_type per user per minute (in approval.py)
+  HitL gate           â€” CRITICAL/HIGH â†’ pending_approval (in approval.py)
+  Multi-signature     â€” CRITICAL â†’ 2 distinct analyst approvals (in approval.py)
+  Self-approval block â€” 403 Forbidden if approved_by == initiated_by
+  Rollback guard      â€” only completed, rollback_available actions can be reversed
 """
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,7 @@ from pydantic import BaseModel, field_validator
 
 router = APIRouter(prefix="/neutralize", tags=["Neutralization"])
 
-# ── Per-user request rate limiter (PANL) ─────────────────────────────────────
+# â”€â”€ Per-user request rate limiter (PANL) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 async def _rate_limited_user(
@@ -52,7 +52,7 @@ async def _rate_limited_user(
     return current_user
 
 
-# ── Request schemas ───────────────────────────────────────────────────────────
+# â”€â”€ Request schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class NeutralizeRequest(BaseModel):
     action_type: str
@@ -62,7 +62,7 @@ class NeutralizeRequest(BaseModel):
     params: dict = {}
     alert_id: str | None = None
     automated: bool = False
-    # PANL adaptive context — optional; set by alert automation or analyst override
+    # PANL adaptive context â€” optional; set by alert automation or analyst override
     adaptive_context: dict = {}
 
     @field_validator("severity")
@@ -100,7 +100,7 @@ class RejectRequest(BaseModel):
         return v.strip()
 
 
-# ── Serialization helper ──────────────────────────────────────────────────────
+# â”€â”€ Serialization helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _serialize(a: NeutralizationAction) -> dict:
     return {
@@ -139,9 +139,9 @@ def _serialize(a: NeutralizationAction) -> dict:
     }
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.post("/", summary="Request a neutralization action (PANL + HitL gate)")
+@router.post("", summary="Request a neutralization action (PANL + HitL gate)")
 async def neutralize(
     payload: NeutralizeRequest,
     db: AsyncSession = Depends(get_db),
@@ -152,7 +152,7 @@ async def neutralize(
     1. Rate limit check (20 req/min per user)
     2. Behavioral throttle (10 same-action-type/min per user)
     3. Adaptive severity upgrade (context-aware)
-    4. HitL gate: CRITICAL/HIGH → pending_approval; MEDIUM/LOW → execute
+    4. HitL gate: CRITICAL/HIGH â†’ pending_approval; MEDIUM/LOW â†’ execute
     5. Multi-signature: CRITICAL requires 2 distinct analyst approvals
     6. SSE notification published to connected analyst browsers
     """
@@ -198,9 +198,9 @@ async def approve(
 ):
     """
     Record this analyst's approval signature.
-    - Self-approval → 403 Forbidden
-    - Duplicate approval by same analyst → 400
-    - Expired action → 409 Conflict
+    - Self-approval â†’ 403 Forbidden
+    - Duplicate approval by same analyst â†’ 400
+    - Expired action â†’ 409 Conflict
     - CRITICAL (multi-sig): first approval stays pending, second triggers execution
     - HIGH/other: immediate execution on approval
     """
@@ -249,7 +249,7 @@ async def rollback(
 
     Reversible types: isolate_endpoint, block_ip, block_domain, quarantine_file.
     The rollback itself goes through the HitL gate at the same severity level
-    as the original action — CRITICAL rollbacks require dual-analyst sign-off.
+    as the original action â€” CRITICAL rollbacks require dual-analyst sign-off.
 
     Forensic links:
       rollback_action.rollback_of   = original_action.id

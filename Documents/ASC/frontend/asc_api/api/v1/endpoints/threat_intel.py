@@ -1,17 +1,17 @@
-"""
-PremosCorp Threat Intelligence API — P21-F1
+﻿"""
+PremosCorp Threat Intelligence API â€” P21-F1
 
 Endpoints
 ---------
-GET    /threat-intel/stats                   — corpus stats (analyst+)
-GET    /threat-intel/                        — list indicators, paginated (analyst+)
-POST   /threat-intel/                        — create single indicator (analyst+)
-POST   /threat-intel/bulk                    — bulk import list (analyst+)
-POST   /threat-intel/enrich                  — enrich a single value (analyst+)
-POST   /threat-intel/enrich/bulk             — enrich multiple values (analyst+)
-GET    /threat-intel/{indicator_id}          — get indicator (analyst+)
-PATCH  /threat-intel/{indicator_id}          — update indicator fields (analyst+)
-DELETE /threat-intel/{indicator_id}          — deactivate indicator (admin only)
+GET    /threat-intel/stats                   â€” corpus stats (analyst+)
+GET    /threat-intel/                        â€” list indicators, paginated (analyst+)
+POST   /threat-intel/                        â€” create single indicator (analyst+)
+POST   /threat-intel/bulk                    â€” bulk import list (analyst+)
+POST   /threat-intel/enrich                  â€” enrich a single value (analyst+)
+POST   /threat-intel/enrich/bulk             â€” enrich multiple values (analyst+)
+GET    /threat-intel/{indicator_id}          â€” get indicator (analyst+)
+PATCH  /threat-intel/{indicator_id}          â€” update indicator fields (analyst+)
+DELETE /threat-intel/{indicator_id}          â€” deactivate indicator (admin only)
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from asc_api.services import threat_intel as ti_svc
 router = APIRouter(prefix="/threat-intel", tags=["Threat Intelligence"])
 
 
-# ── Pydantic schemas ──────────────────────────────────────────────────────────
+# â”€â”€ Pydantic schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class IndicatorCreate(BaseModel):
     indicator_type: str = Field(..., description="ip|domain|url|hash_md5|hash_sha256|hash_sha1|email|file_path|mutex|registry_key|cidr|asn|cve")
@@ -90,9 +90,9 @@ class BulkImportRequest(BaseModel):
     indicators: list[dict[str, Any]] = Field(..., min_length=1, max_length=10_000)
 
 
-# ── Stats ─────────────────────────────────────────────────────────────────────
+# â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/stats", summary="Estadísticas del corpus TI local")
+@router.get("/stats", summary="EstadÃ­sticas del corpus TI local")
 @limiter.limit("60/minute")
 async def get_stats(
     request: Request,
@@ -102,9 +102,9 @@ async def get_stats(
     return await ti_svc.get_stats(db)
 
 
-# ── List ──────────────────────────────────────────────────────────────────────
+# â”€â”€ List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.get("/", summary="Listar indicadores TI (paginado)")
+@router.get("", summary="Listar indicadores TI (paginado)")
 @limiter.limit("120/minute")
 async def list_indicators(
     request: Request,
@@ -132,9 +132,9 @@ async def list_indicators(
     }
 
 
-# ── Create ────────────────────────────────────────────────────────────────────
+# â”€â”€ Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.post("/", summary="Crear indicador TI", status_code=201)
+@router.post("", summary="Crear indicador TI", status_code=201)
 @limiter.limit("30/minute")
 async def create_indicator(
     request: Request,
@@ -165,9 +165,9 @@ async def create_indicator(
     return ti_svc._indicator_to_dict(ind)
 
 
-# ── Bulk import ───────────────────────────────────────────────────────────────
+# â”€â”€ Bulk import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.post("/bulk", summary="Importación masiva de indicadores TI")
+@router.post("/bulk", summary="ImportaciÃ³n masiva de indicadores TI")
 @limiter.limit("10/minute")
 async def bulk_import(
     request: Request,
@@ -179,7 +179,7 @@ async def bulk_import(
     return result
 
 
-# ── Enrich ────────────────────────────────────────────────────────────────────
+# â”€â”€ Enrich â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.post("/enrich", summary="Enriquecer un valor con TI local")
 @limiter.limit("300/minute")
@@ -200,7 +200,7 @@ async def enrich_single(
     }
 
 
-@router.post("/enrich/bulk", summary="Enriquecer múltiples valores con TI local")
+@router.post("/enrich/bulk", summary="Enriquecer mÃºltiples valores con TI local")
 @limiter.limit("60/minute")
 async def enrich_bulk(
     request: Request,
@@ -217,7 +217,7 @@ async def enrich_bulk(
     }
 
 
-# ── Get by ID ─────────────────────────────────────────────────────────────────
+# â”€â”€ Get by ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.get("/{indicator_id}", summary="Obtener indicador TI por ID")
 @limiter.limit("120/minute")
@@ -233,7 +233,7 @@ async def get_indicator(
     return ti_svc._indicator_to_dict(ind)
 
 
-# ── Update ────────────────────────────────────────────────────────────────────
+# â”€â”€ Update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.patch("/{indicator_id}", summary="Actualizar campos del indicador")
 @limiter.limit("30/minute")
@@ -253,7 +253,7 @@ async def update_indicator(
     return ti_svc._indicator_to_dict(ind)
 
 
-# ── Delete (soft) — admin only ────────────────────────────────────────────────
+# â”€â”€ Delete (soft) â€” admin only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @router.delete("/{indicator_id}", summary="Desactivar indicador TI (admin)")
 @limiter.limit("30/minute")
@@ -269,7 +269,7 @@ async def delete_indicator(
     return {"message": "Indicator deactivated", "indicator_id": indicator_id}
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _SEV_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 

@@ -1,5 +1,5 @@
-"""
-P42 — Webhook Support  (Toque Premos aplicado)
+﻿"""
+P42 â€” Webhook Support  (Toque Premos aplicado)
 ================================================
 Endpoints for registering, managing, and testing outbound webhooks.
 
@@ -47,7 +47,7 @@ _SIGNING_NOTE = (
 )
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# â”€â”€ Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class WebhookCreate(BaseModel):
     url: str = Field(..., max_length=2048)
@@ -91,7 +91,7 @@ class WebhookResponse(BaseModel):
 
 
 class WebhookCreated(WebhookResponse):
-    """Returned ONCE at creation — includes the raw signing secret."""
+    """Returned ONCE at creation â€” includes the raw signing secret."""
     secret: str
     signing_note: str
 
@@ -135,7 +135,7 @@ class WebhookTestResult(BaseModel):
     error: str | None
 
 
-# ── DB helper ─────────────────────────────────────────────────────────────────
+# â”€â”€ DB helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _get_webhook_or_404(webhook_id: str, db: AsyncSession) -> Webhook:
     result = await db.execute(select(Webhook).where(Webhook.id == webhook_id))
@@ -150,9 +150,9 @@ def _assert_owner_or_admin(wh: Webhook, user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-@router.post("/", response_model=WebhookCreated, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=WebhookCreated, status_code=status.HTTP_201_CREATED)
 async def register_webhook(
     payload: WebhookCreate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -161,7 +161,7 @@ async def register_webhook(
     """
     Register a new webhook.
 
-    The signing secret is returned **once** in this response — store it securely.
+    The signing secret is returned **once** in this response â€” store it securely.
     Subsequent GET/list responses will never include the secret.
 
     To verify deliveries: compute HMAC-SHA256(secret, body) and compare to
@@ -175,7 +175,7 @@ async def register_webhook(
     if len(active) >= _MAX_WEBHOOKS_PER_USER:
         raise HTTPException(
             status_code=422,
-            detail=f"Límite de {_MAX_WEBHOOKS_PER_USER} webhooks activos por usuario alcanzado",
+            detail=f"LÃ­mite de {_MAX_WEBHOOKS_PER_USER} webhooks activos por usuario alcanzado",
         )
 
     raw_secret = secrets.token_hex(32)  # 64 hex chars
@@ -220,7 +220,7 @@ async def register_webhook(
     )
 
 
-@router.get("/", response_model=list[WebhookResponse])
+@router.get("", response_model=list[WebhookResponse])
 async def list_webhooks(
     current_user: Annotated[User, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
