@@ -23,7 +23,7 @@ import uuid as _uuid
 import pytest
 import pytest_asyncio
 
-from app.services.analyzer import (
+from asc_api.services.analyzer import (
     _extract_strings,
     _parse_pe_imports,
     _classify_mutex_candidate,

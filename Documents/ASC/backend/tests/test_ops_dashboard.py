@@ -25,13 +25,13 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
-from app.main import app
-from app.db.session import get_db
-from app.api.deps import get_analyst_or_admin, get_current_user
-from app.models.agent import Agent, AgentCommand
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
-from app.services import neutralizer
+from asc_api.main import app
+from asc_api.db.session import get_db
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
+from asc_api.models.agent import Agent, AgentCommand
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.services import neutralizer
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

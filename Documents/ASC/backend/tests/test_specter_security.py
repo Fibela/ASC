@@ -29,7 +29,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.specter_security import (
+from asc_api.core.specter_security import (
     SprecterRateLimiter,
     _ENROLL_PREFIX,
     _current_window,
@@ -41,9 +41,9 @@ from app.core.specter_security import (
     validate_command_params,
     verify_enrollment_token,
 )
-from app.models.agent import Agent, AgentCommand
-from app.models.user import User
-from app.services.agent_commander import issue_command
+from asc_api.models.agent import Agent, AgentCommand
+from asc_api.models.user import User
+from asc_api.services.agent_commander import issue_command
 
 
 # ── Shared fixtures ────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ class TestRateLimitOnEvents:
     async def test_rate_limit_exceeded_returns_429(
         self, client: AsyncClient, agent: Agent, agent_headers: dict
     ):
-        from app.api.v1.endpoints.agents import _event_rate_limiter
+        from asc_api.api.v1.endpoints.agents import _event_rate_limiter
         # Exhaust the bucket for this specific agent
         _event_rate_limiter.reset(agent.id)
         # Fill up the bucket

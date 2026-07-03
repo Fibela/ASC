@@ -32,15 +32,15 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token, create_refresh_token
-from app.models.user import User
+from asc_api.core.security import create_access_token, create_refresh_token
+from asc_api.models.user import User
 
 
 # ── Rate-limit bypass ─────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
     limiter._storage.reset()
     yield
     limiter._storage.reset()
@@ -106,7 +106,7 @@ class TestAuthLogout:
 
     @pytest.mark.asyncio
     async def test_logout_revokes_token_in_blacklist(self, client, admin_user):
-        from app.core.jwt_blacklist import jwt_blacklist
+        from asc_api.core.jwt_blacklist import jwt_blacklist
         jwt_blacklist.reset_local()
 
         token = create_access_token(admin_user.id)
@@ -166,7 +166,7 @@ class TestAuthRefresh:
     @pytest.mark.asyncio
     async def test_refresh_rotates_old_token(self, client, admin_user):
         """Old refresh token should be revoked after rotation."""
-        from app.core.jwt_blacklist import jwt_blacklist
+        from asc_api.core.jwt_blacklist import jwt_blacklist
         jwt_blacklist.reset_local()
 
         refresh = create_refresh_token(admin_user.id)
@@ -703,7 +703,7 @@ class TestNeutralizeEndpoints:
 
     @pytest.mark.asyncio
     async def test_neutralize_schema_valid_severity_values(self):
-        from app.api.v1.endpoints.neutralize import NeutralizeRequest
+        from asc_api.api.v1.endpoints.neutralize import NeutralizeRequest
         for sev in ("critical", "high", "medium", "low"):
             obj = NeutralizeRequest(action_type="block_ip", target="1.2.3.4", target_type="ip", severity=sev)
             assert obj.severity == sev
@@ -711,14 +711,14 @@ class TestNeutralizeEndpoints:
     @pytest.mark.asyncio
     async def test_neutralize_schema_rejects_invalid_action_type(self):
         import pydantic
-        from app.api.v1.endpoints.neutralize import NeutralizeRequest
+        from asc_api.api.v1.endpoints.neutralize import NeutralizeRequest
         with pytest.raises(pydantic.ValidationError):
             NeutralizeRequest(action_type="delete_everything", target="host", target_type="endpoint")
 
     @pytest.mark.asyncio
     async def test_reject_schema_empty_reason_raises(self):
         import pydantic
-        from app.api.v1.endpoints.neutralize import RejectRequest
+        from asc_api.api.v1.endpoints.neutralize import RejectRequest
         with pytest.raises(pydantic.ValidationError):
             RejectRequest(reason="")
 

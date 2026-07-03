@@ -17,14 +17,14 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import select
 
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
-from app.core.signing import (
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.core.signing import (
     generate_analyst_keypair,
     sign_approval,
     encrypt_analyst_private_key,
 )
-from app.core.config import get_settings
+from asc_api.core.config import get_settings
 
 pytestmark = pytest.mark.asyncio
 

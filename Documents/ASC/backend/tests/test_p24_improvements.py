@@ -185,13 +185,13 @@ class TestAgentPriorityScore:
     """_agent_priority_score() scoring logic."""
 
     def test_normal_threat_gets_zero_weight(self):
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         agent = _make_agent(threat_level="normal", last_seen_seconds_ago=5)
         score = _agent_priority_score(agent)
         assert score < 1.0  # only tiny recency penalty for 5s
 
     def test_elevated_threat_adds_10(self):
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         # Use the same last_seen instant to isolate threat_level contribution
         now = datetime.now(timezone.utc)
         a_normal = _make_agent(threat_level="normal", last_seen_seconds_ago=0)
@@ -201,7 +201,7 @@ class TestAgentPriorityScore:
         assert _agent_priority_score(a_elevated) == pytest.approx(_agent_priority_score(a_normal) + 10, abs=1e-6)
 
     def test_critical_threat_adds_20(self):
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         now = datetime.now(timezone.utc)
         a_normal = _make_agent(threat_level="normal", last_seen_seconds_ago=0)
         a_normal.last_seen = now
@@ -210,26 +210,26 @@ class TestAgentPriorityScore:
         assert _agent_priority_score(a_critical) == pytest.approx(_agent_priority_score(a_normal) + 20, abs=1e-6)
 
     def test_unknown_threat_gets_5_fallback(self):
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         agent = _make_agent(threat_level="unknown", last_seen_seconds_ago=0)
         assert _agent_priority_score(agent) == pytest.approx(5.0, abs=0.01)
 
     def test_older_agent_scores_higher(self):
         """More seconds ago = higher recency penalty = less preferred."""
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         recent = _make_agent(threat_level="normal", last_seen_seconds_ago=10)
         stale  = _make_agent(threat_level="normal", last_seen_seconds_ago=3600)
         assert _agent_priority_score(recent) < _agent_priority_score(stale)
 
     def test_normal_recent_beats_critical_ancient(self):
         """A fresh normal agent beats an ancient critical one."""
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         fresh_normal   = _make_agent(threat_level="normal",   last_seen_seconds_ago=1)
         ancient_critical = _make_agent(threat_level="critical", last_seen_seconds_ago=10_000)
         assert _agent_priority_score(fresh_normal) < _agent_priority_score(ancient_critical)
 
     def test_no_last_seen_gets_max_penalty(self):
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         agent = _make_agent(threat_level="normal", last_seen_seconds_ago=0)
         agent.last_seen = None
         score = _agent_priority_score(agent)
@@ -237,7 +237,7 @@ class TestAgentPriorityScore:
 
     def test_min_selects_best_agent_from_fleet(self):
         """min(agents, key=_agent_priority_score) picks the freshest normal agent."""
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         agents = [
             _make_agent(threat_level="critical", last_seen_seconds_ago=5),
             _make_agent(threat_level="normal",   last_seen_seconds_ago=2),   # ← best
@@ -252,7 +252,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_single_mode_picks_best_agent(self):
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         good  = _make_agent(threat_level="normal",   last_seen_seconds_ago=2)
         worse = _make_agent(threat_level="critical",  last_seen_seconds_ago=1)
@@ -276,7 +276,7 @@ class TestSpecterFleetDispatch:
     @pytest.mark.asyncio
     async def test_single_mode_result_count_is_zero(self):
         """Specter is async — no results yet, result_count = 0."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent()
         cmd   = _make_cmd(str(agent.id))
@@ -294,7 +294,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_single_mode_note_contains_command_id(self):
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent()
         cmd   = _make_cmd(str(agent.id))
@@ -310,7 +310,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_broadcast_mode_dispatches_to_all_agents(self):
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agents = [_make_agent() for _ in range(3)]
         cmds   = [_make_cmd(str(a.id)) for a in agents]
@@ -331,7 +331,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_broadcast_each_entry_has_agent_id_and_command_id(self):
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agents = [_make_agent() for _ in range(2)]
         cmds   = [_make_cmd(str(a.id)) for a in agents]
@@ -351,7 +351,7 @@ class TestSpecterFleetDispatch:
     @pytest.mark.asyncio
     async def test_broadcast_partial_failure_skips_bad_agents(self):
         """If one agent raises during broadcast, others still succeed."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agents = [_make_agent() for _ in range(2)]
         good_cmd = _make_cmd(str(agents[1].id))
@@ -372,7 +372,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_no_active_agents_returns_error(self):
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([]))
@@ -387,7 +387,7 @@ class TestSpecterFleetDispatch:
     @pytest.mark.asyncio
     async def test_params_include_read_only_flag(self):
         """Dispatched command must always carry read_only=True."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent()
         cmd   = _make_cmd(str(agent.id))
@@ -419,7 +419,7 @@ class TestPCDIEscalationTask:
     @pytest.mark.asyncio
     async def test_escalates_hunt_when_max_score_critical(self):
         """Hunt with score ≥ 80 gets priority upgraded to 'critical'."""
-        from app.tasks.pcdi_escalation import _run, PCDI_CRITICAL_THRESHOLD
+        from asc_api.tasks.pcdi_escalation import _run, PCDI_CRITICAL_THRESHOLD
 
         hunt = _make_hunt(status="active", priority="medium")
         finding = _make_finding(hunt_id=hunt.id, severity="critical")
@@ -466,7 +466,7 @@ class TestPCDIEscalationTask:
     @pytest.mark.asyncio
     async def test_no_escalation_when_score_below_threshold(self):
         """Score < 80 does not escalate the hunt."""
-        from app.tasks.pcdi_escalation import _run, PCDI_CRITICAL_THRESHOLD
+        from asc_api.tasks.pcdi_escalation import _run, PCDI_CRITICAL_THRESHOLD
 
         hunt = _make_hunt(status="active", priority="medium")
         finding = _make_finding(hunt_id=hunt.id, severity="medium")
@@ -497,7 +497,7 @@ class TestPCDIEscalationTask:
     @pytest.mark.asyncio
     async def test_already_critical_hunt_not_re_escalated(self):
         """Hunts already at critical priority are not counted as newly escalated."""
-        from app.tasks.pcdi_escalation import _run
+        from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(status="active", priority="critical")
         finding = _make_finding(hunt_id=hunt.id, severity="critical")
@@ -526,7 +526,7 @@ class TestPCDIEscalationTask:
     @pytest.mark.asyncio
     async def test_scoring_error_is_skipped_not_fatal(self):
         """Individual finding scoring errors are logged and skipped, task continues."""
-        from app.tasks.pcdi_escalation import _run
+        from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(status="active", priority="medium")
         finding = _make_finding(hunt_id=hunt.id)
@@ -555,7 +555,7 @@ class TestPCDIEscalationTask:
 
     @pytest.mark.asyncio
     async def test_no_active_hunts_returns_zero_counts(self):
-        from app.tasks.pcdi_escalation import _run
+        from asc_api.tasks.pcdi_escalation import _run
 
         mock_session = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
@@ -571,15 +571,15 @@ class TestPCDIEscalationTask:
         assert result["hunts_escalated"] == 0
 
     def test_threshold_constant_is_80(self):
-        from app.tasks.pcdi_escalation import PCDI_CRITICAL_THRESHOLD
+        from asc_api.tasks.pcdi_escalation import PCDI_CRITICAL_THRESHOLD
         assert PCDI_CRITICAL_THRESHOLD == 80
 
     def test_celery_task_exists_and_is_named(self):
-        from app.tasks.pcdi_escalation import check_critical_findings
+        from asc_api.tasks.pcdi_escalation import check_critical_findings
         assert check_critical_findings.name == "asc.pcdi_escalation.check_critical_findings"
 
     def test_celery_task_registered_in_beat(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         assert "pcdi-critical-findings" in celery_app.conf.beat_schedule
 
 
@@ -592,7 +592,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_returns_error_for_unknown_hunt(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         db = AsyncMock()
         r = MagicMock()
@@ -606,7 +606,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_empty_hunt_returns_empty_timeline(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
 
@@ -641,7 +641,7 @@ class TestForensicTimeline:
     @pytest.mark.asyncio
     async def test_chain_hash_links_entries(self):
         """Each entry's prev_hash must equal the previous entry's entry_hash."""
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
         finding = _make_finding(hunt_id=hunt.id)
@@ -670,7 +670,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_entry_hashes_are_sha3_512_length(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
         hunt_r = MagicMock()
@@ -692,7 +692,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_chain_root_equals_last_entry_hash(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
         hunt_r = MagicMock()
@@ -712,7 +712,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_timeline_is_sorted_chronologically(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt(
             started_at=datetime.now(timezone.utc) - timedelta(hours=1),
@@ -735,7 +735,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_sequence_numbers_are_zero_indexed_contiguous(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt(started_at=datetime.now(timezone.utc) - timedelta(minutes=5))
         hunt_r = MagicMock()
@@ -755,7 +755,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_genesis_seed_returned_in_response(self):
-        from app.services.pcdi_service import build_forensic_timeline, _GENESIS_SEED
+        from asc_api.services.pcdi_service import build_forensic_timeline, _GENESIS_SEED
 
         hunt = _make_hunt()
         hunt_r = MagicMock()
@@ -774,7 +774,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_pcdi_report_event_appears_in_timeline(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
         report = _make_pcdi_report(hunt_id=hunt.id, score=88)
@@ -797,7 +797,7 @@ class TestForensicTimeline:
 
     @pytest.mark.asyncio
     async def test_finding_confirmed_event_appears(self):
-        from app.services.pcdi_service import build_forensic_timeline
+        from asc_api.services.pcdi_service import build_forensic_timeline
 
         hunt = _make_hunt()
         finding = _make_finding(hunt_id=hunt.id, is_confirmed=True)
@@ -828,9 +828,9 @@ class TestCrossDomainDashboard:
     """GET /ops/cross-domain endpoint."""
 
     def _get_test_client(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -848,20 +848,20 @@ class TestCrossDomainDashboard:
         return TestClient(app), app
 
     def test_cross_domain_requires_auth(self):
-        from app.main import app
+        from asc_api.main import app
         client = TestClient(app)
         resp = client.get("/api/v1/ops/cross-domain")
         assert resp.status_code in (401, 403)
 
     def test_cross_domain_returns_all_sections(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
-        from app.models.agent import Agent, AgentCommand
-        from app.models.neutralization import NeutralizationAction
-        from app.models.hunt import Hunt, HuntFinding
-        from app.models.threat_intel import ThreatIntelIndicator
-        from app.models.pcdi import PCDISignedReport
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.models.agent import Agent, AgentCommand
+        from asc_api.models.neutralization import NeutralizationAction
+        from asc_api.models.hunt import Hunt, HuntFinding
+        from asc_api.models.threat_intel import ThreatIntelIndicator
+        from asc_api.models.pcdi import PCDISignedReport
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -897,9 +897,9 @@ class TestCrossDomainDashboard:
         assert "ts" in data
 
     def test_cross_domain_fleet_section_structure(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -929,9 +929,9 @@ class TestCrossDomainDashboard:
         assert required_keys.issubset(fleet.keys())
 
     def test_cross_domain_hunting_section_structure(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -962,9 +962,9 @@ class TestCrossDomainDashboard:
         assert required_keys.issubset(hunting.keys())
 
     def test_cross_domain_pcdi_section_structure(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -994,9 +994,9 @@ class TestCrossDomainDashboard:
         assert required_keys.issubset(pcdi.keys())
 
     def test_cross_domain_accepts_hours_param(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -1032,15 +1032,15 @@ class TestForensicTimelineEndpoint:
     """GET /pcdi/forensic-timeline/{hunt_id}"""
 
     def test_forensic_timeline_requires_auth(self):
-        from app.main import app
+        from asc_api.main import app
         client = TestClient(app)
         resp = client.get("/api/v1/pcdi/forensic-timeline/some-hunt-id")
         assert resp.status_code in (401, 403)
 
     def test_forensic_timeline_404_for_unknown_hunt(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         mock_user = MagicMock()
         mock_user.id = str(uuid.uuid4())
@@ -1067,9 +1067,9 @@ class TestForensicTimelineEndpoint:
         assert resp.status_code == 404
 
     def test_forensic_timeline_success_structure(self):
-        from app.main import app
-        from app.db.session import get_db
-        from app.api.deps import get_analyst_or_admin
+        from asc_api.main import app
+        from asc_api.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
 
         hunt = _make_hunt()
         mock_user = MagicMock()
@@ -1112,53 +1112,53 @@ class TestIntegration:
 
     def test_pcdi_router_includes_forensic_timeline_route(self):
         """Verify the route is registered at the expected path (prefix included)."""
-        from app.api.v1.endpoints.pcdi import router
+        from asc_api.api.v1.endpoints.pcdi import router
         paths = [r.path for r in router.routes]
         assert any("forensic-timeline" in p for p in paths)
 
     def test_ops_router_includes_cross_domain_route(self):
-        from app.api.v1.endpoints.ops_dashboard import router
+        from asc_api.api.v1.endpoints.ops_dashboard import router
         paths = [r.path for r in router.routes]
         assert any("cross-domain" in p for p in paths)
 
     def test_pcdi_service_exports_build_forensic_timeline(self):
-        from app.services import pcdi_service
+        from asc_api.services import pcdi_service
         assert hasattr(pcdi_service, "build_forensic_timeline")
         assert callable(pcdi_service.build_forensic_timeline)
 
     def test_pcdi_service_exports_iso_helper(self):
-        from app.services.pcdi_service import _iso
+        from asc_api.services.pcdi_service import _iso
         result = _iso(datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc))
         assert "2024-01-15" in result
 
     def test_iso_helper_handles_naive_datetime(self):
         """Naive datetimes are coerced to UTC, not raising."""
-        from app.services.pcdi_service import _iso
+        from asc_api.services.pcdi_service import _iso
         naive = datetime(2024, 6, 1, 10, 30, 0)
         result = _iso(naive)
         assert "2024-06-01" in result
 
     def test_iso_helper_handles_none(self):
-        from app.services.pcdi_service import _iso
+        from asc_api.services.pcdi_service import _iso
         result = _iso(None)
         # Should return a valid ISO string (current time fallback)
         assert "T" in result
 
     def test_genesis_seed_constant_is_stable(self):
         """GENESIS_SEED must never change — changing it invalidates all stored timelines."""
-        from app.services.pcdi_service import _GENESIS_SEED
+        from asc_api.services.pcdi_service import _GENESIS_SEED
         assert _GENESIS_SEED == "GENESIS:pcdi-forensic-timeline:v1"
 
     def test_fleet_dispatch_function_signature(self):
         """_dispatch_to_specter accepts broadcast kwarg."""
         import inspect
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
         sig = inspect.signature(_dispatch_to_specter)
         assert "broadcast" in sig.parameters
         assert sig.parameters["broadcast"].default is False
 
     def test_agent_priority_score_function_signature(self):
         import inspect
-        from app.services.query_executor import _agent_priority_score
+        from asc_api.services.query_executor import _agent_priority_score
         sig = inspect.signature(_agent_priority_score)
         assert "agent" in sig.parameters

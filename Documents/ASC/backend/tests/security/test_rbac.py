@@ -25,7 +25,7 @@ import pytest_asyncio
 from fastapi import Depends, FastAPI, HTTPException
 from httpx import AsyncClient, ASGITransport
 
-from app.api.deps import (
+from asc_api.api.deps import (
     bearer_scheme,
     get_analyst_or_admin,
     get_current_admin,
@@ -256,7 +256,7 @@ class TestPrivilegeEscalation:
 
     @pytest.mark.asyncio
     async def test_valid_roles_are_exactly_three(self):
-        from app.api.v1.endpoints.auth import VALID_ROLES
+        from asc_api.api.v1.endpoints.auth import VALID_ROLES
         assert VALID_ROLES == {"admin", "analyst", "viewer"}
         assert "superuser" not in VALID_ROLES
         assert "root" not in VALID_ROLES
@@ -432,15 +432,15 @@ class TestDepFunctionInternals:
         assert bearer_scheme.auto_error is True
 
     def test_valid_roles_set_contains_admin(self):
-        from app.api.v1.endpoints.auth import VALID_ROLES
+        from asc_api.api.v1.endpoints.auth import VALID_ROLES
         assert "admin" in VALID_ROLES
 
     def test_valid_roles_set_contains_analyst(self):
-        from app.api.v1.endpoints.auth import VALID_ROLES
+        from asc_api.api.v1.endpoints.auth import VALID_ROLES
         assert "analyst" in VALID_ROLES
 
     def test_valid_roles_set_contains_viewer(self):
-        from app.api.v1.endpoints.auth import VALID_ROLES
+        from asc_api.api.v1.endpoints.auth import VALID_ROLES
         assert "viewer" in VALID_ROLES
 
 

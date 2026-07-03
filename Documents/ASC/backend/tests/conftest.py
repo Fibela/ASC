@@ -12,11 +12,11 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from datetime import datetime, timezone, timedelta
 
-from app.db.base import Base
-from app.db.session import get_db
-from app.main import app
-from app.models.user import User
-from app.core.security import get_password_hash, create_access_token, create_refresh_token
+from asc_api.db.base import Base
+from asc_api.db.session import get_db
+from asc_api.main import app
+from asc_api.models.user import User
+from asc_api.core.security import get_password_hash, create_access_token, create_refresh_token
 
 
 @pytest_asyncio.fixture

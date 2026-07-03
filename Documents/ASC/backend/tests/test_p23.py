@@ -27,13 +27,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
-from app.db.session import get_db
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.models.user import User
-from app.models.hunt import Hunt, HuntFinding, HuntQuery
-from app.services import hunt_service as svc
-from app.services.query_executor import execute_hunt_query, _dispatch, _call_adapter, EXECUTE_TIMEOUT_S
+from asc_api.main import app
+from asc_api.db.session import get_db
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.models.user import User
+from asc_api.models.hunt import Hunt, HuntFinding, HuntQuery
+from asc_api.services import hunt_service as svc
+from asc_api.services.query_executor import execute_hunt_query, _dispatch, _call_adapter, EXECUTE_TIMEOUT_S
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ class TestQueryExecutor:
             "success": True, "adapter": "elk", "result_count": 5, "total": 5,
             "truncated": False, "execution_ms": 120, "results": [{"_id": "1"}],
         }
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         with patch.object(ELKAdapter, "search_raw", new_callable=AsyncMock, return_value=elk_result):
             result = await execute_hunt_query(db, query.id, executed_by="analyst@asc.local")
         assert result["success"] is True
@@ -256,7 +256,7 @@ class TestQueryExecutor:
             "success": True, "adapter": "wazuh", "result_count": 3, "total": 3,
             "truncated": False, "execution_ms": 80, "results": [{"id": "w1"}],
         }
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         with patch.object(WazuhAdapter, "search_raw", new_callable=AsyncMock, return_value=wazuh_result):
             result = await execute_hunt_query(db, query.id, executed_by="analyst@asc.local")
         assert result["success"] is True
@@ -310,7 +310,7 @@ class TestQueryExecutor:
             "success": True, "adapter": "elk", "result_count": 7, "total": 7,
             "truncated": False, "execution_ms": 55, "results": [],
         }
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         with patch.object(ELKAdapter, "search_raw", new_callable=AsyncMock, return_value=elk_result):
             await execute_hunt_query(db, query.id, executed_by="analyst@asc.local")
         db.commit.assert_called()
@@ -322,7 +322,7 @@ class TestQueryExecutor:
     async def test_execute_adapter_exception_caught(self):
         query = _make_query(data_source="elk")
         db = _db_with(return_value=query)
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         with patch.object(ELKAdapter, "search_raw", new_callable=AsyncMock, side_effect=ConnectionError("refused")):
             result = await execute_hunt_query(db, query.id, executed_by="analyst@asc.local")
         assert result["success"] is False
@@ -481,7 +481,7 @@ class TestTIEnrichment:
         db = _db_with(return_value=finding)
         ti_match = _make_ti_indicator("critical")
         # enrich is imported locally inside enrich_finding; patch at its source module
-        import app.services.threat_intel as ti_module
+        import asc_api.services.threat_intel as ti_module
         with patch.object(ti_module, "enrich", new_callable=AsyncMock, return_value=[ti_match]):
             with patch.object(ti_module, "_indicator_to_dict", return_value={"value": "1.2.3.4", "severity": "critical"}):
                 result = await svc.enrich_finding(db, finding.id)
@@ -497,7 +497,7 @@ class TestTIEnrichment:
         with patch("app.services.hunt_service.get_finding", new_callable=AsyncMock, return_value=finding):
             with patch("app.services.threat_intel.enrich", new_callable=AsyncMock, return_value=[]) as mock_enrich:
                 # Direct import path used inside hunt_service
-                import app.services.threat_intel as ti_module
+                import asc_api.services.threat_intel as ti_module
                 orig = ti_module.enrich
                 ti_module.enrich = mock_enrich
                 try:
@@ -745,7 +745,7 @@ class TestAdapterSearchRaw:
 
     @pytest.mark.asyncio
     async def test_elk_search_raw_not_configured(self):
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         adapter = ELKAdapter.__new__(ELKAdapter)
         adapter._url = ""
         adapter._api_key = ""
@@ -757,7 +757,7 @@ class TestAdapterSearchRaw:
 
     @pytest.mark.asyncio
     async def test_wazuh_search_raw_not_configured(self):
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         adapter = WazuhAdapter.__new__(WazuhAdapter)
         adapter._url = ""
         adapter._username = ""
@@ -769,7 +769,7 @@ class TestAdapterSearchRaw:
     @pytest.mark.asyncio
     async def test_elk_search_raw_returns_success_shape(self):
         import httpx
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -801,7 +801,7 @@ class TestAdapterSearchRaw:
     @pytest.mark.asyncio
     async def test_elk_search_raw_http_error(self):
         import httpx
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         mock_resp = MagicMock()
         mock_resp.status_code = 400
         mock_resp.text = "Bad request"
@@ -824,7 +824,7 @@ class TestAdapterSearchRaw:
 
     @pytest.mark.asyncio
     async def test_wazuh_search_raw_success_shape(self):
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         token_resp = MagicMock()
         token_resp.status_code = 200
         token_resp.json.return_value = {"data": {"token": "fake-jwt"}}
@@ -858,7 +858,7 @@ class TestAdapterSearchRaw:
 
     @pytest.mark.asyncio
     async def test_wazuh_search_raw_http_error(self):
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         token_resp = MagicMock()
         token_resp.status_code = 200
         token_resp.json.return_value = {"data": {"token": "fake-jwt"}}
@@ -958,7 +958,7 @@ class TestExecuteQueryEndpoint:
             "success": True, "adapter": "elk", "result_count": 3, "total": 3,
             "truncated": False, "execution_ms": 42, "results": [],
         }
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         try:
             with patch.object(ELKAdapter, "search_raw", new_callable=AsyncMock, return_value=elk_result):
                 async with AsyncClient(
@@ -1030,7 +1030,7 @@ class TestSecurityBoundaries:
     @pytest.mark.asyncio
     async def test_query_executor_only_read_elk(self):
         """Verify elk search_raw uses POST /_search (read-only), not PUT/DELETE."""
-        from app.adapters.elk import ELKAdapter
+        from asc_api.adapters.elk import ELKAdapter
         import inspect
         src = inspect.getsource(ELKAdapter.search_raw)
         assert "/_search" in src
@@ -1040,7 +1040,7 @@ class TestSecurityBoundaries:
     @pytest.mark.asyncio
     async def test_query_executor_only_read_wazuh(self):
         """Verify wazuh search_raw uses GET /alerts (read-only)."""
-        from app.adapters.wazuh import WazuhAdapter
+        from asc_api.adapters.wazuh import WazuhAdapter
         import inspect
         src = inspect.getsource(WazuhAdapter.search_raw)
         assert "client.get" in src
@@ -1079,7 +1079,7 @@ class TestSecurityBoundaries:
     @pytest.mark.asyncio
     async def test_enrich_finding_does_not_mutate_ti_db(self):
         """TI enrichment is read-only (no TI indicator mutations)."""
-        from app.services import threat_intel as ti_mod
+        from asc_api.services import threat_intel as ti_mod
         import inspect
         # enrich function must only SELECT, not INSERT/UPDATE ThreatIntelIndicator
         src = inspect.getsource(ti_mod.enrich)

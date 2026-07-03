@@ -21,8 +21,8 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.soar import PlaybookTrigger
-from app.services.soar_service import (
+from asc_api.models.soar import PlaybookTrigger
+from asc_api.services.soar_service import (
     _evaluate_condition,
     create_trigger,
     delete_trigger,

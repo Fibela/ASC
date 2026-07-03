@@ -30,14 +30,14 @@ import pytest
 # Module-level smoke imports
 # ─────────────────────────────────────────────────────────────────────────────
 
-from app.api.v1.endpoints.onboarding import (
+from asc_api.api.v1.endpoints.onboarding import (
     _token_hash,
     _make_verification_token,
     router as onboarding_router,
 )
-from app.api.v1.endpoints import onboarding as onboarding_module
-from app.models.user import User
-from app.core.config import get_settings
+from asc_api.api.v1.endpoints import onboarding as onboarding_module
+from asc_api.models.user import User
+from asc_api.core.config import get_settings
 
 _SETTINGS = get_settings()
 
@@ -188,7 +188,7 @@ class TestRegister:
              patch("app.api.v1.endpoints.onboarding._send_verification_email"), \
              patch("app.api.v1.endpoints.onboarding.log_security_action"):
 
-            from app.api.v1.endpoints.onboarding import register, RegisterRequest
+            from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
             result = await register(payload, db)
 
@@ -200,7 +200,7 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_slug_conflict_raises_409(self, register_payload):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.onboarding import register, RegisterRequest
+        from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
 
         db = _make_db()
         existing_tenant = SimpleNamespace(id="t-existing", slug="acme-corp")
@@ -223,7 +223,7 @@ class TestRegister:
     @pytest.mark.asyncio
     async def test_register_email_conflict_raises_409(self, register_payload):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.onboarding import register, RegisterRequest
+        from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
 
         db = _make_db()
         existing_user = _make_user(email="admin@acme.com")
@@ -267,7 +267,7 @@ class TestRegister:
              patch("app.api.v1.endpoints.onboarding._send_verification_email") as mock_send, \
              patch("app.api.v1.endpoints.onboarding.log_security_action"):
 
-            from app.api.v1.endpoints.onboarding import register, RegisterRequest
+            from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
             await register(payload, db)
 
@@ -276,7 +276,7 @@ class TestRegister:
     def test_register_password_min_length(self):
         """Pydantic rejects passwords shorter than 8 chars."""
         from pydantic import ValidationError
-        from app.api.v1.endpoints.onboarding import RegisterRequest
+        from asc_api.api.v1.endpoints.onboarding import RegisterRequest
         with pytest.raises(ValidationError):
             RegisterRequest(
                 tenant_name="T", tenant_slug="test-slug",
@@ -284,7 +284,7 @@ class TestRegister:
             )
 
     def test_register_slug_pattern_valid(self):
-        from app.api.v1.endpoints.onboarding import RegisterRequest
+        from asc_api.api.v1.endpoints.onboarding import RegisterRequest
         r = RegisterRequest(
             tenant_name="TestCorp", tenant_slug="valid-slug-01",
             email="x@x.com", password="password123", full_name="X"
@@ -293,7 +293,7 @@ class TestRegister:
 
     def test_register_slug_pattern_invalid(self):
         from pydantic import ValidationError
-        from app.api.v1.endpoints.onboarding import RegisterRequest
+        from asc_api.api.v1.endpoints.onboarding import RegisterRequest
         with pytest.raises(ValidationError):
             RegisterRequest(
                 tenant_name="T", tenant_slug="-invalid",
@@ -310,7 +310,7 @@ class TestVerifyEmail:
 
     @pytest.mark.asyncio
     async def test_verify_valid_token(self):
-        from app.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
+        from asc_api.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
 
         raw = "validrawtoken1234"
         hashed = _token_hash(raw)
@@ -340,7 +340,7 @@ class TestVerifyEmail:
     @pytest.mark.asyncio
     async def test_verify_invalid_token_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
+        from asc_api.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
 
         db = _make_db()
         async def _exec(stmt):
@@ -357,7 +357,7 @@ class TestVerifyEmail:
     @pytest.mark.asyncio
     async def test_verify_expired_token_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
+        from asc_api.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
 
         raw = "expiredtoken12345"
         hashed = _token_hash(raw)
@@ -381,7 +381,7 @@ class TestVerifyEmail:
 
     @pytest.mark.asyncio
     async def test_verify_clears_token_fields(self):
-        from app.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
+        from asc_api.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
 
         raw = "clearmetoken12345"
         hashed = _token_hash(raw)
@@ -406,7 +406,7 @@ class TestVerifyEmail:
 
     @pytest.mark.asyncio
     async def test_verify_advances_step_to_pending_setup(self):
-        from app.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
+        from asc_api.api.v1.endpoints.onboarding import verify_email, VerifyEmailRequest
 
         raw = "steptoken1234567890"
         hashed = _token_hash(raw)
@@ -444,7 +444,7 @@ class TestOnboardingStatus:
 
     @pytest.mark.asyncio
     async def test_status_completed_user(self):
-        from app.api.v1.endpoints.onboarding import onboarding_status
+        from asc_api.api.v1.endpoints.onboarding import onboarding_status
 
         user = _make_user(email_verified=True, onboarding_step="completed")
         result = await onboarding_status(user)
@@ -455,7 +455,7 @@ class TestOnboardingStatus:
 
     @pytest.mark.asyncio
     async def test_status_pending_email_user(self):
-        from app.api.v1.endpoints.onboarding import onboarding_status
+        from asc_api.api.v1.endpoints.onboarding import onboarding_status
 
         user = _make_user(email_verified=False, onboarding_step="pending_email")
         result = await onboarding_status(user)
@@ -465,7 +465,7 @@ class TestOnboardingStatus:
 
     @pytest.mark.asyncio
     async def test_status_pending_setup_user(self):
-        from app.api.v1.endpoints.onboarding import onboarding_status
+        from asc_api.api.v1.endpoints.onboarding import onboarding_status
 
         user = _make_user(email_verified=True, onboarding_step="pending_setup")
         result = await onboarding_status(user)
@@ -474,7 +474,7 @@ class TestOnboardingStatus:
 
     @pytest.mark.asyncio
     async def test_status_returns_email(self):
-        from app.api.v1.endpoints.onboarding import onboarding_status
+        from asc_api.api.v1.endpoints.onboarding import onboarding_status
 
         user = _make_user(email="specific@test.com")
         result = await onboarding_status(user)
@@ -483,7 +483,7 @@ class TestOnboardingStatus:
     @pytest.mark.asyncio
     async def test_status_legacy_user_no_fields(self):
         """User without email_verified attribute defaults to True."""
-        from app.api.v1.endpoints.onboarding import onboarding_status
+        from asc_api.api.v1.endpoints.onboarding import onboarding_status
 
         user = _make_user()
         del user.__dict__["email_verified"]
@@ -503,7 +503,7 @@ class TestCompleteOnboarding:
 
     @pytest.mark.asyncio
     async def test_complete_advances_from_pending_setup(self):
-        from app.api.v1.endpoints.onboarding import complete_onboarding
+        from asc_api.api.v1.endpoints.onboarding import complete_onboarding
 
         user = _make_user(onboarding_step="pending_setup", email_verified=True)
         db = _make_db()
@@ -516,7 +516,7 @@ class TestCompleteOnboarding:
 
     @pytest.mark.asyncio
     async def test_complete_idempotent_when_already_completed(self):
-        from app.api.v1.endpoints.onboarding import complete_onboarding
+        from asc_api.api.v1.endpoints.onboarding import complete_onboarding
 
         user = _make_user(onboarding_step="completed")
         db = _make_db()
@@ -528,7 +528,7 @@ class TestCompleteOnboarding:
     @pytest.mark.asyncio
     async def test_complete_blocks_unverified_email(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.onboarding import complete_onboarding
+        from asc_api.api.v1.endpoints.onboarding import complete_onboarding
 
         user = _make_user(onboarding_step="pending_email", email_verified=False)
         db = _make_db()
@@ -540,7 +540,7 @@ class TestCompleteOnboarding:
 
     @pytest.mark.asyncio
     async def test_complete_emits_audit_log(self):
-        from app.api.v1.endpoints.onboarding import complete_onboarding
+        from asc_api.api.v1.endpoints.onboarding import complete_onboarding
 
         user = _make_user(onboarding_step="pending_setup")
         db = _make_db()
@@ -554,7 +554,7 @@ class TestCompleteOnboarding:
 
     @pytest.mark.asyncio
     async def test_complete_commits_db(self):
-        from app.api.v1.endpoints.onboarding import complete_onboarding
+        from asc_api.api.v1.endpoints.onboarding import complete_onboarding
 
         user = _make_user(onboarding_step="pending_setup")
         db = _make_db()
@@ -575,14 +575,14 @@ class TestEmailVerifiedGate:
     def test_resolve_user_blocks_unverified_import(self):
         """Verify the check is present in the source code."""
         import inspect
-        import app.api.deps as deps_module
+        import asc_api.api.deps as deps_module
         source = inspect.getsource(deps_module._resolve_user)
         assert "email_verification_required" in source
 
     def test_resolve_user_checks_email_verified_attr(self):
         """The check uses getattr with True default (safe for legacy users)."""
         import inspect
-        import app.api.deps as deps_module
+        import asc_api.api.deps as deps_module
         source = inspect.getsource(deps_module._resolve_user)
         assert "email_verified" in source
         assert "getattr" in source
@@ -590,7 +590,7 @@ class TestEmailVerifiedGate:
     @pytest.mark.asyncio
     async def test_resolve_user_raises_403_for_unverified(self):
         from fastapi import HTTPException
-        from app.api import deps
+        from asc_api.api import deps
 
         unverified_user = _make_user(email_verified=False)
 
@@ -613,7 +613,7 @@ class TestEmailVerifiedGate:
 
     @pytest.mark.asyncio
     async def test_resolve_user_passes_verified_user(self):
-        from app.api import deps
+        from asc_api.api import deps
 
         verified_user = _make_user(email_verified=True)
 
@@ -635,7 +635,7 @@ class TestEmailVerifiedGate:
     def test_resolve_user_uses_getattr_default_true(self):
         """Legacy users without email_verified attribute are NOT blocked."""
         import inspect
-        import app.api.deps as deps_module
+        import asc_api.api.deps as deps_module
         source = inspect.getsource(deps_module._resolve_user)
         # getattr(user, "email_verified", True) — True is the default
         assert "getattr(user" in source or "email_verified" in source
@@ -650,38 +650,38 @@ class TestUserModelFields:
 
     def test_user_has_email_verified_field(self):
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "email_verified" in src
 
     def test_user_has_email_verification_token_field(self):
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "email_verification_token" in src
 
     def test_user_has_email_verification_expires_at_field(self):
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "email_verification_expires_at" in src
 
     def test_user_has_onboarding_step_field(self):
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "onboarding_step" in src
 
     def test_email_verified_default_true(self):
         """Existing users must default email_verified=True (non-breaking)."""
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "default=True" in src or 'default="true"' in src or "server_default" in src
 
     def test_onboarding_step_default_completed(self):
         import inspect
-        import app.models.user as user_module
+        import asc_api.models.user as user_module
         src = inspect.getsource(user_module)
         assert "completed" in src
 
@@ -769,13 +769,13 @@ class TestRouterRegistration:
         assert onboarding_router.prefix == "/onboarding"
 
     def test_onboarding_router_imported_in_main_router(self):
-        import app.api.v1.router as main_router_module
+        import asc_api.api.v1.router as main_router_module
         import inspect
         src = inspect.getsource(main_router_module)
         assert "onboarding" in src
 
     def test_onboarding_router_included(self):
-        import app.api.v1.router as main_router_module
+        import asc_api.api.v1.router as main_router_module
         src = open(main_router_module.__file__).read()
         assert "onboarding.router" in src
 

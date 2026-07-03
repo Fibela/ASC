@@ -30,14 +30,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.api.v1.endpoints.billing import (
+from asc_api.api.v1.endpoints.billing import (
     RESOURCE_TYPES,
     _current_period,
     _verify_stripe_signature,
     router as billing_router,
 )
-from app.core.config import get_settings
-from app.models.usage_record import UsageRecord
+from asc_api.core.config import get_settings
+from asc_api.models.usage_record import UsageRecord
 
 _SETTINGS = get_settings()
 
@@ -91,7 +91,7 @@ class TestUsageRecordModel:
     """UsageRecord model structure and constraints."""
 
     def test_usage_record_importable(self):
-        from app.models.usage_record import UsageRecord  # noqa: F401
+        from asc_api.models.usage_record import UsageRecord  # noqa: F401
 
     def test_tablename(self):
         assert UsageRecord.__tablename__ == "usage_records"
@@ -120,11 +120,11 @@ class TestUsageRecordModel:
         assert "uq_usage_tenant_period_resource" in src
 
     def test_in_models_init(self):
-        import app.models
+        import asc_api.models
         assert "UsageRecord" in dir(app.models)
 
     def test_model_exported_in_all(self):
-        import app.models
+        import asc_api.models
         assert "UsageRecord" in app.models.__all__
 
 
@@ -228,7 +228,7 @@ class TestGetMyUsage:
 
     @pytest.mark.asyncio
     async def test_usage_no_records_returns_zeros(self):
-        from app.api.v1.endpoints.billing import get_my_usage
+        from asc_api.api.v1.endpoints.billing import get_my_usage
 
         user = _make_user(tenant_id="t-001")
         db = _make_db()
@@ -244,7 +244,7 @@ class TestGetMyUsage:
 
     @pytest.mark.asyncio
     async def test_usage_returns_all_resource_types(self):
-        from app.api.v1.endpoints.billing import get_my_usage
+        from asc_api.api.v1.endpoints.billing import get_my_usage
 
         user = _make_user(tenant_id="t-001")
         db = _make_db()
@@ -260,7 +260,7 @@ class TestGetMyUsage:
     @pytest.mark.asyncio
     async def test_usage_no_tenant_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import get_my_usage
+        from asc_api.api.v1.endpoints.billing import get_my_usage
 
         user = _make_user(tenant_id=None)
         db = _make_db()
@@ -271,7 +271,7 @@ class TestGetMyUsage:
 
     @pytest.mark.asyncio
     async def test_usage_maps_existing_records(self):
-        from app.api.v1.endpoints.billing import get_my_usage
+        from asc_api.api.v1.endpoints.billing import get_my_usage
 
         user = _make_user(tenant_id="t-001")
         period = _current_period()
@@ -288,7 +288,7 @@ class TestGetMyUsage:
 
     @pytest.mark.asyncio
     async def test_usage_returns_current_period(self):
-        from app.api.v1.endpoints.billing import get_my_usage
+        from asc_api.api.v1.endpoints.billing import get_my_usage
 
         user = _make_user(tenant_id="t-001")
         db = _make_db()
@@ -309,7 +309,7 @@ class TestGetTenantUsage:
 
     @pytest.mark.asyncio
     async def test_admin_can_get_other_tenant(self):
-        from app.api.v1.endpoints.billing import get_tenant_usage
+        from asc_api.api.v1.endpoints.billing import get_tenant_usage
 
         admin = _make_user(role="admin", tenant_id="t-admin")
         tenant = _make_tenant("t-target")
@@ -334,7 +334,7 @@ class TestGetTenantUsage:
     @pytest.mark.asyncio
     async def test_tenant_not_found_raises_404(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import get_tenant_usage
+        from asc_api.api.v1.endpoints.billing import get_tenant_usage
 
         db = _make_db()
         tenant_result = MagicMock()
@@ -361,7 +361,7 @@ class TestTakeSnapshot:
     @pytest.mark.asyncio
     async def test_snapshot_no_tenant_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import take_snapshot
+        from asc_api.api.v1.endpoints.billing import take_snapshot
 
         admin = _make_user(tenant_id=None)
         db = _make_db()
@@ -372,7 +372,7 @@ class TestTakeSnapshot:
 
     @pytest.mark.asyncio
     async def test_snapshot_returns_all_resource_types(self):
-        from app.api.v1.endpoints.billing import take_snapshot
+        from asc_api.api.v1.endpoints.billing import take_snapshot
 
         admin = _make_user(tenant_id="t-001")
 
@@ -391,7 +391,7 @@ class TestTakeSnapshot:
 
     @pytest.mark.asyncio
     async def test_snapshot_commits(self):
-        from app.api.v1.endpoints.billing import take_snapshot
+        from asc_api.api.v1.endpoints.billing import take_snapshot
 
         admin = _make_user(tenant_id="t-001")
         count_result = MagicMock()
@@ -407,7 +407,7 @@ class TestTakeSnapshot:
 
     @pytest.mark.asyncio
     async def test_snapshot_emits_audit(self):
-        from app.api.v1.endpoints.billing import take_snapshot
+        from asc_api.api.v1.endpoints.billing import take_snapshot
 
         admin = _make_user(tenant_id="t-001")
         count_result = MagicMock()
@@ -424,7 +424,7 @@ class TestTakeSnapshot:
 
     @pytest.mark.asyncio
     async def test_snapshot_writes_5_resources(self):
-        from app.api.v1.endpoints.billing import take_snapshot
+        from asc_api.api.v1.endpoints.billing import take_snapshot
 
         admin = _make_user(tenant_id="t-001")
         count_result = MagicMock()
@@ -459,7 +459,7 @@ class TestStripeWebhook:
 
     @pytest.mark.asyncio
     async def test_webhook_ack_without_secret(self):
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         payload = {"type": "customer.created", "id": "evt_001"}
         request = self._make_request(payload)
@@ -475,7 +475,7 @@ class TestStripeWebhook:
     @pytest.mark.asyncio
     async def test_webhook_missing_sig_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         payload = {"type": "test"}
         body = json.dumps(payload).encode()
@@ -492,7 +492,7 @@ class TestStripeWebhook:
     @pytest.mark.asyncio
     async def test_webhook_invalid_sig_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         payload = {"type": "test"}
         body = json.dumps(payload).encode()
@@ -508,7 +508,7 @@ class TestStripeWebhook:
 
     @pytest.mark.asyncio
     async def test_webhook_valid_sig_passes(self):
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         secret = "whsec_test_secret_123"
         payload = {"type": "customer.created", "id": "evt_002"}
@@ -529,7 +529,7 @@ class TestStripeWebhook:
     @pytest.mark.asyncio
     async def test_webhook_invalid_json_raises_400(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         request = MagicMock()
         request.body = AsyncMock(return_value=b"not-json")
@@ -543,7 +543,7 @@ class TestStripeWebhook:
 
     @pytest.mark.asyncio
     async def test_webhook_subscription_deleted_sets_free(self):
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         tenant = _make_tenant()
         tenant.plan = "pro"
@@ -577,7 +577,7 @@ class TestStripeWebhook:
 
     @pytest.mark.asyncio
     async def test_webhook_subscription_updated_sets_pro(self):
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         tenant = _make_tenant()
         tenant.plan = "free"
@@ -610,7 +610,7 @@ class TestStripeWebhook:
 
     @pytest.mark.asyncio
     async def test_webhook_unknown_event_type_acked(self):
-        from app.api.v1.endpoints.billing import stripe_webhook
+        from asc_api.api.v1.endpoints.billing import stripe_webhook
 
         event = {"type": "payment_intent.succeeded", "id": "evt_005"}
         body = json.dumps(event).encode()
@@ -715,12 +715,12 @@ class TestP55Migration:
         assert "drop_table" in content
 
     def test_tenant_model_has_stripe_customer_id(self):
-        import app.models.tenant as tm
+        import asc_api.models.tenant as tm
         src = inspect.getsource(tm)
         assert "stripe_customer_id" in src
 
     def test_tenant_model_has_stripe_subscription_id(self):
-        import app.models.tenant as tm
+        import asc_api.models.tenant as tm
         src = inspect.getsource(tm)
         assert "stripe_subscription_id" in src
 
@@ -736,7 +736,7 @@ class TestBillingRouterRegistration:
         assert billing_router.prefix == "/billing"
 
     def test_billing_imported_in_router(self):
-        import app.api.v1.router as r
+        import asc_api.api.v1.router as r
         src = inspect.getsource(r)
         assert "billing" in src
 

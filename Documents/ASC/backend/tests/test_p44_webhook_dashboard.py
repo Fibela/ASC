@@ -30,10 +30,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -642,7 +642,7 @@ class TestP44DeploymentAndRegression:
         assert r.status_code == 401
 
     def test_p42_webhook_dispatcher_still_importable(self):
-        from app.core.webhook_dispatcher import sign_payload, verify_signature, emit_webhook_event
+        from asc_api.core.webhook_dispatcher import sign_payload, verify_signature, emit_webhook_event
         assert callable(sign_payload)
         assert callable(verify_signature)
         assert callable(emit_webhook_event)

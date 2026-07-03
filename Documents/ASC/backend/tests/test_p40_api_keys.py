@@ -21,10 +21,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -113,7 +113,7 @@ class TestAPIKeyHelpers:
     """Unit tests for _generate_raw_key, _hash_key, _prefix_of, is_expired."""
 
     def test_generate_raw_key_format(self):
-        from app.api.v1.endpoints.api_keys import _generate_raw_key
+        from asc_api.api.v1.endpoints.api_keys import _generate_raw_key
         key = _generate_raw_key()
         parts = key.split("_")
         assert len(parts) == 3
@@ -122,13 +122,13 @@ class TestAPIKeyHelpers:
         assert len(parts[2]) == 40
 
     def test_generate_raw_key_uniqueness(self):
-        from app.api.v1.endpoints.api_keys import _generate_raw_key
+        from asc_api.api.v1.endpoints.api_keys import _generate_raw_key
         keys = {_generate_raw_key() for _ in range(50)}
         assert len(keys) == 50
 
     def test_hash_key_is_hmac_sha256(self):
         """Toque Premos: _hash_key must use HMAC-SHA256 keyed with SECRET_KEY."""
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         raw = "asc_ab12cd34_" + "x" * 40
         expected = _hmac.new(
             settings.SECRET_KEY.encode(),
@@ -141,41 +141,41 @@ class TestAPIKeyHelpers:
         assert _hash_key(raw) != plain_sha256
 
     def test_hash_key_length(self):
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         assert len(_hash_key("any-value")) == 64
 
     def test_prefix_of_returns_8_chars(self):
-        from app.api.v1.endpoints.api_keys import _prefix_of
+        from asc_api.api.v1.endpoints.api_keys import _prefix_of
         raw = "asc_aabbccdd_" + "e" * 40
         assert _prefix_of(raw) == "aabbccdd"
 
     def test_validate_scopes_valid(self):
-        from app.api.v1.endpoints.api_keys import _validate_scopes
+        from asc_api.api.v1.endpoints.api_keys import _validate_scopes
         _validate_scopes(["read"])
         _validate_scopes(["read", "write"])
         _validate_scopes(["read", "write", "admin"])
 
     def test_validate_scopes_invalid_raises(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.api_keys import _validate_scopes
+        from asc_api.api.v1.endpoints.api_keys import _validate_scopes
         with pytest.raises(HTTPException) as exc:
             _validate_scopes(["read", "superpower"])
         assert exc.value.status_code == 422  # 422 Unprocessable Content
 
     def test_api_key_model_is_expired_false_when_no_expiry(self):
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         k = APIKey()
         k.expires_at = None
         assert k.is_expired is False
 
     def test_api_key_model_is_expired_true_when_past(self):
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         k = APIKey()
         k.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
         assert k.is_expired is True
 
     def test_api_key_model_is_expired_false_when_future(self):
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         k = APIKey()
         k.expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         assert k.is_expired is False
@@ -626,7 +626,7 @@ class TestXAPIKeyDep:
     @pytest.mark.asyncio
     async def test_missing_header_returns_401(self):
         from fastapi import HTTPException
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         db = MagicMock()
         db.execute = AsyncMock()
@@ -639,7 +639,7 @@ class TestXAPIKeyDep:
     @pytest.mark.asyncio
     async def test_invalid_key_returns_401(self):
         from fastapi import HTTPException
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         db = MagicMock()
         exec_result = MagicMock()
@@ -654,7 +654,7 @@ class TestXAPIKeyDep:
     @pytest.mark.asyncio
     async def test_revoked_key_returns_401(self):
         from fastapi import HTTPException
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         revoked_key = MagicMock()
         revoked_key.is_active = False
@@ -673,7 +673,7 @@ class TestXAPIKeyDep:
     @pytest.mark.asyncio
     async def test_expired_key_returns_401(self):
         from fastapi import HTTPException
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         expired_key = MagicMock()
         expired_key.is_active = True
@@ -691,7 +691,7 @@ class TestXAPIKeyDep:
 
     @pytest.mark.asyncio
     async def test_valid_key_returns_user(self):
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         raw = "asc_ab12cd34_" + "e" * 40
         # HMAC-SHA256 (Toque Premos) — must match _hmac_key_hash in deps.py
@@ -719,7 +719,7 @@ class TestXAPIKeyDep:
 
     @pytest.mark.asyncio
     async def test_valid_key_touches_last_used_at(self):
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         raw = "asc_ab12cd34_" + "f" * 40
         valid_key = MagicMock()
@@ -745,7 +745,7 @@ class TestXAPIKeyDep:
     @pytest.mark.asyncio
     async def test_inactive_owner_returns_401(self):
         from fastapi import HTTPException
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
 
         raw = "asc_ab12cd34_" + "g" * 40
 
@@ -814,22 +814,22 @@ class TestSecurityInvariants:
 
     def test_raw_key_not_returned_in_list_schema(self):
         """APIKeyResponse schema must NOT include raw_key."""
-        from app.api.v1.endpoints.api_keys import APIKeyResponse
+        from asc_api.api.v1.endpoints.api_keys import APIKeyResponse
         assert "raw_key" not in APIKeyResponse.model_fields
 
     def test_raw_key_in_created_schema(self):
         """APIKeyCreated schema MUST include raw_key."""
-        from app.api.v1.endpoints.api_keys import APIKeyCreated
+        from asc_api.api.v1.endpoints.api_keys import APIKeyCreated
         assert "raw_key" in APIKeyCreated.model_fields
 
     def test_two_different_keys_have_different_hashes(self):
-        from app.api.v1.endpoints.api_keys import _generate_raw_key, _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _generate_raw_key, _hash_key
         k1 = _generate_raw_key()
         k2 = _generate_raw_key()
         assert _hash_key(k1) != _hash_key(k2)
 
     def test_hash_is_deterministic(self):
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         raw = "asc_test0000_abcdef123456789012345678901234567890"
         h1 = _hash_key(raw)
         h2 = _hash_key(raw)
@@ -837,26 +837,26 @@ class TestSecurityInvariants:
 
     def test_key_prefix_not_sufficient_to_authenticate(self):
         """Supplying only the prefix (8 chars) should produce a hash that doesn't match."""
-        from app.api.v1.endpoints.api_keys import _generate_raw_key, _hash_key, _prefix_of
+        from asc_api.api.v1.endpoints.api_keys import _generate_raw_key, _hash_key, _prefix_of
         raw = _generate_raw_key()
         prefix = _prefix_of(raw)
         # Hash of prefix alone is different from hash of full key
         assert _hash_key(prefix) != _hash_key(raw)
 
     def test_max_keys_per_user_constant(self):
-        from app.api.v1.endpoints.api_keys import _MAX_KEYS_PER_USER
+        from asc_api.api.v1.endpoints.api_keys import _MAX_KEYS_PER_USER
         assert _MAX_KEYS_PER_USER >= 10  # reasonable lower bound
         assert _MAX_KEYS_PER_USER <= 100  # reasonable upper bound
 
     def test_valid_scopes_set(self):
-        from app.api.v1.endpoints.api_keys import VALID_SCOPES
+        from asc_api.api.v1.endpoints.api_keys import VALID_SCOPES
         assert "read" in VALID_SCOPES
         assert "write" in VALID_SCOPES
         assert "admin" in VALID_SCOPES
 
     def test_api_key_model_has_no_raw_key_column(self):
         """The APIKey model must not have a raw_key or key_plain column."""
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         columns = {c.key for c in APIKey.__table__.columns}
         assert "raw_key" not in columns
         assert "key_plain" not in columns
@@ -934,12 +934,12 @@ class TestRegressionP40:
         assert r.status_code == 401
 
     def test_import_stable(self):
-        import app.api.v1.endpoints.api_keys  # noqa: F401
-        import app.models.api_key              # noqa: F401
-        import app.api.deps                    # noqa: F401
+        import asc_api.api.v1.endpoints.api_keys  # noqa: F401
+        import asc_api.models.api_key              # noqa: F401
+        import asc_api.api.deps                    # noqa: F401
 
     def test_api_key_schema_from_attributes(self):
-        from app.api.v1.endpoints.api_keys import APIKeyResponse
+        from asc_api.api.v1.endpoints.api_keys import APIKeyResponse
         key = _make_api_key_row(str(uuid.uuid4()))
         # Should not raise — model_config from_attributes=True
         resp = APIKeyResponse(
@@ -958,7 +958,7 @@ class TestToquePromosHMAC:
 
     def test_hash_key_uses_secret_key(self):
         """Hash output changes when SECRET_KEY changes (proves HMAC is keyed)."""
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         raw = "asc_test1234_abcdef1234567890abcdef1234567890abcd"
         h1 = _hash_key(raw)
         # Compute with a different secret — result must differ
@@ -967,27 +967,27 @@ class TestToquePromosHMAC:
 
     def test_hmac_hash_matches_deps_hash(self):
         """_hash_key in api_keys.py and _hmac_key_hash in deps.py must agree."""
-        from app.api.v1.endpoints.api_keys import _hash_key
-        from app.api.deps import _hmac_key_hash
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.deps import _hmac_key_hash
         raw = "asc_abcd1234_" + "z" * 40
         assert _hash_key(raw) == _hmac_key_hash(raw)
 
     def test_hmac_not_plain_sha256(self):
         """Stored hash must NOT equal plain SHA-256 (proves HMAC key is applied)."""
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         raw = "asc_ff00aa11_" + "b" * 40
         plain = hashlib.sha256(raw.encode()).hexdigest()
         assert _hash_key(raw) != plain
 
     def test_hash_length_still_64(self):
         """HMAC-SHA256 digest is 32 bytes = 64 hex chars — same as before."""
-        from app.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
         assert len(_hash_key("asc_testkey_" + "x" * 40)) == 64
 
     def test_hmac_deterministic_cross_module(self):
         """Same raw key → same hash from both modules on every call."""
-        from app.api.v1.endpoints.api_keys import _hash_key
-        from app.api.deps import _hmac_key_hash
+        from asc_api.api.v1.endpoints.api_keys import _hash_key
+        from asc_api.api.deps import _hmac_key_hash
         raw = "asc_cafe1234_" + "d" * 40
         for _ in range(5):
             assert _hash_key(raw) == _hmac_key_hash(raw)
@@ -999,7 +999,7 @@ class TestToquePromosLedger:
     """Verify Ledger Premos: lifecycle events emitted to asc.audit channel."""
 
     def test_ledger_create_calls_log_security_action(self, analyst_id):
-        from app.api.v1.endpoints.api_keys import _ledger_create
+        from asc_api.api.v1.endpoints.api_keys import _ledger_create
         user = _make_user("analyst", analyst_id)
         key = _make_api_key_row(analyst_id, "Prometheus scraper")
 
@@ -1012,7 +1012,7 @@ class TestToquePromosLedger:
             assert call_kwargs.kwargs["resource"] == "api_key"
 
     def test_ledger_rotate_records_old_and_new_prefix(self, analyst_id):
-        from app.api.v1.endpoints.api_keys import _ledger_rotate
+        from asc_api.api.v1.endpoints.api_keys import _ledger_rotate
         user = _make_user("analyst", analyst_id)
         key = _make_api_key_row(analyst_id)
         key.key_prefix = "newprefi"
@@ -1027,7 +1027,7 @@ class TestToquePromosLedger:
             assert "newprefi" in detail
 
     def test_ledger_revoke_records_prefix(self, analyst_id):
-        from app.api.v1.endpoints.api_keys import _ledger_revoke
+        from asc_api.api.v1.endpoints.api_keys import _ledger_revoke
         user = _make_user("analyst", analyst_id)
 
         with patch("app.api.v1.endpoints.api_keys.log_security_action") as mock_log:
@@ -1038,7 +1038,7 @@ class TestToquePromosLedger:
             assert "aabbccdd" in call_kwargs.kwargs["detail"]
 
     def test_ledger_create_includes_scopes(self, analyst_id):
-        from app.api.v1.endpoints.api_keys import _ledger_create
+        from asc_api.api.v1.endpoints.api_keys import _ledger_create
         user = _make_user("analyst", analyst_id)
         key = _make_api_key_row(analyst_id, scopes=["read", "write"])
 
@@ -1050,7 +1050,7 @@ class TestToquePromosLedger:
 
     def test_all_three_events_are_distinct_action_names(self):
         """create/rotate/revoke must use distinct action strings for auditability."""
-        from app.api.v1.endpoints.api_keys import _ledger_create, _ledger_rotate, _ledger_revoke
+        from asc_api.api.v1.endpoints.api_keys import _ledger_create, _ledger_rotate, _ledger_revoke
         actions = []
         uid = str(uuid.uuid4())
         user = _make_user("admin", uid)
@@ -1077,7 +1077,7 @@ class TestToquePromosScopes:
     @pytest.mark.asyncio
     async def test_scope_missing_raises_403(self):
         from fastapi import HTTPException
-        from app.api.deps import require_api_key_scope
+        from asc_api.api.deps import require_api_key_scope
 
         request = MagicMock()
         request.state.api_key_scopes = ["read"]  # only read — no write
@@ -1091,7 +1091,7 @@ class TestToquePromosScopes:
 
     @pytest.mark.asyncio
     async def test_scope_present_returns_user(self):
-        from app.api.deps import require_api_key_scope
+        from asc_api.api.deps import require_api_key_scope
 
         request = MagicMock()
         request.state.api_key_scopes = ["read", "write"]
@@ -1103,7 +1103,7 @@ class TestToquePromosScopes:
 
     @pytest.mark.asyncio
     async def test_admin_scope_accepted(self):
-        from app.api.deps import require_api_key_scope
+        from asc_api.api.deps import require_api_key_scope
 
         request = MagicMock()
         request.state.api_key_scopes = ["read", "write", "admin"]
@@ -1116,7 +1116,7 @@ class TestToquePromosScopes:
     @pytest.mark.asyncio
     async def test_empty_scopes_blocks_all(self):
         from fastapi import HTTPException
-        from app.api.deps import require_api_key_scope
+        from asc_api.api.deps import require_api_key_scope
 
         request = MagicMock()
         request.state.api_key_scopes = []
@@ -1130,12 +1130,12 @@ class TestToquePromosScopes:
 
     def test_require_api_key_scope_exported_from_deps(self):
         """Scopes dep must be importable from deps module."""
-        from app.api.deps import require_api_key_scope
+        from asc_api.api.deps import require_api_key_scope
         assert callable(require_api_key_scope)
 
     def test_scopes_stored_on_request_state(self):
         """get_user_from_api_key must set request.state.api_key_scopes."""
         import inspect
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
         src = inspect.getsource(get_user_from_api_key)
         assert "api_key_scopes" in src

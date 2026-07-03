@@ -23,10 +23,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.core.security import validate_password_strength, create_access_token, decode_token_payload
-from app.core.jwt_blacklist import JWTBlacklist
-from app.models.user import User
-from app.models.revoked_token import RevokedToken
+from asc_api.core.security import validate_password_strength, create_access_token, decode_token_payload
+from asc_api.core.jwt_blacklist import JWTBlacklist
+from asc_api.models.user import User
+from asc_api.models.revoked_token import RevokedToken
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ class TestUserModelIAMFields:
 class TestIAMServiceDisable:
     @pytest.mark.asyncio
     async def test_disable_active_user(self):
-        from app.services.iam_service import disable_account
+        from asc_api.services.iam_service import disable_account
         user = _user(is_active=True)
         db = _mock_db()
         mock_result = MagicMock()
@@ -237,7 +237,7 @@ class TestIAMServiceDisable:
 
     @pytest.mark.asyncio
     async def test_disable_already_inactive_is_idempotent(self):
-        from app.services.iam_service import disable_account
+        from asc_api.services.iam_service import disable_account
         user = _user(is_active=False)
         db = _mock_db()
         mock_result = MagicMock()
@@ -250,7 +250,7 @@ class TestIAMServiceDisable:
 
     @pytest.mark.asyncio
     async def test_disable_not_found(self):
-        from app.services.iam_service import disable_account
+        from asc_api.services.iam_service import disable_account
         db = _mock_db()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -262,7 +262,7 @@ class TestIAMServiceDisable:
 
     @pytest.mark.asyncio
     async def test_enable_disabled_user(self):
-        from app.services.iam_service import enable_account
+        from asc_api.services.iam_service import enable_account
         user = _user(is_active=False)
         db = _mock_db()
         mock_result = MagicMock()
@@ -280,7 +280,7 @@ class TestIAMServiceDisable:
 class TestIAMServiceLock:
     @pytest.mark.asyncio
     async def test_lock_sets_locked_until(self):
-        from app.services.iam_service import lock_account
+        from asc_api.services.iam_service import lock_account
         user = _user()
         db = _mock_db()
         mock_result = MagicMock()
@@ -295,7 +295,7 @@ class TestIAMServiceLock:
 
     @pytest.mark.asyncio
     async def test_unlock_clears_lock_and_attempts(self):
-        from app.services.iam_service import unlock_account
+        from asc_api.services.iam_service import unlock_account
         user = _user(locked_until=_future(10), failed_login_attempts=5)
         db = _mock_db()
         mock_result = MagicMock()
@@ -310,7 +310,7 @@ class TestIAMServiceLock:
 
     @pytest.mark.asyncio
     async def test_lock_not_found(self):
-        from app.services.iam_service import lock_account
+        from asc_api.services.iam_service import lock_account
         db = _mock_db()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -321,7 +321,7 @@ class TestIAMServiceLock:
 
     @pytest.mark.asyncio
     async def test_unlock_not_found(self):
-        from app.services.iam_service import unlock_account
+        from asc_api.services.iam_service import unlock_account
         db = _mock_db()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -340,7 +340,7 @@ class TestIAMServiceLock:
 class TestIAMServiceForceReset:
     @pytest.mark.asyncio
     async def test_set_force_reset_marks_flag(self):
-        from app.services.iam_service import set_force_password_reset
+        from asc_api.services.iam_service import set_force_password_reset
         user = _user(force_password_reset=False)
         db = _mock_db()
         mock_result = MagicMock()
@@ -354,7 +354,7 @@ class TestIAMServiceForceReset:
 
     @pytest.mark.asyncio
     async def test_set_force_reset_already_set_is_idempotent(self):
-        from app.services.iam_service import set_force_password_reset
+        from asc_api.services.iam_service import set_force_password_reset
         user = _user(force_password_reset=True)
         db = _mock_db()
         mock_result = MagicMock()
@@ -366,7 +366,7 @@ class TestIAMServiceForceReset:
 
     @pytest.mark.asyncio
     async def test_set_force_reset_not_found(self):
-        from app.services.iam_service import set_force_password_reset
+        from asc_api.services.iam_service import set_force_password_reset
         db = _mock_db()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -377,7 +377,7 @@ class TestIAMServiceForceReset:
 
     @pytest.mark.asyncio
     async def test_get_user_iam_status_returns_dict(self):
-        from app.services.iam_service import get_user_iam_status
+        from asc_api.services.iam_service import get_user_iam_status
         user = _user(force_password_reset=True, failed_login_attempts=3)
         db = _mock_db()
         mock_result = MagicMock()
@@ -402,7 +402,7 @@ class TestLoginLockMechanism:
         assert user.failed_login_attempts == 1
 
     def test_lock_triggered_at_threshold(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         settings = get_settings()
         user = _user(failed_login_attempts=settings.ACCOUNT_LOCK_THRESHOLD - 1)
         user.failed_login_attempts += 1
@@ -450,13 +450,13 @@ class TestChangePassword:
         assert len(errors) > 0
 
     def test_password_reuse_detection(self):
-        from app.core.security import verify_password, get_password_hash
+        from asc_api.core.security import verify_password, get_password_hash
         pw = "ValidOldPass99!"
         hashed = get_password_hash(pw)
         assert verify_password(pw, hashed) is True  # Would be rejected as reuse
 
     def test_new_password_hashes_correctly(self):
-        from app.core.security import get_password_hash, verify_password
+        from asc_api.core.security import get_password_hash, verify_password
         pw = "MyNewPass@99X"
         hashed = get_password_hash(pw)
         assert verify_password(pw, hashed) is True
@@ -487,7 +487,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_lock_endpoint_calls_service(self):
-        from app.services.iam_service import lock_account
+        from asc_api.services.iam_service import lock_account
         user = _user()
         db = _mock_db()
         mr = MagicMock()
@@ -499,7 +499,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_unlock_endpoint_calls_service(self):
-        from app.services.iam_service import unlock_account
+        from asc_api.services.iam_service import unlock_account
         user = _user(locked_until=_future(10))
         db = _mock_db()
         mr = MagicMock()
@@ -511,7 +511,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_disable_endpoint_calls_service(self):
-        from app.services.iam_service import disable_account
+        from asc_api.services.iam_service import disable_account
         user = _user(is_active=True)
         db = _mock_db()
         mr = MagicMock()
@@ -523,7 +523,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_enable_endpoint_calls_service(self):
-        from app.services.iam_service import enable_account
+        from asc_api.services.iam_service import enable_account
         user = _user(is_active=False)
         db = _mock_db()
         mr = MagicMock()
@@ -535,7 +535,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_force_reset_endpoint_calls_service(self):
-        from app.services.iam_service import set_force_password_reset
+        from asc_api.services.iam_service import set_force_password_reset
         user = _user(force_password_reset=False)
         db = _mock_db()
         mr = MagicMock()
@@ -553,7 +553,7 @@ class TestIAMEndpoints:
 
     @pytest.mark.asyncio
     async def test_status_endpoint_returns_all_iam_fields(self):
-        from app.services.iam_service import get_user_iam_status
+        from asc_api.services.iam_service import get_user_iam_status
         user = _user(
             is_active=True,
             locked_until=_future(5),
@@ -589,7 +589,7 @@ class TestIAMEndpoints:
 class TestSpecterBridgeIAM:
     @pytest.mark.asyncio
     async def test_disable_account_routes_to_iam(self):
-        from app.services.specter_bridge import _execute_iam_action, DispatchMode
+        from asc_api.services.specter_bridge import _execute_iam_action, DispatchMode
         user = _user(is_active=True)
         db = _mock_db()
         mr = MagicMock()
@@ -608,7 +608,7 @@ class TestSpecterBridgeIAM:
 
     @pytest.mark.asyncio
     async def test_disable_account_missing_email(self):
-        from app.services.specter_bridge import _execute_iam_action, DispatchMode
+        from asc_api.services.specter_bridge import _execute_iam_action, DispatchMode
         db = _mock_db()
         result = await _execute_iam_action(
             action_type="disable_account",
@@ -621,7 +621,7 @@ class TestSpecterBridgeIAM:
 
     @pytest.mark.asyncio
     async def test_unknown_iam_action_returns_error(self):
-        from app.services.specter_bridge import _execute_iam_action
+        from asc_api.services.specter_bridge import _execute_iam_action
         db = _mock_db()
         result = await _execute_iam_action(
             action_type="delete_user",  # not in _IAM_ACTIONS
@@ -633,7 +633,7 @@ class TestSpecterBridgeIAM:
 
     def test_iam_actions_not_in_simulation_only(self):
         """Ensure disable_account is removed from _SIMULATION_ONLY and added to _IAM_ACTIONS."""
-        from app.services import specter_bridge
+        from asc_api.services import specter_bridge
         assert "disable_account" in specter_bridge._IAM_ACTIONS
         # _SIMULATION_ONLY no longer exists — attribute must be absent or empty
         sim_only = getattr(specter_bridge, "_SIMULATION_ONLY", frozenset())

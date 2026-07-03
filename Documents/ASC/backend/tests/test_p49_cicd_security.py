@@ -293,7 +293,7 @@ class TestP49Regression:
         assert path.exists()
 
     def test_p47_tenant_model_importable(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert Tenant.__tablename__ == "tenants"
 
     def test_p46_rate_limits_page_present(self):

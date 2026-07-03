@@ -116,7 +116,7 @@ def _make_finding(**kwargs):
 class TestSOARConditionEvaluation:
 
     def _eval(self, ctype, op, val, context):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = _make_trigger(condition_type=ctype, condition_operator=op, condition_value=val)
         return _evaluate_condition(t, context)
 
@@ -163,7 +163,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_create_trigger_valid(self):
-        from app.services.soar_service import create_trigger
+        from asc_api.services.soar_service import create_trigger
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -182,7 +182,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_create_trigger_invalid_type(self):
-        from app.services.soar_service import create_trigger
+        from asc_api.services.soar_service import create_trigger
         db = AsyncMock()
         result = await create_trigger(
             db, playbook_id="PB-001", playbook_name="Verde",
@@ -194,7 +194,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_create_trigger_invalid_operator(self):
-        from app.services.soar_service import create_trigger
+        from asc_api.services.soar_service import create_trigger
         db = AsyncMock()
         result = await create_trigger(
             db, playbook_id="PB-001", playbook_name="Verde",
@@ -206,7 +206,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_list_triggers_empty(self):
-        from app.services.soar_service import list_triggers
+        from asc_api.services.soar_service import list_triggers
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([]))
         result = await list_triggers(db)
@@ -214,7 +214,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_list_triggers_enabled_only_filter(self):
-        from app.services.soar_service import list_triggers
+        from asc_api.services.soar_service import list_triggers
         t1 = _make_trigger(enabled=True)
         t2 = _make_trigger(enabled=False)
         db = AsyncMock()
@@ -224,7 +224,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_get_trigger_found(self):
-        from app.services.soar_service import get_trigger
+        from asc_api.services.soar_service import get_trigger
         t = _make_trigger()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(t))
@@ -234,7 +234,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_get_trigger_not_found(self):
-        from app.services.soar_service import get_trigger
+        from asc_api.services.soar_service import get_trigger
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await get_trigger(db, "nonexistent")
@@ -242,7 +242,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_trigger_found(self):
-        from app.services.soar_service import delete_trigger
+        from asc_api.services.soar_service import delete_trigger
         t = _make_trigger()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(t))
@@ -253,7 +253,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_trigger_not_found(self):
-        from app.services.soar_service import delete_trigger
+        from asc_api.services.soar_service import delete_trigger
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await delete_trigger(db, "nonexistent", deleted_by="analyst@corp")
@@ -261,7 +261,7 @@ class TestSOARCRUD:
 
     @pytest.mark.asyncio
     async def test_toggle_trigger(self):
-        from app.services.soar_service import toggle_trigger
+        from asc_api.services.soar_service import toggle_trigger
         t = _make_trigger(enabled=True)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(t))
@@ -277,7 +277,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_evaluate_no_triggers(self):
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([]))
         result = await evaluate_triggers_for_context(db, {"pcdi_score": 90})
@@ -285,7 +285,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_evaluate_no_matching_score(self):
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
         t = _make_trigger(condition_type="pcdi_score", condition_operator="gte", condition_value="80")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([t]))
@@ -294,7 +294,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_evaluate_hunt_id_filter_mismatch(self):
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
         t = _make_trigger(hunt_id_filter="hunt-aaa", condition_type="pcdi_score",
                           condition_operator="gte", condition_value="80")
         db = AsyncMock()
@@ -304,7 +304,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_evaluate_fire_matching_trigger(self):
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
         t = _make_trigger(condition_type="pcdi_score", condition_operator="gte", condition_value="80")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([t]))
@@ -317,7 +317,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_fire_trigger_playbook_error_captured(self):
-        from app.services.soar_service import _fire_trigger
+        from asc_api.services.soar_service import _fire_trigger
         t = _make_trigger()
         db = AsyncMock()
         db.commit = AsyncMock()
@@ -337,7 +337,7 @@ class TestSOARFireTrigger:
 
     @pytest.mark.asyncio
     async def test_evaluate_multiple_matching_triggers(self):
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
         t1 = _make_trigger(id="t1", condition_type="pcdi_score", condition_operator="gte", condition_value="70")
         t2 = _make_trigger(id="t2", condition_type="pcdi_score", condition_operator="gte", condition_value="80")
         db = AsyncMock()
@@ -355,7 +355,7 @@ class TestSOARTestTrigger:
 
     @pytest.mark.asyncio
     async def test_test_trigger_matches(self):
-        from app.services.soar_service import test_trigger
+        from asc_api.services.soar_service import test_trigger
         t = _make_trigger(condition_type="pcdi_score", condition_operator="gte", condition_value="80")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(t))
@@ -366,7 +366,7 @@ class TestSOARTestTrigger:
 
     @pytest.mark.asyncio
     async def test_test_trigger_no_match(self):
-        from app.services.soar_service import test_trigger
+        from asc_api.services.soar_service import test_trigger
         t = _make_trigger(condition_type="pcdi_score", condition_operator="gte", condition_value="80")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(t))
@@ -376,7 +376,7 @@ class TestSOARTestTrigger:
 
     @pytest.mark.asyncio
     async def test_test_trigger_not_found(self):
-        from app.services.soar_service import test_trigger
+        from asc_api.services.soar_service import test_trigger
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await test_trigger("no-such-id", {}, db)
@@ -390,7 +390,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_create_report_valid(self):
-        from app.services.soar_service import create_scheduled_report
+        from asc_api.services.soar_service import create_scheduled_report
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -405,7 +405,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_create_report_invalid_frequency(self):
-        from app.services.soar_service import create_scheduled_report
+        from asc_api.services.soar_service import create_scheduled_report
         db = AsyncMock()
         result = await create_scheduled_report(
             db, hunt_id="x", hunt_name=None,
@@ -417,7 +417,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_create_report_invalid_format(self):
-        from app.services.soar_service import create_scheduled_report
+        from asc_api.services.soar_service import create_scheduled_report
         db = AsyncMock()
         result = await create_scheduled_report(
             db, hunt_id="x", hunt_name=None,
@@ -429,7 +429,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_list_reports_empty(self):
-        from app.services.soar_service import list_scheduled_reports
+        from asc_api.services.soar_service import list_scheduled_reports
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([]))
         result = await list_scheduled_reports(db)
@@ -437,7 +437,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_get_report_not_found(self):
-        from app.services.soar_service import get_scheduled_report
+        from asc_api.services.soar_service import get_scheduled_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await get_scheduled_report(db, "no-id")
@@ -445,7 +445,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_report_found(self):
-        from app.services.soar_service import delete_scheduled_report
+        from asc_api.services.soar_service import delete_scheduled_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(r))
@@ -456,7 +456,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_delete_report_not_found(self):
-        from app.services.soar_service import delete_scheduled_report
+        from asc_api.services.soar_service import delete_scheduled_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await delete_scheduled_report(db, "no-id", deleted_by="analyst@corp")
@@ -464,7 +464,7 @@ class TestScheduledReportCRUD:
 
     @pytest.mark.asyncio
     async def test_deliver_report_not_found(self):
-        from app.services.soar_service import deliver_scheduled_report
+        from asc_api.services.soar_service import deliver_scheduled_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await deliver_scheduled_report(db, "no-id")
@@ -511,7 +511,7 @@ class TestScheduledReportDue:
 class TestADAdapterSearch:
 
     def _make_adapter(self):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="ldaps://dc.corp.local:636",
@@ -526,7 +526,7 @@ class TestADAdapterSearch:
 
     @pytest.mark.asyncio
     async def test_search_user_not_configured(self):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
@@ -538,7 +538,7 @@ class TestADAdapterSearch:
 
     @pytest.mark.asyncio
     async def test_list_group_members_not_configured(self):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
@@ -641,7 +641,7 @@ class TestADAdapterSearch:
 class TestADAdapterNotConfigured:
 
     def _make_unconfigured(self):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.core.config.get_settings") as m:
             m.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
@@ -676,7 +676,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_adapter_not_configured(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         db = AsyncMock()
         with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
             mock_cls.return_value.is_configured.return_value = False
@@ -686,7 +686,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_hunt_not_found(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
         with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
@@ -697,7 +697,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_creates_case(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         hunt = _make_hunt()
         finding = _make_finding(hunt_id=hunt.id)
 
@@ -720,7 +720,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_case_creation_fails(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         hunt = _make_hunt()
         r_hunt = _scalar_one(hunt)
         r_findings = _scalars_result([])
@@ -739,7 +739,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_skips_false_positives(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         hunt = _make_hunt()
         fp_finding = _make_finding(hunt_id=hunt.id, is_false_positive=True, is_confirmed=False)
 
@@ -756,7 +756,7 @@ class TestTheHiveExport:
 
     @pytest.mark.asyncio
     async def test_export_observable_error_partial(self):
-        from app.services.thehive_service import export_hunt_to_thehive
+        from asc_api.services.thehive_service import export_hunt_to_thehive
         hunt = _make_hunt()
         f1 = _make_finding(hunt_id=hunt.id, is_confirmed=True)
         f2 = _make_finding(hunt_id=hunt.id, is_confirmed=True, indicator_value="evil.com", indicator_type="domain")
@@ -779,7 +779,7 @@ class TestTheHiveExport:
         assert len(result["errors"]) == 1
 
     def test_hunt_to_alert_dict_severity_escalation(self):
-        from app.services.thehive_service import _hunt_to_alert_dict
+        from asc_api.services.thehive_service import _hunt_to_alert_dict
         hunt = _make_hunt()
         findings = [
             _make_finding(is_confirmed=True, severity="critical"),
@@ -789,7 +789,7 @@ class TestTheHiveExport:
         assert result["severity"] == "critical"
 
     def test_finding_to_observable_no_indicator(self):
-        from app.services.thehive_service import _finding_to_observable
+        from asc_api.services.thehive_service import _finding_to_observable
         f = _make_finding(indicator_value=None)
         result = _finding_to_observable(f)
         assert result is None
@@ -800,26 +800,26 @@ class TestTheHiveExport:
 class TestSOAREndpoints:
 
     def test_soar_router_prefix(self):
-        from app.api.v1.endpoints.soar import router
+        from asc_api.api.v1.endpoints.soar import router
         assert router.prefix == "/soar"
 
     def test_soar_router_has_triggers_routes(self):
-        from app.api.v1.endpoints.soar import router
+        from asc_api.api.v1.endpoints.soar import router
         paths = [r.path for r in router.routes]
         assert any("triggers" in p for p in paths)
 
     def test_soar_router_has_reports_routes(self):
-        from app.api.v1.endpoints.soar import router
+        from asc_api.api.v1.endpoints.soar import router
         paths = [r.path for r in router.routes]
         assert any("reports" in p for p in paths)
 
     def test_soar_router_has_evaluate_route(self):
-        from app.api.v1.endpoints.soar import router
+        from asc_api.api.v1.endpoints.soar import router
         paths = [r.path for r in router.routes]
         assert any("evaluate" in p for p in paths)
 
     def test_soar_router_included_in_api(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         # api_router.routes contains APIRoute objects; each has a .path with full prefix
         paths = [getattr(r, "path", "") for r in api_router.routes]
         assert any("/soar" in p for p in paths)

@@ -26,15 +26,15 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-from app.core.signing import (
+from asc_api.core.signing import (
     generate_analyst_keypair,
     encrypt_analyst_private_key,
     decrypt_analyst_private_key,
     sign_approval,
     verify_approval_signature,
 )
-from app.core.jwt_blacklist import JWTBlacklist
-from app.core.notifications import HybridNotificationBus, Notification, NOTIFICATION_CHANNEL
+from asc_api.core.jwt_blacklist import JWTBlacklist
+from asc_api.core.notifications import HybridNotificationBus, Notification, NOTIFICATION_CHANNEL
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -62,31 +62,31 @@ class TestTimingAttackMitigation:
 
     def test_sentinel_hash_is_module_level(self):
         """_TIMING_SENTINEL_HASH is computed once at import, not per-call."""
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         assert isinstance(_TIMING_SENTINEL_HASH, str)
         assert _TIMING_SENTINEL_HASH.startswith("$2")  # bcrypt prefix
 
     def test_sentinel_hash_is_not_empty(self):
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         assert len(_TIMING_SENTINEL_HASH) > 20
 
     def test_sentinel_does_not_verify_real_passwords(self):
-        from app.core.security import verify_password
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.core.security import verify_password
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         # The sentinel hash is for a fixed internal string — real passwords won't match
         assert not verify_password("any-user-password", _TIMING_SENTINEL_HASH)
         assert not verify_password("", _TIMING_SENTINEL_HASH)
 
     def test_sentinel_is_stable_across_imports(self):
         """Two imports of the same module return the same sentinel — no recompute."""
-        from app.api.v1.endpoints import auth as auth1
+        from asc_api.api.v1.endpoints import auth as auth1
         import importlib
         auth2 = importlib.import_module("app.api.v1.endpoints.auth")
         assert auth1._TIMING_SENTINEL_HASH is auth2._TIMING_SENTINEL_HASH
 
     def test_sentinel_hash_verifies_correct_internal_string(self):
-        from app.core.security import verify_password
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.core.security import verify_password
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         # The sentinel hash should verify its own internal string
         assert verify_password("asc-timing-mitigation-sentinel-v1", _TIMING_SENTINEL_HASH)
 
@@ -169,7 +169,7 @@ _celery_available = importlib.util.find_spec("celery") is not None
 class TestCeleryEscalation:
     @pytest.mark.asyncio
     async def test_run_calls_escalate_expired(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
         with patch("app.tasks.escalation.AsyncSessionLocal") as mock_session_cls, \
              patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
              patch("app.tasks.escalation.get_settings") as mock_settings:
@@ -186,7 +186,7 @@ class TestCeleryEscalation:
 
     @pytest.mark.asyncio
     async def test_run_returns_escalated_count(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
         with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
              patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
              patch("app.tasks.escalation.get_settings") as mock_settings:
@@ -202,7 +202,7 @@ class TestCeleryEscalation:
 
     @pytest.mark.asyncio
     async def test_run_no_redis_skips_publish(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
         with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
              patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
              patch("app.tasks.escalation.get_settings") as mock_settings:
@@ -219,7 +219,7 @@ class TestCeleryEscalation:
 
     @pytest.mark.asyncio
     async def test_run_returns_action_ids(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
         ids = ["abc", "def"]
         with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
              patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
@@ -235,11 +235,11 @@ class TestCeleryEscalation:
             assert result["action_ids"] == ids
 
     def test_celery_task_registered(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         assert "asc.escalation.check_expired_actions" in celery_app.tasks
 
     def test_beat_schedule_configured(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         schedule = celery_app.conf.beat_schedule
         assert "proactive-escalation" in schedule
         assert schedule["proactive-escalation"]["task"] == "asc.escalation.check_expired_actions"
@@ -412,7 +412,7 @@ class TestKeyRotationEndpoint:
     @pytest.mark.asyncio
     async def test_rotate_generates_new_keypair(self):
         import uuid as _uuid
-        from app.models.user import User
+        from asc_api.models.user import User
 
         user = User()
         user.id = str(_uuid.uuid4())
@@ -460,7 +460,7 @@ class TestKeyRotationEndpoint:
 
     def test_rotate_requires_admin_guard(self):
         """Rotation endpoint uses get_current_admin dependency — verified by import check."""
-        from app.api.v1.endpoints.iam import rotate_analyst_keys
+        from asc_api.api.v1.endpoints.iam import rotate_analyst_keys
         import inspect
         sig = inspect.signature(rotate_analyst_keys)
         # 'admin' parameter should be in the signature
@@ -564,7 +564,7 @@ class TestApprovalWithSigning:
 
     def test_provision_signing_keys_sets_both_fields(self):
         """_provision_signing_keys() sets both public and encrypted private key."""
-        from app.models.user import User
+        from asc_api.models.user import User
         import uuid as _uuid
 
         user = User()

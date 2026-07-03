@@ -259,7 +259,7 @@ class TestWebhookVerifier:
 
     def test_signature_matches_backend_dispatcher(self):
         """SDK verifier must produce the same signature as the backend dispatcher."""
-        from app.core.webhook_dispatcher import sign_payload
+        from asc_api.core.webhook_dispatcher import sign_payload
         secret = "a" * 64
         body = b'{"event":"incident.created","data":{"id":"123"}}'
         backend_sig = sign_payload(secret, body)
@@ -622,7 +622,7 @@ class TestSDKRegression:
     @pytest.mark.asyncio
     async def test_liveness_endpoint_still_200(self):
         from httpx import ASGITransport, AsyncClient as AsyncHTTPXClient
-        from app.main import app
+        from asc_api.main import app
         async with AsyncHTTPXClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as c:
@@ -630,22 +630,22 @@ class TestSDKRegression:
         assert r.status_code == 200
 
     def test_p42_webhook_dispatcher_importable(self):
-        from app.core.webhook_dispatcher import (
+        from asc_api.core.webhook_dispatcher import (
             sign_payload, verify_signature, deliver_to_url, emit_webhook_event,
         )
         assert all(callable(f) for f in (sign_payload, verify_signature, deliver_to_url, emit_webhook_event))
 
     def test_p41_rate_limiter_importable(self):
-        from app.core.api_key_rate_limit import api_key_limiter, ApiKeyRateLimiter
+        from asc_api.core.api_key_rate_limit import api_key_limiter, ApiKeyRateLimiter
         assert isinstance(api_key_limiter, ApiKeyRateLimiter)
 
     def test_p40_api_key_dep_importable(self):
-        from app.api.deps import get_user_from_api_key
+        from asc_api.api.deps import get_user_from_api_key
         assert callable(get_user_from_api_key)
 
     def test_sdk_webhook_verifier_compatible_with_dispatcher(self):
         """Full round-trip: dispatcher signs → SDK verifier verifies."""
-        from app.core.webhook_dispatcher import sign_payload
+        from asc_api.core.webhook_dispatcher import sign_payload
         secret = "shared_secret_for_test_" + "x" * 40
         body = json.dumps({"event": "incident.created", "data": {"id": "test"}}).encode()
         signature = sign_payload(secret, body)
@@ -655,7 +655,7 @@ class TestSDKRegression:
     @pytest.mark.asyncio
     async def test_webhooks_endpoint_still_401_without_auth(self):
         from httpx import ASGITransport, AsyncClient as AsyncHTTPXClient
-        from app.main import app
+        from asc_api.main import app
         async with AsyncHTTPXClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as c:
@@ -665,7 +665,7 @@ class TestSDKRegression:
     @pytest.mark.asyncio
     async def test_api_keys_endpoint_still_401_without_auth(self):
         from httpx import ASGITransport, AsyncClient as AsyncHTTPXClient
-        from app.main import app
+        from asc_api.main import app
         async with AsyncHTTPXClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as c:

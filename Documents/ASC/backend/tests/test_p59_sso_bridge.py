@@ -30,8 +30,8 @@ import jwt as pyjwt
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.db.session import get_db
-from app.main import app
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _BACKEND = Path(__file__).parent.parent
 _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
@@ -130,7 +130,7 @@ class TestSupabaseJWTValidation:
     """Unit tests for _validate_supabase_token() — covers HS256 and RS256 paths."""
 
     def test_valid_hs256_token_returns_payload(self):
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
@@ -140,7 +140,7 @@ class TestSupabaseJWTValidation:
 
     def test_expired_token_raises_401(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(exp_offset=-1)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
@@ -151,7 +151,7 @@ class TestSupabaseJWTValidation:
 
     def test_wrong_secret_raises_401(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(secret="correct-secret-that-is-long-enough-xxxxx")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg, secret="wrong-secret-that-is-also-long-enough-xxxxx")
@@ -161,7 +161,7 @@ class TestSupabaseJWTValidation:
 
     def test_wrong_audience_raises_401(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="service_role")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
@@ -173,7 +173,7 @@ class TestSupabaseJWTValidation:
     def test_missing_supabase_url_raises_503(self):
         """SUPABASE_URL absent → 503 regardless of algorithm."""
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_URL = ""
@@ -187,7 +187,7 @@ class TestSupabaseJWTValidation:
     def test_missing_hs256_secret_raises_503(self):
         """SUPABASE_URL present but SUPABASE_JWT_SECRET absent on HS256 token → 503."""
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
@@ -200,7 +200,7 @@ class TestSupabaseJWTValidation:
 
     def test_tampered_token_raises_401(self):
         from fastapi import HTTPException
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token() + "tamper"
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
@@ -209,7 +209,7 @@ class TestSupabaseJWTValidation:
         assert exc.value.status_code == 401
 
     def test_payload_contains_sub_and_email(self):
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         uid = str(uuid.uuid4())
         email = "test@example.com"
         token = _make_supabase_token(sub=uid, email=email)
@@ -220,7 +220,7 @@ class TestSupabaseJWTValidation:
         assert payload["email"] == email
 
     def test_custom_audience_accepted(self):
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="my_audience")
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg, audience="my_audience")
@@ -231,7 +231,7 @@ class TestSupabaseJWTValidation:
         """RS256 token (new Supabase JWT Signing Keys) verified via JWKS — secret unused."""
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.backends import default_backend
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
 
         private_key = rsa.generate_private_key(
             public_exponent=65537, key_size=2048, backend=default_backend()
@@ -276,7 +276,7 @@ class TestSupabaseJWTValidation:
         """Regression: the JWKS URL must be /auth/v1/.well-known/jwks.json (not /auth/v1/jwks)."""
         from cryptography.hazmat.primitives.asymmetric import ec
         from cryptography.hazmat.backends import default_backend
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
 
         private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
         es256_token = pyjwt.encode(
@@ -320,7 +320,7 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_existing_supabase_uid_returns_user_not_provisioned(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         existing = MagicMock()
         existing.supabase_uid = _TEST_UID
         existing.email = _TEST_EMAIL
@@ -331,7 +331,7 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_existing_email_links_supabase_uid(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         native = MagicMock()
         native.supabase_uid = None
         native.email = _TEST_EMAIL
@@ -343,9 +343,9 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_new_user_provisioned_with_tenant(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
-        from app.models.user import User
-        from app.models.tenant import Tenant
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.models.user import User
+        from asc_api.models.tenant import Tenant
 
         db = _make_db(supabase_user=None, email_user=None)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
@@ -359,7 +359,7 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_new_user_gets_analyst_role(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         db = _make_db(supabase_user=None, email_user=None)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -368,7 +368,7 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_new_user_email_verified_true(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         db = _make_db(supabase_user=None, email_user=None)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -377,7 +377,7 @@ class TestAutoProvisioning:
 
     @pytest.mark.anyio
     async def test_new_user_has_supabase_uid(self):
-        from app.api.v1.endpoints.auth_sso import _find_or_create_user
+        from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         uid = str(uuid.uuid4())
         db = _make_db(supabase_user=None, email_user=None)
         with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
@@ -581,17 +581,17 @@ class TestSSOEndpoint:
 class TestSecurityInvariants:
 
     def test_sso_response_no_supabase_token_field(self):
-        from app.api.v1.endpoints.auth_sso import SSOResponse
+        from asc_api.api.v1.endpoints.auth_sso import SSOResponse
         fields = SSOResponse.model_fields
         assert "supabase_token" not in fields
         assert "hashed_password" not in fields
 
     def test_sso_response_has_access_token(self):
-        from app.api.v1.endpoints.auth_sso import SSOResponse
+        from asc_api.api.v1.endpoints.auth_sso import SSOResponse
         assert "access_token" in SSOResponse.model_fields
 
     def test_sso_response_has_provisioned_flag(self):
-        from app.api.v1.endpoints.auth_sso import SSOResponse
+        from asc_api.api.v1.endpoints.auth_sso import SSOResponse
         assert "provisioned" in SSOResponse.model_fields
 
     def test_tampered_rs256_header_rejected_with_wrong_key(self):
@@ -600,7 +600,7 @@ class TestSecurityInvariants:
         from fastapi import HTTPException
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.backends import default_backend
-        from app.api.v1.endpoints.auth_sso import _validate_supabase_token
+        from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
 
         # Create HS256 token then tamper the header to claim RS256
         token = pyjwt.encode(
@@ -634,19 +634,19 @@ class TestSecurityInvariants:
         assert exc.value.detail["code"] == "supabase_token_invalid"
 
     def test_user_model_has_supabase_uid(self):
-        from app.models.user import User
+        from asc_api.models.user import User
         assert hasattr(User, "supabase_uid")
 
     def test_sso_endpoint_has_no_auth_dependency(self):
         """SSO endpoint must NOT require an existing ASC token — it IS the login."""
         import inspect
-        from app.api.v1.endpoints.auth_sso import supabase_sso
+        from asc_api.api.v1.endpoints.auth_sso import supabase_sso
         sig = str(inspect.signature(supabase_sso).parameters)
         assert "get_current_user" not in sig
         assert "get_current_admin" not in sig
 
     def test_config_has_supabase_jwt_secret(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert hasattr(s, "SUPABASE_JWT_SECRET")
         assert hasattr(s, "SUPABASE_URL")
@@ -654,7 +654,7 @@ class TestSecurityInvariants:
         assert hasattr(s, "SSO_DEFAULT_PLAN")
 
     def test_supabase_uid_index_on_user_table(self):
-        from app.models.user import User
+        from asc_api.models.user import User
         columns = {c.name: c for c in User.__table__.c}
         assert "supabase_uid" in columns
         col = columns["supabase_uid"]
@@ -662,7 +662,7 @@ class TestSecurityInvariants:
 
     def test_sso_default_plan_is_not_enterprise(self):
         """SSO users should not auto-get enterprise plan."""
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert s.SSO_DEFAULT_PLAN in ("free", "pro")
 
@@ -746,22 +746,22 @@ class TestMigrationArtifact:
 class TestModuleStructure:
 
     def test_auth_sso_importable(self):
-        from app.api.v1.endpoints.auth_sso import router, supabase_sso
+        from asc_api.api.v1.endpoints.auth_sso import router, supabase_sso
         assert router.prefix == "/auth"
         assert callable(supabase_sso)
 
     def test_user_model_supabase_uid_nullable(self):
-        from app.models.user import User
+        from asc_api.models.user import User
         columns = {c.name: c for c in User.__table__.c}
         assert "supabase_uid" in columns
         assert columns["supabase_uid"].nullable is True
 
     def test_sso_request_schema_has_supabase_token(self):
-        from app.api.v1.endpoints.auth_sso import SSORequest
+        from asc_api.api.v1.endpoints.auth_sso import SSORequest
         assert "supabase_token" in SSORequest.model_fields
 
     def test_sso_response_fields(self):
-        from app.api.v1.endpoints.auth_sso import SSOResponse
+        from asc_api.api.v1.endpoints.auth_sso import SSOResponse
         for field in ("access_token", "token_type", "tenant_id", "user_id", "email", "role", "provisioned"):
             assert field in SSOResponse.model_fields, f"Missing field: {field}"
 

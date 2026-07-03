@@ -29,11 +29,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.core.webhook_dispatcher import sign_payload, verify_signature
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.core.webhook_dispatcher import sign_payload, verify_signature
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -144,7 +144,7 @@ class TestWebhookDispatcher:
 
     @pytest.mark.asyncio
     async def test_deliver_to_url_success(self):
-        from app.core.webhook_dispatcher import deliver_to_url
+        from asc_api.core.webhook_dispatcher import deliver_to_url
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -169,7 +169,7 @@ class TestWebhookDispatcher:
 
     @pytest.mark.asyncio
     async def test_deliver_to_url_failure_status(self):
-        from app.core.webhook_dispatcher import deliver_to_url
+        from asc_api.core.webhook_dispatcher import deliver_to_url
 
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -189,7 +189,7 @@ class TestWebhookDispatcher:
 
     @pytest.mark.asyncio
     async def test_deliver_to_url_network_error_returns_false(self):
-        from app.core.webhook_dispatcher import deliver_to_url
+        from asc_api.core.webhook_dispatcher import deliver_to_url
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -209,7 +209,7 @@ class TestWebhookDispatcher:
     @pytest.mark.asyncio
     async def test_deliver_to_url_sends_signature_header(self):
         """The X-ASC-Signature header must be set on every delivery."""
-        from app.core.webhook_dispatcher import deliver_to_url
+        from asc_api.core.webhook_dispatcher import deliver_to_url
 
         captured_headers = {}
 
@@ -238,7 +238,7 @@ class TestWebhookDispatcher:
     @pytest.mark.asyncio
     async def test_deliver_to_url_sends_event_and_delivery_headers(self):
         """X-ASC-Event and X-ASC-Delivery headers must be present."""
-        from app.core.webhook_dispatcher import deliver_to_url
+        from asc_api.core.webhook_dispatcher import deliver_to_url
 
         captured_headers = {}
 
@@ -651,7 +651,7 @@ class TestWebhookSecurity:
     @pytest.mark.asyncio
     async def test_emit_webhook_event_filters_by_event_type(self):
         """Only webhooks subscribed to the event receive delivery."""
-        from app.core.webhook_dispatcher import emit_webhook_event
+        from asc_api.core.webhook_dispatcher import emit_webhook_event
 
         wh_subscribed = _make_webhook(str(uuid.uuid4()))
         wh_subscribed.events = ["incident.created"]
@@ -708,17 +708,17 @@ class TestWebhookDeploymentArtifacts:
         assert "webhooks" in content
 
     def test_models_init_exports_webhook(self):
-        from app.models import Webhook
+        from asc_api.models import Webhook
         assert Webhook is not None
 
     def test_valid_events_set_populated(self):
-        from app.models.webhook import VALID_WEBHOOK_EVENTS
+        from asc_api.models.webhook import VALID_WEBHOOK_EVENTS
         assert "incident.created" in VALID_WEBHOOK_EVENTS
         assert "alert.critical" in VALID_WEBHOOK_EVENTS
         assert "test" in VALID_WEBHOOK_EVENTS
 
     def test_webhook_max_per_user_constant(self):
-        from app.models.webhook import _MAX_WEBHOOKS_PER_USER
+        from asc_api.models.webhook import _MAX_WEBHOOKS_PER_USER
         assert _MAX_WEBHOOKS_PER_USER > 0
 
 
@@ -746,14 +746,14 @@ class TestWebhookRegression:
 
     @pytest.mark.asyncio
     async def test_dispatcher_imports_clean(self):
-        from app.core.webhook_dispatcher import (
+        from asc_api.core.webhook_dispatcher import (
             sign_payload, verify_signature, deliver_to_url, emit_webhook_event
         )
         assert all(callable(f) for f in [sign_payload, verify_signature, deliver_to_url, emit_webhook_event])
 
     @pytest.mark.asyncio
     async def test_p40_p41_imports_still_work(self):
-        from app.api.v1.endpoints.api_keys import create_api_key, rotate_api_key
-        from app.core.api_key_rate_limit import api_key_limiter
+        from asc_api.api.v1.endpoints.api_keys import create_api_key, rotate_api_key
+        from asc_api.core.api_key_rate_limit import api_key_limiter
         assert callable(create_api_key)
         assert api_key_limiter is not None

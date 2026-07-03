@@ -7,9 +7,9 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
-from app.models.ioc import IoC
-from app.models.alert import Alert
+from asc_api.main import app
+from asc_api.models.ioc import IoC
+from asc_api.models.alert import Alert
 
 
 pytestmark = pytest.mark.asyncio
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
     limiter._storage.reset()
     yield
     limiter._storage.reset()

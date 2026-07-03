@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.approval import (
+from asc_api.services.approval import (
     ALWAYS_REQUIRE_APPROVAL,
     APPROVAL_SEVERITIES,
     TIMEOUT_BY_SEVERITY,
@@ -30,7 +30,7 @@ from app.services.approval import (
     reject_action,
     request_action,
 )
-from app.models.neutralization import NeutralizationAction
+from asc_api.models.neutralization import NeutralizationAction
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

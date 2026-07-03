@@ -26,8 +26,8 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.agent import Agent, AgentCommand, AgentEvent
-from app.services.agent_commander import (
+from asc_api.models.agent import Agent, AgentCommand, AgentEvent
+from asc_api.services.agent_commander import (
     compute_poll_interval,
     deescalate_threat_level,
     escalate_threat_level,

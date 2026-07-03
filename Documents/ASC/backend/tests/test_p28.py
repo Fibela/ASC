@@ -37,7 +37,7 @@ def _utcnow() -> datetime:
 
 
 def _make_incident(**kwargs):
-    from app.models.incident import Incident
+    from asc_api.models.incident import Incident
     i = Incident()
     i.id = kwargs.get("id", str(uuid.uuid4()))
     i.title = kwargs.get("title", "Test Incident")
@@ -74,7 +74,7 @@ def _make_incident(**kwargs):
 
 
 def _make_link(**kwargs):
-    from app.models.incident import IncidentLink
+    from asc_api.models.incident import IncidentLink
     l = IncidentLink()
     l.id = kwargs.get("id", str(uuid.uuid4()))
     l.incident_id = kwargs.get("incident_id", str(uuid.uuid4()))
@@ -87,7 +87,7 @@ def _make_link(**kwargs):
 
 
 def _make_timeline_entry(**kwargs):
-    from app.models.incident import IncidentTimeline
+    from asc_api.models.incident import IncidentTimeline
     e = IncidentTimeline()
     e.id = kwargs.get("id", str(uuid.uuid4()))
     e.incident_id = kwargs.get("incident_id", str(uuid.uuid4()))
@@ -151,25 +151,25 @@ def _mock_admin():
 
 class TestIncidentModels:
     def test_incident_constants_complete(self):
-        from app.models.incident import INCIDENT_STATUSES
+        from asc_api.models.incident import INCIDENT_STATUSES
         assert "detected" in INCIDENT_STATUSES
         assert "closed" in INCIDENT_STATUSES
         assert "dismissed" in INCIDENT_STATUSES
         assert len(INCIDENT_STATUSES) == 8
 
     def test_incident_types_defined(self):
-        from app.models.incident import INCIDENT_TYPES
+        from asc_api.models.incident import INCIDENT_TYPES
         assert "malware" in INCIDENT_TYPES
         assert "apt" in INCIDENT_TYPES
         assert "other" in INCIDENT_TYPES
 
     def test_link_entity_types_defined(self):
-        from app.models.incident import LINK_ENTITY_TYPES
+        from asc_api.models.incident import LINK_ENTITY_TYPES
         assert "alert" in LINK_ENTITY_TYPES
         assert "cluster" in LINK_ENTITY_TYPES
 
     def test_timeline_event_types_defined(self):
-        from app.models.incident import TIMELINE_EVENT_TYPES
+        from asc_api.models.incident import TIMELINE_EVENT_TYPES
         assert "created" in TIMELINE_EVENT_TYPES
         assert "status_change" in TIMELINE_EVENT_TYPES
         assert "closed" in TIMELINE_EVENT_TYPES
@@ -206,7 +206,7 @@ class TestIncidentModels:
         assert e.actor == "analyst@test.com"
 
     def test_sla_defaults_all_severities(self):
-        from app.models.incident import DEFAULT_SLA_MINUTES
+        from asc_api.models.incident import DEFAULT_SLA_MINUTES
         assert DEFAULT_SLA_MINUTES["critical"] == 60
         assert DEFAULT_SLA_MINUTES["high"] == 240
         assert DEFAULT_SLA_MINUTES["medium"] == 1440
@@ -218,35 +218,35 @@ class TestIncidentModels:
 
 class TestIncidentValidTransitions:
     def test_detected_can_triage(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "triaged" in VALID_TRANSITIONS["detected"]
 
     def test_detected_can_dismiss(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "dismissed" in VALID_TRANSITIONS["detected"]
 
     def test_triaged_can_contain(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "contained" in VALID_TRANSITIONS["triaged"]
 
     def test_contained_can_rollback_to_triaged(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "triaged" in VALID_TRANSITIONS["contained"]
 
     def test_recovered_leads_to_post_incident(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "post_incident" in VALID_TRANSITIONS["recovered"]
 
     def test_post_incident_leads_to_closed(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert "closed" in VALID_TRANSITIONS["post_incident"]
 
     def test_closed_is_terminal(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert len(VALID_TRANSITIONS["closed"]) == 0
 
     def test_dismissed_is_terminal(self):
-        from app.models.incident import VALID_TRANSITIONS
+        from asc_api.models.incident import VALID_TRANSITIONS
         assert len(VALID_TRANSITIONS["dismissed"]) == 0
 
 
@@ -254,27 +254,27 @@ class TestIncidentValidTransitions:
 
 class TestIncidentNistPhase:
     def test_detected_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["detected"] == "detection_analysis"
 
     def test_triaged_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["triaged"] == "detection_analysis"
 
     def test_contained_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["contained"] == "containment"
 
     def test_recovered_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["recovered"] == "recovery"
 
     def test_closed_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["closed"] == "post_incident_activity"
 
     def test_dismissed_phase(self):
-        from app.models.incident import NIST_PHASE
+        from asc_api.models.incident import NIST_PHASE
         assert NIST_PHASE["dismissed"] == "post_incident_activity"
 
 
@@ -282,30 +282,30 @@ class TestIncidentNistPhase:
 
 class TestMinutesBetween:
     def test_one_hour(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         start = _utcnow()
         end = start + timedelta(hours=1)
         assert _minutes_between(start, end) == 60
 
     def test_none_start_returns_none(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         assert _minutes_between(None, _utcnow()) is None
 
     def test_none_end_returns_none(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         assert _minutes_between(_utcnow(), None) is None
 
     def test_both_none_returns_none(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         assert _minutes_between(None, None) is None
 
     def test_zero_delta_returns_zero(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         t = _utcnow()
         assert _minutes_between(t, t) == 0
 
     def test_partial_minutes_ceil(self):
-        from app.services.incident_service import _minutes_between
+        from asc_api.services.incident_service import _minutes_between
         start = _utcnow()
         end = start + timedelta(seconds=90)  # 1.5 min → ceiled to 2
         result = _minutes_between(start, end)
@@ -316,19 +316,19 @@ class TestMinutesBetween:
 
 class TestSlaForHelper:
     def test_critical_sla(self):
-        from app.services.incident_service import _sla_for
+        from asc_api.services.incident_service import _sla_for
         assert _sla_for("critical") == 60
 
     def test_high_sla(self):
-        from app.services.incident_service import _sla_for
+        from asc_api.services.incident_service import _sla_for
         assert _sla_for("high") == 240
 
     def test_unknown_severity_defaults_to_medium(self):
-        from app.services.incident_service import _sla_for
+        from asc_api.services.incident_service import _sla_for
         assert _sla_for("unknown_sev") == 1440
 
     def test_info_sla(self):
-        from app.services.incident_service import _sla_for
+        from asc_api.services.incident_service import _sla_for
         assert _sla_for("info") == 43200
 
 
@@ -337,7 +337,7 @@ class TestSlaForHelper:
 class TestCreateIncident:
     @pytest.mark.asyncio
     async def test_create_sets_detected_at(self):
-        from app.services.incident_service import create_incident
+        from asc_api.services.incident_service import create_incident
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -346,7 +346,7 @@ class TestCreateIncident:
 
         def capture_add(obj):
             nonlocal created_incident
-            from app.models.incident import Incident
+            from asc_api.models.incident import Incident
             if isinstance(obj, Incident):
                 created_incident = obj
 
@@ -361,7 +361,7 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_sets_sla_from_severity(self):
-        from app.services.incident_service import create_incident
+        from asc_api.services.incident_service import create_incident
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -369,7 +369,7 @@ class TestCreateIncident:
 
         def capture_add(obj):
             nonlocal created_incident
-            from app.models.incident import Incident
+            from asc_api.models.incident import Incident
             if isinstance(obj, Incident):
                 created_incident = obj
 
@@ -384,8 +384,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_adds_timeline_entry(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import IncidentTimeline
         db = AsyncMock()
         added_objects = []
         db.add = MagicMock(side_effect=lambda obj: added_objects.append(obj))
@@ -402,8 +402,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_with_entity_link_adds_link(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import IncidentLink
         db = AsyncMock()
         added_objects = []
         db.add = MagicMock(side_effect=lambda obj: added_objects.append(obj))
@@ -424,8 +424,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_status_is_detected(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import Incident
         db = AsyncMock()
         incidents = []
         db.add = MagicMock(side_effect=lambda obj: incidents.append(obj) if isinstance(obj, Incident) else None)
@@ -441,8 +441,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_medium_sla(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import Incident
         db = AsyncMock()
         incidents = []
         db.add = MagicMock(side_effect=lambda obj: incidents.append(obj) if isinstance(obj, Incident) else None)
@@ -457,7 +457,7 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_commits_db(self):
-        from app.services.incident_service import create_incident
+        from asc_api.services.incident_service import create_incident
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -471,8 +471,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_sets_false_positive_false(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import Incident
         db = AsyncMock()
         incidents = []
         db.add = MagicMock(side_effect=lambda obj: incidents.append(obj) if isinstance(obj, Incident) else None)
@@ -487,8 +487,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_tags_stored(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import Incident
         db = AsyncMock()
         incidents = []
         db.add = MagicMock(side_effect=lambda obj: incidents.append(obj) if isinstance(obj, Incident) else None)
@@ -504,8 +504,8 @@ class TestCreateIncident:
 
     @pytest.mark.asyncio
     async def test_create_no_link_when_entity_id_missing(self):
-        from app.services.incident_service import create_incident
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import create_incident
+        from asc_api.models.incident import IncidentLink
         db = AsyncMock()
         added = []
         db.add = MagicMock(side_effect=lambda obj: added.append(obj))
@@ -535,7 +535,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_detected_to_triaged_sets_triaged_at(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="detected", triaged_at=None)
         db = self._mk_db_with_incident(inc)
 
@@ -548,7 +548,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_triaged_to_contained_sets_contained_at(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="triaged", contained_at=None)
         db = self._mk_db_with_incident(inc)
 
@@ -560,7 +560,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_eradicated_to_recovered_sets_mttr(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="eradicated", recovered_at=None)
         db = self._mk_db_with_incident(inc)
 
@@ -572,7 +572,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_invalid_transition_raises_value_error(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="closed")
         db = self._mk_db_with_incident(inc)
 
@@ -581,7 +581,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_not_found_raises_value_error(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -590,7 +590,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_nist_phase_updated(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="triaged", nist_phase="detection_analysis")
         db = self._mk_db_with_incident(inc)
 
@@ -601,8 +601,8 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_timeline_entry_added(self):
-        from app.services.incident_service import transition_status
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.incident_service import transition_status
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(status="detected")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -620,7 +620,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_dismissed_transition_blocked_from_contained(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="contained")
         db = self._mk_db_with_incident(inc)
 
@@ -629,7 +629,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_triaged_at_not_overwritten_on_second_transition(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         first_triage = _utcnow() - timedelta(hours=1)
         inc = _make_incident(status="contained", triaged_at=first_triage)
         db = self._mk_db_with_incident(inc)
@@ -643,7 +643,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_sla_breach_checked_on_transition(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         # Incident with SLA of 1 minute, detected 10 minutes ago
         inc = _make_incident(
             status="detected",
@@ -659,7 +659,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_commits_after_transition(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="detected")
         db = self._mk_db_with_incident(inc)
 
@@ -670,7 +670,7 @@ class TestTransitionStatus:
 
     @pytest.mark.asyncio
     async def test_contained_to_eradicated_sets_eradicated_at(self):
-        from app.services.incident_service import transition_status
+        from asc_api.services.incident_service import transition_status
         inc = _make_incident(status="contained")
         db = self._mk_db_with_incident(inc)
 
@@ -685,7 +685,7 @@ class TestTransitionStatus:
 class TestAssignIncident:
     @pytest.mark.asyncio
     async def test_assign_sets_assigned_to(self):
-        from app.services.incident_service import assign_incident
+        from asc_api.services.incident_service import assign_incident
         inc = _make_incident(assigned_to=None)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -698,7 +698,7 @@ class TestAssignIncident:
 
     @pytest.mark.asyncio
     async def test_assign_not_found_raises(self):
-        from app.services.incident_service import assign_incident
+        from asc_api.services.incident_service import assign_incident
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -707,8 +707,8 @@ class TestAssignIncident:
 
     @pytest.mark.asyncio
     async def test_assign_adds_timeline(self):
-        from app.services.incident_service import assign_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.incident_service import assign_incident
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(assigned_to=None)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -724,7 +724,7 @@ class TestAssignIncident:
 
     @pytest.mark.asyncio
     async def test_assign_commits(self):
-        from app.services.incident_service import assign_incident
+        from asc_api.services.incident_service import assign_incident
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -741,8 +741,8 @@ class TestAssignIncident:
 class TestLinkEntity:
     @pytest.mark.asyncio
     async def test_link_entity_creates_link(self):
-        from app.services.incident_service import link_entity
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import link_entity
+        from asc_api.models.incident import IncidentLink
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -758,7 +758,7 @@ class TestLinkEntity:
 
     @pytest.mark.asyncio
     async def test_link_entity_not_found_raises(self):
-        from app.services.incident_service import link_entity
+        from asc_api.services.incident_service import link_entity
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -767,8 +767,8 @@ class TestLinkEntity:
 
     @pytest.mark.asyncio
     async def test_link_entity_adds_timeline(self):
-        from app.services.incident_service import link_entity
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.incident_service import link_entity
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -783,8 +783,8 @@ class TestLinkEntity:
 
     @pytest.mark.asyncio
     async def test_link_entity_with_notes(self):
-        from app.services.incident_service import link_entity
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import link_entity
+        from asc_api.models.incident import IncidentLink
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -800,7 +800,7 @@ class TestLinkEntity:
 
     @pytest.mark.asyncio
     async def test_link_entity_commits(self):
-        from app.services.incident_service import link_entity
+        from asc_api.services.incident_service import link_entity
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -813,8 +813,8 @@ class TestLinkEntity:
 
     @pytest.mark.asyncio
     async def test_link_entity_added_by_stored(self):
-        from app.services.incident_service import link_entity
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import link_entity
+        from asc_api.models.incident import IncidentLink
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -833,7 +833,7 @@ class TestLinkEntity:
 class TestRemoveLink:
     @pytest.mark.asyncio
     async def test_remove_existing_link_returns_true(self):
-        from app.services.incident_service import remove_link
+        from asc_api.services.incident_service import remove_link
         link = _make_link()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(link))
@@ -846,7 +846,7 @@ class TestRemoveLink:
 
     @pytest.mark.asyncio
     async def test_remove_missing_link_returns_false(self):
-        from app.services.incident_service import remove_link
+        from asc_api.services.incident_service import remove_link
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -855,7 +855,7 @@ class TestRemoveLink:
 
     @pytest.mark.asyncio
     async def test_remove_calls_delete(self):
-        from app.services.incident_service import remove_link
+        from asc_api.services.incident_service import remove_link
         link = _make_link()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(link))
@@ -868,7 +868,7 @@ class TestRemoveLink:
 
     @pytest.mark.asyncio
     async def test_remove_commits(self):
-        from app.services.incident_service import remove_link
+        from asc_api.services.incident_service import remove_link
         link = _make_link()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(link))
@@ -885,8 +885,8 @@ class TestRemoveLink:
 class TestAddNote:
     @pytest.mark.asyncio
     async def test_add_note_returns_timeline_entry(self):
-        from app.services.incident_service import add_note
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.incident_service import add_note
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(status="triaged")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -901,7 +901,7 @@ class TestAddNote:
 
     @pytest.mark.asyncio
     async def test_add_note_to_closed_raises(self):
-        from app.services.incident_service import add_note
+        from asc_api.services.incident_service import add_note
         inc = _make_incident(status="closed")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -911,7 +911,7 @@ class TestAddNote:
 
     @pytest.mark.asyncio
     async def test_add_note_to_dismissed_raises(self):
-        from app.services.incident_service import add_note
+        from asc_api.services.incident_service import add_note
         inc = _make_incident(status="dismissed")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -921,7 +921,7 @@ class TestAddNote:
 
     @pytest.mark.asyncio
     async def test_add_note_not_found_raises(self):
-        from app.services.incident_service import add_note
+        from asc_api.services.incident_service import add_note
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -930,7 +930,7 @@ class TestAddNote:
 
     @pytest.mark.asyncio
     async def test_add_note_commits(self):
-        from app.services.incident_service import add_note
+        from asc_api.services.incident_service import add_note
         inc = _make_incident(status="triaged")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -943,7 +943,7 @@ class TestAddNote:
 
     @pytest.mark.asyncio
     async def test_add_note_actor_stored(self):
-        from app.services.incident_service import add_note
+        from asc_api.services.incident_service import add_note
         inc = _make_incident(status="triaged")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -953,7 +953,7 @@ class TestAddNote:
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
         await add_note(db, inc.id, "sr_analyst@test.com", "Note")
-        from app.models.incident import IncidentTimeline
+        from asc_api.models.incident import IncidentTimeline
         tl = [o for o in added if isinstance(o, IncidentTimeline)]
         assert tl[0].actor == "sr_analyst@test.com"
 
@@ -963,7 +963,7 @@ class TestAddNote:
 class TestCloseIncident:
     @pytest.mark.asyncio
     async def test_close_from_post_incident_seals_hash(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="post_incident", detected_at=_utcnow() - timedelta(hours=2))
         # Simulate transition_status returning updated incident
         call_count = [0]
@@ -987,7 +987,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_sets_lessons_learned(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="post_incident")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1002,7 +1002,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_already_closed_raises(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="closed")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1016,7 +1016,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_dismissed_raises(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="dismissed")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1030,7 +1030,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_from_detected_raises(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="detected")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1044,7 +1044,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_false_positive_flag(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="post_incident")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1058,7 +1058,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_computes_forensic_hash_128_chars(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="post_incident")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1072,7 +1072,7 @@ class TestCloseIncident:
 
     @pytest.mark.asyncio
     async def test_close_commits(self):
-        from app.services.incident_service import close_incident
+        from asc_api.services.incident_service import close_incident
         inc = _make_incident(status="post_incident")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1090,7 +1090,7 @@ class TestCloseIncident:
 class TestDismissIncident:
     @pytest.mark.asyncio
     async def test_dismiss_from_detected(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         inc = _make_incident(status="detected")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1106,7 +1106,7 @@ class TestDismissIncident:
 
     @pytest.mark.asyncio
     async def test_dismiss_from_triaged(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         inc = _make_incident(status="triaged")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1120,7 +1120,7 @@ class TestDismissIncident:
 
     @pytest.mark.asyncio
     async def test_dismiss_from_contained_raises(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         inc = _make_incident(status="contained")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1130,7 +1130,7 @@ class TestDismissIncident:
 
     @pytest.mark.asyncio
     async def test_dismiss_seals_forensic_hash(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         inc = _make_incident(status="detected")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1144,7 +1144,7 @@ class TestDismissIncident:
 
     @pytest.mark.asyncio
     async def test_dismiss_not_found_raises(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -1153,7 +1153,7 @@ class TestDismissIncident:
 
     @pytest.mark.asyncio
     async def test_dismiss_commits(self):
-        from app.services.incident_service import dismiss_incident
+        from asc_api.services.incident_service import dismiss_incident
         inc = _make_incident(status="detected")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1171,7 +1171,7 @@ class TestDismissIncident:
 class TestUpdateMitre:
     @pytest.mark.asyncio
     async def test_update_tactics(self):
-        from app.services.incident_service import update_mitre
+        from asc_api.services.incident_service import update_mitre
         inc = _make_incident(mitre_tactics=[], mitre_techniques=[])
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1185,7 +1185,7 @@ class TestUpdateMitre:
 
     @pytest.mark.asyncio
     async def test_update_techniques(self):
-        from app.services.incident_service import update_mitre
+        from asc_api.services.incident_service import update_mitre
         inc = _make_incident(mitre_tactics=[], mitre_techniques=[])
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1199,7 +1199,7 @@ class TestUpdateMitre:
 
     @pytest.mark.asyncio
     async def test_update_not_found_raises(self):
-        from app.services.incident_service import update_mitre
+        from asc_api.services.incident_service import update_mitre
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -1208,7 +1208,7 @@ class TestUpdateMitre:
 
     @pytest.mark.asyncio
     async def test_update_commits(self):
-        from app.services.incident_service import update_mitre
+        from asc_api.services.incident_service import update_mitre
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(inc))
@@ -1225,7 +1225,7 @@ class TestUpdateMitre:
 class TestGetIncidentSummary:
     @pytest.mark.asyncio
     async def test_summary_returns_total(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock()
@@ -1256,7 +1256,7 @@ class TestGetIncidentSummary:
 
     @pytest.mark.asyncio
     async def test_summary_by_status_keys(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock(); r.scalar_one = MagicMock(return_value=value); return r
@@ -1284,7 +1284,7 @@ class TestGetIncidentSummary:
 
     @pytest.mark.asyncio
     async def test_summary_null_avg_handled(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock(); r.scalar_one = MagicMock(return_value=value); return r
@@ -1312,7 +1312,7 @@ class TestGetIncidentSummary:
 
     @pytest.mark.asyncio
     async def test_summary_has_generated_at(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock(); r.scalar_one = MagicMock(return_value=value); return r
@@ -1334,7 +1334,7 @@ class TestGetIncidentSummary:
 
     @pytest.mark.asyncio
     async def test_summary_sla_breach_count(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock(); r.scalar_one = MagicMock(return_value=value); return r
@@ -1361,7 +1361,7 @@ class TestGetIncidentSummary:
 
     @pytest.mark.asyncio
     async def test_summary_avg_rounded(self):
-        from app.services.incident_service import get_incident_summary
+        from asc_api.services.incident_service import get_incident_summary
 
         def _make_scalar_one_exec(value):
             r = MagicMock(); r.scalar_one = MagicMock(return_value=value); return r
@@ -1392,7 +1392,7 @@ class TestGetIncidentSummary:
 class TestAutoCreateFromCluster:
     @pytest.mark.asyncio
     async def test_creates_incident_for_campaign(self):
-        from app.services.incident_service import auto_create_from_cluster
+        from asc_api.services.incident_service import auto_create_from_cluster
         cluster = _make_cluster(severity="high", cluster_type="host_pivot",
                                 cluster_key="ws-001")
         db = AsyncMock()
@@ -1411,7 +1411,7 @@ class TestAutoCreateFromCluster:
 
     @pytest.mark.asyncio
     async def test_skips_if_already_linked(self):
-        from app.services.incident_service import auto_create_from_cluster
+        from asc_api.services.incident_service import auto_create_from_cluster
         cluster = _make_cluster()
         existing_link = _make_link(entity_type="cluster", entity_id=cluster.id)
         db = AsyncMock()
@@ -1422,8 +1422,8 @@ class TestAutoCreateFromCluster:
 
     @pytest.mark.asyncio
     async def test_created_by_is_system(self):
-        from app.services.incident_service import auto_create_from_cluster
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import auto_create_from_cluster
+        from asc_api.models.incident import Incident
         cluster = _make_cluster()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
@@ -1439,8 +1439,8 @@ class TestAutoCreateFromCluster:
 
     @pytest.mark.asyncio
     async def test_links_cluster_entity(self):
-        from app.services.incident_service import auto_create_from_cluster
-        from app.models.incident import IncidentLink
+        from asc_api.services.incident_service import auto_create_from_cluster
+        from asc_api.models.incident import IncidentLink
         cluster = _make_cluster()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
@@ -1457,8 +1457,8 @@ class TestAutoCreateFromCluster:
 
     @pytest.mark.asyncio
     async def test_incident_type_is_apt(self):
-        from app.services.incident_service import auto_create_from_cluster
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import auto_create_from_cluster
+        from asc_api.models.incident import Incident
         cluster = _make_cluster()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
@@ -1474,8 +1474,8 @@ class TestAutoCreateFromCluster:
 
     @pytest.mark.asyncio
     async def test_severity_inherited_from_cluster(self):
-        from app.services.incident_service import auto_create_from_cluster
-        from app.models.incident import Incident
+        from asc_api.services.incident_service import auto_create_from_cluster
+        from asc_api.models.incident import Incident
         cluster = _make_cluster(severity="critical")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
@@ -1494,7 +1494,7 @@ class TestAutoCreateFromCluster:
 
 def _make_endpoint_app():
     from fastapi import FastAPI
-    from app.api.v1.endpoints.incidents import router
+    from asc_api.api.v1.endpoints.incidents import router
     app = FastAPI()
     app.include_router(router)
     return app
@@ -1517,8 +1517,8 @@ class TestIncidentEndpoints:
 
     def test_list_with_auth_calls_service(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -1534,8 +1534,8 @@ class TestIncidentEndpoints:
 
     def test_create_returns_201(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         inc = _make_incident(id="test-id")
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
@@ -1553,8 +1553,8 @@ class TestIncidentEndpoints:
 
     def test_create_invalid_incident_type_422(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -1569,8 +1569,8 @@ class TestIncidentEndpoints:
 
     def test_get_incident_not_found_404(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -1583,8 +1583,8 @@ class TestIncidentEndpoints:
 
     def test_status_transition_invalid_state_422(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -1598,8 +1598,8 @@ class TestIncidentEndpoints:
 
     def test_close_incident_200(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         inc = _make_incident(status="closed", forensic_hash="a" * 128)
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
@@ -1613,8 +1613,8 @@ class TestIncidentEndpoints:
 
     def test_dismiss_returns_200(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         inc = _make_incident(status="dismissed")
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
@@ -1628,8 +1628,8 @@ class TestIncidentEndpoints:
 
     def test_add_note_returns_201(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         entry = _make_timeline_entry(event_type="note_added")
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()

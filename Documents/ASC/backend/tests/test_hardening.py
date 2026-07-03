@@ -46,7 +46,7 @@ def _make_app_with_middleware(middleware_cls, **kwargs):
 
 class TestSecurityHeadersMiddleware:
     def setup_method(self):
-        from app.core.middleware import SecurityHeadersMiddleware
+        from asc_api.core.middleware import SecurityHeadersMiddleware
         self.app_prod = _make_app_with_middleware(SecurityHeadersMiddleware, debug=False)
         self.app_dev  = _make_app_with_middleware(SecurityHeadersMiddleware, debug=True)
         self.client_prod = TestClient(self.app_prod, raise_server_exceptions=True)
@@ -91,7 +91,7 @@ class TestSecurityHeadersMiddleware:
 
 class TestBodySizeLimitMiddleware:
     def setup_method(self):
-        from app.core.middleware import BodySizeLimitMiddleware
+        from asc_api.core.middleware import BodySizeLimitMiddleware
         app = FastAPI()
 
         @app.post("/upload")
@@ -142,7 +142,7 @@ class TestBodySizeLimitMiddleware:
 
 class TestStartupChecks:
     def _run(self, secret_key: str, cors_origins: list, debug: bool = False):
-        from app.core.startup_checks import run_startup_checks
+        from asc_api.core.startup_checks import run_startup_checks
         settings = MagicMock()
         settings.SECRET_KEY = secret_key
         settings.CORS_ORIGINS = cors_origins
@@ -187,7 +187,7 @@ class TestStartupChecks:
 
 class TestRateLimitConfig:
     def test_rate_limit_settings_exist(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert hasattr(s, "RATE_LIMIT_LOGIN")
         assert hasattr(s, "RATE_LIMIT_REGISTER")
@@ -195,7 +195,7 @@ class TestRateLimitConfig:
         assert hasattr(s, "RATE_LIMIT_CHANGE_PASSWORD")
 
     def test_rate_limit_format_valid(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         for attr in ("RATE_LIMIT_LOGIN", "RATE_LIMIT_REGISTER", "RATE_LIMIT_REFRESH"):
             val = getattr(s, attr)
@@ -204,11 +204,11 @@ class TestRateLimitConfig:
             assert parts[0].isdigit(), f"{attr} count is not a number: {val}"
 
     def test_limiter_is_importable(self):
-        from app.core.rate_limit import limiter
+        from asc_api.core.rate_limit import limiter
         assert limiter is not None
 
     def test_request_max_body_bytes_exists(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.REQUEST_MAX_BODY_BYTES > 0
         assert s.REQUEST_MAX_BODY_BYTES >= 1024 * 1024  # at least 1 MB
@@ -218,32 +218,32 @@ class TestRateLimitConfig:
 
 class TestHealthReadiness:
     def test_readiness_returns_ready_when_db_ok(self):
-        from app.api.v1.endpoints.health import readiness
+        from asc_api.api.v1.endpoints.health import readiness
         # readiness() is async — test the structure logic directly
         import inspect
         assert inspect.iscoroutinefunction(readiness)
 
     def test_readiness_has_redis_check_in_source(self):
         import inspect
-        from app.api.v1.endpoints import health
+        from asc_api.api.v1.endpoints import health
         src = inspect.getsource(health.readiness)
         assert "redis" in src.lower()
         assert "ping" in src.lower()
 
     def test_readiness_check_keys_include_redis(self):
         import inspect
-        from app.api.v1.endpoints import health
+        from asc_api.api.v1.endpoints import health
         src = inspect.getsource(health.readiness)
         assert '"redis"' in src
 
     def test_liveness_is_sync_free(self):
         import inspect
-        from app.api.v1.endpoints.health import liveness
+        from asc_api.api.v1.endpoints.health import liveness
         assert inspect.iscoroutinefunction(liveness)
 
     @pytest.mark.asyncio
     async def test_liveness_returns_alive(self):
-        from app.api.v1.endpoints.health import liveness
+        from asc_api.api.v1.endpoints.health import liveness
         result = await liveness()
         assert result["status"] == "alive"
         assert "ts" in result
@@ -279,7 +279,7 @@ class TestAlembicMigration:
 
 class TestRequestContextMiddleware:
     def setup_method(self):
-        from app.core.middleware import RequestContextMiddleware
+        from asc_api.core.middleware import RequestContextMiddleware
         self.app = _make_app_with_middleware(RequestContextMiddleware)
         self.client = TestClient(self.app)
 
@@ -337,20 +337,20 @@ class TestDocProtection:
 class TestAnalyzerHashFix:
     def test_md5_has_usedforsecurity_false(self):
         import inspect
-        from app.services import analyzer
+        from asc_api.services import analyzer
         src = inspect.getsource(analyzer._compute_hashes)
         assert "usedforsecurity=False" in src
 
     def test_sha1_has_usedforsecurity_false(self):
         import inspect
-        from app.services import analyzer
+        from asc_api.services import analyzer
         src = inspect.getsource(analyzer._compute_hashes)
         lines = src.split("\n")
         sha1_lines = [l for l in lines if "sha1" in l]
         assert any("usedforsecurity=False" in l for l in sha1_lines)
 
     def test_compute_hashes_produces_three_digests(self):
-        from app.services.analyzer import _compute_hashes
+        from asc_api.services.analyzer import _compute_hashes
         result = _compute_hashes(b"test data for hashing")
         assert "md5" in result
         assert "sha1" in result

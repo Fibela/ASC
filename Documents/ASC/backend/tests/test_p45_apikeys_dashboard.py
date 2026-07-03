@@ -30,10 +30,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -533,7 +533,7 @@ class TestP45DeploymentAndRegression:
         assert "useAuthGuard" in content
 
     def test_p42_dispatcher_still_importable(self):
-        from app.core.webhook_dispatcher import sign_payload, verify_signature
+        from asc_api.core.webhook_dispatcher import sign_payload, verify_signature
         assert callable(sign_payload) and callable(verify_signature)
 
     def test_p43_sdk_still_present(self):
@@ -545,5 +545,5 @@ class TestP45DeploymentAndRegression:
         assert asc_sdk.__version__ == "0.1.0"
 
     def test_p40_api_keys_backend_still_importable(self):
-        from app.api.v1.endpoints.api_keys import router
+        from asc_api.api.v1.endpoints.api_keys import router
         assert router is not None

@@ -455,18 +455,18 @@ class TestApplicationHealth:
 
     def test_app_importable(self):
         """The FastAPI app must be importable without crashing."""
-        from app.main import app
+        from asc_api.main import app
         assert app is not None
 
     def test_health_route_registered(self):
         """GET /health must be registered (liveness probe for Render)."""
-        from app.main import app
+        from asc_api.main import app
         routes = {r.path for r in app.routes}
         assert "/health" in routes, "/health route not registered — Render liveness probe will fail"
 
     def test_health_route_requires_no_auth(self):
         """The /health endpoint must be accessible without authentication."""
-        from app.main import app
+        from asc_api.main import app
         for route in app.routes:
             if hasattr(route, "path") and route.path == "/health":
                 # Health endpoint must have no dependencies that require auth
@@ -478,27 +478,27 @@ class TestApplicationHealth:
 
     def test_config_importable(self):
         """Settings must be importable — validates all required config fields."""
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         settings = get_settings()
         assert settings is not None
 
     def test_api_router_importable(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         assert api_router is not None
 
     def test_tenant_middleware_importable(self):
         """P51 — TenantMiddleware must be importable."""
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
         assert TenantMiddleware is not None
 
     def test_tenant_context_importable(self):
-        from app.core.tenant_context import get_tenant_id, set_tenant_id
+        from asc_api.core.tenant_context import get_tenant_id, set_tenant_id
         assert callable(get_tenant_id)
         assert callable(set_tenant_id)
 
     def test_all_models_importable(self):
         """All SQLAlchemy models must be importable (checks for syntax errors)."""
-        from app.models import (
+        from asc_api.models import (
             User, Alert, APIKey, Webhook, Tenant,
         )
         for model in (User, Alert, APIKey, Webhook, Tenant):
@@ -565,7 +565,7 @@ class TestEndpointAudit:
 
     @pytest.fixture(autouse=True)
     def _routes(self):
-        from app.main import app
+        from asc_api.main import app
         self.app = app
         self.route_map = {
             getattr(r, "path", ""): r
@@ -582,7 +582,7 @@ class TestEndpointAudit:
 
     def test_docs_not_in_production_routes(self):
         """In production (DEBUG=False), /docs must not be accessible."""
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         settings = get_settings()
         if not settings.DEBUG:
             assert "/docs" not in self.route_map or self.route_map.get("/docs") is None, \
@@ -590,7 +590,7 @@ class TestEndpointAudit:
 
     def test_openapi_json_hidden_in_production(self):
         """In production, /openapi.json must not be accessible."""
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         settings = get_settings()
         if not settings.DEBUG:
             assert "/openapi.json" not in self.route_map, \
@@ -610,10 +610,10 @@ class TestDeploymentRegression:
     """All key sprints since P39 are present and wired."""
 
     def test_p47_tenant_model_has_tenant_id(self):
-        from app.models.tenant import Tenant
-        from app.models.user import User
-        from app.models.api_key import APIKey
-        from app.models.webhook import Webhook
+        from asc_api.models.tenant import Tenant
+        from asc_api.models.user import User
+        from asc_api.models.api_key import APIKey
+        from asc_api.models.webhook import Webhook
         for model in (User, APIKey, Webhook):
             assert hasattr(model, "tenant_id"), f"{model.__name__} missing tenant_id"
 
@@ -636,7 +636,7 @@ class TestDeploymentRegression:
 
     def test_observability_endpoint_registered(self):
         """P39 — Prometheus metrics endpoint must be registered."""
-        from app.main import app
+        from asc_api.main import app
         paths = {getattr(r, "path", "") for r in app.routes}
         obs_paths = [p for p in paths if "observability" in p or "metrics" in p]
         assert len(obs_paths) >= 1, "Observability/metrics endpoints not found"

@@ -21,8 +21,8 @@ import pytest
 import structlog
 from structlog.testing import capture_logs
 
-from app.api.v1.endpoints.health import format_uptime
-from app.core.audit import log_auth_event, log_security_action
+from asc_api.api.v1.endpoints.health import format_uptime
+from asc_api.core.audit import log_auth_event, log_security_action
 
 
 # ══════════════════════════════════════════════════════════════════════════════

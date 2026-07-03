@@ -32,7 +32,7 @@ import pytest
 
 def _make_mock_action(**kwargs):
     """Build a minimal mock IdentityAction for tests that don't need the DB."""
-    from app.models.identity_action import IdentityAction
+    from asc_api.models.identity_action import IdentityAction
     a = IdentityAction()
     now = datetime.now(timezone.utc)
     a.id = str(uuid.uuid4())
@@ -81,7 +81,7 @@ class TestPIDSCanonical:
     """Verify _build_canonical, _compute_hash, _sign_hash, _verify_signature."""
 
     def test_canonical_includes_required_fields(self):
-        from app.services.pids_service import _build_canonical
+        from asc_api.services.pids_service import _build_canonical
         a = _make_mock_action(
             action_type="disable_account",
             username="jdoe",
@@ -97,34 +97,34 @@ class TestPIDSCanonical:
 
     def test_canonical_excludes_mutable_hash_fields(self):
         """hash_sha3_512 and signature_ed25519 must NOT be in canonical."""
-        from app.services.pids_service import _build_canonical
+        from asc_api.services.pids_service import _build_canonical
         a = _make_mock_action()
         c = _build_canonical(a)
         assert "hash_sha3_512" not in c
         assert "signature_ed25519" not in c
 
     def test_canonical_is_deterministic(self):
-        from app.services.pids_service import _build_canonical
+        from asc_api.services.pids_service import _build_canonical
         a = _make_mock_action()
         c1 = _build_canonical(a)
         c2 = _build_canonical(a)
         assert c1 == c2
 
     def test_compute_hash_returns_128_hex_chars(self):
-        from app.services.pids_service import _compute_hash, _build_canonical
+        from asc_api.services.pids_service import _compute_hash, _build_canonical
         a = _make_mock_action()
         h = _compute_hash(_build_canonical(a))
         assert len(h) == 128
         assert all(c in "0123456789abcdef" for c in h)
 
     def test_compute_hash_changes_with_different_payload(self):
-        from app.services.pids_service import _compute_hash, _build_canonical
+        from asc_api.services.pids_service import _compute_hash, _build_canonical
         a1 = _make_mock_action(username="alice")
         a2 = _make_mock_action(username="bob")
         assert _compute_hash(_build_canonical(a1)) != _compute_hash(_build_canonical(a2))
 
     def test_sign_hash_returns_none_without_key(self):
-        from app.services.pids_service import _sign_hash
+        from asc_api.services.pids_service import _sign_hash
         with patch("os.getenv", return_value=None):
             result = _sign_hash("somehash")
         assert result is None
@@ -139,7 +139,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_create_action_valid_type(self):
-        from app.services.pids_service import create_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import create_identity_action, _build_canonical, _compute_hash
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -170,7 +170,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_create_action_invalid_type_raises(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         with pytest.raises(ValueError, match="Invalid action_type"):
             await create_identity_action(
@@ -183,7 +183,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_create_action_all_valid_types(self):
-        from app.services.pids_service import create_identity_action, _VALID_ACTION_TYPES
+        from asc_api.services.pids_service import create_identity_action, _VALID_ACTION_TYPES
         valid = sorted(_VALID_ACTION_TYPES)
         for action_type in valid:
             mock_db = AsyncMock()
@@ -203,7 +203,7 @@ class TestPIDSCreateAction:
     @pytest.mark.asyncio
     async def test_hash_is_computed_before_persist(self):
         """Hash must reflect the action state at creation time."""
-        from app.services.pids_service import create_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import create_identity_action, _build_canonical, _compute_hash
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -223,7 +223,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_context_linkage_fields_stored(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         hunt_id = str(uuid.uuid4())
         finding_id = str(uuid.uuid4())
         trigger_id = str(uuid.uuid4())
@@ -251,7 +251,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_signed_by_email_matches_initiated_by(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -270,7 +270,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_success_false_by_default(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -287,7 +287,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_db_add_and_commit_called(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -305,7 +305,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_signature_stored_when_key_available(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -322,7 +322,7 @@ class TestPIDSCreateAction:
 
     @pytest.mark.asyncio
     async def test_domain_defaults_to_corp_local(self):
-        from app.services.pids_service import create_identity_action
+        from asc_api.services.pids_service import create_identity_action
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
@@ -347,7 +347,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_intact_action_hash_match(self):
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action(action_type="disable_account", username="jdoe")
         canonical = _build_canonical(action)
         action.hash_sha3_512 = _compute_hash(canonical)
@@ -361,7 +361,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_tampered_action_hash_mismatch(self):
-        from app.services.pids_service import verify_identity_action
+        from asc_api.services.pids_service import verify_identity_action
         action = _make_mock_action(action_type="disable_account", username="jdoe")
         # Simulate tampered hash
         action.hash_sha3_512 = "a" * 128
@@ -375,7 +375,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_missing_action_returns_error(self):
-        from app.services.pids_service import verify_identity_action
+        from asc_api.services.pids_service import verify_identity_action
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_one(None))
 
@@ -386,7 +386,7 @@ class TestPIDSVerify:
     @pytest.mark.asyncio
     async def test_verify_signature_ok_none_without_public_key(self):
         """signature_ok should be None when no public key env var is set."""
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action()
         canonical = _build_canonical(action)
         action.hash_sha3_512 = _compute_hash(canonical)
@@ -403,7 +403,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_returns_stored_and_computed_hash(self):
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action()
         canonical = _build_canonical(action)
         stored = _compute_hash(canonical)
@@ -418,7 +418,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_returns_action_type_and_username(self):
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action(action_type="quarantine_account", username="mallory")
         canonical = _build_canonical(action)
         action.hash_sha3_512 = _compute_hash(canonical)
@@ -432,7 +432,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_no_signature_signature_ok_none(self):
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action()
         canonical = _build_canonical(action)
         action.hash_sha3_512 = _compute_hash(canonical)
@@ -446,7 +446,7 @@ class TestPIDSVerify:
 
     @pytest.mark.asyncio
     async def test_verify_uses_action_id_in_response(self):
-        from app.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
+        from asc_api.services.pids_service import verify_identity_action, _build_canonical, _compute_hash
         action = _make_mock_action()
         canonical = _build_canonical(action)
         action.hash_sha3_512 = _compute_hash(canonical)
@@ -465,7 +465,7 @@ class TestPIDSVerify:
 class TestPIDSList:
     @pytest.mark.asyncio
     async def test_list_all_returns_list_of_dicts(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         actions = [_make_mock_action(), _make_mock_action()]
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result(actions))
@@ -475,7 +475,7 @@ class TestPIDSList:
 
     @pytest.mark.asyncio
     async def test_list_empty_returns_empty_list(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         result = await list_identity_actions(mock_db)
@@ -483,7 +483,7 @@ class TestPIDSList:
 
     @pytest.mark.asyncio
     async def test_list_dict_contains_required_keys(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         action = _make_mock_action()
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([action]))
@@ -494,7 +494,7 @@ class TestPIDSList:
 
     @pytest.mark.asyncio
     async def test_list_with_username_filter(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         await list_identity_actions(mock_db, username="alice")
@@ -502,7 +502,7 @@ class TestPIDSList:
 
     @pytest.mark.asyncio
     async def test_list_with_action_type_filter(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         await list_identity_actions(mock_db, action_type="disable_account")
@@ -510,7 +510,7 @@ class TestPIDSList:
 
     @pytest.mark.asyncio
     async def test_list_with_success_filter(self):
-        from app.services.pids_service import list_identity_actions
+        from asc_api.services.pids_service import list_identity_actions
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         await list_identity_actions(mock_db, success=True)
@@ -524,7 +524,7 @@ class TestPIDSList:
 class TestPIDSTimeline:
     @pytest.mark.asyncio
     async def test_timeline_returns_ordered_list(self):
-        from app.services.pids_service import get_identity_timeline
+        from asc_api.services.pids_service import get_identity_timeline
         actions = [_make_mock_action(), _make_mock_action()]
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result(actions))
@@ -534,7 +534,7 @@ class TestPIDSTimeline:
 
     @pytest.mark.asyncio
     async def test_timeline_empty_for_unknown_hunt(self):
-        from app.services.pids_service import get_identity_timeline
+        from asc_api.services.pids_service import get_identity_timeline
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         result = await get_identity_timeline(mock_db, "nonexistent-hunt")
@@ -542,7 +542,7 @@ class TestPIDSTimeline:
 
     @pytest.mark.asyncio
     async def test_timeline_dicts_have_hunt_id(self):
-        from app.services.pids_service import get_identity_timeline
+        from asc_api.services.pids_service import get_identity_timeline
         hunt_id = str(uuid.uuid4())
         action = _make_mock_action(hunt_id=hunt_id)
         mock_db = AsyncMock()
@@ -552,7 +552,7 @@ class TestPIDSTimeline:
 
     @pytest.mark.asyncio
     async def test_timeline_executes_db_query(self):
-        from app.services.pids_service import get_identity_timeline
+        from asc_api.services.pids_service import get_identity_timeline
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([]))
         await get_identity_timeline(mock_db, "any-hunt")
@@ -566,7 +566,7 @@ class TestPIDSTimeline:
 class TestPIDSSummary:
     @pytest.mark.asyncio
     async def test_summary_returns_required_keys(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_val(0))
         result = await get_pids_summary(mock_db)
@@ -575,7 +575,7 @@ class TestPIDSSummary:
 
     @pytest.mark.asyncio
     async def test_summary_zero_when_no_actions(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_val(0))
         result = await get_pids_summary(mock_db)
@@ -584,7 +584,7 @@ class TestPIDSSummary:
 
     @pytest.mark.asyncio
     async def test_summary_calculates_failed_actions(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         call_count = [0]
         results = [10, 7, 3]  # total, successful, recent
 
@@ -604,7 +604,7 @@ class TestPIDSSummary:
 
     @pytest.mark.asyncio
     async def test_summary_hunt_id_in_response(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_val(0))
         result = await get_pids_summary(mock_db, hunt_id="hunt-abc")
@@ -612,7 +612,7 @@ class TestPIDSSummary:
 
     @pytest.mark.asyncio
     async def test_summary_none_hunt_id_when_global(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_val(0))
         result = await get_pids_summary(mock_db)
@@ -620,7 +620,7 @@ class TestPIDSSummary:
 
     @pytest.mark.asyncio
     async def test_summary_success_rate_100_when_all_succeed(self):
-        from app.services.pids_service import get_pids_summary
+        from asc_api.services.pids_service import get_pids_summary
         call_count = [0]
         results = [5, 5, 2]
 
@@ -645,7 +645,7 @@ class TestPIDSConditionTypes:
     """Test new identity_group and iam_event condition types in _evaluate_condition."""
 
     def _make_trigger(self, ctype, op, val):
-        from app.models.soar import PlaybookTrigger
+        from asc_api.models.soar import PlaybookTrigger
         t = PlaybookTrigger()
         t.condition_type = ctype
         t.condition_operator = op
@@ -653,49 +653,49 @@ class TestPIDSConditionTypes:
         return t
 
     def test_identity_group_eq_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("identity_group", "eq", "Domain Admins")
         ctx = {"groups": ["Domain Admins", "Users"]}
         assert _evaluate_condition(t, ctx) is True
 
     def test_identity_group_eq_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("identity_group", "eq", "Domain Admins")
         ctx = {"groups": ["Users", "Guests"]}
         assert _evaluate_condition(t, ctx) is False
 
     def test_identity_group_contains_any_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("identity_group", "contains", "Domain Admins, Enterprise Admins")
         ctx = {"groups": ["Enterprise Admins", "Users"]}
         assert _evaluate_condition(t, ctx) is True
 
     def test_identity_group_missing_in_context(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("identity_group", "eq", "Admins")
         ctx = {}  # groups key absent
         assert _evaluate_condition(t, ctx) is False
 
     def test_iam_event_eq_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("iam_event", "eq", "account_disabled")
         ctx = {"iam_action": "account_disabled"}
         assert _evaluate_condition(t, ctx) is True
 
     def test_iam_event_eq_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("iam_event", "eq", "account_disabled")
         ctx = {"iam_action": "password_reset"}
         assert _evaluate_condition(t, ctx) is False
 
     def test_iam_event_contains_multi(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("iam_event", "contains", "account_disabled, password_reset")
         ctx = {"iam_action": "password_reset"}
         assert _evaluate_condition(t, ctx) is True
 
     def test_identity_group_non_list_returns_false(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         t = self._make_trigger("identity_group", "eq", "Admins")
         ctx = {"groups": "Domain Admins"}  # string, not list
         assert _evaluate_condition(t, ctx) is False
@@ -709,7 +709,7 @@ class TestAdaptiveOrchestration:
     """Test priority sorting and dedup window in evaluate_triggers_for_context."""
 
     def _make_trigger(self, *, priority=5, dedup=0, enabled=True):
-        from app.models.soar import PlaybookTrigger
+        from asc_api.models.soar import PlaybookTrigger
         t = PlaybookTrigger()
         t.id = str(uuid.uuid4())
         t.playbook_id = "PB-001"
@@ -730,7 +730,7 @@ class TestAdaptiveOrchestration:
     @pytest.mark.asyncio
     async def test_triggers_sorted_by_priority_descending(self):
         """Higher priority triggers should be evaluated first."""
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
 
         fire_order = []
 
@@ -759,7 +759,7 @@ class TestAdaptiveOrchestration:
     @pytest.mark.asyncio
     async def test_dedup_active_skips_trigger(self):
         """Trigger with dedup_window > 0 should be skipped if run awaiting_approval exists."""
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
 
         t = self._make_trigger(priority=5, dedup=60)
 
@@ -776,7 +776,7 @@ class TestAdaptiveOrchestration:
     @pytest.mark.asyncio
     async def test_dedup_inactive_allows_trigger(self):
         """Trigger with dedup=0 should always fire (no dedup check)."""
-        from app.services.soar_service import evaluate_triggers_for_context
+        from asc_api.services.soar_service import evaluate_triggers_for_context
 
         t = self._make_trigger(priority=5, dedup=0)
         fired = []
@@ -800,9 +800,9 @@ class TestAdaptiveOrchestration:
     @pytest.mark.asyncio
     async def test_identity_context_passed_to_playbook(self):
         """affected_user and affected_domain from context should reach PlaybookContext."""
-        from app.services.soar_service import _fire_trigger
-        from app.models.soar import PlaybookTrigger
-        import app.services.soar_service as soar_svc
+        from asc_api.services.soar_service import _fire_trigger
+        from asc_api.models.soar import PlaybookTrigger
+        import asc_api.services.soar_service as soar_svc
 
         t = PlaybookTrigger()
         t.id = str(uuid.uuid4())
@@ -846,7 +846,7 @@ class TestAdaptiveOrchestration:
     @pytest.mark.asyncio
     async def test_new_trigger_fields_in_create_trigger_response(self):
         """create_trigger should store and return priority/rate_limit_per_hour/dedup_window_minutes."""
-        from app.services.soar_service import create_trigger
+        from asc_api.services.soar_service import create_trigger
 
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
@@ -874,7 +874,7 @@ class TestAdaptiveOrchestration:
 
     @pytest.mark.asyncio
     async def test_create_trigger_invalid_priority_returns_error(self):
-        from app.services.soar_service import create_trigger
+        from asc_api.services.soar_service import create_trigger
         mock_db = AsyncMock()
         result = await create_trigger(
             mock_db,
@@ -898,7 +898,7 @@ class TestPlaybookIdentitySteps:
     """Test DISABLE_ACCOUNT, FORCE_PASSWORD_RESET, QUARANTINE_ACCOUNT step execution."""
 
     def _make_run(self, user="jdoe"):
-        from app.models.playbook_run import PlaybookRun
+        from asc_api.models.playbook_run import PlaybookRun
         r = PlaybookRun()
         r.id = str(uuid.uuid4())
         r.playbook_id = "PB-005"
@@ -908,7 +908,7 @@ class TestPlaybookIdentitySteps:
         return r
 
     def _make_ctx(self, user="jdoe", domain="corp.local"):
-        from app.services.playbook import PlaybookContext
+        from asc_api.services.playbook import PlaybookContext
         return PlaybookContext(
             semaphore="red",
             risk_score=0.9,
@@ -919,7 +919,7 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_disable_account_step_calls_ad_adapter(self):
-        from app.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import _execute_identity_step
 
         mock_action = _make_mock_action(action_type="disable_account", success=True)
         mock_db = AsyncMock()
@@ -939,7 +939,7 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_force_password_reset_step(self):
-        from app.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import _execute_identity_step
 
         mock_action = _make_mock_action(action_type="force_password_reset", success=True)
         mock_db = AsyncMock()
@@ -957,7 +957,7 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_quarantine_account_step(self):
-        from app.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import _execute_identity_step
 
         mock_action = _make_mock_action(action_type="quarantine_account", success=True)
         mock_db = AsyncMock()
@@ -975,8 +975,8 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_identity_step_skipped_when_no_affected_user(self):
-        from app.services.playbook import _execute_identity_step
-        from app.services.playbook import PlaybookContext
+        from asc_api.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import PlaybookContext
 
         ctx = PlaybookContext(semaphore="red", risk_score=0.9, trigger_source="soar_auto")
         # affected_user is None
@@ -989,7 +989,7 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_ad_failure_creates_forensic_record_with_success_false(self):
-        from app.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import _execute_identity_step
 
         mock_action = _make_mock_action(action_type="disable_account", success=False)
         mock_db = AsyncMock()
@@ -1009,7 +1009,7 @@ class TestPlaybookIdentitySteps:
 
     @pytest.mark.asyncio
     async def test_context_affected_user_passed_to_pids(self):
-        from app.services.playbook import _execute_identity_step
+        from asc_api.services.playbook import _execute_identity_step
 
         captured = {}
 
@@ -1039,41 +1039,41 @@ class TestPlaybookIdentitySteps:
 class TestPIDSEndpoints:
     def test_pids_router_registered(self):
         """pids.router must be included in the API router."""
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = [getattr(r, "path", "") for r in api_router.routes]
         pids_routes = [p for p in paths if "/pids" in p]
         assert len(pids_routes) > 0, "No /pids routes found in api_router"
 
     def test_pids_router_has_correct_prefix(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         assert router.prefix == "/pids"
 
     def test_pids_router_tags(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         assert "PIDS" in router.tags
 
     def test_pids_list_actions_route_exists(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         paths = [r.path for r in router.routes]
         assert "/pids/actions" in paths
 
     def test_pids_verify_route_exists(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         paths = [r.path for r in router.routes]
         assert any("verify" in p for p in paths)
 
     def test_pids_timeline_route_exists(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         paths = [r.path for r in router.routes]
         assert any("timeline" in p for p in paths)
 
     def test_pids_summary_route_exists(self):
-        from app.api.v1.endpoints.pids import router
+        from asc_api.api.v1.endpoints.pids import router
         paths = [r.path for r in router.routes]
         assert any("summary" in p for p in paths)
 
     def test_valid_pids_action_types_set(self):
-        from app.services.pids_service import _VALID_ACTION_TYPES
+        from asc_api.services.pids_service import _VALID_ACTION_TYPES
         expected = {"disable_account", "enable_account", "force_password_reset",
                     "quarantine_account", "enrich_user"}
         assert _VALID_ACTION_TYPES == expected
@@ -1087,9 +1087,9 @@ class TestScheduledReportForensic:
     @pytest.mark.asyncio
     async def test_deliver_report_returns_forensic_hash(self):
         """deliver_scheduled_report must return forensic_hash field."""
-        from app.services.soar_service import deliver_scheduled_report
-        from app.models.soar import ScheduledReport
-        from app.models.hunt import Hunt
+        from asc_api.services.soar_service import deliver_scheduled_report
+        from asc_api.models.soar import ScheduledReport
+        from asc_api.models.hunt import Hunt
 
         sr = ScheduledReport()
         sr.id = "rpt-1"
@@ -1144,9 +1144,9 @@ class TestScheduledReportForensic:
     @pytest.mark.asyncio
     async def test_deliver_report_includes_identity_timeline(self):
         """Summary must include identity_timeline key with PIDS data."""
-        from app.services.soar_service import deliver_scheduled_report
-        from app.models.soar import ScheduledReport
-        from app.models.hunt import Hunt
+        from asc_api.services.soar_service import deliver_scheduled_report
+        from asc_api.models.soar import ScheduledReport
+        from asc_api.models.hunt import Hunt
 
         sr = ScheduledReport()
         sr.id = "rpt-2"
@@ -1192,7 +1192,7 @@ class TestScheduledReportForensic:
 
     @pytest.mark.asyncio
     async def test_deliver_report_not_found_returns_error(self):
-        from app.services.soar_service import deliver_scheduled_report
+        from asc_api.services.soar_service import deliver_scheduled_report
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalar_one(None))
         result = await deliver_scheduled_report(mock_db, "nonexistent")
@@ -1202,9 +1202,9 @@ class TestScheduledReportForensic:
     @pytest.mark.asyncio
     async def test_forensic_signature_none_when_no_key(self):
         """forensic_signature must be None when PIDS_SIGNING_PRIVATE_KEY is absent."""
-        from app.services.soar_service import deliver_scheduled_report
-        from app.models.soar import ScheduledReport
-        from app.models.hunt import Hunt
+        from asc_api.services.soar_service import deliver_scheduled_report
+        from asc_api.models.soar import ScheduledReport
+        from asc_api.models.hunt import Hunt
 
         sr = ScheduledReport()
         sr.id = "rpt-3"
@@ -1250,16 +1250,16 @@ class TestScheduledReportForensic:
 
 class TestPlaybookPB005:
     def test_pb005_defined(self):
-        from app.services.playbook import PLAYBOOKS
+        from asc_api.services.playbook import PLAYBOOKS
         assert "PB-005" in PLAYBOOKS
 
     def test_pb005_requires_approval(self):
-        from app.services.playbook import PLAYBOOKS
+        from asc_api.services.playbook import PLAYBOOKS
         pb = PLAYBOOKS["PB-005"]
         assert pb.requires_approval is True
 
     def test_pb005_contains_identity_steps(self):
-        from app.services.playbook import PLAYBOOKS
+        from asc_api.services.playbook import PLAYBOOKS
         pb = PLAYBOOKS["PB-005"]
         step_actions = {s.action for s in pb.steps}
         assert "DISABLE_ACCOUNT" in step_actions
@@ -1267,7 +1267,7 @@ class TestPlaybookPB005:
         assert "QUARANTINE_ACCOUNT" in step_actions
 
     def test_pb005_semaphore_is_red(self):
-        from app.services.playbook import PLAYBOOKS
+        from asc_api.services.playbook import PLAYBOOKS
         pb = PLAYBOOKS["PB-005"]
         assert pb.semaphore == "red"
 
@@ -1278,24 +1278,24 @@ class TestPlaybookPB005:
 
 class TestSOARTriggerP26Fields:
     def test_playbook_trigger_model_has_priority(self):
-        from app.models.soar import PlaybookTrigger
+        from asc_api.models.soar import PlaybookTrigger
         import sqlalchemy
         columns = {c.name for c in PlaybookTrigger.__table__.columns}
         assert "priority" in columns
 
     def test_playbook_trigger_model_has_rate_limit(self):
-        from app.models.soar import PlaybookTrigger
+        from asc_api.models.soar import PlaybookTrigger
         columns = {c.name for c in PlaybookTrigger.__table__.columns}
         assert "rate_limit_per_hour" in columns
 
     def test_playbook_trigger_model_has_dedup_window(self):
-        from app.models.soar import PlaybookTrigger
+        from asc_api.models.soar import PlaybookTrigger
         columns = {c.name for c in PlaybookTrigger.__table__.columns}
         assert "dedup_window_minutes" in columns
 
     def test_trigger_to_dict_includes_p26_fields(self):
-        from app.services.soar_service import _trigger_to_dict
-        from app.models.soar import PlaybookTrigger
+        from asc_api.services.soar_service import _trigger_to_dict
+        from asc_api.models.soar import PlaybookTrigger
         t = PlaybookTrigger()
         t.id = str(uuid.uuid4())
         t.playbook_id = "PB-005"

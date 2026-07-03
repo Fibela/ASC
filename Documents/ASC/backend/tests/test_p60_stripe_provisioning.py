@@ -33,8 +33,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.db.session import get_db
-from app.main import app
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _BACKEND = Path(__file__).parent.parent
 _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
@@ -319,7 +319,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_creates_two_objects(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
@@ -331,7 +331,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_plan_from_config(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "enterprise"
@@ -342,7 +342,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_admin_role(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
@@ -355,7 +355,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_sets_stripe_customer_id(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
@@ -366,7 +366,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_sets_checkout_session_id(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
@@ -377,7 +377,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_existing_tenant_by_stripe_cid_not_provisioned(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         existing = MagicMock()
         existing.id = "t-existing"
         existing.stripe_subscription_id = None
@@ -393,7 +393,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_existing_tenant_by_stripe_cid_plan_upgraded(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         existing = MagicMock()
         existing.plan = "free"
         existing.stripe_subscription_id = None
@@ -408,7 +408,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_idempotency_duplicate_session_returns_existing(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         already_provisioned = MagicMock()
         already_provisioned.id = "t-already"
         db = _make_db(idempotent_tenant=already_provisioned)
@@ -422,7 +422,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_existing_user_by_email_links_tenant(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         existing_user = MagicMock()
         existing_user.email = _TEST_EMAIL
         existing_user.tenant_id = "t-native"
@@ -443,7 +443,7 @@ class TestProvisionStripeTenant:
 
     @pytest.mark.anyio
     async def test_new_tenant_email_verified(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
         with patch("app.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
@@ -581,18 +581,18 @@ class TestSubscriptionCreatedHandler:
 class TestSecurityInvariants:
 
     def test_provision_function_exists(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         import inspect
         assert inspect.iscoroutinefunction(_provision_stripe_customer)
 
     def test_tenant_model_has_stripe_checkout_session_id(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         columns = {c.name: c for c in Tenant.__table__.c}
         assert "stripe_checkout_session_id" in columns
         assert columns["stripe_checkout_session_id"].nullable is True
 
     def test_stripe_checkout_session_id_is_unique(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         columns = {c.name: c for c in Tenant.__table__.c}
         col = columns["stripe_checkout_session_id"]
         # unique=True on column or via UniqueConstraint
@@ -624,27 +624,27 @@ class TestSecurityInvariants:
 
     def test_provisioned_user_has_email_verified(self):
         """Stripe-provisioned users should have email_verified=True (Stripe verified it)."""
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         # Structural check via source inspection
         import inspect
         src = inspect.getsource(_provision_stripe_customer)
         assert "email_verified=True" in src
 
     def test_provisioned_user_gets_admin_role(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         import inspect
         src = inspect.getsource(_provision_stripe_customer)
         assert 'role="admin"' in src
 
     def test_config_stripe_provisioning_plan_default(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert s.STRIPE_PROVISIONING_PLAN in ("free", "pro", "enterprise")
         assert s.STRIPE_PROVISIONING_PLAN != "enterprise"  # not enterprise by default
 
     def test_signature_validation_still_enforced(self):
         """P55 invariant: webhook with wrong sig returns 400 when secret is set."""
-        from app.api.v1.endpoints.billing import _verify_stripe_signature
+        from asc_api.api.v1.endpoints.billing import _verify_stripe_signature
         body = b'{"type":"test"}'
         assert not _verify_stripe_signature(body, "t=123,v1=badmac", "correct_secret")
 
@@ -692,12 +692,12 @@ class TestMigrationArtifact:
 class TestConfigCompleteness:
 
     def test_config_has_stripe_provisioning_plan(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert hasattr(s, "STRIPE_PROVISIONING_PLAN")
 
     def test_config_has_stripe_seguridad_product_id(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert hasattr(s, "STRIPE_SEGURIDAD_PRODUCT_ID")
 
@@ -714,7 +714,7 @@ class TestConfigCompleteness:
         assert "STRIPE_PROVISIONING_PLAN" in env_ex
 
     def test_billing_endpoint_exports_provision_function(self):
-        from app.api.v1.endpoints.billing import _provision_stripe_customer
+        from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         assert callable(_provision_stripe_customer)
 
 
@@ -723,31 +723,31 @@ class TestConfigCompleteness:
 class TestModuleStructure:
 
     def test_tenant_has_stripe_checkout_session_id_field(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert hasattr(Tenant, "stripe_checkout_session_id")
 
     def test_billing_imports_get_password_hash(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         import inspect
         src = inspect.getsource(billing)
         assert "get_password_hash" in src
 
     def test_billing_imports_secrets(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         assert hasattr(billing, "secrets")
 
     def test_billing_imports_uuid(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         assert hasattr(billing, "uuid")
 
     def test_checkout_session_event_type_handled(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         import inspect
         src = inspect.getsource(billing.stripe_webhook)
         assert "checkout.session.completed" in src
 
     def test_subscription_created_event_type_handled(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         import inspect
         src = inspect.getsource(billing.stripe_webhook)
         assert "customer.subscription.created" in src
@@ -766,17 +766,17 @@ class TestRegressionGates:
         assert len(files) == 1
 
     def test_stripe_customer_id_still_in_tenant_model(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         columns = {c.name: c for c in Tenant.__table__.c}
         assert "stripe_customer_id" in columns
 
     def test_stripe_subscription_id_still_in_tenant_model(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         columns = {c.name: c for c in Tenant.__table__.c}
         assert "stripe_subscription_id" in columns
 
     def test_subscription_deleted_event_still_handled(self):
-        import app.api.v1.endpoints.billing as billing
+        import asc_api.api.v1.endpoints.billing as billing
         import inspect
         src = inspect.getsource(billing.stripe_webhook)
         assert "customer.subscription.deleted" in src

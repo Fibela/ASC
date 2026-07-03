@@ -40,7 +40,7 @@ def _utcnow() -> datetime:
 
 
 def _make_report(**kwargs):
-    from app.models.executive_report import ExecutiveReport
+    from asc_api.models.executive_report import ExecutiveReport
     r = ExecutiveReport()
     r.id = kwargs.get("id", str(uuid.uuid4()))
     r.report_type = kwargs.get("report_type", "full_executive")
@@ -97,7 +97,7 @@ def _mock_all(rows):
 class TestExecutiveReportModel:
 
     def test_instantiation_defaults(self):
-        from app.models.executive_report import ExecutiveReport
+        from asc_api.models.executive_report import ExecutiveReport
         r = ExecutiveReport()
         r.id = str(uuid.uuid4())
         r.report_type = "period_kpi"
@@ -111,7 +111,7 @@ class TestExecutiveReportModel:
         assert r.report_type == "period_kpi"
 
     def test_report_types_frozenset(self):
-        from app.models.executive_report import REPORT_TYPES
+        from asc_api.models.executive_report import REPORT_TYPES
         assert isinstance(REPORT_TYPES, frozenset)
         assert "full_executive" in REPORT_TYPES
         assert "period_kpi" in REPORT_TYPES
@@ -119,12 +119,12 @@ class TestExecutiveReportModel:
         assert "sla_breach" in REPORT_TYPES
 
     def test_report_types_immutable(self):
-        from app.models.executive_report import REPORT_TYPES
+        from asc_api.models.executive_report import REPORT_TYPES
         with pytest.raises((AttributeError, TypeError)):
             REPORT_TYPES.add("bad_type")  # type: ignore
 
     def test_report_periods_frozenset(self):
-        from app.models.executive_report import REPORT_PERIODS
+        from asc_api.models.executive_report import REPORT_PERIODS
         assert isinstance(REPORT_PERIODS, frozenset)
         assert "monthly" in REPORT_PERIODS
         assert "custom" in REPORT_PERIODS
@@ -165,11 +165,11 @@ class TestExecutiveReportModel:
         assert h(data_a) == h(data_b)
 
     def test_tablename(self):
-        from app.models.executive_report import ExecutiveReport
+        from asc_api.models.executive_report import ExecutiveReport
         assert ExecutiveReport.__tablename__ == "executive_reports"
 
     def test_required_columns_present(self):
-        from app.models.executive_report import ExecutiveReport
+        from asc_api.models.executive_report import ExecutiveReport
         cols = [c.name for c in ExecutiveReport.__table__.columns]
         for expected in ("id", "report_type", "period", "title", "generated_by",
                          "period_start", "period_end", "hash_sha3_512",
@@ -182,20 +182,20 @@ class TestExecutiveReportModel:
 class TestPIILSigning:
 
     def test_sha3_512_hex_returns_128_chars(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         h = _sha3_512_hex({"foo": "bar"})
         assert len(h) == 128
 
     def test_sha3_512_hex_deterministic(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         assert _sha3_512_hex({"a": 1}) == _sha3_512_hex({"a": 1})
 
     def test_sha3_512_hex_key_order_invariant(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         assert _sha3_512_hex({"a": 1, "b": 2}) == _sha3_512_hex({"b": 2, "a": 1})
 
     def test_sign_report_no_key_raises_value_error(self):
-        from app.services.reporting_service import _sign_report
+        from asc_api.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
@@ -203,7 +203,7 @@ class TestPIILSigning:
                 _sign_report("deadbeef" * 32)
 
     def test_sign_report_no_key_fingerprint_is_16_zeros(self):
-        from app.services.reporting_service import _sign_report
+        from asc_api.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
@@ -211,7 +211,7 @@ class TestPIILSigning:
                 _sign_report("abc")
 
     def test_sign_report_with_invalid_key_raises_value_error(self):
-        from app.services.reporting_service import _sign_report
+        from asc_api.services.reporting_service import _sign_report
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAVALIDKEY=="
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
@@ -219,7 +219,7 @@ class TestPIILSigning:
                 _sign_report("abc")
 
     def test_verify_report_signature_no_public_key_returns_false(self):
-        from app.services.reporting_service import verify_report_signature
+        from asc_api.services.reporting_service import verify_report_signature
         r = _make_report()
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
@@ -230,7 +230,7 @@ class TestPIILSigning:
         assert result is False
 
     def test_verify_report_signature_invalid_hash_returns_false(self):
-        from app.services.reporting_service import verify_report_signature
+        from asc_api.services.reporting_service import verify_report_signature
         r = _make_report(canonical_data={"x": 1}, hash_sha3_512="0" * 128)
         # hash won't match canonical_data → is_hash_valid() returns False
         with patch("app.services.reporting_service._s") as ms:
@@ -239,7 +239,7 @@ class TestPIILSigning:
         assert result is False
 
     def test_verify_report_signature_bad_signature_returns_false(self):
-        from app.services.reporting_service import verify_report_signature
+        from asc_api.services.reporting_service import verify_report_signature
         r = _make_report()
         with patch.object(r, "is_hash_valid", return_value=True):
             with patch("app.services.reporting_service._s") as ms:
@@ -248,7 +248,7 @@ class TestPIILSigning:
         assert result is False
 
     def test_sha3_512_different_inputs_produce_different_hashes(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         assert _sha3_512_hex({"a": 1}) != _sha3_512_hex({"a": 2})
 
     def test_piil_unsigned_constant_decodable(self):
@@ -256,8 +256,8 @@ class TestPIILSigning:
         assert base64.b64decode(sig) == b"PIIL-UNSIGNED-NO-KEY-CONFIGURED"
 
     def test_sign_report_with_valid_key_returns_tuple(self):
-        from app.services.reporting_service import _sign_report
-        from app.core.signing import generate_analyst_keypair
+        from asc_api.services.reporting_service import _sign_report
+        from asc_api.core.signing import generate_analyst_keypair
         priv_b64, pub_b64 = generate_analyst_keypair()
         with patch("app.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = priv_b64
@@ -267,17 +267,17 @@ class TestPIILSigning:
         assert len(result) == 2
 
     def test_sha3_512_hex_empty_dict(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         h = _sha3_512_hex({})
         assert len(h) == 128
 
     def test_sha3_512_hex_nested_data(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         h = _sha3_512_hex({"incidents": {"total": 5, "by_severity": {"high": 2}}})
         assert len(h) == 128
 
     def test_sha3_512_hex_matches_reference(self):
-        from app.services.reporting_service import _sha3_512_hex
+        from asc_api.services.reporting_service import _sha3_512_hex
         data = {"a": 1}
         expected = hashlib.sha3_512(
             json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
@@ -308,7 +308,7 @@ class TestIncidentKpis:
 
     @pytest.mark.asyncio
     async def test_returns_dict_with_expected_keys(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db()
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         for key in ("total", "closed", "sla_breach_count", "avg_mttd_minutes",
@@ -317,35 +317,35 @@ class TestIncidentKpis:
 
     @pytest.mark.asyncio
     async def test_total_matches_db(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(total=10)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["total"] == 10
 
     @pytest.mark.asyncio
     async def test_closed_matches_db(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(closed=7)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["closed"] == 7
 
     @pytest.mark.asyncio
     async def test_sla_breach_count(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(breach=3)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["sla_breach_count"] == 3
 
     @pytest.mark.asyncio
     async def test_avg_mttd_rounded(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(mttd=30.567)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["avg_mttd_minutes"] == round(30.567, 1)
 
     @pytest.mark.asyncio
     async def test_avg_mttx_none_when_no_data(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(mttd=None, mttc=None, mttr=None)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["avg_mttd_minutes"] is None
@@ -354,7 +354,7 @@ class TestIncidentKpis:
 
     @pytest.mark.asyncio
     async def test_by_severity_dict(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(by_sev=[("critical", 5), ("high", 2)])
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["by_severity"]["critical"] == 5
@@ -362,14 +362,14 @@ class TestIncidentKpis:
 
     @pytest.mark.asyncio
     async def test_by_status_dict(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(by_status=[("detected", 3), ("closed", 2)])
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["by_status"]["detected"] == 3
 
     @pytest.mark.asyncio
     async def test_zero_totals(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db(total=0, closed=0, breach=0,
                            mttd=None, mttc=None, mttr=None)
         result = await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
@@ -378,7 +378,7 @@ class TestIncidentKpis:
 
     @pytest.mark.asyncio
     async def test_db_called_eight_times(self):
-        from app.services.reporting_service import _incident_kpis
+        from asc_api.services.reporting_service import _incident_kpis
         db = self._make_db()
         await _incident_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert db.execute.call_count == 8
@@ -399,7 +399,7 @@ class TestCampaignKpis:
 
     @pytest.mark.asyncio
     async def test_returns_expected_keys(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db()
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert "new_campaigns" in result
@@ -408,49 +408,49 @@ class TestCampaignKpis:
 
     @pytest.mark.asyncio
     async def test_new_campaigns_value(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(new=5)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["new_campaigns"] == 5
 
     @pytest.mark.asyncio
     async def test_active_campaigns_value(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(active=3)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["active_campaigns"] == 3
 
     @pytest.mark.asyncio
     async def test_critical_clusters_zero(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(critical=0)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["critical_clusters"] == 0
 
     @pytest.mark.asyncio
     async def test_critical_clusters_nonzero(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(critical=4)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["critical_clusters"] == 4
 
     @pytest.mark.asyncio
     async def test_db_called_three_times(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db()
         await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert db.execute.call_count == 3
 
     @pytest.mark.asyncio
     async def test_zero_values(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(new=0, active=0, critical=0)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["new_campaigns"] == 0
 
     @pytest.mark.asyncio
     async def test_large_values(self):
-        from app.services.reporting_service import _campaign_kpis
+        from asc_api.services.reporting_service import _campaign_kpis
         db = self._make_db(new=999, active=50, critical=10)
         result = await _campaign_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["new_campaigns"] == 999
@@ -471,7 +471,7 @@ class TestHuntingKpis:
 
     @pytest.mark.asyncio
     async def test_returns_expected_keys(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db()
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert "total_hunts" in result
@@ -480,35 +480,35 @@ class TestHuntingKpis:
 
     @pytest.mark.asyncio
     async def test_total_hunts(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(total=10)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["total_hunts"] == 10
 
     @pytest.mark.asyncio
     async def test_confirmed_findings(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(findings=5)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["confirmed_findings"] == 5
 
     @pytest.mark.asyncio
     async def test_critical_findings(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(critical=3)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["critical_findings"] == 3
 
     @pytest.mark.asyncio
     async def test_zero_values(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(total=0, findings=0, critical=0)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert all(v == 0 for v in result.values())
 
     @pytest.mark.asyncio
     async def test_db_called_three_times(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db()
         await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert db.execute.call_count == 3
@@ -517,14 +517,14 @@ class TestHuntingKpis:
     async def test_false_positive_excluded(self):
         # confirmed_findings count excludes false positives — verify DB is called
         # (the WHERE clause in the service enforces this; we just check structure)
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(findings=2)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["confirmed_findings"] == 2
 
     @pytest.mark.asyncio
     async def test_critical_less_than_total_findings(self):
-        from app.services.reporting_service import _hunting_kpis
+        from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(findings=10, critical=2)
         result = await _hunting_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["critical_findings"] <= result["confirmed_findings"]
@@ -544,7 +544,7 @@ class TestSoarKpis:
 
     @pytest.mark.asyncio
     async def test_returns_expected_keys(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db()
         result = await _soar_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert "soar_triggers_fired" in result
@@ -552,21 +552,21 @@ class TestSoarKpis:
 
     @pytest.mark.asyncio
     async def test_triggers_fired_value(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db(fired=7)
         result = await _soar_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["soar_triggers_fired"] == 7
 
     @pytest.mark.asyncio
     async def test_alerts_in_period_value(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db(alerts=100)
         result = await _soar_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["alerts_in_period"] == 100
 
     @pytest.mark.asyncio
     async def test_zero_values(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db(fired=0, alerts=0)
         result = await _soar_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert result["soar_triggers_fired"] == 0
@@ -574,14 +574,14 @@ class TestSoarKpis:
 
     @pytest.mark.asyncio
     async def test_db_called_twice(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db()
         await _soar_kpis(db, _utcnow() - timedelta(days=7), _utcnow())
         assert db.execute.call_count == 2
 
     @pytest.mark.asyncio
     async def test_high_volume_values(self):
-        from app.services.reporting_service import _soar_kpis
+        from asc_api.services.reporting_service import _soar_kpis
         db = self._make_db(fired=1000, alerts=50000)
         result = await _soar_kpis(db, _utcnow() - timedelta(days=30), _utcnow())
         assert result["soar_triggers_fired"] == 1000
@@ -599,7 +599,7 @@ class TestGenerateReport:
         Tests that patch _s still work: _sign_report is patched at the
         function level, bypassing the _s.SPECTER_SIGNING_PRIVATE_KEY check.
         """
-        from app.core.signing import generate_analyst_keypair
+        from asc_api.core.signing import generate_analyst_keypair
         import hashlib, base64 as b64
         priv_b64, pub_b64 = generate_analyst_keypair()
         self._priv_key = priv_b64
@@ -614,7 +614,7 @@ class TestGenerateReport:
             fp = hashlib.sha3_512(pub_bytes).hexdigest()[:16]
             return sig, fp
 
-        import app.services.reporting_service as rs
+        import asc_api.services.reporting_service as rs
         monkeypatch.setattr(rs, "_sign_report", _fake_sign)
 
     def _make_db_for_generate(self):
@@ -639,8 +639,8 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_returns_executive_report_instance(self):
-        from app.services.reporting_service import generate_report
-        from app.models.executive_report import ExecutiveReport
+        from asc_api.services.reporting_service import generate_report
+        from asc_api.models.executive_report import ExecutiveReport
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -656,7 +656,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_report_id_in_canonical_data(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -672,7 +672,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_hash_is_128_hex_chars(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -688,7 +688,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_signed_report_has_valid_ed25519_signature(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -705,7 +705,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_signature_valid_false_when_no_key(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -721,7 +721,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_auto_title_generated_when_none(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -738,7 +738,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_custom_title_respected(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -755,7 +755,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_db_add_called(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -771,7 +771,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_db_commit_called(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -787,7 +787,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_total_incidents_from_kpis(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -803,7 +803,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_canonical_data_contains_platform_field(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -820,7 +820,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_log_security_action_called(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -836,7 +836,7 @@ class TestGenerateReport:
 
     @pytest.mark.asyncio
     async def test_pubkey_fingerprint_is_16_hex_chars(self):
-        from app.services.reporting_service import generate_report
+        from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
         with patch("app.services.reporting_service._s") as ms:
@@ -858,7 +858,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_not_found_raises_value_error(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(None))
         with pytest.raises(ValueError, match="not found"):
@@ -866,7 +866,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_returns_dict_with_expected_keys(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -879,7 +879,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_hash_valid_true_updates_result(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -892,7 +892,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_overall_valid_requires_both_hash_and_sig(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -905,7 +905,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_signature_valid_cache_updated(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report(signature_valid=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -918,7 +918,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_last_verified_at_updated(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report(last_verified_at=None)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -930,7 +930,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_db_commit_called_on_verify(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -942,7 +942,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_overall_valid_true_when_both_pass(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -957,7 +957,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_pubkey_fingerprint_in_result(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report(pubkey_fingerprint="abc123")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -969,7 +969,7 @@ class TestVerifyReport:
 
     @pytest.mark.asyncio
     async def test_log_security_action_called_on_verify(self):
-        from app.services.reporting_service import verify_report
+        from asc_api.services.reporting_service import verify_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -986,7 +986,7 @@ class TestGetReport:
 
     @pytest.mark.asyncio
     async def test_returns_report_when_found(self):
-        from app.services.reporting_service import get_report
+        from asc_api.services.reporting_service import get_report
         r = _make_report()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -995,7 +995,7 @@ class TestGetReport:
 
     @pytest.mark.asyncio
     async def test_returns_none_when_not_found(self):
-        from app.services.reporting_service import get_report
+        from asc_api.services.reporting_service import get_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(None))
         result = await get_report(db, "missing")
@@ -1003,7 +1003,7 @@ class TestGetReport:
 
     @pytest.mark.asyncio
     async def test_db_called_once(self):
-        from app.services.reporting_service import get_report
+        from asc_api.services.reporting_service import get_report
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(None))
         await get_report(db, "x")
@@ -1011,7 +1011,7 @@ class TestGetReport:
 
     @pytest.mark.asyncio
     async def test_passes_correct_id(self):
-        from app.services.reporting_service import get_report
+        from asc_api.services.reporting_service import get_report
         r = _make_report(id="specific-id")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
@@ -1025,7 +1025,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_returns_list(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         reports = [_make_report(), _make_report()]
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(reports))
@@ -1035,7 +1035,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_empty_list_when_no_reports(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         result = await list_reports(db)
@@ -1043,7 +1043,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_accepts_report_type_filter(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         r = _make_report(report_type="period_kpi")
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([r]))
@@ -1052,7 +1052,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_accepts_limit(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         reports = [_make_report() for _ in range(5)]
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(reports[:3]))
@@ -1061,7 +1061,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_accepts_offset(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         await list_reports(db, offset=10)
@@ -1069,7 +1069,7 @@ class TestListReports:
 
     @pytest.mark.asyncio
     async def test_returns_list_type(self):
-        from app.services.reporting_service import list_reports
+        from asc_api.services.reporting_service import list_reports
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         result = await list_reports(db)
@@ -1093,7 +1093,7 @@ class TestGetReportingSummary:
 
     @pytest.mark.asyncio
     async def test_returns_expected_keys(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = self._make_db()
         result = await get_reporting_summary(db)
         for key in ("total_reports", "unsigned_reports", "by_type",
@@ -1102,28 +1102,28 @@ class TestGetReportingSummary:
 
     @pytest.mark.asyncio
     async def test_total_reports(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = self._make_db(total=12)
         result = await get_reporting_summary(db)
         assert result["total_reports"] == 12
 
     @pytest.mark.asyncio
     async def test_unsigned_reports(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = self._make_db(unsigned=4)
         result = await get_reporting_summary(db)
         assert result["unsigned_reports"] == 4
 
     @pytest.mark.asyncio
     async def test_by_type_dict(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = self._make_db(by_type=[("period_kpi", 7)])
         result = await get_reporting_summary(db)
         assert result["by_type"]["period_kpi"] == 7
 
     @pytest.mark.asyncio
     async def test_last_report_id_from_latest(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         latest = _make_report(id="latest-report-id")
         db = self._make_db(latest=latest)
         result = await get_reporting_summary(db)
@@ -1131,7 +1131,7 @@ class TestGetReportingSummary:
 
     @pytest.mark.asyncio
     async def test_none_when_no_reports(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[
             _mock_scalar(0),
@@ -1145,7 +1145,7 @@ class TestGetReportingSummary:
 
     @pytest.mark.asyncio
     async def test_last_generated_at_is_isoformat(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         latest = _make_report(created_at=_utcnow())
         db = self._make_db(latest=latest)
         result = await get_reporting_summary(db)
@@ -1154,7 +1154,7 @@ class TestGetReportingSummary:
 
     @pytest.mark.asyncio
     async def test_db_called_four_times(self):
-        from app.services.reporting_service import get_reporting_summary
+        from asc_api.services.reporting_service import get_reporting_summary
         db = self._make_db()
         await get_reporting_summary(db)
         assert db.execute.call_count == 4
@@ -1164,7 +1164,7 @@ class TestGetReportingSummary:
 
 def _make_endpoint_app():
     from fastapi import FastAPI
-    from app.api.v1.endpoints.executive_reports import router
+    from asc_api.api.v1.endpoints.executive_reports import router
     mini = FastAPI()
     mini.include_router(router)
     return mini
@@ -1186,8 +1186,8 @@ class TestReportingEndpoints:
 
     def test_summary_returns_200_for_analyst(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
@@ -1202,8 +1202,8 @@ class TestReportingEndpoints:
 
     def test_generate_blocked_for_analyst(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         analyst = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: analyst
@@ -1218,8 +1218,8 @@ class TestReportingEndpoints:
 
     def test_generate_validates_report_type(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         admin = _mock_analyst_user("admin")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: admin
@@ -1234,8 +1234,8 @@ class TestReportingEndpoints:
 
     def test_generate_validates_period(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         admin = _mock_analyst_user("admin")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: admin
@@ -1250,8 +1250,8 @@ class TestReportingEndpoints:
 
     def test_generate_validates_date_order(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         admin = _mock_analyst_user("admin")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: admin
@@ -1267,8 +1267,8 @@ class TestReportingEndpoints:
 
     def test_get_report_404_when_missing(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
@@ -1281,8 +1281,8 @@ class TestReportingEndpoints:
 
     def test_list_reports_returns_200(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
@@ -1296,8 +1296,8 @@ class TestReportingEndpoints:
 
     def test_delete_requires_admin(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         analyst = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: analyst
@@ -1309,8 +1309,8 @@ class TestReportingEndpoints:
 
     def test_verify_returns_200(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
@@ -1327,8 +1327,8 @@ class TestReportingEndpoints:
 
     def test_generate_returns_201_for_admin(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         admin = _mock_analyst_user("admin")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: admin
@@ -1346,8 +1346,8 @@ class TestReportingEndpoints:
 
     def test_delete_returns_204_for_admin(self):
         from fastapi.testclient import TestClient
-        from app.api.deps import get_analyst_or_admin, get_current_admin
-        from app.db.session import get_db
+        from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+        from asc_api.db.session import get_db
         mini = _make_endpoint_app()
         admin = _mock_analyst_user("admin")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: admin

@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from app.core.security import create_access_token
+from asc_api.core.security import create_access_token
 
 
 # ── Rate-limit bypass ─────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ from app.core.security import create_access_token
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
     """Clear slowapi MemoryStorage before each test so no test sees 429."""
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
     limiter._storage.reset()
     yield
     limiter._storage.reset()
@@ -421,21 +421,21 @@ class TestChangePasswordValidation:
 
     @pytest.mark.asyncio
     async def test_schema_empty_password_raises_value_error(self):
-        from app.api.v1.endpoints.auth import ChangePasswordRequest
+        from asc_api.api.v1.endpoints.auth import ChangePasswordRequest
         import pydantic
         with pytest.raises(pydantic.ValidationError):
             ChangePasswordRequest(new_password="")
 
     @pytest.mark.asyncio
     async def test_schema_whitespace_password_raises_value_error(self):
-        from app.api.v1.endpoints.auth import ChangePasswordRequest
+        from asc_api.api.v1.endpoints.auth import ChangePasswordRequest
         import pydantic
         with pytest.raises(pydantic.ValidationError):
             ChangePasswordRequest(new_password="   ")
 
     @pytest.mark.asyncio
     async def test_schema_valid_password_accepted(self):
-        from app.api.v1.endpoints.auth import ChangePasswordRequest
+        from asc_api.api.v1.endpoints.auth import ChangePasswordRequest
         obj = ChangePasswordRequest(new_password="ValidPass@99!")
         assert obj.new_password == "ValidPass@99!"
 

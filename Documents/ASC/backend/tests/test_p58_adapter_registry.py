@@ -20,8 +20,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.db.session import get_db
-from app.main import app
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _MIGRATIONS_DIR = Path(__file__).parent.parent / "migrations" / "versions"
 _BACKEND = Path(__file__).parent.parent
@@ -128,37 +128,37 @@ class TestAdapterCrypto:
     _SK = "stable-secret-32chars-padding-!!"
 
     def test_encrypt_decrypt_roundtrip(self):
-        from app.core.adapter_crypto import encrypt_credential, decrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential, decrypt_credential
         token = encrypt_credential("my-api-key", self._SK)
         assert decrypt_credential(token, self._SK) == "my-api-key"
 
     def test_encrypted_differs_from_plaintext(self):
-        from app.core.adapter_crypto import encrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential
         assert encrypt_credential("value", self._SK) != "value"
 
     def test_encrypt_returns_str(self):
-        from app.core.adapter_crypto import encrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential
         assert isinstance(encrypt_credential("v", self._SK), str)
 
     def test_decrypt_bad_token_raises_value_error(self):
-        from app.core.adapter_crypto import decrypt_credential
+        from asc_api.core.adapter_crypto import decrypt_credential
         with pytest.raises(ValueError, match="Invalid or tampered"):
             decrypt_credential("not-a-fernet-token", self._SK)
 
     def test_hint_first_four_plus_mask(self):
-        from app.core.adapter_crypto import credential_hint
+        from asc_api.core.adapter_crypto import credential_hint
         assert credential_hint("sk_test_abc123") == "sk_t****"
 
     def test_hint_short_credential(self):
-        from app.core.adapter_crypto import credential_hint
+        from asc_api.core.adapter_crypto import credential_hint
         assert credential_hint("AB") == "AB****"
 
     def test_hint_empty_string(self):
-        from app.core.adapter_crypto import credential_hint
+        from asc_api.core.adapter_crypto import credential_hint
         assert credential_hint("") == ""
 
     def test_different_secrets_different_tokens(self):
-        from app.core.adapter_crypto import encrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential
         sk2 = "other-secret-32chars-padding-!!"
         t1 = encrypt_credential("v", self._SK)
         t2 = encrypt_credential("v", sk2)
@@ -166,11 +166,11 @@ class TestAdapterCrypto:
 
     def test_fernet_random_iv_per_call(self):
         """Same plaintext → different ciphertext each call (random IV)."""
-        from app.core.adapter_crypto import encrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential
         assert encrypt_credential("v", self._SK) != encrypt_credential("v", self._SK)
 
     def test_decrypt_wrong_secret_raises(self):
-        from app.core.adapter_crypto import encrypt_credential, decrypt_credential
+        from asc_api.core.adapter_crypto import encrypt_credential, decrypt_credential
         token = encrypt_credential("v", self._SK)
         with pytest.raises(ValueError):
             decrypt_credential(token, "wrong-secret-32chars-padding-!!!")
@@ -181,58 +181,58 @@ class TestAdapterCrypto:
 class TestTenantAdapterConfigModel:
 
     def test_tablename(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         assert TenantAdapterConfig.__tablename__ == "tenant_adapter_configs"
 
     def test_adapter_types_has_five(self):
-        from app.models.tenant_adapter_config import ADAPTER_TYPES
+        from asc_api.models.tenant_adapter_config import ADAPTER_TYPES
         assert len(ADAPTER_TYPES) == 5
         assert ADAPTER_TYPES >= {"edr", "firewall", "identity", "siem", "soar"}
 
     def test_edr_providers(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS
         assert {"specter", "none"}.issubset(ADAPTER_PROVIDERS["edr"])
 
     def test_firewall_providers(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS
         assert {"paloalto", "fortinet", "none"}.issubset(ADAPTER_PROVIDERS["firewall"])
 
     def test_identity_providers(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS
         assert "active_directory" in ADAPTER_PROVIDERS["identity"]
 
     def test_siem_providers(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS
         assert {"elasticsearch", "wazuh"}.issubset(ADAPTER_PROVIDERS["siem"])
 
     def test_soar_providers(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS
         assert "thehive" in ADAPTER_PROVIDERS["soar"]
 
     def test_is_configured_true(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         assert TenantAdapterConfig(credential_encrypted="tok").is_configured is True
 
     def test_is_configured_false(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         assert TenantAdapterConfig(credential_encrypted=None).is_configured is False
 
     def test_display_provider_known(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         assert TenantAdapterConfig(provider="specter").display_provider == "specter"
 
     def test_display_provider_none_disabled(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         assert TenantAdapterConfig(provider="none").display_provider == "disabled"
 
     def test_unique_constraint_name(self):
-        from app.models.tenant_adapter_config import TenantAdapterConfig
+        from asc_api.models.tenant_adapter_config import TenantAdapterConfig
         args = TenantAdapterConfig.__table_args__
         names = [c.name for c in args if hasattr(c, "name")]
         assert "uq_tenant_adapter_type" in names
 
     def test_exported_from_models_init(self):
-        from app.models import TenantAdapterConfig
+        from asc_api.models import TenantAdapterConfig
         assert TenantAdapterConfig.__tablename__ == "tenant_adapter_configs"
 
 
@@ -683,53 +683,53 @@ class TestTestAdapter:
 class TestSecurityInvariants:
 
     def test_response_schema_no_credential_field(self):
-        from app.api.v1.endpoints.adapter_registry import AdapterConfigResponse
+        from asc_api.api.v1.endpoints.adapter_registry import AdapterConfigResponse
         fields = AdapterConfigResponse.model_fields
         assert "credential" not in fields
         assert "credential_encrypted" not in fields
 
     def test_response_schema_has_is_configured(self):
-        from app.api.v1.endpoints.adapter_registry import AdapterConfigResponse
+        from asc_api.api.v1.endpoints.adapter_registry import AdapterConfigResponse
         assert "is_configured" in AdapterConfigResponse.model_fields
 
     def test_response_schema_has_credential_hint_not_value(self):
-        from app.api.v1.endpoints.adapter_registry import AdapterConfigResponse
+        from asc_api.api.v1.endpoints.adapter_registry import AdapterConfigResponse
         fields = AdapterConfigResponse.model_fields
         assert "credential_hint" in fields
         assert "credential_encrypted" not in fields
 
     def test_create_uses_get_current_admin(self):
         import inspect
-        from app.api.v1.endpoints.adapter_registry import create_tenant_adapter
+        from asc_api.api.v1.endpoints.adapter_registry import create_tenant_adapter
         sig = str(inspect.signature(create_tenant_adapter).parameters)
         assert "get_current_admin" in sig
 
     def test_update_uses_get_current_admin(self):
         import inspect
-        from app.api.v1.endpoints.adapter_registry import update_tenant_adapter
+        from asc_api.api.v1.endpoints.adapter_registry import update_tenant_adapter
         sig = str(inspect.signature(update_tenant_adapter).parameters)
         assert "get_current_admin" in sig
 
     def test_delete_uses_get_current_admin(self):
         import inspect
-        from app.api.v1.endpoints.adapter_registry import delete_tenant_adapter
+        from asc_api.api.v1.endpoints.adapter_registry import delete_tenant_adapter
         sig = str(inspect.signature(delete_tenant_adapter).parameters)
         assert "get_current_admin" in sig
 
     def test_list_uses_analyst_or_admin(self):
         import inspect
-        from app.api.v1.endpoints.adapter_registry import list_tenant_adapters
+        from asc_api.api.v1.endpoints.adapter_registry import list_tenant_adapters
         sig = str(inspect.signature(list_tenant_adapters).parameters)
         assert "get_analyst_or_admin" in sig
 
     def test_get_uses_analyst_or_admin(self):
         import inspect
-        from app.api.v1.endpoints.adapter_registry import get_tenant_adapter
+        from asc_api.api.v1.endpoints.adapter_registry import get_tenant_adapter
         sig = str(inspect.signature(get_tenant_adapter).parameters)
         assert "get_analyst_or_admin" in sig
 
     def test_none_provider_allowed_for_all_types(self):
-        from app.models.tenant_adapter_config import ADAPTER_PROVIDERS, ADAPTER_TYPES
+        from asc_api.models.tenant_adapter_config import ADAPTER_PROVIDERS, ADAPTER_TYPES
         for t in ADAPTER_TYPES:
             assert "none" in ADAPTER_PROVIDERS[t], f"'none' missing from {t} providers"
 
@@ -777,15 +777,15 @@ class TestMigrationAndStructure:
         assert "include_router(adapter_registry.router)" in src
 
     def test_model_in_models_init(self):
-        from app.models import TenantAdapterConfig
+        from asc_api.models import TenantAdapterConfig
         assert TenantAdapterConfig.__tablename__ == "tenant_adapter_configs"
 
     def test_adapter_crypto_importable(self):
-        from app.core.adapter_crypto import encrypt_credential, decrypt_credential, credential_hint
+        from asc_api.core.adapter_crypto import encrypt_credential, decrypt_credential, credential_hint
         assert all(callable(f) for f in (encrypt_credential, decrypt_credential, credential_hint))
 
     def test_endpoint_router_prefix(self):
-        from app.api.v1.endpoints.adapter_registry import router
+        from asc_api.api.v1.endpoints.adapter_registry import router
         assert router.prefix == "/adapter-registry"
 
     def test_cryptography_in_requirements(self):

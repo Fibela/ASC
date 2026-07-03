@@ -22,8 +22,8 @@ from alembic import context
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
-from app.db.base import Base  # noqa: E402
-import app.models  # noqa: E402, F401 — side-effect: registers all models
+from asc_api.db.base import Base  # noqa: E402
+import asc_api.models  # noqa: E402, F401 — side-effect: registers all models
 
 # ── Alembic config object ─────────────────────────────────────────────────────
 config = context.config
@@ -35,7 +35,7 @@ target_metadata = Base.metadata
 
 # Override sqlalchemy.url from app settings — keeps secrets out of alembic.ini
 def _get_url() -> str:
-    from app.core.config import get_settings
+    from asc_api.core.config import get_settings
     url = get_settings().DATABASE_URL
     # asyncpg driver is used at runtime; for Alembic we can keep it as-is
     # since async_engine_from_config handles it.

@@ -21,7 +21,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from app.core.honeypot import (
+from asc_api.core.honeypot import (
     CanaryTokenStore,
     AttackerFingerprint,
     fingerprint_request,

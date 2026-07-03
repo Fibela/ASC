@@ -22,13 +22,13 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-from app.services.approval import (
+from asc_api.services.approval import (
     ROLLBACK_MAP,
     REVERSIBLE_ACTIONS,
     create_rollback_action,
     _get_or_raise,
 )
-from app.models.neutralization import NeutralizationAction
+from asc_api.models.neutralization import NeutralizationAction
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

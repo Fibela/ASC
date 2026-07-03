@@ -25,9 +25,9 @@ from datetime import datetime, timezone, timedelta
 from types import SimpleNamespace
 from httpx import AsyncClient
 
-from app.models.alert import Alert
-from app.models.user import User
-from app.services.metrics import (
+from asc_api.models.alert import Alert
+from asc_api.models.user import User
+from asc_api.services.metrics import (
     calculate_mttd, calculate_mtta, calculate_mttr, calculate_mttr_respond,
     breakdown_by_severity, status_funnel, daily_mttr_trend, build_soc_summary,
     MTTD_SLA_SECONDS, MTTA_SLA_SECONDS, MTTR_SLA_SECONDS,

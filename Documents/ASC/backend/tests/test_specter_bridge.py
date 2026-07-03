@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.specter_bridge import (
+from asc_api.services.specter_bridge import (
     DispatchMode,
     SprecterBridgeResult,
     _AGENT_TARGETED,
@@ -24,8 +24,8 @@ from app.services.specter_bridge import (
     map_specter_command,
     resolve_agent,
 )
-from app.core.specter_security import COMMAND_PARAM_SCHEMAS, validate_command_params
-from app.models.agent import Agent, AgentCommand
+from asc_api.core.specter_security import COMMAND_PARAM_SCHEMAS, validate_command_params
+from asc_api.models.agent import Agent, AgentCommand
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -593,7 +593,7 @@ class TestBroadcastConcurrency:
 
     @pytest.mark.asyncio
     async def test_broadcast_batched_dispatches_all_agents(self):
-        from app.services.specter_bridge import _broadcast_batched, BROADCAST_BATCH_SIZE
+        from asc_api.services.specter_bridge import _broadcast_batched, BROADCAST_BATCH_SIZE
 
         db = AsyncMock()
         agents = [self._make_agent(i) for i in range(5)]
@@ -628,7 +628,7 @@ class TestBroadcastConcurrency:
 
     @pytest.mark.asyncio
     async def test_broadcast_batched_skips_failed_agents(self):
-        from app.services.specter_bridge import _broadcast_batched
+        from asc_api.services.specter_bridge import _broadcast_batched
 
         db = AsyncMock()
         agents = [self._make_agent(i) for i in range(4)]
@@ -667,7 +667,7 @@ class TestBroadcastConcurrency:
 
     @pytest.mark.asyncio
     async def test_broadcast_batched_empty_agents_returns_empty(self):
-        from app.services.specter_bridge import _broadcast_batched
+        from asc_api.services.specter_bridge import _broadcast_batched
 
         db = AsyncMock()
         cmd_ids, hostnames = await _broadcast_batched(

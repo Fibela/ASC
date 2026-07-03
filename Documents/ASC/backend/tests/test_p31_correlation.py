@@ -18,7 +18,7 @@ Miss lines targeted:
 import uuid
 import pytest
 
-from app.models.correlation import CorrelationCluster, CorrelationRule
+from asc_api.models.correlation import CorrelationCluster, CorrelationRule
 
 
 pytestmark = pytest.mark.asyncio
@@ -26,7 +26,7 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
     limiter._storage.reset()
     yield
     limiter._storage.reset()

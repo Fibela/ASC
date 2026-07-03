@@ -24,12 +24,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app
-from app.db.session import get_db
-from app.api.deps import get_analyst_or_admin, get_current_admin
-from app.models.user import User
-from app.models.hunt import Hunt, HuntFinding, HuntQuery
-from app.services import hunt_service as svc
+from asc_api.main import app
+from asc_api.db.session import get_db
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.models.user import User
+from asc_api.models.hunt import Hunt, HuntFinding, HuntQuery
+from asc_api.services import hunt_service as svc
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import pytest_asyncio
 
-from app.core.specter_security import (
+from asc_api.core.specter_security import (
     COMMAND_EXTRA_PARAMS,
     COMMAND_PARAM_SCHEMAS,
     check_injection,
@@ -31,8 +31,8 @@ from app.core.specter_security import (
     validate_command_params,
     verify_enrollment_token,
 )
-from app.api.v1.endpoints.agents import _VALID_COMMAND_TYPES, _cmd_out
-from app.models.agent import AgentCommand
+from asc_api.api.v1.endpoints.agents import _VALID_COMMAND_TYPES, _cmd_out
+from asc_api.models.agent import AgentCommand
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,9 +64,9 @@ def _make_cmd(
 
 async def _make_agent_in_db(db) -> str:
     """Insert a minimal Agent row and return its id."""
-    from app.models.agent import Agent
-    from app.services.agent_commander import compute_poll_interval
-    from app.core.signing import generate_keypair
+    from asc_api.models.agent import Agent
+    from asc_api.services.agent_commander import compute_poll_interval
+    from asc_api.core.signing import generate_keypair
 
     priv, pub = generate_keypair()
     agent = Agent(
@@ -272,12 +272,12 @@ class TestCommandHistoryEndpoint:
         assert body["agent_id"] == agent_id
 
     async def test_admin_sees_issued_command(self, client, db, admin_headers, admin_user):
-        from app.services.agent_commander import issue_command
-        from app.core.config import get_settings
+        from asc_api.services.agent_commander import issue_command
+        from asc_api.core.config import get_settings
 
         agent_id = await _make_agent_in_db(db)
         # Issue a command via the service directly (bypasses HTTP auth layer)
-        from app.models.agent import Agent
+        from asc_api.models.agent import Agent
         from sqlalchemy import select
         res = await db.execute(select(Agent).where(Agent.id == agent_id))
         agent = res.scalar_one()

@@ -27,11 +27,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from app.main import app
-from app.db.session import get_db
-from app.api.deps import get_analyst_or_admin, get_current_user, get_current_admin
-from app.models.user import User
-from app.services import threat_intel as ti_svc
+from asc_api.main import app
+from asc_api.db.session import get_db
+from asc_api.api.deps import get_analyst_or_admin, get_current_user, get_current_admin
+from asc_api.models.user import User
+from asc_api.services import threat_intel as ti_svc
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -648,7 +648,7 @@ class TestMIMEValidation:
     @pytest.mark.asyncio
     async def test_detect_mime_fallback_on_import_error(self):
         """_detect_mime gracefully falls back to octet-stream if python-magic is missing."""
-        from app.api.v1.endpoints.analyze import _detect_mime
+        from asc_api.api.v1.endpoints.analyze import _detect_mime
         with patch("builtins.__import__", side_effect=ImportError):
             mime = _detect_mime(b"\xff\xfe\x00\x00")
         assert mime == "application/octet-stream"

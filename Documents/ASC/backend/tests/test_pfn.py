@@ -21,17 +21,17 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import create_access_token
-from app.core.signing import (
+from asc_api.core.security import create_access_token
+from asc_api.core.signing import (
     generate_analyst_keypair,
     encrypt_analyst_private_key,
     decrypt_analyst_private_key,
 )
-from app.core.config import get_settings
-from app.models.forensic_entry import ForensicEntry
-from app.models.neutralization import NeutralizationAction
-from app.models.user import User
-from app.services.pfn import (
+from asc_api.core.config import get_settings
+from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.services.pfn import (
     _build_canonical,
     _compute_hash,
     _sign_hash,

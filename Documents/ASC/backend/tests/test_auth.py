@@ -11,14 +11,14 @@ import pytest_asyncio
 from httpx import AsyncClient
 from datetime import datetime, timedelta, timezone
 
-from app.core.security import (
+from asc_api.core.security import (
     create_access_token,
     create_refresh_token,
     verify_token,
     get_password_hash,
     verify_password,
 )
-from app.models.user import User
+from asc_api.models.user import User
 from fastapi import HTTPException
 
 

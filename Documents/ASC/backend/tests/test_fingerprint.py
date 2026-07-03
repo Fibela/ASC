@@ -6,7 +6,7 @@ analyze_environmental_keying() function with synthetic byte payloads.
 """
 import pytest
 
-from app.services.fingerprint import (
+from asc_api.services.fingerprint import (
     analyze_environmental_keying,
     _check_hostname_patterns,
     _check_domain_patterns,

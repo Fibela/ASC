@@ -19,9 +19,9 @@ import pytest
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.ioc import IoC
-from app.models.alert import Alert
-from app.services.correlator import (
+from asc_api.models.ioc import IoC
+from asc_api.models.alert import Alert
+from asc_api.services.correlator import (
     match_iocs,
     normalize_event,
     evaluate_correlation_rules,

@@ -178,7 +178,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_dispatch_specter_with_active_agent(self):
         """Specter query issues log_query command to active agent."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent("active")
         cmd = _make_command(str(agent.id))
@@ -206,7 +206,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_dispatch_specter_no_active_agent_returns_error(self):
         """When no active agents exist, returns success=False with informative error."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         r = MagicMock()
         r.scalars = MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
@@ -225,7 +225,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_dispatch_specter_command_has_read_only_flag(self):
         """Specter log_query command always includes read_only=True."""
-        from app.services.query_executor import _dispatch_to_specter
+        from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent("active")
         cmd = _make_command(str(agent.id))
@@ -256,7 +256,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_execute_hunt_query_routes_specter_to_async_dispatch(self):
         """execute_hunt_query routes specter_agent data_source to async dispatch."""
-        from app.services.query_executor import execute_hunt_query
+        from asc_api.services.query_executor import execute_hunt_query
 
         query = MagicMock()
         query.id = "q-1"
@@ -290,7 +290,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_execute_hunt_query_manual_returns_note(self):
         """Manual data source returns informational note without execution."""
-        from app.services.query_executor import _call_adapter
+        from asc_api.services.query_executor import _call_adapter
 
         result = await _call_adapter("manual", "check logs manually")
 
@@ -301,7 +301,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_execute_hunt_query_unknown_source_returns_error(self):
         """Unknown data_source returns success=False with descriptive error."""
-        from app.services.query_executor import _call_adapter
+        from asc_api.services.query_executor import _call_adapter
 
         result = await _call_adapter("unknown_source", "query")
 
@@ -311,7 +311,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_dispatch_elk_adapter_called(self):
         """ELK data_source calls ELKAdapter.search_raw."""
-        from app.services.query_executor import _call_adapter
+        from asc_api.services.query_executor import _call_adapter
 
         elk_result = {"success": True, "result_count": 5, "total": 5, "truncated": False, "execution_ms": 42, "results": [], "adapter": "elk"}
 
@@ -324,7 +324,7 @@ class TestSpecterLiveDispatch:
     @pytest.mark.asyncio
     async def test_dispatch_wazuh_adapter_called(self):
         """Wazuh data_source calls WazuhAdapter.search_raw."""
-        from app.services.query_executor import _call_adapter
+        from asc_api.services.query_executor import _call_adapter
 
         wazuh_result = {"success": True, "result_count": 3, "total": 3, "truncated": False, "execution_ms": 28, "results": [], "adapter": "wazuh"}
 
@@ -343,17 +343,17 @@ class TestPCDIModel:
 
     def test_pcdi_signed_report_imports(self):
         """PCDISignedReport model imports cleanly."""
-        from app.models.pcdi import PCDISignedReport
+        from asc_api.models.pcdi import PCDISignedReport
         assert PCDISignedReport.__tablename__ == "pcdi_signed_reports"
 
     def test_pcdi_signed_report_in_models_init(self):
-        """PCDISignedReport is exported from app.models."""
-        from app.models import PCDISignedReport
+        """PCDISignedReport is exported from asc_api.models."""
+        from asc_api.models import PCDISignedReport
         assert PCDISignedReport is not None
 
     def test_pcdi_signed_report_has_required_columns(self):
         """PCDISignedReport model has all required columns."""
-        from app.models.pcdi import PCDISignedReport
+        from asc_api.models.pcdi import PCDISignedReport
         cols = {c.name for c in PCDISignedReport.__table__.columns}
         required = {
             "id", "hunt_id", "hunt_name", "canonical_data",
@@ -365,7 +365,7 @@ class TestPCDIModel:
 
     def test_pcdi_signed_report_has_indexes(self):
         """PCDISignedReport has performance indexes on key columns."""
-        from app.models.pcdi import PCDISignedReport
+        from asc_api.models.pcdi import PCDISignedReport
         indexes = {idx.name for idx in PCDISignedReport.__table__.indexes}
         assert "ix_pcdi_hunt_id" in indexes
         assert "ix_pcdi_signed_by" in indexes
@@ -379,7 +379,7 @@ class TestPCDICrypto:
 
     def test_compute_report_hash_deterministic(self):
         """SHA3-512 hash is deterministic for the same canonical data."""
-        from app.services.pcdi_service import _compute_report_hash
+        from asc_api.services.pcdi_service import _compute_report_hash
 
         data = {"hunt_id": "h-1", "findings": 3, "ts": "2026-01-01"}
         h1 = _compute_report_hash(data)
@@ -389,7 +389,7 @@ class TestPCDICrypto:
 
     def test_compute_report_hash_different_inputs(self):
         """Different canonical data produces different hashes."""
-        from app.services.pcdi_service import _compute_report_hash
+        from asc_api.services.pcdi_service import _compute_report_hash
 
         h1 = _compute_report_hash({"a": 1})
         h2 = _compute_report_hash({"a": 2})
@@ -397,7 +397,7 @@ class TestPCDICrypto:
 
     def test_compute_report_hash_order_independent(self):
         """Hash is independent of key ordering (sort_keys=True)."""
-        from app.services.pcdi_service import _compute_report_hash
+        from asc_api.services.pcdi_service import _compute_report_hash
 
         h1 = _compute_report_hash({"b": 2, "a": 1})
         h2 = _compute_report_hash({"a": 1, "b": 2})
@@ -405,7 +405,7 @@ class TestPCDICrypto:
 
     def test_sign_and_verify_roundtrip(self):
         """Ed25519 sign → verify roundtrip succeeds with matching keys."""
-        from app.services.pcdi_service import _sign_report_hash, _verify_report_signature
+        from asc_api.services.pcdi_service import _sign_report_hash, _verify_report_signature
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
         hash_hex = "a" * 128
@@ -417,7 +417,7 @@ class TestPCDICrypto:
 
     def test_verify_fails_with_wrong_public_key(self):
         """Verification fails if a different public key is used."""
-        from app.services.pcdi_service import _sign_report_hash, _verify_report_signature
+        from asc_api.services.pcdi_service import _sign_report_hash, _verify_report_signature
 
         priv_b64, _ = _gen_ed25519_keypair()
         _, wrong_pub_b64 = _gen_ed25519_keypair()  # different key pair
@@ -430,7 +430,7 @@ class TestPCDICrypto:
 
     def test_verify_fails_with_tampered_hash(self):
         """Verification fails if hash is tampered after signing."""
-        from app.services.pcdi_service import _sign_report_hash, _verify_report_signature
+        from asc_api.services.pcdi_service import _sign_report_hash, _verify_report_signature
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
         original_hash = "c" * 128
@@ -443,7 +443,7 @@ class TestPCDICrypto:
 
     def test_verify_never_raises(self):
         """_verify_report_signature never raises on malformed input."""
-        from app.services.pcdi_service import _verify_report_signature
+        from asc_api.services.pcdi_service import _verify_report_signature
 
         # All garbage inputs — should return False not raise
         result = _verify_report_signature("bad_hash", "bad_sig", "bad_key")
@@ -459,7 +459,7 @@ class TestAdaptiveScoring:
     @pytest.mark.asyncio
     async def test_score_returns_error_for_missing_finding(self):
         """compute_adaptive_score returns error dict when finding not found."""
-        from app.services.pcdi_service import compute_adaptive_score
+        from asc_api.services.pcdi_service import compute_adaptive_score
 
         db = _multi_db(None)  # finding not found
         result = await compute_adaptive_score(db, "nonexistent-id")
@@ -469,7 +469,7 @@ class TestAdaptiveScoring:
     @pytest.mark.asyncio
     async def test_score_base_from_severity(self):
         """Score base is derived from finding severity."""
-        from app.services.pcdi_service import compute_adaptive_score, _SEV_BASE
+        from asc_api.services.pcdi_service import compute_adaptive_score, _SEV_BASE
 
         finding = _make_finding(severity="critical", indicator_value=None, affected_host=None)
         hunt = _make_hunt(status="draft")
@@ -496,7 +496,7 @@ class TestAdaptiveScoring:
     @pytest.mark.asyncio
     async def test_score_escalates_with_panl_hit(self):
         """Score increases when PANL actions target the same indicator."""
-        from app.services.pcdi_service import compute_adaptive_score
+        from asc_api.services.pcdi_service import compute_adaptive_score
 
         finding = _make_finding(severity="medium", indicator_value="10.0.0.1", affected_host=None)
         hunt = _make_hunt(status="active")
@@ -521,7 +521,7 @@ class TestAdaptiveScoring:
     @pytest.mark.asyncio
     async def test_score_capped_at_100(self):
         """Score never exceeds 100 regardless of signal accumulation."""
-        from app.services.pcdi_service import compute_adaptive_score
+        from asc_api.services.pcdi_service import compute_adaptive_score
 
         finding = _make_finding(severity="critical", is_confirmed=True)
         hunt = _make_hunt(status="active")
@@ -544,7 +544,7 @@ class TestAdaptiveScoring:
 
     def test_score_to_severity_mapping(self):
         """Score ranges map to expected severity labels."""
-        from app.services.pcdi_service import _score_to_severity
+        from asc_api.services.pcdi_service import _score_to_severity
 
         assert _score_to_severity(95) == "critical"
         assert _score_to_severity(80) == "critical"
@@ -559,7 +559,7 @@ class TestAdaptiveScoring:
 
     def test_score_result_has_required_keys(self):
         """Adaptive score result dict has all required keys."""
-        from app.services.pcdi_service import compute_adaptive_score
+        from asc_api.services.pcdi_service import compute_adaptive_score
         import asyncio
 
         finding = _make_finding(severity="high", indicator_value=None, affected_host=None)
@@ -594,7 +594,7 @@ class TestCrossdomainCorrelation:
     @pytest.mark.asyncio
     async def test_correlate_returns_error_for_missing_hunt(self):
         """correlate_hunt_with_panl returns error dict when hunt not found."""
-        from app.services.pcdi_service import correlate_hunt_with_panl
+        from asc_api.services.pcdi_service import correlate_hunt_with_panl
 
         db = AsyncMock()
         r = AsyncMock(); r.scalar_one_or_none = MagicMock(return_value=None)
@@ -606,7 +606,7 @@ class TestCrossdomainCorrelation:
     @pytest.mark.asyncio
     async def test_correlate_matches_panl_on_indicator(self):
         """PANL actions targeting same indicator are correlated."""
-        from app.services.pcdi_service import correlate_hunt_with_panl
+        from asc_api.services.pcdi_service import correlate_hunt_with_panl
 
         hunt = _make_hunt()
         finding = _make_finding(hunt_id=hunt.id, indicator_value="1.2.3.4", affected_host=None)
@@ -631,7 +631,7 @@ class TestCrossdomainCorrelation:
     @pytest.mark.asyncio
     async def test_correlate_result_has_required_keys(self):
         """Correlation result dict has all required keys."""
-        from app.services.pcdi_service import correlate_hunt_with_panl
+        from asc_api.services.pcdi_service import correlate_hunt_with_panl
 
         hunt = _make_hunt()
 
@@ -656,7 +656,7 @@ class TestCrossdomainCorrelation:
     @pytest.mark.asyncio
     async def test_correlate_no_findings_returns_zeros(self):
         """Correlation with no findings returns 0 matches."""
-        from app.services.pcdi_service import correlate_hunt_with_panl
+        from asc_api.services.pcdi_service import correlate_hunt_with_panl
 
         hunt = _make_hunt()
 
@@ -685,7 +685,7 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_sign_hunt_report_creates_entry(self):
         """sign_hunt_report persists a PCDISignedReport and returns a dict."""
-        from app.services.pcdi_service import sign_hunt_report
+        from asc_api.services.pcdi_service import sign_hunt_report
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
         hunt = _make_hunt()
@@ -724,7 +724,7 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_sign_hunt_report_hash_is_verifiable(self):
         """Signed report hash can be independently verified."""
-        from app.services.pcdi_service import sign_hunt_report, _compute_report_hash, _verify_report_signature
+        from asc_api.services.pcdi_service import sign_hunt_report, _compute_report_hash, _verify_report_signature
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
         hunt = _make_hunt()
@@ -761,7 +761,7 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_verify_signed_report_success(self):
         """verify_signed_report returns verified=True for a valid report."""
-        from app.services.pcdi_service import (
+        from asc_api.services.pcdi_service import (
             verify_signed_report, _compute_report_hash, _sign_report_hash
         )
 
@@ -787,13 +787,13 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_verify_signed_report_fails_on_tampered_canonical(self):
         """verify_signed_report detects hash mismatch when canonical_data is tampered."""
-        from app.services.pcdi_service import verify_signed_report
+        from asc_api.services.pcdi_service import verify_signed_report
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
         original = {"pcdi_version": "1", "hunt_id": "h-1", "report": {"x": 1}}
         tampered = {"pcdi_version": "1", "hunt_id": "h-1", "report": {"x": 999}}  # tampered!
 
-        from app.services.pcdi_service import _compute_report_hash, _sign_report_hash
+        from asc_api.services.pcdi_service import _compute_report_hash, _sign_report_hash
         hash_hex = _compute_report_hash(original)
         signature = _sign_report_hash(hash_hex, priv_b64)
 
@@ -813,7 +813,7 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_verify_missing_report_returns_error(self):
         """verify_signed_report returns error when report not found."""
-        from app.services.pcdi_service import verify_signed_report
+        from asc_api.services.pcdi_service import verify_signed_report
 
         r = AsyncMock(); r.scalar_one_or_none = MagicMock(return_value=None)
         db = AsyncMock()
@@ -825,10 +825,10 @@ class TestSignHuntReport:
     @pytest.mark.asyncio
     async def test_list_signed_reports_returns_list(self):
         """list_signed_reports returns serialized list."""
-        from app.services.pcdi_service import list_signed_reports
+        from asc_api.services.pcdi_service import list_signed_reports
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
-        from app.services.pcdi_service import _compute_report_hash, _sign_report_hash
+        from asc_api.services.pcdi_service import _compute_report_hash, _sign_report_hash
         canonical = {"pcdi_version": "1"}
         h = _compute_report_hash(canonical)
         sig = _sign_report_hash(h, priv_b64)
@@ -857,7 +857,7 @@ class TestPCDIEndpoints:
 
     def _setup_client(self):
         from fastapi.testclient import TestClient
-        from app.main import app
+        from asc_api.main import app
         return app, TestClient(app, raise_server_exceptions=False)
 
     def test_score_endpoint_requires_auth(self):
@@ -892,9 +892,9 @@ class TestPCDIEndpoints:
 
     def test_score_endpoint_404_when_finding_missing(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock(); mock_user.email = "a@test.com"
         db = _db_with(return_value=None)  # finding not found
@@ -914,9 +914,9 @@ class TestPCDIEndpoints:
 
     def test_correlate_endpoint_404_when_hunt_missing(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock(); mock_user.email = "a@test.com"
         db = _db_with(return_value=None)
@@ -936,9 +936,9 @@ class TestPCDIEndpoints:
 
     def test_sign_report_endpoint_422_without_signing_key(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock()
         mock_user.email = "a@test.com"
@@ -958,9 +958,9 @@ class TestPCDIEndpoints:
 
     def test_list_signed_reports_returns_200(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock(); mock_user.email = "a@test.com"
         db = _db_with()
@@ -980,9 +980,9 @@ class TestPCDIEndpoints:
 
     def test_signed_report_detail_404_when_missing(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock(); mock_user.email = "a@test.com"
         db = _db_with()
@@ -1001,9 +1001,9 @@ class TestPCDIEndpoints:
 
     def test_verify_report_endpoint_404_when_missing(self):
         from fastapi.testclient import TestClient
-        from app.main import app
-        from app.api.deps import get_analyst_or_admin
-        from app.db.session import get_db
+        from asc_api.main import app
+        from asc_api.api.deps import get_analyst_or_admin
+        from asc_api.db.session import get_db
 
         mock_user = MagicMock(); mock_user.email = "a@test.com"
         db = _db_with()
@@ -1025,7 +1025,7 @@ class TestPCDIEndpoints:
 
     def test_pcdi_router_registered(self):
         """PCDI router is included in the main API router."""
-        from app.main import app
+        from asc_api.main import app
         routes = {r.path for r in app.routes}
         assert any("/pcdi/" in str(r) or "/pcdi" in str(r) for r in app.routes)
 

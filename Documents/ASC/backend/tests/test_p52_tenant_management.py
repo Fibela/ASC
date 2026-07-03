@@ -113,7 +113,7 @@ def _db_mock(
 class TestSlugValidation:
     """Slug regex: ^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$ (3-100 chars total)."""
 
-    from app.api.v1.endpoints.tenants import _SLUG_RE
+    from asc_api.api.v1.endpoints.tenants import _SLUG_RE
 
     _re = _SLUG_RE
 
@@ -150,7 +150,7 @@ class TestTenantSchemas:
     """Pydantic schema field validation."""
 
     def test_tenant_create_valid(self):
-        from app.api.v1.endpoints.tenants import TenantCreate
+        from asc_api.api.v1.endpoints.tenants import TenantCreate
         body = TenantCreate(name="Acme Corp", slug="acme-corp", plan="pro",
                             contact_email="cto@acme.com", max_users=50)
         assert body.slug == "acme-corp"
@@ -158,25 +158,25 @@ class TestTenantSchemas:
         assert body.max_users == 50
 
     def test_tenant_create_invalid_slug_uppercase(self):
-        from app.api.v1.endpoints.tenants import TenantCreate
+        from asc_api.api.v1.endpoints.tenants import TenantCreate
         import pydantic
         with pytest.raises(pydantic.ValidationError, match="slug"):
             TenantCreate(name="Acme", slug="ACME-CORP", plan="free")
 
     def test_tenant_create_invalid_plan(self):
-        from app.api.v1.endpoints.tenants import TenantCreate
+        from asc_api.api.v1.endpoints.tenants import TenantCreate
         import pydantic
         with pytest.raises(pydantic.ValidationError):
             TenantCreate(name="Acme", slug="acme", plan="ultimate")
 
     def test_tenant_create_name_too_short(self):
-        from app.api.v1.endpoints.tenants import TenantCreate
+        from asc_api.api.v1.endpoints.tenants import TenantCreate
         import pydantic
         with pytest.raises(pydantic.ValidationError, match="name"):
             TenantCreate(name="A", slug="acme-corp", plan="free")
 
     def test_tenant_create_defaults(self):
-        from app.api.v1.endpoints.tenants import TenantCreate
+        from asc_api.api.v1.endpoints.tenants import TenantCreate
         body = TenantCreate(name="Acme Corp", slug="acme-corp")
         assert body.plan == "free"
         assert body.contact_email is None
@@ -184,32 +184,32 @@ class TestTenantSchemas:
         assert body.max_api_keys_per_user is None
 
     def test_plan_change_requires_reason(self):
-        from app.api.v1.endpoints.tenants import TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import TenantPlanChange
         import pydantic
         with pytest.raises(pydantic.ValidationError, match="reason"):
             TenantPlanChange(plan="pro")
 
     def test_plan_change_reason_too_short(self):
-        from app.api.v1.endpoints.tenants import TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import TenantPlanChange
         import pydantic
         with pytest.raises(pydantic.ValidationError, match="reason"):
             TenantPlanChange(plan="pro", reason="ok")  # < 5 chars
 
     def test_plan_change_valid(self):
-        from app.api.v1.endpoints.tenants import TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import TenantPlanChange
         body = TenantPlanChange(plan="enterprise", reason="Customer upgraded via sales call 2026-06-14")
         assert body.plan == "enterprise"
         assert len(body.reason) >= 5
 
     def test_tenant_read_from_attributes(self):
-        from app.api.v1.endpoints.tenants import TenantRead
+        from asc_api.api.v1.endpoints.tenants import TenantRead
         t = _make_tenant()
         r = TenantRead.model_validate(t)
         assert r.slug == t.slug
         assert r.is_active == t.is_active
 
     def test_tenant_update_all_optional(self):
-        from app.api.v1.endpoints.tenants import TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import TenantUpdate
         body = TenantUpdate()
         assert body.name is None
         assert body.contact_email is None
@@ -222,7 +222,7 @@ class TestCreateTenant:
 
     @pytest.mark.asyncio
     async def test_create_tenant_success(self):
-        from app.api.v1.endpoints.tenants import create_tenant, TenantCreate
+        from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
 
         admin = _make_user(role="admin")
         db, exec_result = _db_mock(scalar_result=None)  # slug not found → unique
@@ -253,7 +253,7 @@ class TestCreateTenant:
 
     @pytest.mark.asyncio
     async def test_create_tenant_slug_conflict_returns_409(self):
-        from app.api.v1.endpoints.tenants import create_tenant, TenantCreate
+        from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -268,7 +268,7 @@ class TestCreateTenant:
 
     @pytest.mark.asyncio
     async def test_create_tenant_logs_audit_event(self):
-        from app.api.v1.endpoints.tenants import create_tenant, TenantCreate
+        from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
 
         admin = _make_user(role="admin")
         db, exec_result = _db_mock(scalar_result=None)
@@ -297,7 +297,7 @@ class TestCreateTenant:
         # The dep (get_current_admin) raises 403 for non-admin
         # We test that the admin dependency is wired correctly by verifying
         # it is referenced in the endpoint's dependency chain
-        from app.api.v1.endpoints.tenants import create_tenant
+        from asc_api.api.v1.endpoints.tenants import create_tenant
         import inspect
         sig = inspect.signature(create_tenant)
         param = sig.parameters.get("current_user")
@@ -308,7 +308,7 @@ class TestCreateTenant:
 
     @pytest.mark.asyncio
     async def test_create_tenant_with_all_fields(self):
-        from app.api.v1.endpoints.tenants import create_tenant, TenantCreate
+        from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
 
         admin = _make_user(role="admin")
         db, _ = _db_mock(scalar_result=None)
@@ -335,7 +335,7 @@ class TestCreateTenant:
     @pytest.mark.asyncio
     async def test_create_tenant_slug_with_numbers(self):
         """Slugs with numbers should be accepted."""
-        from app.api.v1.endpoints.tenants import create_tenant, TenantCreate
+        from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
 
         admin = _make_user(role="admin")
         db, _ = _db_mock(scalar_result=None)
@@ -361,7 +361,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_returns_paginated_results(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
 
         admin = _make_user(role="admin")
         tenants = [_make_tenant(slug=f"tenant-{i}") for i in range(5)]
@@ -375,7 +375,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_empty(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
 
         admin = _make_user(role="admin")
         db, _ = _db_mock(scalars_result=[], scalar_one_result=0)
@@ -387,7 +387,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_with_plan_filter_pro(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
 
         admin = _make_user(role="admin")
         pro_tenants = [_make_tenant(slug=f"pro-{i}", plan="pro") for i in range(2)]
@@ -400,7 +400,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_invalid_plan_filter_returns_422(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -413,7 +413,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_active_only_filter(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
 
         admin = _make_user(role="admin")
         active = [_make_tenant(slug="active-one", is_active=True)]
@@ -426,7 +426,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_second_page(self):
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
 
         admin = _make_user(role="admin")
         page2_tenants = [_make_tenant(slug=f"page2-{i}") for i in range(3)]
@@ -440,7 +440,7 @@ class TestListTenants:
 
     @pytest.mark.asyncio
     async def test_list_tenant_read_schema(self):
-        from app.api.v1.endpoints.tenants import list_tenants, TenantRead
+        from asc_api.api.v1.endpoints.tenants import list_tenants, TenantRead
 
         admin = _make_user(role="admin")
         t = _make_tenant(slug="schema-check", plan="enterprise")
@@ -455,7 +455,7 @@ class TestListTenants:
     @pytest.mark.asyncio
     async def test_list_admin_dep_is_wired(self):
         """list_tenants must use get_current_admin dep."""
-        from app.api.v1.endpoints.tenants import list_tenants
+        from asc_api.api.v1.endpoints.tenants import list_tenants
         import inspect
         sig = inspect.signature(list_tenants)
         param = sig.parameters.get("current_user")
@@ -470,7 +470,7 @@ class TestGetTenant:
 
     @pytest.mark.asyncio
     async def test_get_existing_tenant(self):
-        from app.api.v1.endpoints.tenants import get_tenant
+        from asc_api.api.v1.endpoints.tenants import get_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(slug="found-tenant")
@@ -481,7 +481,7 @@ class TestGetTenant:
 
     @pytest.mark.asyncio
     async def test_get_missing_tenant_returns_404(self):
-        from app.api.v1.endpoints.tenants import get_tenant
+        from asc_api.api.v1.endpoints.tenants import get_tenant
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -494,7 +494,7 @@ class TestGetTenant:
 
     @pytest.mark.asyncio
     async def test_get_returns_full_tenant_read(self):
-        from app.api.v1.endpoints.tenants import get_tenant, TenantRead
+        from asc_api.api.v1.endpoints.tenants import get_tenant, TenantRead
 
         admin = _make_user(role="admin")
         t = _make_tenant(slug="full-read", contact_email="cto@corp.com", max_users=100)
@@ -508,7 +508,7 @@ class TestGetTenant:
     @pytest.mark.asyncio
     async def test_get_inactive_tenant(self):
         """Inactive tenants must still be retrievable for admin review."""
-        from app.api.v1.endpoints.tenants import get_tenant
+        from asc_api.api.v1.endpoints.tenants import get_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(slug="inactive-tenant", is_active=False)
@@ -519,7 +519,7 @@ class TestGetTenant:
 
     @pytest.mark.asyncio
     async def test_get_tenant_admin_dep(self):
-        from app.api.v1.endpoints.tenants import get_tenant
+        from asc_api.api.v1.endpoints.tenants import get_tenant
         import inspect
         sig = inspect.signature(get_tenant)
         param = sig.parameters.get("current_user")
@@ -534,7 +534,7 @@ class TestGetMyTenant:
 
     @pytest.mark.asyncio
     async def test_me_returns_own_tenant(self):
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
 
         tid = str(uuid.uuid4())
         user = _make_user(role="analyst", tenant_id=tid)
@@ -547,7 +547,7 @@ class TestGetMyTenant:
     @pytest.mark.asyncio
     async def test_me_single_tenant_mode_returns_404(self):
         """Users with tenant_id=None (single-tenant mode) get 404."""
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
         from fastapi import HTTPException
 
         user = _make_user(role="analyst", tenant_id=None)
@@ -561,7 +561,7 @@ class TestGetMyTenant:
     @pytest.mark.asyncio
     async def test_me_available_to_non_admin(self):
         """Analyst role can call /me."""
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
         import inspect
         sig = inspect.signature(get_my_tenant)
         param = sig.parameters.get("current_user")
@@ -574,7 +574,7 @@ class TestGetMyTenant:
     @pytest.mark.asyncio
     async def test_me_uses_user_tenant_id_first(self):
         """user.tenant_id takes priority over ContextVar in /me."""
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
 
         tid = str(uuid.uuid4())
         user = _make_user(role="viewer", tenant_id=tid)
@@ -590,7 +590,7 @@ class TestGetMyTenant:
     @pytest.mark.asyncio
     async def test_me_falls_back_to_context_var_if_user_has_no_tenant(self):
         """If user.tenant_id is None but ContextVar has value (via X-Tenant-ID), use it."""
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
 
         ctx_tid = str(uuid.uuid4())
         user = _make_user(role="analyst", tenant_id=None)
@@ -605,7 +605,7 @@ class TestGetMyTenant:
     @pytest.mark.asyncio
     async def test_me_tenant_not_found_in_db_returns_404(self):
         """If tenant_id is set but tenant was deleted from DB."""
-        from app.api.v1.endpoints.tenants import get_my_tenant
+        from asc_api.api.v1.endpoints.tenants import get_my_tenant
         from fastapi import HTTPException
 
         tid = str(uuid.uuid4())
@@ -624,7 +624,7 @@ class TestTenantStats:
 
     @pytest.mark.asyncio
     async def test_stats_returns_correct_schema(self):
-        from app.api.v1.endpoints.tenants import get_tenant_stats, TenantStats
+        from asc_api.api.v1.endpoints.tenants import get_tenant_stats, TenantStats
 
         admin = _make_user(role="admin")
         t = _make_tenant()
@@ -657,7 +657,7 @@ class TestTenantStats:
 
     @pytest.mark.asyncio
     async def test_stats_404_for_missing_tenant(self):
-        from app.api.v1.endpoints.tenants import get_tenant_stats
+        from asc_api.api.v1.endpoints.tenants import get_tenant_stats
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -670,7 +670,7 @@ class TestTenantStats:
     @pytest.mark.asyncio
     async def test_stats_has_five_resource_types(self):
         """Response must have all 5 resource count fields."""
-        from app.api.v1.endpoints.tenants import TenantStats
+        from asc_api.api.v1.endpoints.tenants import TenantStats
         fields = set(TenantStats.model_fields.keys())
         assert "user_count" in fields
         assert "alert_count" in fields
@@ -681,7 +681,7 @@ class TestTenantStats:
 
     @pytest.mark.asyncio
     async def test_stats_admin_only(self):
-        from app.api.v1.endpoints.tenants import get_tenant_stats
+        from asc_api.api.v1.endpoints.tenants import get_tenant_stats
         import inspect
         sig = inspect.signature(get_tenant_stats)
         param = sig.parameters.get("current_user")
@@ -689,7 +689,7 @@ class TestTenantStats:
 
     @pytest.mark.asyncio
     async def test_stats_zero_counts(self):
-        from app.api.v1.endpoints.tenants import get_tenant_stats
+        from asc_api.api.v1.endpoints.tenants import get_tenant_stats
 
         admin = _make_user(role="admin")
         t = _make_tenant()
@@ -717,7 +717,7 @@ class TestTenantStats:
 
     @pytest.mark.asyncio
     async def test_stats_non_zero_counts(self):
-        from app.api.v1.endpoints.tenants import get_tenant_stats
+        from asc_api.api.v1.endpoints.tenants import get_tenant_stats
 
         admin = _make_user(role="admin")
         t = _make_tenant()
@@ -752,7 +752,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_name(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
 
         admin = _make_user(role="admin")
         t = _make_tenant(name="Old Name", slug="old-corp")
@@ -767,7 +767,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_contact_email(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
 
         admin = _make_user(role="admin")
         t = _make_tenant(contact_email=None)
@@ -781,7 +781,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_max_users(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
 
         admin = _make_user(role="admin")
         t = _make_tenant(max_users=None)
@@ -795,7 +795,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_no_changes_skips_commit(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
 
         admin = _make_user(role="admin")
         t = _make_tenant(name="Same Name")
@@ -808,7 +808,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_missing_tenant_404(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -821,7 +821,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_logs_changes(self):
-        from app.api.v1.endpoints.tenants import update_tenant, TenantUpdate
+        from asc_api.api.v1.endpoints.tenants import update_tenant, TenantUpdate
 
         admin = _make_user(role="admin")
         t = _make_tenant(name="Old Name")
@@ -838,7 +838,7 @@ class TestUpdateTenant:
 
     @pytest.mark.asyncio
     async def test_update_admin_dep_wired(self):
-        from app.api.v1.endpoints.tenants import update_tenant
+        from asc_api.api.v1.endpoints.tenants import update_tenant
         import inspect
         sig = inspect.signature(update_tenant)
         param = sig.parameters.get("current_user")
@@ -852,7 +852,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_free_to_pro(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
 
         admin = _make_user(role="admin")
         t = _make_tenant(plan="free")
@@ -867,7 +867,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_same_plan_returns_422(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -882,7 +882,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_logs_old_and_new_plan(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
 
         admin = _make_user(role="admin")
         t = _make_tenant(plan="free")
@@ -901,7 +901,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_missing_tenant_404(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -915,7 +915,7 @@ class TestChangePlan:
     @pytest.mark.asyncio
     async def test_plan_change_to_free(self):
         """Downgrade from enterprise to free is allowed."""
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
 
         admin = _make_user(role="admin")
         t = _make_tenant(plan="enterprise")
@@ -929,7 +929,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_reason_persisted_in_audit_log(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan, TenantPlanChange
 
         admin = _make_user(role="admin")
         t = _make_tenant(plan="free")
@@ -946,7 +946,7 @@ class TestChangePlan:
 
     @pytest.mark.asyncio
     async def test_plan_change_admin_dep_wired(self):
-        from app.api.v1.endpoints.tenants import change_tenant_plan
+        from asc_api.api.v1.endpoints.tenants import change_tenant_plan
         import inspect
         sig = inspect.signature(change_tenant_plan)
         param = sig.parameters.get("current_user")
@@ -960,7 +960,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_deactivate_active_tenant(self):
-        from app.api.v1.endpoints.tenants import deactivate_tenant
+        from asc_api.api.v1.endpoints.tenants import deactivate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=True)
@@ -974,7 +974,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_deactivate_already_inactive_returns_422(self):
-        from app.api.v1.endpoints.tenants import deactivate_tenant
+        from asc_api.api.v1.endpoints.tenants import deactivate_tenant
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -987,7 +987,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_activate_inactive_tenant(self):
-        from app.api.v1.endpoints.tenants import activate_tenant
+        from asc_api.api.v1.endpoints.tenants import activate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=False)
@@ -1001,7 +1001,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_activate_already_active_returns_422(self):
-        from app.api.v1.endpoints.tenants import activate_tenant
+        from asc_api.api.v1.endpoints.tenants import activate_tenant
         from fastapi import HTTPException
 
         admin = _make_user(role="admin")
@@ -1014,7 +1014,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_deactivate_logs_audit_event(self):
-        from app.api.v1.endpoints.tenants import deactivate_tenant
+        from asc_api.api.v1.endpoints.tenants import deactivate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=True, slug="corp-to-deactivate")
@@ -1028,7 +1028,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_activate_logs_audit_event(self):
-        from app.api.v1.endpoints.tenants import activate_tenant
+        from asc_api.api.v1.endpoints.tenants import activate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=False, slug="corp-to-reactivate")
@@ -1043,7 +1043,7 @@ class TestActivateDeactivate:
     @pytest.mark.asyncio
     async def test_deactivate_preserves_data(self):
         """Deactivation is soft-delete: all tenant attributes preserved."""
-        from app.api.v1.endpoints.tenants import deactivate_tenant
+        from asc_api.api.v1.endpoints.tenants import deactivate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=True, slug="data-preserved", plan="enterprise",
@@ -1061,7 +1061,7 @@ class TestActivateDeactivate:
 
     @pytest.mark.asyncio
     async def test_full_cycle_deactivate_then_activate(self):
-        from app.api.v1.endpoints.tenants import activate_tenant, deactivate_tenant
+        from asc_api.api.v1.endpoints.tenants import activate_tenant, deactivate_tenant
 
         admin = _make_user(role="admin")
         t = _make_tenant(is_active=True)
@@ -1086,7 +1086,7 @@ class TestBugGap1ApiKeyTenantCtx:
 
     def test_set_tenant_id_imported_in_deps(self):
         """set_tenant_id must be imported in deps.py."""
-        import app.api.deps as deps_module
+        import asc_api.api.deps as deps_module
         assert hasattr(deps_module, "set_tenant_id"), (
             "set_tenant_id must be imported in deps.py (Bug#Gap-1 fix)"
         )
@@ -1124,13 +1124,13 @@ class TestBugGap1ApiKeyTenantCtx:
         """Import must come from the canonical tenant_context module."""
         from pathlib import Path
         src = (Path(__file__).parent.parent / "app" / "api" / "deps.py").read_text()
-        assert "from app.core.tenant_context import set_tenant_id" in src, (
-            "set_tenant_id must be imported from app.core.tenant_context in deps.py"
+        assert "from asc_api.core.tenant_context import set_tenant_id" in src, (
+            "set_tenant_id must be imported from asc_api.core.tenant_context in deps.py"
         )
 
     def test_tenant_context_module_has_set_tenant_id(self):
         """Canonical module exports set_tenant_id callable."""
-        from app.core.tenant_context import set_tenant_id
+        from asc_api.core.tenant_context import set_tenant_id
         assert callable(set_tenant_id)
 
 
@@ -1140,38 +1140,38 @@ class TestRouterRegistration:
     """Tenants router is registered in the main API router."""
 
     def test_tenants_router_in_api_router(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = [r.path for r in api_router.routes]
         tenant_paths = [p for p in paths if "/tenants" in p]
         assert len(tenant_paths) >= 1, "No /tenants routes found in api_router"
 
     def test_tenants_create_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants" in paths
 
     def test_tenants_me_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants/me" in paths
 
     def test_tenants_stats_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants/{tenant_id}/stats" in paths
 
     def test_tenants_plan_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants/{tenant_id}/plan" in paths
 
     def test_tenants_activate_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants/{tenant_id}/activate" in paths
 
     def test_tenants_deactivate_route_exists(self):
-        from app.api.v1.router import api_router
+        from asc_api.api.v1.router import api_router
         paths = {r.path for r in api_router.routes}
         assert "/api/v1/tenants/{tenant_id}/deactivate" in paths
 
@@ -1182,21 +1182,21 @@ class TestP52Regression:
     """P47/P51 deliverables are not broken by P52."""
 
     def test_tenant_model_unchanged(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         for attr in ("id", "name", "slug", "plan", "is_active", "created_at",
                      "contact_email", "max_users", "max_api_keys_per_user"):
             assert hasattr(Tenant, attr), f"Tenant model missing attribute: {attr}"
 
     def test_tenant_context_still_works(self):
-        from app.core.tenant_context import get_tenant_id, set_tenant_id
+        from asc_api.core.tenant_context import get_tenant_id, set_tenant_id
         set_tenant_id("regression-test-tid")
         assert get_tenant_id() == "regression-test-tid"
         set_tenant_id(None)
         assert get_tenant_id() is None
 
     def test_apply_tenant_filter_still_works(self):
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
         from sqlalchemy import select
         stmt = select(APIKey)
         filtered = apply_tenant_filter(stmt, APIKey)
@@ -1204,15 +1204,15 @@ class TestP52Regression:
         assert "tenant_id" in str(compiled)
 
     def test_tenant_middleware_importable(self):
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
         assert TenantMiddleware is not None
 
     def test_all_models_with_tenant_id_still_present(self):
-        from app.models.user import User
-        from app.models.alert import Alert
-        from app.models.api_key import APIKey
-        from app.models.webhook import Webhook
-        from app.models.incident import Incident
+        from asc_api.models.user import User
+        from asc_api.models.alert import Alert
+        from asc_api.models.api_key import APIKey
+        from asc_api.models.webhook import Webhook
+        from asc_api.models.incident import Incident
         for model in (User, Alert, APIKey, Webhook, Incident):
             assert hasattr(model, "tenant_id"), f"{model.__name__} missing tenant_id"
 
@@ -1223,7 +1223,7 @@ class TestP52Regression:
 
     def test_deps_py_fix_does_not_break_resolve_user(self):
         """_resolve_user function must still exist after Bug#Gap-1 fix."""
-        from app.api.deps import _resolve_user, get_current_user, get_current_admin
+        from asc_api.api.deps import _resolve_user, get_current_user, get_current_admin
         assert callable(_resolve_user)
         assert callable(get_current_user)
         assert callable(get_current_admin)

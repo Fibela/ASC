@@ -13,7 +13,7 @@ import hashlib
 import json
 import pytest
 
-from app.services.praf import (
+from asc_api.services.praf import (
     PRAFLedger,
     AdaptiveLoadScorer,
     CrossDomainCorrelator,

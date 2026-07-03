@@ -37,13 +37,13 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, AsyncMock, MagicMock
 from httpx import AsyncClient, Response
 
-from app.models.user  import User
-from app.models.alert import Alert
-from app.models.event import Event
-from app.models.ioc   import IoC
-from app.adapters.elk     import ELKAdapter, _SEVERITY_TO_ECS
-from app.adapters.wazuh   import WazuhAdapter, wazuh_level_to_severity
-from app.adapters.thehive import TheHiveAdapter, _SEVERITY_MAP, _IOC_TYPE_MAP
+from asc_api.models.user  import User
+from asc_api.models.alert import Alert
+from asc_api.models.event import Event
+from asc_api.models.ioc   import IoC
+from asc_api.adapters.elk     import ELKAdapter, _SEVERITY_TO_ECS
+from asc_api.adapters.wazuh   import WazuhAdapter, wazuh_level_to_severity
+from asc_api.adapters.thehive import TheHiveAdapter, _SEVERITY_MAP, _IOC_TYPE_MAP
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ from app.adapters.thehive import TheHiveAdapter, _SEVERITY_MAP, _IOC_TYPE_MAP
 def configured_elk(monkeypatch):
     monkeypatch.setenv("ELASTICSEARCH_URL",     "https://elastic.test:9200")
     monkeypatch.setenv("ELASTICSEARCH_API_KEY", "dGVzdDp0ZXN0")
-    from app.core.config import get_settings
+    from asc_api.core.config import get_settings
     get_settings.cache_clear()
     adapter = ELKAdapter()
     yield adapter
@@ -64,7 +64,7 @@ def configured_wazuh(monkeypatch):
     monkeypatch.setenv("WAZUH_URL",      "https://wazuh.test:55000")
     monkeypatch.setenv("WAZUH_USERNAME", "wazuh-user")
     monkeypatch.setenv("WAZUH_PASSWORD", "wazuh-pass")
-    from app.core.config import get_settings
+    from asc_api.core.config import get_settings
     get_settings.cache_clear()
     WazuhAdapter.clear_cache()   # ensure no stale cached token bleeds between tests
     adapter = WazuhAdapter()
@@ -77,7 +77,7 @@ def configured_wazuh(monkeypatch):
 def configured_thehive(monkeypatch):
     monkeypatch.setenv("THEHIVE_URL",     "https://thehive.test:9000")
     monkeypatch.setenv("THEHIVE_API_KEY", "thehive-secret-key")
-    from app.core.config import get_settings
+    from asc_api.core.config import get_settings
     get_settings.cache_clear()
     adapter = TheHiveAdapter()
     yield adapter

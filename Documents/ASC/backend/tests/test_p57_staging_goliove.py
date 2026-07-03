@@ -148,26 +148,26 @@ class TestSecurityScans:
 
     def test_stripe_secret_key_runtime_value_empty(self):
         """STRIPE_SECRET_KEY default must be empty string (integration disabled in dev)."""
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.STRIPE_SECRET_KEY == "", "STRIPE_SECRET_KEY must default to '' (disabled in dev)"
 
     def test_stripe_webhook_secret_runtime_value_empty(self):
         """STRIPE_WEBHOOK_SECRET default must be empty string."""
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.STRIPE_WEBHOOK_SECRET == "", "STRIPE_WEBHOOK_SECRET must default to ''"
 
     def test_secret_key_not_changeme_in_production_check(self):
         """startup_checks._check_secret_key detects weak SECRET_KEY."""
-        from app.core.startup_checks import _check_secret_key
+        from asc_api.core.startup_checks import _check_secret_key
         issues = _check_secret_key("changeme-generate-a-strong-key-in-production", production=True)
         assert len(issues) >= 1, "startup_checks must reject changeme placeholder"
 
     def test_strong_secret_key_passes_check(self):
         """A properly generated SECRET_KEY passes startup checks."""
         import secrets
-        from app.core.startup_checks import _check_secret_key
+        from asc_api.core.startup_checks import _check_secret_key
         strong_key = secrets.token_hex(32)
         issues = _check_secret_key(strong_key, production=True)
         assert issues == [], f"Strong key failed check: {issues}"
@@ -458,36 +458,36 @@ class TestConfigCompleteness:
     """Settings class has all required fields from P53-P55."""
 
     def test_email_verification_expire_hours_exists(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         assert hasattr(Settings, "model_fields") or hasattr(Settings(), "EMAIL_VERIFICATION_EXPIRE_HOURS")
 
     def test_email_verification_expire_hours_default(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.EMAIL_VERIFICATION_EXPIRE_HOURS == 24
 
     def test_stripe_secret_key_field_exists(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert hasattr(s, "STRIPE_SECRET_KEY")
 
     def test_stripe_webhook_secret_field_exists(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert hasattr(s, "STRIPE_WEBHOOK_SECRET")
 
     def test_rate_limit_api_key_per_minute_default(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.RATE_LIMIT_API_KEY_PER_MINUTE == 60
 
     def test_rate_limit_api_key_per_hour_default(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert s.RATE_LIMIT_API_KEY_PER_HOUR == 1000
 
     def test_cors_origins_has_premoscorp(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         origins_str = str(s.CORS_ORIGINS)
         assert "premoscorp" in origins_str.lower(), (
@@ -495,7 +495,7 @@ class TestConfigCompleteness:
         )
 
     def test_specter_settings_exist(self):
-        from app.core.config import get_settings
+        from asc_api.core.config import get_settings
         s = get_settings()
         assert hasattr(s, "SPECTER_SIGNING_PRIVATE_KEY")
         assert hasattr(s, "SPECTER_SIGNING_PUBLIC_KEY")

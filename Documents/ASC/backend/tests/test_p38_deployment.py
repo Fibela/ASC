@@ -253,12 +253,12 @@ class TestCORSProductionConfig:
     """Validate CORS behavior matches render.yaml and deployment-guide.md."""
 
     def test_startup_checks_reject_wildcard_cors_in_production(self):
-        from app.core.startup_checks import _check_cors
+        from asc_api.core.startup_checks import _check_cors
         issues = _check_cors(["*"], production=True)
         assert len(issues) > 0, "Wildcard CORS must be rejected in production"
 
     def test_startup_checks_allow_specific_origins_in_production(self):
-        from app.core.startup_checks import _check_cors
+        from asc_api.core.startup_checks import _check_cors
         issues = _check_cors(
             ["https://asc-premoscorp.vercel.app", "https://asc.premoscorp.com"],
             production=True,
@@ -266,7 +266,7 @@ class TestCORSProductionConfig:
         assert len(issues) == 0, f"Specific origins must be accepted: {issues}"
 
     def test_startup_checks_allow_wildcard_in_dev(self):
-        from app.core.startup_checks import _check_cors
+        from asc_api.core.startup_checks import _check_cors
         issues = _check_cors(["*"], production=False)
         assert len(issues) == 0, "Wildcard CORS is acceptable in development"
 
@@ -277,24 +277,24 @@ class TestStartupChecksProductionMode:
     """Ensure production configuration is validated strictly at startup."""
 
     def test_weak_secret_key_rejected_in_production(self):
-        from app.core.startup_checks import _check_secret_key
+        from asc_api.core.startup_checks import _check_secret_key
         issues = _check_secret_key("changeme", production=True)
         assert any("weak" in i.lower() or "changeme" in i.lower() for i in issues)
 
     def test_short_secret_key_rejected(self):
-        from app.core.startup_checks import _check_secret_key
+        from asc_api.core.startup_checks import _check_secret_key
         issues = _check_secret_key("tooshort", production=True)
         assert any("minimum" in i.lower() or "32" in i for i in issues)
 
     def test_strong_secret_key_accepted(self):
-        from app.core.startup_checks import _check_secret_key
+        from asc_api.core.startup_checks import _check_secret_key
         import secrets
         strong_key = secrets.token_hex(32)
         issues = _check_secret_key(strong_key, production=True)
         assert len(issues) == 0, f"Strong key should pass: {issues}"
 
     def test_run_startup_checks_raises_in_production_on_weak_key(self):
-        from app.core.startup_checks import run_startup_checks
+        from asc_api.core.startup_checks import run_startup_checks
         from unittest.mock import MagicMock
         mock_settings = MagicMock()
         mock_settings.DEBUG = False
@@ -305,7 +305,7 @@ class TestStartupChecksProductionMode:
 
     def test_run_startup_checks_passes_with_valid_config(self):
         import secrets
-        from app.core.startup_checks import run_startup_checks
+        from asc_api.core.startup_checks import run_startup_checks
         from unittest.mock import MagicMock
         mock_settings = MagicMock()
         mock_settings.DEBUG = False
@@ -321,12 +321,12 @@ class TestCeleryAppConfig:
     """Validate Celery app configuration (no live Redis required)."""
 
     def test_celery_app_importable(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         assert celery_app is not None
         assert celery_app.main == "asc"
 
     def test_celery_beat_schedule_defined(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         schedule = celery_app.conf.beat_schedule
         assert isinstance(schedule, dict)
         expected_tasks = {
@@ -342,13 +342,13 @@ class TestCeleryAppConfig:
 
     def test_celery_no_op_mode_without_redis(self):
         """Celery uses memory:// broker when REDIS_URL is not set."""
-        from app.tasks.celery_app import _broker
+        from asc_api.tasks.celery_app import _broker
         assert "memory://" in _broker or "redis://" in _broker, (
             f"Unexpected broker: {_broker}"
         )
 
     def test_celery_serialization_config(self):
-        from app.tasks.celery_app import celery_app
+        from asc_api.tasks.celery_app import celery_app
         assert celery_app.conf.task_serializer == "json"
         assert celery_app.conf.result_serializer == "json"
         assert "json" in celery_app.conf.accept_content

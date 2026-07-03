@@ -29,9 +29,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.panl import AdaptiveContext, behavioral_throttle, request_rate_limiter
-from app.models.neutralization import NeutralizationAction
-from app.services.approval import (
+from asc_api.core.panl import AdaptiveContext, behavioral_throttle, request_rate_limiter
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.services.approval import (
     REVERSIBLE_ACTIONS,
     ROLLBACK_MAP,
     approve_action,

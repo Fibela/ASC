@@ -31,7 +31,7 @@ from fastapi.testclient import TestClient
 # ── Mini helpers ───────────────────────────────────────────────────────────────
 
 def _make_incident(**kw):
-    from app.models.incident import Incident
+    from asc_api.models.incident import Incident
     i = Incident()
     i.id = kw.get("id", str(uuid.uuid4()))
     i.title = kw.get("title", "Test Incident")
@@ -111,10 +111,10 @@ def _mock_scalars(rows):
 
 
 def _make_endpoint_app():
-    from app.api.v1.endpoints.incidents import router
-    from app.api.deps import get_analyst_or_admin, get_current_admin
-    from app.db.session import get_db
-    from app.models.user import User
+    from asc_api.api.v1.endpoints.incidents import router
+    from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+    from asc_api.db.session import get_db
+    from asc_api.models.user import User
 
     app = FastAPI()
     app.include_router(router)
@@ -201,12 +201,12 @@ class TestSlaEscalationCeleryTask:
         assert "asc.sla_escalation.check_sla_breaches" in _celery_app_src()
 
     def test_sla_config_default_is_120(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert s.SLA_ESCALATION_CHECK_INTERVAL_SECONDS == 120
 
     def test_sla_config_is_int(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert isinstance(s.SLA_ESCALATION_CHECK_INTERVAL_SECONDS, int)
 
@@ -246,7 +246,7 @@ class TestPiilBindingEndpoint:
                 # Override get_db to return a real AsyncMock with execute
                 db = AsyncMock()
                 db.execute = AsyncMock(return_value=_mock_scalars([]))
-                from app.db.session import get_db
+                from asc_api.db.session import get_db
                 app_obj.dependency_overrides[get_db] = lambda: db
                 c = TestClient(app_obj, raise_server_exceptions=False)
                 r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -257,7 +257,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -270,7 +270,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -283,7 +283,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -297,7 +297,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -312,7 +312,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -326,7 +326,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -340,7 +340,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -354,7 +354,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -368,7 +368,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -382,7 +382,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -396,7 +396,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -409,7 +409,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -418,8 +418,8 @@ class TestPiilBindingEndpoint:
         assert r.status_code == 200
 
     def test_unauthed_request_rejected(self):
-        from app.api.v1.endpoints.incidents import router
-        from app.db.session import get_db
+        from asc_api.api.v1.endpoints.incidents import router
+        from asc_api.db.session import get_db
         fresh_app = FastAPI()
         fresh_app.include_router(router)
         fresh_app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -434,7 +434,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -449,7 +449,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -463,7 +463,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -477,7 +477,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -491,7 +491,7 @@ class TestPiilBindingEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -518,7 +518,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -531,7 +531,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -544,7 +544,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -557,7 +557,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -571,7 +571,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -586,7 +586,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -600,7 +600,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -614,7 +614,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -628,7 +628,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -642,7 +642,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -656,7 +656,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -669,7 +669,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -678,8 +678,8 @@ class TestSoarEventsEndpoint:
         assert r.status_code == 200
 
     def test_unauthed_request_rejected(self):
-        from app.api.v1.endpoints.incidents import router
-        from app.db.session import get_db
+        from asc_api.api.v1.endpoints.incidents import router
+        from asc_api.db.session import get_db
         fresh_app = FastAPI()
         fresh_app.include_router(router)
         fresh_app.dependency_overrides[get_db] = lambda: AsyncMock()
@@ -693,7 +693,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -707,7 +707,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -720,7 +720,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -733,7 +733,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -746,7 +746,7 @@ class TestSoarEventsEndpoint:
         app_obj = _make_endpoint_app()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
-        from app.db.session import get_db
+        from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
         with patch("app.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
@@ -762,7 +762,7 @@ class TestSoarEventsEndpoint:
 class TestSerializerFe:
 
     def _call(self, **kw):
-        from app.api.v1.endpoints.incidents import _fe
+        from asc_api.api.v1.endpoints.incidents import _fe
         return _fe(_make_fe(**kw))
 
     def test_returns_dict(self):
@@ -822,68 +822,68 @@ class TestIncidentsModuleIntegration:
 
     def test_module_imports_forensic_entry(self):
         import inspect
-        import app.api.v1.endpoints.incidents as m
+        import asc_api.api.v1.endpoints.incidents as m
         src = inspect.getsource(m)
         assert "ForensicEntry" in src
 
     def test_module_imports_select(self):
         import inspect
-        import app.api.v1.endpoints.incidents as m
+        import asc_api.api.v1.endpoints.incidents as m
         src = inspect.getsource(m)
         assert "from sqlalchemy import select" in src
 
     def test_module_imports_incident_timeline(self):
         import inspect
-        import app.api.v1.endpoints.incidents as m
+        import asc_api.api.v1.endpoints.incidents as m
         src = inspect.getsource(m)
         assert "IncidentTimeline" in src
 
     def test_fe_serializer_exists(self):
-        from app.api.v1.endpoints.incidents import _fe
+        from asc_api.api.v1.endpoints.incidents import _fe
         assert callable(_fe)
 
     def test_piil_binding_route_in_router(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         paths = [r.path for r in router.routes]
         assert any("piil-binding" in p for p in paths)
 
     def test_soar_events_route_in_router(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         paths = [r.path for r in router.routes]
         assert any("soar-events" in p for p in paths)
 
     def test_docstring_mentions_piil_binding(self):
         import inspect
-        import app.api.v1.endpoints.incidents as m
+        import asc_api.api.v1.endpoints.incidents as m
         src = inspect.getsource(m)
         assert "piil-binding" in src.lower()
 
     def test_docstring_mentions_soar_events(self):
         import inspect
-        import app.api.v1.endpoints.incidents as m
+        import asc_api.api.v1.endpoints.incidents as m
         src = inspect.getsource(m)
         assert "soar-events" in src.lower()
 
     def test_router_prefix_is_incidents(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         assert router.prefix == "/incidents"
 
     def test_piil_binding_route_is_get(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         for r in router.routes:
             if "piil-binding" in r.path:
                 assert "GET" in r.methods
                 break
 
     def test_soar_events_route_is_get(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         for r in router.routes:
             if "soar-events" in r.path:
                 assert "GET" in r.methods
                 break
 
     def test_total_routes_increased_to_sixteen(self):
-        from app.api.v1.endpoints.incidents import router
+        from asc_api.api.v1.endpoints.incidents import router
         # Was 14 endpoints, now 16 with piil-binding and soar-events
         assert len(router.routes) >= 16
 
@@ -912,16 +912,16 @@ class TestCeleryAppAndConfig:
         assert "_SLA_INTERVAL" in _celery_app_src()
 
     def test_config_has_sla_escalation_field(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         assert hasattr(Settings(), "SLA_ESCALATION_CHECK_INTERVAL_SECONDS")
 
     def test_config_sla_default_greater_than_escalation_check(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         s = Settings()
         assert s.SLA_ESCALATION_CHECK_INTERVAL_SECONDS > s.ESCALATION_CHECK_INTERVAL_SECONDS
 
     def test_sla_interval_is_positive(self):
-        from app.core.config import Settings
+        from asc_api.core.config import Settings
         assert Settings().SLA_ESCALATION_CHECK_INTERVAL_SECONDS > 0
 
     def test_beat_schedule_proactive_escalation_in_source(self):

@@ -72,55 +72,55 @@ def _pan_group_members(*names: str) -> str:
 
 class TestPaloAltoHelpers(unittest.TestCase):
     def test_ip_name_sanitization(self):
-        from app.adapters.firewall.paloalto import _sanitize_ip_name
+        from asc_api.adapters.firewall.paloalto import _sanitize_ip_name
         assert _sanitize_ip_name("192.168.1.1") == "ASC-BLK-IP-192-168-1-1"
 
     def test_ip_name_max_63_chars(self):
-        from app.adapters.firewall.paloalto import _sanitize_ip_name
+        from asc_api.adapters.firewall.paloalto import _sanitize_ip_name
         name = _sanitize_ip_name("255.255.255.255")
         assert len(name) <= 63
 
     def test_domain_name_sanitization(self):
-        from app.adapters.firewall.paloalto import _sanitize_domain_name
+        from asc_api.adapters.firewall.paloalto import _sanitize_domain_name
         assert _sanitize_domain_name("evil.example.com") == "ASC-BLK-DOM-evil-example-com"
 
     def test_domain_name_max_63_chars(self):
-        from app.adapters.firewall.paloalto import _sanitize_domain_name
+        from asc_api.adapters.firewall.paloalto import _sanitize_domain_name
         name = _sanitize_domain_name("a" * 70 + ".com")
         assert len(name) <= 63
 
     def test_parse_status_success(self):
-        from app.adapters.firewall.paloalto import _parse_status
+        from asc_api.adapters.firewall.paloalto import _parse_status
         ok, msg = _parse_status(_pan_ok())
         assert ok is True
 
     def test_parse_status_error(self):
-        from app.adapters.firewall.paloalto import _parse_status
+        from asc_api.adapters.firewall.paloalto import _parse_status
         ok, msg = _parse_status(_pan_err("bad xpath"))
         assert ok is False
         assert "bad xpath" in msg
 
     def test_parse_status_invalid_xml(self):
-        from app.adapters.firewall.paloalto import _parse_status
+        from asc_api.adapters.firewall.paloalto import _parse_status
         ok, msg = _parse_status("not xml at all <<<")
         assert ok is False
         assert "xml_parse_error" in msg
 
     def test_extract_job_id(self):
-        from app.adapters.firewall.paloalto import _extract_job_id
+        from asc_api.adapters.firewall.paloalto import _extract_job_id
         assert _extract_job_id(_pan_job("99")) == "99"
 
     def test_extract_job_id_missing(self):
-        from app.adapters.firewall.paloalto import _extract_job_id
+        from asc_api.adapters.firewall.paloalto import _extract_job_id
         assert _extract_job_id(_pan_ok()) is None
 
     def test_extract_group_members(self):
-        from app.adapters.firewall.paloalto import _extract_group_members
+        from asc_api.adapters.firewall.paloalto import _extract_group_members
         members = _extract_group_members(_pan_group_members("A", "B", "C"))
         assert members == ["A", "B", "C"]
 
     def test_extract_group_members_empty(self):
-        from app.adapters.firewall.paloalto import _extract_group_members
+        from asc_api.adapters.firewall.paloalto import _extract_group_members
         assert _extract_group_members(_pan_ok()) == []
 
 
@@ -130,7 +130,7 @@ class TestPaloAltoHelpers(unittest.TestCase):
 
 class TestPaloAltoConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, host="", api_key=""):
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = host
@@ -176,7 +176,7 @@ class TestPaloAltoConfiguration(unittest.IsolatedAsyncioTestCase):
 
 class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
@@ -317,7 +317,7 @@ class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
 
 class TestPaloAltoBlockDomain(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
@@ -394,7 +394,7 @@ class TestPaloAltoBlockDomain(unittest.IsolatedAsyncioTestCase):
 
 class TestPaloAltoConnection(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
@@ -457,7 +457,7 @@ class TestPaloAltoConnection(unittest.IsolatedAsyncioTestCase):
 
 class TestFortinetConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, host="", token=""):
-        from app.adapters.firewall.fortinet import FortinetAdapter
+        from asc_api.adapters.firewall.fortinet import FortinetAdapter
         with patch("app.adapters.firewall.fortinet.get_settings") as mock_s:
             s = MagicMock()
             s.FORTINET_HOST = host
@@ -497,7 +497,7 @@ class TestFortinetConfiguration(unittest.IsolatedAsyncioTestCase):
 
 class TestFortinetBlockIP(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
-        from app.adapters.firewall.fortinet import FortinetAdapter
+        from asc_api.adapters.firewall.fortinet import FortinetAdapter
         with patch("app.adapters.firewall.fortinet.get_settings") as mock_s:
             s = MagicMock()
             s.FORTINET_HOST = "fg.corp.local"
@@ -560,11 +560,11 @@ class TestFortinetBlockIP(unittest.IsolatedAsyncioTestCase):
         assert result["adapter"] == "fortinet"
 
     async def test_fortinet_ip_name_sanitization(self):
-        from app.adapters.firewall.fortinet import _sanitize_ip_name
+        from asc_api.adapters.firewall.fortinet import _sanitize_ip_name
         assert _sanitize_ip_name("10.0.0.1") == "ASC-BLK-IP-10-0-0-1"
 
     async def test_fortinet_domain_name_sanitization(self):
-        from app.adapters.firewall.fortinet import _sanitize_domain_name
+        from asc_api.adapters.firewall.fortinet import _sanitize_domain_name
         assert _sanitize_domain_name("bad.actor.ru") == "ASC-BLK-DOM-bad-actor-ru"
 
     async def test_unblock_ip_success(self):
@@ -632,7 +632,7 @@ class TestFortinetBlockIP(unittest.IsolatedAsyncioTestCase):
 
 class TestADConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, server="", bind_dn="", bind_pw="", base_dn=""):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = server
@@ -687,7 +687,7 @@ class TestADConfiguration(unittest.IsolatedAsyncioTestCase):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _make_ad_adapter_configured():
-    from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+    from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
     with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
         s = MagicMock()
         s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
@@ -901,7 +901,7 @@ class TestADMoveQuarantine(unittest.TestCase):
         assert "OU=Quarantine" in result["new_dn"]
 
     def test_move_quarantine_fails_without_ou_configured(self):
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
@@ -939,7 +939,7 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
     """Verify that SPECTER bridge calls the firewall adapter for broadcast actions."""
 
     def test_firewall_factory_returns_none_when_unconfigured(self):
-        from app.services.specter_bridge import _get_firewall_adapter
+        from asc_api.services.specter_bridge import _get_firewall_adapter
         with patch("app.adapters.firewall.paloalto.get_settings") as pa_s, \
              patch("app.adapters.firewall.fortinet.get_settings") as ft_s:
             for mock_s in (pa_s, ft_s):
@@ -959,8 +959,8 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
         assert adapter is None
 
     def test_firewall_factory_returns_paloalto_when_configured(self):
-        from app.services.specter_bridge import _get_firewall_adapter
-        from app.adapters.firewall.paloalto import PaloAltoAdapter
+        from asc_api.services.specter_bridge import _get_firewall_adapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as pa_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
@@ -973,8 +973,8 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
         assert isinstance(adapter, PaloAltoAdapter)
 
     def test_firewall_factory_returns_fortinet_as_fallback(self):
-        from app.services.specter_bridge import _get_firewall_adapter
-        from app.adapters.firewall.fortinet import FortinetAdapter
+        from asc_api.services.specter_bridge import _get_firewall_adapter
+        from asc_api.adapters.firewall.fortinet import FortinetAdapter
         with patch("app.adapters.firewall.paloalto.get_settings") as pa_s, \
              patch("app.adapters.firewall.fortinet.get_settings") as ft_s:
             pa = MagicMock()
@@ -1005,7 +1005,7 @@ class TestSpectBridgeIAMWire(unittest.TestCase):
     """Verify that SPECTER bridge calls AD adapter on disable_account."""
 
     def test_identity_factory_returns_none_when_unconfigured(self):
-        from app.services.specter_bridge import _get_identity_adapter
+        from asc_api.services.specter_bridge import _get_identity_adapter
         with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = ""
@@ -1020,8 +1020,8 @@ class TestSpectBridgeIAMWire(unittest.TestCase):
         assert adapter is None
 
     def test_identity_factory_returns_ad_when_configured(self):
-        from app.services.specter_bridge import _get_identity_adapter
-        from app.adapters.identity.active_directory import ActiveDirectoryAdapter
+        from asc_api.services.specter_bridge import _get_identity_adapter
+        from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
         with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
@@ -1036,12 +1036,12 @@ class TestSpectBridgeIAMWire(unittest.TestCase):
         assert isinstance(adapter, ActiveDirectoryAdapter)
 
     def test_adapter_registry_contains_f1_adapters(self):
-        from app.adapters import ADAPTERS
+        from asc_api.adapters import ADAPTERS
         assert "paloalto" in ADAPTERS
         assert "fortinet" in ADAPTERS
         assert "active_directory" in ADAPTERS
 
     def test_adapter_registry_factory_functions_exported(self):
-        from app.adapters import get_firewall_adapter, get_identity_adapter
+        from asc_api.adapters import get_firewall_adapter, get_identity_adapter
         assert callable(get_firewall_adapter)
         assert callable(get_identity_adapter)

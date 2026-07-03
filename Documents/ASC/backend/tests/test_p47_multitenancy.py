@@ -30,9 +30,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _REPO_ROOT = Path(__file__).parent.parent
 
@@ -81,38 +81,38 @@ class TestTenantModel:
     """Tenant model importable and has expected structure."""
 
     def test_tenant_model_importable(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert Tenant is not None
 
     def test_tenant_tablename(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert Tenant.__tablename__ == "tenants"
 
     def test_tenant_has_required_columns(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         cols = {c.name for c in Tenant.__table__.columns}
         required = {"id", "name", "slug", "plan", "is_active", "created_at"}
         assert required.issubset(cols)
 
     def test_tenant_has_optional_columns(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         cols = {c.name for c in Tenant.__table__.columns}
         assert "contact_email" in cols
         assert "max_users" in cols
         assert "max_api_keys_per_user" in cols
 
     def test_tenant_slug_unique(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         slug_col = next(c for c in Tenant.__table__.columns if c.name == "slug")
         assert slug_col.unique
 
     def test_tenant_plan_default(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         plan_col = next(c for c in Tenant.__table__.columns if c.name == "plan")
         assert plan_col.default is not None
 
     def test_tenant_in_models_init(self):
-        from app.models import Tenant
+        from asc_api.models import Tenant
         assert Tenant is not None
 
 
@@ -122,44 +122,44 @@ class TestTenantIdColumns:
     """All key data models must have nullable tenant_id column."""
 
     def test_user_has_tenant_id(self):
-        from app.models.user import User
+        from asc_api.models.user import User
         cols = {c.name: c for c in User.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_alert_has_tenant_id(self):
-        from app.models.alert import Alert
+        from asc_api.models.alert import Alert
         cols = {c.name: c for c in Alert.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_event_has_tenant_id(self):
-        from app.models.event import Event
+        from asc_api.models.event import Event
         cols = {c.name: c for c in Event.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_api_key_has_tenant_id(self):
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         cols = {c.name: c for c in APIKey.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_webhook_has_tenant_id(self):
-        from app.models.webhook import Webhook
+        from asc_api.models.webhook import Webhook
         cols = {c.name: c for c in Webhook.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_incident_has_tenant_id(self):
-        from app.models.incident import Incident
+        from asc_api.models.incident import Incident
         cols = {c.name: c for c in Incident.__table__.columns}
         assert "tenant_id" in cols
         assert cols["tenant_id"].nullable
 
     def test_tenant_id_indexed_in_users(self):
         """tenant_id should be indexed for performant tenant-scoped queries."""
-        from app.models.user import User
+        from asc_api.models.user import User
         indexed = {
             col.name
             for idx in User.__table__.indexes
@@ -168,7 +168,7 @@ class TestTenantIdColumns:
         assert "tenant_id" in indexed
 
     def test_tenant_id_indexed_in_alerts(self):
-        from app.models.alert import Alert
+        from asc_api.models.alert import Alert
         indexed = {
             col.name
             for idx in Alert.__table__.indexes
@@ -254,7 +254,7 @@ class TestP47Regression:
 
     def test_tenant_model_importable_with_all_models(self):
         """Full model registry import must succeed."""
-        import app.models  # noqa: F401
+        import asc_api.models  # noqa: F401
         assert hasattr(app.models, "Tenant")
         assert hasattr(app.models, "User")
         assert hasattr(app.models, "Alert")

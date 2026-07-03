@@ -42,7 +42,7 @@ def _utcnow() -> datetime:
 
 
 def _make_incident(**kwargs):
-    from app.models.incident import Incident
+    from asc_api.models.incident import Incident
     i = Incident()
     i.id = kwargs.get("id", str(uuid.uuid4()))
     i.title = kwargs.get("title", "Test Incident")
@@ -99,73 +99,73 @@ def _mock_scalars(rows):
 class TestBuildIncidentContext:
 
     def test_returns_dict(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident()
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert isinstance(ctx, dict)
 
     def test_incident_id_present(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(id="test-id-123")
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["incident_id"] == "test-id-123"
 
     def test_new_status_present(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident()
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["new_status"] == "triaged"
 
     def test_previous_status_is_incident_status(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(status="detected")
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["previous_status"] == "detected"
 
     def test_severity_matches_incident(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(severity="critical")
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["severity"] == "critical"
 
     def test_sla_breach_flag(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(sla_breach=True)
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["sla_breach"] is True
 
     def test_sla_breach_false_by_default(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(sla_breach=False)
         ctx = _build_incident_context(inc, "triaged", "analyst@premos.com")
         assert ctx["sla_breach"] is False
 
     def test_actor_in_context(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident()
         ctx = _build_incident_context(inc, "triaged", "actor@premos.com")
         assert ctx["actor"] == "actor@premos.com"
 
     def test_mttd_present(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(mttd_minutes=45.0)
         ctx = _build_incident_context(inc, "contained", "sys")
         assert ctx["mttd_minutes"] == 45.0
 
     def test_nist_phase_present(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(nist_phase="containment_eradication")
         ctx = _build_incident_context(inc, "contained", "sys")
         assert ctx["nist_phase"] == "containment_eradication"
 
     def test_incident_type_present(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident(incident_type="ransomware")
         ctx = _build_incident_context(inc, "triaged", "sys")
         assert ctx["incident_type"] == "ransomware"
 
     def test_all_expected_keys(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident()
         ctx = _build_incident_context(inc, "triaged", "sys")
         expected = {"severity", "actor", "incident_id", "new_status", "previous_status",
@@ -179,49 +179,49 @@ class TestBuildIncidentContext:
 class TestSignLedger:
 
     def test_no_key_returns_piil_unsigned(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("abc123")
         assert sig == base64.b64encode(b"PIIL-UNSIGNED").decode()
 
     def test_no_key_result_is_base64(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("abc")
         base64.b64decode(sig)  # should not raise
 
     def test_invalid_key_returns_error_sig(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAKEY=="
             sig = _sign_ledger("abc")
         assert sig  # not empty, does not raise
 
     def test_invalid_key_result_is_base64(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAKEY=="
             sig = _sign_ledger("abc")
         base64.b64decode(sig)  # should not raise
 
     def test_returns_string(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             result = _sign_ledger("anything")
         assert isinstance(result, str)
 
     def test_does_not_raise_on_empty_hash(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("")
         assert sig
 
     def test_different_inputs_produce_same_unsigned_sig(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             s1 = _sign_ledger("hash_a")
@@ -238,7 +238,7 @@ class TestSignLedger:
         assert base64.b64decode(sig) == b"PIIL-SIGN-ERROR"
 
     def test_signing_error_uses_error_constant(self):
-        from app.services.soar_incident_bridge import _sign_ledger
+        from asc_api.services.soar_incident_bridge import _sign_ledger
         with patch("app.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "invalidbase64!@#"
             sig = _sign_ledger("abc")
@@ -252,7 +252,7 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_adds_forensic_entry(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -263,7 +263,7 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_commits_separately(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
@@ -274,7 +274,7 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_commit_error_non_fatal(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("DB error"))
@@ -287,8 +287,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_forensic_entry_action_type(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -307,8 +307,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_forensic_entry_hash_is_128_chars(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -327,8 +327,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_target_contains_incident_id(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -346,8 +346,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_verified_false_when_no_key(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -365,8 +365,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_signed_by_email_is_actor(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -384,8 +384,8 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_canonical_data_stored(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created_entry = None
 
         def capture_add(obj):
@@ -404,7 +404,7 @@ class TestWriteForensicLedger:
 
     @pytest.mark.asyncio
     async def test_rollback_called_on_commit_error(self):
-        from app.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("fail"))
@@ -421,8 +421,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_writes_timeline_entry_when_incident_found(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         created_entry = None
 
@@ -441,7 +441,7 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_skips_when_incident_not_found(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(None))
         db.add = MagicMock()
@@ -450,8 +450,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_detail_contains_trigger_name(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         created_entry = None
 
@@ -469,8 +469,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_detail_contains_playbook_name(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         created_entry = None
 
@@ -488,8 +488,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_actor_defaults_to_system_soar(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         created_entry = None
 
@@ -507,7 +507,7 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_commit_error_non_fatal(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(inc))
@@ -520,7 +520,7 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_incident_updated_at_set(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
         inc = _make_incident()
         old_updated = inc.updated_at
         db = AsyncMock()
@@ -533,7 +533,7 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_commit_called_when_found(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
         inc = _make_incident()
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(inc))
@@ -544,8 +544,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_custom_actor_respected(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         created_entry = None
 
@@ -563,8 +563,8 @@ class TestWriteSoarEventToTimeline:
 
     @pytest.mark.asyncio
     async def test_timeline_incident_id_matches(self):
-        from app.services.soar_incident_bridge import write_soar_event_to_timeline
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import write_soar_event_to_timeline
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(id="specific-inc-id")
         created_entry = None
 
@@ -587,7 +587,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_returns_zero_when_no_triggers_fired(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -599,7 +599,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_returns_count_when_triggers_fired(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -620,8 +620,8 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_writes_timeline_entry_per_trigger(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         added = []
         db = AsyncMock()
@@ -640,7 +640,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_writes_forensic_ledger_when_triggers_fire(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -657,7 +657,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_no_forensic_ledger_when_no_triggers(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -671,7 +671,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_soar_eval_error_returns_zero_non_blocking(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         with patch("app.services.soar_service.evaluate_triggers_for_context",
@@ -681,7 +681,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_commit_error_returns_zero_non_blocking(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -700,7 +700,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_log_security_action_called_on_fire(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -717,8 +717,8 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_timeline_entry_event_type(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         added = []
         db = AsyncMock()
@@ -737,8 +737,8 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_multiple_triggers_write_multiple_entries(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident()
         added = []
         db = AsyncMock()
@@ -764,7 +764,7 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_no_log_security_action_when_no_triggers(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -777,14 +777,14 @@ class TestEvaluateSoarForIncident:
 
     @pytest.mark.asyncio
     async def test_context_contains_sla_breach_flag(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident, _build_incident_context
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident, _build_incident_context
         inc = _make_incident(sla_breach=True)
         ctx = _build_incident_context(inc, "triaged", "actor")
         assert ctx["sla_breach"] is True
 
     @pytest.mark.asyncio
     async def test_context_new_status_propagated(self):
-        from app.services.soar_incident_bridge import _build_incident_context
+        from asc_api.services.soar_incident_bridge import _build_incident_context
         inc = _make_incident()
         ctx = _build_incident_context(inc, "contained", "actor")
         assert ctx["new_status"] == "contained"
@@ -796,7 +796,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_returns_zero_when_no_open_incidents(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         result = await escalate_sla_breaches(db)
@@ -804,7 +804,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_flags_sla_breach_on_breached_incident(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False, detected_at=_utcnow() - timedelta(days=5))
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -818,7 +818,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_skips_when_sla_not_breached(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -831,8 +831,8 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_writes_sla_warning_timeline_entry(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(sla_breach=False)
         added = []
         db = AsyncMock()
@@ -848,7 +848,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_commit_called_when_any_escalated(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -861,7 +861,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_commit_not_called_when_none_escalated(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -873,7 +873,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_commit_error_returns_zero(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -887,7 +887,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_multiple_incidents_multiple_escalations(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         incs = [_make_incident(sla_breach=False) for _ in range(3)]
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(incs))
@@ -900,8 +900,8 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_sla_warning_actor_is_system_piil(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(sla_breach=False)
         added = []
         db = AsyncMock()
@@ -916,7 +916,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_partial_escalation_only_breached_count(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         incs = [_make_incident(sla_breach=False) for _ in range(4)]
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars(incs))
@@ -932,7 +932,7 @@ class TestEscalateSlaBreaches:
 
     @pytest.mark.asyncio
     async def test_rollback_on_commit_error(self):
-        from app.services.soar_incident_bridge import escalate_sla_breaches
+        from asc_api.services.soar_incident_bridge import escalate_sla_breaches
         inc = _make_incident(sla_breach=False)
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
@@ -958,90 +958,90 @@ class TestNewSoarConditionTypes:
         return c
 
     def test_incident_status_change_eq_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"new_status": "triaged"}
         assert _evaluate_condition(self._cond("incident_status_change", "eq", "triaged"), ctx) is True
 
     def test_incident_status_change_eq_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"new_status": "detected"}
         assert _evaluate_condition(self._cond("incident_status_change", "eq", "triaged"), ctx) is False
 
     def test_incident_status_change_contains_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"new_status": "triaged"}
         assert _evaluate_condition(
             self._cond("incident_status_change", "contains", "triaged,contained"), ctx
         ) is True
 
     def test_incident_status_change_contains_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"new_status": "detected"}
         assert _evaluate_condition(
             self._cond("incident_status_change", "contains", "triaged,contained"), ctx
         ) is False
 
     def test_incident_status_change_unknown_op_returns_false(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"new_status": "triaged"}
         assert _evaluate_condition(
             self._cond("incident_status_change", "gte", "triaged"), ctx
         ) is False
 
     def test_incident_sla_breach_true(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"sla_breach": True}
         assert _evaluate_condition(self._cond("incident_sla_breach", "eq", "true"), ctx) is True
 
     def test_incident_sla_breach_false(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"sla_breach": False}
         assert _evaluate_condition(self._cond("incident_sla_breach", "eq", "false"), ctx) is False
 
     def test_incident_sla_breach_missing_context_key(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {}  # no sla_breach key
         assert _evaluate_condition(self._cond("incident_sla_breach", "eq", "true"), ctx) is False
 
     def test_incident_severity_eq_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "critical"}
         assert _evaluate_condition(self._cond("incident_severity", "eq", "critical"), ctx) is True
 
     def test_incident_severity_eq_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "high"}
         assert _evaluate_condition(self._cond("incident_severity", "eq", "critical"), ctx) is False
 
     def test_incident_severity_gte_critical_vs_high(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "critical"}
         assert _evaluate_condition(self._cond("incident_severity", "gte", "high"), ctx) is True
 
     def test_incident_severity_gte_low_vs_critical_fails(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "low"}
         assert _evaluate_condition(self._cond("incident_severity", "gte", "critical"), ctx) is False
 
     def test_incident_severity_lte_low_vs_medium(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "low"}
         assert _evaluate_condition(self._cond("incident_severity", "lte", "medium"), ctx) is True
 
     def test_incident_severity_lte_critical_vs_medium_fails(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "critical"}
         assert _evaluate_condition(self._cond("incident_severity", "lte", "medium"), ctx) is False
 
     def test_incident_severity_contains_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "high"}
         assert _evaluate_condition(
             self._cond("incident_severity", "contains", "high,critical"), ctx
         ) is True
 
     def test_incident_severity_contains_no_match(self):
-        from app.services.soar_service import _evaluate_condition
+        from asc_api.services.soar_service import _evaluate_condition
         ctx = {"severity": "low"}
         assert _evaluate_condition(
             self._cond("incident_severity", "contains", "high,critical"), ctx
@@ -1055,7 +1055,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_transition_status_calls_bridge(self):
         """verify that incident_service.transition_status imports and calls the bridge"""
-        from app.services import incident_service
+        from asc_api.services import incident_service
         import importlib
         # Verify the import path exists in incident_service source
         import inspect
@@ -1065,7 +1065,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_bridge_failure_does_not_block_transition(self):
         """bridge exception must not propagate out of transition_status"""
-        from app.services import incident_service
+        from asc_api.services import incident_service
         inc = _make_incident(status="detected")
 
         db = AsyncMock()
@@ -1089,7 +1089,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_bridge_called_with_new_status(self):
         """evaluate_soar_for_incident receives the new_status — verified via source inspection"""
-        from app.services import incident_service
+        from asc_api.services import incident_service
         import inspect
         source = inspect.getsource(incident_service.transition_status)
         # The bridge call must pass the new status variable to evaluate_soar_for_incident
@@ -1099,7 +1099,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_bridge_wraps_in_try_except(self):
         """Verify incident_service wraps bridge call in try/except block"""
-        from app.services import incident_service
+        from asc_api.services import incident_service
         import inspect
         source = inspect.getsource(incident_service.transition_status)
         # Must have try/except pattern wrapping the bridge call
@@ -1109,7 +1109,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_piil_version_in_canonical(self):
         """PIIL canonical data must include version field"""
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
         db.add = MagicMock()
@@ -1133,7 +1133,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_severity_rank_order(self):
         """_SEV_RANK must place critical above high above medium"""
-        from app.services.soar_incident_bridge import _SEV_RANK
+        from asc_api.services.soar_incident_bridge import _SEV_RANK
         assert _SEV_RANK["critical"] > _SEV_RANK["high"]
         assert _SEV_RANK["high"] > _SEV_RANK["medium"]
         assert _SEV_RANK["medium"] > _SEV_RANK["low"]
@@ -1142,7 +1142,7 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_incident_status_change_in_valid_condition_types(self):
         """All new condition types must be registered in soar_service"""
-        from app.services.soar_service import _VALID_CONDITION_TYPES
+        from asc_api.services.soar_service import _VALID_CONDITION_TYPES
         assert "incident_status_change" in _VALID_CONDITION_TYPES
         assert "incident_sla_breach" in _VALID_CONDITION_TYPES
         assert "incident_severity" in _VALID_CONDITION_TYPES
@@ -1150,8 +1150,8 @@ class TestIncidentSoarIntegration:
     @pytest.mark.asyncio
     async def test_piil_soar_binding_action_type_constant(self):
         """ForensicEntry action_type for PIIL binding must be 'piil_soar_binding'"""
-        from app.services.soar_incident_bridge import _write_forensic_ledger
-        from app.models.forensic_entry import ForensicEntry
+        from asc_api.services.soar_incident_bridge import _write_forensic_ledger
+        from asc_api.models.forensic_entry import ForensicEntry
         created = None
 
         def capture(obj):
@@ -1170,8 +1170,8 @@ class TestIncidentSoarIntegration:
 
     @pytest.mark.asyncio
     async def test_timeline_entry_incident_id_matches_incident(self):
-        from app.services.soar_incident_bridge import evaluate_soar_for_incident
-        from app.models.incident import IncidentTimeline
+        from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
+        from asc_api.models.incident import IncidentTimeline
         inc = _make_incident(id="my-inc-999")
         added = []
         db = AsyncMock()

@@ -7,7 +7,7 @@ functions. No DB required — pure service layer tests.
 import pytest
 from datetime import datetime, timezone, timedelta
 
-from app.services.detection import (
+from asc_api.services.detection import (
     check_suspicious_process,
     check_hook_detection,
     check_registry_persistence,

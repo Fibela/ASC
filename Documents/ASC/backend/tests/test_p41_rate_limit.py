@@ -25,11 +25,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.api_key_rate_limit import ApiKeyRateLimiter, RateLimitResult, api_key_limiter
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.api_key_rate_limit import ApiKeyRateLimiter, RateLimitResult, api_key_limiter
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -210,7 +210,7 @@ class TestApiKeyRateLimitMiddleware:
     @pytest.mark.asyncio
     async def test_valid_api_key_request_sets_rate_limit_headers(self):
         """Allowed API-key requests receive X-RateLimit-* headers."""
-        from app.core.middleware import ApiKeyRateLimitMiddleware
+        from asc_api.core.middleware import ApiKeyRateLimitMiddleware
 
         allowed_result = RateLimitResult(allowed=True, limit=60, remaining=59, reset_at=9999999999)
 
@@ -560,14 +560,14 @@ class TestRateLimitDeploymentArtifacts:
         assert settings.RATE_LIMIT_API_KEY_PER_HOUR > settings.RATE_LIMIT_API_KEY_PER_MINUTE
 
     def test_singleton_is_exported(self):
-        from app.core.api_key_rate_limit import api_key_limiter as singleton
+        from asc_api.core.api_key_rate_limit import api_key_limiter as singleton
         assert singleton is not None
         assert hasattr(singleton, "check")
         assert hasattr(singleton, "get_status")
         assert hasattr(singleton, "reset_for_prefix_all")
 
     def test_middleware_class_is_importable(self):
-        from app.core.middleware import ApiKeyRateLimitMiddleware
+        from asc_api.core.middleware import ApiKeyRateLimitMiddleware
         assert ApiKeyRateLimitMiddleware is not None
 
     def test_main_imports_api_key_rate_limit(self):
@@ -612,7 +612,7 @@ class TestRateLimitRegression:
 
     @pytest.mark.asyncio
     async def test_p40_imports_still_work(self):
-        from app.api.v1.endpoints.api_keys import (
+        from asc_api.api.v1.endpoints.api_keys import (
             create_api_key,
             list_api_keys,
             revoke_api_key,
@@ -624,12 +624,12 @@ class TestRateLimitRegression:
     @pytest.mark.asyncio
     async def test_existing_rate_limit_module_still_works(self):
         """SlowAPI limiter from P17 must still be importable and functional."""
-        from app.core.rate_limit import limiter
+        from asc_api.core.rate_limit import limiter
         assert limiter is not None
 
     @pytest.mark.asyncio
     async def test_middleware_stack_import_succeeds(self):
-        from app.core.middleware import (
+        from asc_api.core.middleware import (
             SecurityHeadersMiddleware,
             BodySizeLimitMiddleware,
             RequestContextMiddleware,

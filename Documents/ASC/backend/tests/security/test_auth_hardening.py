@@ -25,7 +25,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import (
+from asc_api.core.security import (
     ALGORITHM,
     create_access_token,
     create_refresh_token,
@@ -34,8 +34,8 @@ from app.core.security import (
     verify_password,
     verify_token,
 )
-from app.core.config import get_settings
-from app.core.jwt_blacklist import jwt_blacklist
+from asc_api.core.config import get_settings
+from asc_api.core.jwt_blacklist import jwt_blacklist
 
 settings = get_settings()
 
@@ -45,7 +45,7 @@ settings = get_settings()
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
     """Clear slowapi MemoryStorage before each test so no test sees 429."""
-    from app.core.rate_limit import limiter
+    from asc_api.core.rate_limit import limiter
     limiter._storage.reset()
     yield
     limiter._storage.reset()
@@ -239,7 +239,7 @@ class TestJWTBlacklist:
         jti = str(uuid.uuid4())
         expires = datetime.now(timezone.utc) + timedelta(hours=1)
         # Write to L2 only (bypass L1 add for the test)
-        from app.models.revoked_token import RevokedToken
+        from asc_api.models.revoked_token import RevokedToken
         entry = RevokedToken(jti=jti, expires_at=expires, revoked_by="test", reason="test")
         db.add(entry)
         await db.commit()
@@ -277,7 +277,7 @@ class TestJWTBlacklist:
         assert jwt_blacklist.local_size == before + 1
 
     def test_blacklist_singleton_is_module_level(self):
-        from app.core.jwt_blacklist import jwt_blacklist as imported
+        from asc_api.core.jwt_blacklist import jwt_blacklist as imported
         assert imported is jwt_blacklist
 
 
@@ -295,15 +295,15 @@ class TestAccountLocking:
         assert r.status_code == 401
         # Verify user.failed_login_attempts was incremented via DB
         from sqlalchemy import select
-        from app.models.user import User
-        from app.db.session import get_db
+        from asc_api.models.user import User
+        from asc_api.db.session import get_db
         # Reload user to check counter
-        from app.main import app
+        from asc_api.main import app
         db_gen = app.dependency_overrides.get(get_db)
         if db_gen:
             async for session in db_gen():
                 from sqlalchemy import select
-                from app.models.user import User as U
+                from asc_api.models.user import User as U
                 result = await session.execute(select(U).where(U.id == admin_user.id))
                 u = result.scalar_one()
                 assert u.failed_login_attempts >= 1
@@ -499,11 +499,11 @@ class TestForcePasswordReset:
         assert r.status_code == 401
 
     def test_timing_sentinel_hash_is_bcrypt(self):
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         assert _TIMING_SENTINEL_HASH.startswith("$2b$") or _TIMING_SENTINEL_HASH.startswith("$2a$")
 
     def test_timing_sentinel_verifies_correctly(self):
-        from app.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
+        from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
         # The sentinel is pre-hashed; verify_password should NOT match our test value
         result = verify_password("not-the-sentinel-value", _TIMING_SENTINEL_HASH)
         assert result is False

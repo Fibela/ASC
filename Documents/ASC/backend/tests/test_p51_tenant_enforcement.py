@@ -36,10 +36,10 @@ import pytest
 import jwt as _jwt
 from httpx import AsyncClient, ASGITransport
 
-from app.core.security import create_access_token, decode_token_payload
-from app.core.tenant_context import get_tenant_id, set_tenant_id
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.security import create_access_token, decode_token_payload
+from asc_api.core.tenant_context import get_tenant_id, set_tenant_id
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _REPO_ROOT  = Path(__file__).parent.parent
 _BACKEND    = _REPO_ROOT
@@ -117,7 +117,7 @@ class TestTenantContext:
         assert get_tenant_id() is None
 
     def test_module_exports_both_functions(self):
-        from app.core import tenant_context
+        from asc_api.core import tenant_context
         assert callable(tenant_context.set_tenant_id)
         assert callable(tenant_context.get_tenant_id)
 
@@ -136,7 +136,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             captured.append(get_tenant_id())
@@ -162,7 +162,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             captured.append(get_tenant_id())
@@ -190,7 +190,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             captured.append(get_tenant_id())
@@ -218,7 +218,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             captured.append(get_tenant_id())
@@ -252,7 +252,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             captured.append(get_tenant_id())
@@ -279,7 +279,7 @@ class TestTenantMiddleware:
         from starlette.requests import Request
         from starlette.responses import JSONResponse
         from starlette.routing import Route
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
 
         async def probe(request: Request):
             return JSONResponse({})
@@ -298,12 +298,12 @@ class TestTenantMiddleware:
         assert get_tenant_id() is None
 
     def test_middleware_module_importable(self):
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
         assert TenantMiddleware is not None
 
     def test_middleware_is_base_http_middleware(self):
         from starlette.middleware.base import BaseHTTPMiddleware
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
         assert issubclass(TenantMiddleware, BaseHTTPMiddleware)
 
 
@@ -321,8 +321,8 @@ class TestTenantFilter:
     def test_no_tenant_filters_null_records(self):
         """With no active tenant, query adds WHERE tenant_id IS NULL."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
 
         set_tenant_id(None)
         stmt = apply_tenant_filter(select(APIKey), APIKey)
@@ -332,8 +332,8 @@ class TestTenantFilter:
     def test_tenant_set_filters_by_tenant_id(self):
         """With active tenant, query adds WHERE tenant_id = <tid>."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
 
         set_tenant_id("tenant-alpha")
         stmt = apply_tenant_filter(select(APIKey), APIKey)
@@ -343,8 +343,8 @@ class TestTenantFilter:
     def test_tenant_does_not_include_null_when_set(self):
         """Strict isolation: tenant-scoped queries do NOT fall back to NULL rows."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
 
         set_tenant_id("tenant-strict")
         stmt = apply_tenant_filter(select(APIKey), APIKey)
@@ -355,8 +355,8 @@ class TestTenantFilter:
     def test_works_with_webhook_model(self):
         """Filter works with the Webhook model as well."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.webhook import Webhook
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.webhook import Webhook
 
         set_tenant_id("tenant-beta")
         stmt = apply_tenant_filter(select(Webhook), Webhook)
@@ -364,7 +364,7 @@ class TestTenantFilter:
         assert "tenant-beta" in compiled
 
     def test_callable_signature(self):
-        from app.db.tenant_filter import apply_tenant_filter
+        from asc_api.db.tenant_filter import apply_tenant_filter
         import inspect
         sig = inspect.signature(apply_tenant_filter)
         params = list(sig.parameters.keys())
@@ -374,8 +374,8 @@ class TestTenantFilter:
     def test_reads_from_context_var(self):
         """Filter uses get_tenant_id() — value changes with ContextVar."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
 
         set_tenant_id("tenant-x")
         stmt_x = apply_tenant_filter(select(APIKey), APIKey)
@@ -392,8 +392,8 @@ class TestTenantFilter:
     def test_two_different_tenants_produce_different_queries(self):
         """Cross-tenant isolation: queries for different tenants are different."""
         from sqlalchemy import select
-        from app.db.tenant_filter import apply_tenant_filter
-        from app.models.api_key import APIKey
+        from asc_api.db.tenant_filter import apply_tenant_filter
+        from asc_api.models.api_key import APIKey
 
         set_tenant_id("org-a")
         compiled_a = str(apply_tenant_filter(select(APIKey), APIKey).compile(
@@ -456,7 +456,7 @@ class TestAPIKeysTenantEnforcement:
     @pytest.mark.asyncio
     async def test_create_api_key_assigns_tenant_id(self):
         """POST /api-keys/ sets tenant_id = get_tenant_id() on the new key."""
-        from app.core.tenant_context import set_tenant_id
+        from asc_api.core.tenant_context import set_tenant_id
 
         user = _make_user(role="analyst", tenant_id="tenant-create")
         db_override, mock_db = _db_override(scalars_result=[])  # empty count → cap not hit
@@ -622,7 +622,7 @@ class TestWebhooksTenantEnforcement:
     @pytest.mark.asyncio
     async def test_create_webhook_assigns_tenant_id(self):
         """POST /webhooks/ sets tenant_id = get_tenant_id() on the new webhook."""
-        from app.core.tenant_context import set_tenant_id
+        from asc_api.core.tenant_context import set_tenant_id
 
         user = _make_user(role="analyst", tenant_id="tenant-wh")
         db_override, mock_db = _db_override(scalars_result=[])
@@ -774,11 +774,11 @@ class TestMainPyTenantWiring:
 
     def test_app_imports_correctly(self):
         """The app is importable — no circular import or missing module."""
-        from app.main import app
+        from asc_api.main import app
         assert app is not None
 
     def test_tenant_middleware_importable_standalone(self):
-        from app.core.tenant_middleware import TenantMiddleware
+        from asc_api.core.tenant_middleware import TenantMiddleware
         assert TenantMiddleware is not None
 
 
@@ -788,7 +788,7 @@ class TestP51Regression:
     """Key P47–P50 deliverables still present after P51 changes."""
 
     def test_tenant_model_still_importable(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert Tenant.__tablename__ == "tenants"
 
     def test_p49_workflow_still_present(self):
@@ -798,15 +798,15 @@ class TestP51Regression:
         assert (_WORKFLOWS / "p50-e2e.yml").exists()
 
     def test_p47_tenant_id_in_user_model(self):
-        from app.models.user import User
+        from asc_api.models.user import User
         assert hasattr(User, "tenant_id")
 
     def test_p47_tenant_id_in_api_key_model(self):
-        from app.models.api_key import APIKey
+        from asc_api.models.api_key import APIKey
         assert hasattr(APIKey, "tenant_id")
 
     def test_p47_tenant_id_in_webhook_model(self):
-        from app.models.webhook import Webhook
+        from asc_api.models.webhook import Webhook
         assert hasattr(Webhook, "tenant_id")
 
     def test_security_py_backward_compatible(self):

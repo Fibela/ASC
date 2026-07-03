@@ -17,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.alert import Alert
+from asc_api.models.alert import Alert
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

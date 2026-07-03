@@ -21,10 +21,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from app.core.config import get_settings
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.config import get_settings
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
@@ -42,7 +42,7 @@ class TestObservabilityHelpers:
     """Direct unit tests for _check_scrape_token and _refresh_gauges (lines 65, 74-89)."""
 
     def test_check_scrape_token_empty_config_returns_false(self):
-        from app.api.v1.endpoints.observability import _check_scrape_token
+        from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Bearer anytoken"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", ""):
@@ -50,7 +50,7 @@ class TestObservabilityHelpers:
 
     def test_check_scrape_token_no_bearer_prefix_returns_false(self):
         """Line 65: non-Bearer auth when token IS configured → False."""
-        from app.api.v1.endpoints.observability import _check_scrape_token
+        from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Basic dXNlcjpwYXNz"
         with patch("app.api.v1.endpoints.observability.settings") as ms:
@@ -59,7 +59,7 @@ class TestObservabilityHelpers:
         assert result is False
 
     def test_check_scrape_token_correct_returns_true(self):
-        from app.api.v1.endpoints.observability import _check_scrape_token
+        from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Bearer correct-token"
         with patch("app.api.v1.endpoints.observability.settings") as ms:
@@ -68,7 +68,7 @@ class TestObservabilityHelpers:
         assert result is True
 
     def test_check_scrape_token_wrong_value_returns_false(self):
-        from app.api.v1.endpoints.observability import _check_scrape_token
+        from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Bearer wrong-token"
         with patch("app.api.v1.endpoints.observability.settings") as ms:
@@ -79,8 +79,8 @@ class TestObservabilityHelpers:
     @pytest.mark.asyncio
     async def test_refresh_gauges_sets_alert_count(self):
         """Lines 74-89: _refresh_gauges calls DB and sets Prometheus gauges."""
-        from app.api.v1.endpoints.observability import _refresh_gauges
-        from app.core.metrics_registry import ALERTS_GAUGE, EVENTS_GAUGE, AGENTS_GAUGE
+        from asc_api.api.v1.endpoints.observability import _refresh_gauges
+        from asc_api.core.metrics_registry import ALERTS_GAUGE, EVENTS_GAUGE, AGENTS_GAUGE
 
         mock_db = AsyncMock()
         scalar_result = MagicMock()
@@ -95,7 +95,7 @@ class TestObservabilityHelpers:
     @pytest.mark.asyncio
     async def test_refresh_gauges_exception_does_not_propagate(self):
         """Line 89: exception in gauge refresh is swallowed (log warning only)."""
-        from app.api.v1.endpoints.observability import _refresh_gauges
+        from asc_api.api.v1.endpoints.observability import _refresh_gauges
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(side_effect=RuntimeError("DB unavailable"))
         await _refresh_gauges(mock_db)  # must not raise
@@ -103,7 +103,7 @@ class TestObservabilityHelpers:
     @pytest.mark.asyncio
     async def test_prometheus_metrics_with_scrape_token_via_settings_patch(self, client, analyst_user):
         """Lines 133-135: _refresh_gauges + generate_latest called via scrape token path."""
-        from app.api.v1.endpoints import observability as obs_mod
+        from asc_api.api.v1.endpoints import observability as obs_mod
         with patch.object(obs_mod, "settings") as ms, \
              patch.object(obs_mod, "_proc", _make_proc_mock()):
             ms.METRICS_SCRAPE_TOKEN = "direct-patch-token"
@@ -116,7 +116,7 @@ class TestObservabilityHelpers:
     @pytest.mark.asyncio
     async def test_summary_body_lines_covered(self, client, analyst_user):
         """Lines 152-162: summary body (mem, cpu, db_ok, return JSON)."""
-        from app.api.v1.endpoints import observability as obs_mod
+        from asc_api.api.v1.endpoints import observability as obs_mod
         token = create_access_token(analyst_user.id)
         with patch.object(obs_mod, "_proc", _make_proc_mock(pid=8888, cpu=3.5)):
             r = await client.get(
@@ -132,16 +132,16 @@ class TestMetricsRegistry:
 
     def test_registry_is_isolated_from_global(self):
         from prometheus_client import REGISTRY as GLOBAL
-        from app.core.metrics_registry import REGISTRY
+        from asc_api.core.metrics_registry import REGISTRY
         assert REGISTRY is not GLOBAL
 
     def test_required_counters_exist(self):
-        from app.core.metrics_registry import HTTP_REQUESTS, HTTP_DURATION
+        from asc_api.core.metrics_registry import HTTP_REQUESTS, HTTP_DURATION
         assert HTTP_REQUESTS is not None
         assert HTTP_DURATION is not None
 
     def test_required_gauges_exist(self):
-        from app.core.metrics_registry import (
+        from asc_api.core.metrics_registry import (
             ALERTS_GAUGE, EVENTS_GAUGE, AGENTS_GAUGE,
             PROCESS_CPU_GAUGE, PROCESS_MEMORY_BYTES,
         )
@@ -149,13 +149,13 @@ class TestMetricsRegistry:
             assert g is not None
 
     def test_gauge_set_and_read(self):
-        from app.core.metrics_registry import ALERTS_GAUGE
+        from asc_api.core.metrics_registry import ALERTS_GAUGE
         ALERTS_GAUGE.set(99)
         assert ALERTS_GAUGE._value.get() == 99
         ALERTS_GAUGE.set(0)
 
     def test_counter_increment(self):
-        from app.core.metrics_registry import HTTP_REQUESTS
+        from asc_api.core.metrics_registry import HTTP_REQUESTS
         label = dict(method="GET", endpoint="/p39_test", status_code="200")
         before = HTTP_REQUESTS.labels(**label)._value.get()
         HTTP_REQUESTS.labels(**label).inc()
@@ -163,22 +163,22 @@ class TestMetricsRegistry:
         assert after == before + 1
 
     def test_histogram_observe_no_error(self):
-        from app.core.metrics_registry import HTTP_DURATION
+        from asc_api.core.metrics_registry import HTTP_DURATION
         HTTP_DURATION.labels(method="POST", endpoint="/p39_hist").observe(0.05)
 
     def test_generate_latest_returns_bytes(self):
-        from app.core.metrics_registry import REGISTRY, generate_latest
+        from asc_api.core.metrics_registry import REGISTRY, generate_latest
         output = generate_latest(REGISTRY)
         assert isinstance(output, bytes) and len(output) > 0
 
     def test_generate_latest_contains_asc_metrics(self):
-        from app.core.metrics_registry import REGISTRY, generate_latest, HTTP_REQUESTS
+        from asc_api.core.metrics_registry import REGISTRY, generate_latest, HTTP_REQUESTS
         HTTP_REQUESTS.labels(method="GET", endpoint="/health", status_code="200").inc()
         output = generate_latest(REGISTRY).decode()
         assert "asc_http_requests_total" in output
 
     def test_content_type_latest_is_text_plain(self):
-        from app.core.metrics_registry import CONTENT_TYPE_LATEST
+        from asc_api.core.metrics_registry import CONTENT_TYPE_LATEST
         assert isinstance(CONTENT_TYPE_LATEST, str)
         assert "text/plain" in CONTENT_TYPE_LATEST
 
@@ -191,7 +191,7 @@ class TestNormalizePath:
 
     @pytest.fixture(autouse=True)
     def _fn(self):
-        from app.core.metrics_registry import _normalize_path
+        from asc_api.core.metrics_registry import _normalize_path
         self.fn = _normalize_path
 
     def test_api_v1_prefix_stripped(self):
@@ -452,7 +452,7 @@ class TestFormatUptime:
 
     @pytest.fixture(autouse=True)
     def _fn(self):
-        from app.api.v1.endpoints.health import format_uptime
+        from asc_api.api.v1.endpoints.health import format_uptime
         self.fmt = format_uptime
 
     def test_zero_seconds(self):
@@ -504,7 +504,7 @@ class TestDeploymentArtifactsP39:
         assert "observability" in content
 
     def test_observability_endpoint_prefix(self):
-        from app.api.v1.endpoints import observability
+        from asc_api.api.v1.endpoints import observability
         assert observability.router.prefix == "/observability"
 
 
@@ -538,7 +538,7 @@ class TestSSENotificationsEndpoint:
     async def test_analyst_gets_event_stream(self, client, analyst_user):
         """Analyst gets 200 with text/event-stream — generator mocked to terminate immediately."""
         from fastapi import Request
-        from app.models.user import User
+        from asc_api.models.user import User
 
         async def _fast_generator(request: Request, user: User):
             # Yield one ping event then stop so the test doesn't block for 30s heartbeat
@@ -585,13 +585,13 @@ class TestRegressionP39:
 # Sync helpers — kept outside TestRegressionP39 so the class @pytest.mark.asyncio
 # decorator does not emit PytestWarning on non-async functions.
 def test_normalize_path_no_cardinality_explosion():
-    from app.core.metrics_registry import _normalize_path
+    from asc_api.core.metrics_registry import _normalize_path
     endpoints = {_normalize_path(f"/api/v1/agents/{i}") for i in range(100)}
     assert len(endpoints) == 1, "UUID path fragments should all collapse to /agents"
 
 
 def test_metrics_registry_import_is_stable():
     """Importing metrics_registry multiple times must not raise ValueError."""
-    from app.core.metrics_registry import REGISTRY, HTTP_REQUESTS
+    from asc_api.core.metrics_registry import REGISTRY, HTTP_REQUESTS
     assert REGISTRY is not None
     assert HTTP_REQUESTS is not None

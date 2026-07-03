@@ -26,8 +26,8 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.identity_action import IdentityAction
-from app.services.pids_service import (
+from asc_api.models.identity_action import IdentityAction
+from asc_api.services.pids_service import (
     _build_canonical,
     _compute_hash,
     _sign_hash,

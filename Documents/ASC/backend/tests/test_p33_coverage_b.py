@@ -112,32 +112,32 @@ def _async_db(rows: list | None = None) -> AsyncMock:
 
 class TestReporterSeverityColor:
     def test_critical_returns_red(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         r, g, b = _severity_color("critical")
         assert r > 0.8 and g < 0.2
 
     def test_high_returns_orange(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         r, g, b = _severity_color("high")
         assert r > 0.8 and 0.3 < g < 0.6
 
     def test_medium_returns_yellow(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         r, g, b = _severity_color("medium")
         assert r > 0.8 and g > 0.6
 
     def test_low_returns_green(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         r, g, b = _severity_color("low")
         assert g > r
 
     def test_unknown_returns_grey(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         r, g, b = _severity_color("informational")
         assert r == g == b == 0.5
 
     def test_case_insensitive(self):
-        from app.services.reporter import _severity_color
+        from asc_api.services.reporter import _severity_color
         assert _severity_color("CRITICAL") == _severity_color("critical")
 
 
@@ -166,31 +166,31 @@ class TestGenerateHtmlReport:
         return d
 
     def test_returns_string(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert isinstance(generate_html_report(self._data()), str)
 
     def test_doctype_present(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "<!DOCTYPE html>" in generate_html_report(self._data())
 
     def test_premoscorp_branding(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "PremosCorp" in generate_html_report(self._data())
 
     def test_asc_heading(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "Advanced Security Center" in generate_html_report(self._data())
 
     def test_total_alerts_rendered(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "10" in generate_html_report(self._data())
 
     def test_mttd_in_metrics(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "15" in generate_html_report(self._data())
 
     def test_alert_title_rendered(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         alerts = [
             {"title": "Mimikatz Detected", "severity": "critical",
              "risk_score": 0.97, "status": "active",
@@ -200,7 +200,7 @@ class TestGenerateHtmlReport:
         assert "Mimikatz Detected" in html
 
     def test_alert_badge_class_high(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         alerts = [
             {"title": "Test Alert", "severity": "high",
              "risk_score": 0.8, "status": "open",
@@ -211,18 +211,18 @@ class TestGenerateHtmlReport:
         assert "bg-warning" in html
 
     def test_empty_alerts_no_error(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         html = generate_html_report(self._data(alerts=[]))
         assert "<!DOCTYPE html>" in html
 
     def test_missing_data_keys_no_error(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         html = generate_html_report({})
         assert isinstance(html, str)
         assert "N/A" in html  # mttd/mttr fallback
 
     def test_confidential_footer(self):
-        from app.services.reporter import generate_html_report
+        from asc_api.services.reporter import generate_html_report
         assert "CONFIDENTIAL" in generate_html_report(self._data())
 
 
@@ -245,26 +245,26 @@ class TestGeneratePdfReport:
     }
 
     def test_returns_bytes(self):
-        from app.services.reporter import generate_pdf_report
+        from asc_api.services.reporter import generate_pdf_report
         assert isinstance(generate_pdf_report(self._DATA), bytes)
 
     def test_pdf_header_magic_bytes(self):
-        from app.services.reporter import generate_pdf_report
+        from asc_api.services.reporter import generate_pdf_report
         result = generate_pdf_report(self._DATA)
         if result:  # non-empty only when reportlab is installed
             assert result[:4] == b"%PDF"
 
     def test_empty_alerts_no_error(self):
-        from app.services.reporter import generate_pdf_report
+        from asc_api.services.reporter import generate_pdf_report
         data = {**self._DATA, "alerts": []}
         assert isinstance(generate_pdf_report(data), bytes)
 
     def test_missing_fields_no_error(self):
-        from app.services.reporter import generate_pdf_report
+        from asc_api.services.reporter import generate_pdf_report
         assert isinstance(generate_pdf_report({}), bytes)
 
     def test_multiple_alerts(self):
-        from app.services.reporter import generate_pdf_report
+        from asc_api.services.reporter import generate_pdf_report
         data = {**self._DATA, "alerts": [
             {"title": f"Alert {i}", "severity": "high",
              "risk_score": 0.7, "status": "open",
@@ -280,50 +280,50 @@ class TestGeneratePdfReport:
 
 class TestScheduledReportIsDue:
     def test_none_last_sent_always_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         assert _is_due(None, "daily") is True
         assert _is_due(None, "weekly") is True
 
     def test_recent_daily_not_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(hours=1)
         assert _is_due(last, "daily") is False
 
     def test_old_daily_is_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(hours=25)
         assert _is_due(last, "daily") is True
 
     def test_recent_weekly_not_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(days=3)
         assert _is_due(last, "weekly") is False
 
     def test_old_weekly_is_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(days=8)
         assert _is_due(last, "weekly") is True
 
     def test_naive_datetime_handled(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         # SQLite returns naive datetimes; _is_due normalises them
         last = datetime.utcnow() - timedelta(hours=25)
         assert _is_due(last, "daily") is True
 
     def test_exactly_at_24h_boundary_is_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(hours=24)
         assert _is_due(last, "daily") is True  # >= 24h → due
 
     def test_exactly_at_7day_boundary_is_due(self):
-        from app.tasks.scheduled_reports import _is_due
+        from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(days=7)
         assert _is_due(last, "weekly") is True
 
 
 class TestScheduledReportsRun:
     async def test_run_no_reports(self):
-        from app.tasks.scheduled_reports import _run
+        from asc_api.tasks.scheduled_reports import _run
 
         db = _async_db([])
         with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
@@ -333,7 +333,7 @@ class TestScheduledReportsRun:
         assert result == {"total": 0, "sent": 0, "skipped": 0, "errors": 0}
 
     async def test_run_skips_non_due_report(self):
-        from app.tasks.scheduled_reports import _run
+        from asc_api.tasks.scheduled_reports import _run
 
         report = MagicMock()
         report.id = "rpt-skip"
@@ -351,7 +351,7 @@ class TestScheduledReportsRun:
         assert result["sent"] == 0
 
     async def test_run_delivers_due_report(self):
-        from app.tasks.scheduled_reports import _run
+        from asc_api.tasks.scheduled_reports import _run
 
         report = MagicMock()
         report.id = "rpt-due"
@@ -372,7 +372,7 @@ class TestScheduledReportsRun:
         assert result["errors"] == 0
 
     async def test_run_counts_delivery_errors(self):
-        from app.tasks.scheduled_reports import _run
+        from asc_api.tasks.scheduled_reports import _run
 
         report = MagicMock()
         report.id = "rpt-err"
@@ -392,7 +392,7 @@ class TestScheduledReportsRun:
         assert result["sent"] == 0
 
     async def test_run_handles_exception_per_report(self):
-        from app.tasks.scheduled_reports import _run
+        from asc_api.tasks.scheduled_reports import _run
 
         report = MagicMock()
         report.id = "rpt-exc"
@@ -417,7 +417,7 @@ class TestScheduledReportsRun:
 
 class TestEscalationRun:
     async def test_run_no_expired_returns_zero(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
 
         db = _async_db()
         with patch("app.tasks.escalation.AsyncSessionLocal",
@@ -429,7 +429,7 @@ class TestEscalationRun:
         assert result == {"escalated": 0}
 
     async def test_run_with_escalated_ids_no_redis(self):
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
 
         action_ids = ["aa-111", "bb-222", "cc-333"]
         db = _async_db()
@@ -449,7 +449,7 @@ class TestEscalationRun:
 
     async def test_run_redis_failure_is_non_fatal(self):
         """Redis connection error is caught; task still returns escalated count."""
-        from app.tasks.escalation import _run
+        from asc_api.tasks.escalation import _run
 
         db = _async_db()
         mock_settings = MagicMock()
@@ -478,7 +478,7 @@ class TestEscalationRun:
 
 class TestSlaEscalationRun:
     async def test_run_no_breaches(self):
-        from app.tasks.sla_escalation import _run
+        from asc_api.tasks.sla_escalation import _run
 
         db = _async_db()
         with patch("app.tasks.sla_escalation.AsyncSessionLocal",
@@ -490,7 +490,7 @@ class TestSlaEscalationRun:
         assert result == {"sla_escalated": 0}
 
     async def test_run_with_breaches(self):
-        from app.tasks.sla_escalation import _run
+        from asc_api.tasks.sla_escalation import _run
 
         db = _async_db()
         with patch("app.tasks.sla_escalation.AsyncSessionLocal",
@@ -508,7 +508,7 @@ class TestSlaEscalationRun:
 
 class TestCorrelationSweepRun:
     async def test_async_sweep_calls_run_correlation_sweep(self):
-        from app.tasks.correlation_sweep import _async_sweep
+        from asc_api.tasks.correlation_sweep import _async_sweep
 
         db = _async_db()
         stats = {"clusters_created": 2, "signals_processed": 45}
@@ -521,7 +521,7 @@ class TestCorrelationSweepRun:
                 await _async_sweep()  # must not raise
 
     async def test_async_sweep_empty_stats(self):
-        from app.tasks.correlation_sweep import _async_sweep
+        from asc_api.tasks.correlation_sweep import _async_sweep
 
         db = _async_db()
         with patch("app.db.session.AsyncSessionLocal",
@@ -538,7 +538,7 @@ class TestCorrelationSweepRun:
 class TestPcdiEscalationRun:
     async def test_run_no_active_hunts(self):
         """Zero active hunts → no scoring, no escalations."""
-        from app.tasks.pcdi_escalation import _run
+        from asc_api.tasks.pcdi_escalation import _run
 
         db = _async_db([])  # execute() → scalars().all() = []
         with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
@@ -552,7 +552,7 @@ class TestPcdiEscalationRun:
         assert result["escalated_hunt_ids"] == []
 
     async def test_run_returns_all_expected_keys(self):
-        from app.tasks.pcdi_escalation import _run
+        from asc_api.tasks.pcdi_escalation import _run
 
         db = _async_db([])
         with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",

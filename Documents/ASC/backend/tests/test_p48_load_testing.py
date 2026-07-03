@@ -33,9 +33,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from app.core.security import create_access_token
-from app.db.session import get_db
-from app.main import app
+from asc_api.core.security import create_access_token
+from asc_api.db.session import get_db
+from asc_api.main import app
 
 _REPO_ROOT = Path(__file__).parent.parent
 _LOAD_TESTS = _REPO_ROOT.parent / "load_tests"
@@ -239,7 +239,7 @@ class TestP48Regression:
         assert r.status_code == 401
 
     def test_tenant_model_still_importable(self):
-        from app.models.tenant import Tenant
+        from asc_api.models.tenant import Tenant
         assert Tenant.__tablename__ == "tenants"
 
     def test_p47_migration_still_present(self):
@@ -267,5 +267,5 @@ class TestP48Regression:
         assert asc_sdk.__version__ == "0.1.0"
 
     def test_api_keys_backend_still_importable(self):
-        from app.api.v1.endpoints.api_keys import router
+        from asc_api.api.v1.endpoints.api_keys import router
         assert router is not None

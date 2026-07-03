@@ -23,8 +23,8 @@ from unittest.mock import AsyncMock, patch
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.playbook_run import PlaybookRun
-from app.services.playbook import (
+from asc_api.models.playbook_run import PlaybookRun
+from asc_api.services.playbook import (
     PLAYBOOKS,
     PlaybookContext,
     abort_playbook_run,

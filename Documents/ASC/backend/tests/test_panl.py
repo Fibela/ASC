@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.core.panl import (
+from asc_api.core.panl import (
     UPGRADE_RULES,
     AdaptiveContext,
     BehavioralThrottle,

@@ -24,13 +24,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.plan_caps import (
+from asc_api.core.plan_caps import (
     PLAN_DEFAULTS,
     enforce_api_key_cap,
     enforce_user_cap,
     _resolve_cap,
 )
-from app.models.tenant import Tenant
+from asc_api.models.tenant import Tenant
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -355,28 +355,28 @@ class TestApiKeysWiring:
     """enforce_api_key_cap is imported and called in create_api_key."""
 
     def test_enforce_api_key_cap_imported(self):
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         src = inspect.getsource(ak_module)
         assert "enforce_api_key_cap" in src
 
     def test_plan_caps_module_imported(self):
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         src = inspect.getsource(ak_module)
         assert "plan_caps" in src or "enforce_api_key_cap" in src
 
     def test_tenant_model_imported(self):
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         src = inspect.getsource(ak_module)
         assert "Tenant" in src
 
     def test_create_api_key_calls_enforce(self):
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         src = inspect.getsource(ak_module.create_api_key)
         assert "enforce_api_key_cap" in src
 
     def test_old_hardcoded_cap_replaced(self):
         """The old _MAX_KEYS_PER_USER=20 hard cap is replaced by plan caps."""
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         src = inspect.getsource(ak_module.create_api_key)
         # The old "Límite de X llaves activas" hard-cap error should be gone
         assert "Límite de" not in src or "enforce_api_key_cap" in src
@@ -390,7 +390,7 @@ class TestModuleStructure:
     """plan_caps.py exports expected symbols with correct types."""
 
     def test_plan_caps_importable(self):
-        import app.core.plan_caps  # noqa: F401
+        import asc_api.core.plan_caps  # noqa: F401
 
     def test_enforce_user_cap_is_coroutine(self):
         import asyncio
@@ -405,11 +405,11 @@ class TestModuleStructure:
         assert not asyncio.iscoroutinefunction(_resolve_cap)
 
     def test_plan_defaults_exported(self):
-        from app.core.plan_caps import PLAN_DEFAULTS as pd
+        from asc_api.core.plan_caps import PLAN_DEFAULTS as pd
         assert pd is PLAN_DEFAULTS
 
     def test_plan_caps_docstring_mentions_p54(self):
-        import app.core.plan_caps as m
+        import asc_api.core.plan_caps as m
         assert "P54" in (m.__doc__ or "")
 
 
@@ -422,7 +422,7 @@ class TestP54Regression:
 
     def test_original_constant_kept_for_other_code(self):
         """_MAX_KEYS_PER_USER may still exist but create_api_key uses plan caps."""
-        import app.api.v1.endpoints.api_keys as ak_module
+        import asc_api.api.v1.endpoints.api_keys as ak_module
         # Either the constant is gone from create_api_key, or plan caps are used.
         # Both are acceptable — what matters is plan caps are called.
         src = inspect.getsource(ak_module.create_api_key)
@@ -450,6 +450,6 @@ class TestP54Regression:
     @pytest.mark.asyncio
     async def test_user_count_query_filters_active_users(self):
         """enforce_user_cap query must include User.is_active == True."""
-        from app.core import plan_caps
+        from asc_api.core import plan_caps
         src = inspect.getsource(plan_caps.enforce_user_cap)
         assert "is_active" in src
