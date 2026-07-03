@@ -6,6 +6,50 @@
 
 ---
 
+## Session 4 — 2026-07-03 (Vercel Deploy + SSO Debug)
+
+### Incidente: 410 GONE → asc_unreachable — Root Cause & Fix
+
+| # | Date | Type | Description | Result |
+|---|------|------|-------------|--------|
+| I-1 | 2026-07-03 | FIX | **410 GONE en panel ASC**: usuario accedía a panel vía premoscorp.com → ASCPortal.jsx redirigía a `VITE_ASC_APP_URL = https://asc-premoscorp-l2o51ledj-alfa-premos-projects.vercel.app` (deployment eliminado de Vercel → Vercel retorna 410 para deployments borrados). Root cause: sc-system tenía variables `VITE_` obsoletas del deploy anterior. Fix: actualizadas en Vercel API + redeploy sc-system. | ✅ Resuelto |
+| I-2 | 2026-07-03 | FIX | **`asc_unreachable` (código de error)**: ASCPortal.jsx hacía `fetch(VITE_ASC_API_URL + "/api/v1/auth/supabase-sso")` donde `VITE_ASC_API_URL = https://asc-backend-ona9.onrender.com` (Render backend eliminado). El fetch fallaba con NetworkError → `.catch()` → `setSsoError({code: "asc_unreachable", status: 0})`. Root cause: variables `VITE_` del deployment anterior (Render) nunca actualizadas en Vercel sc-system. | ✅ Resuelto |
+| I-3 | 2026-07-03 | FIX | **CORS_ORIGINS obsoleto en asc-mono**: `CORS_ORIGINS` incluía `asc-frontend-delta.vercel.app` (proyecto eliminado) en lugar de `asc-mono.vercel.app`. Riesgo: si el dominio hubiera sido reasignado a otro proyecto, podría haber filtrado tokens. Fix: actualizado en Vercel API + ambos `config.py` (frontend + backend). Commit `ff0d979`. | ✅ Resuelto |
+
+### Acciones de Fix — 2026-07-03
+
+| # | Archivo / Sistema | Cambio |
+|---|---|---|
+| F-1 | Vercel sc-system env | `VITE_ASC_APP_URL`: `https://asc-premoscorp-l2o51ledj...vercel.app` → `https://asc-mono.vercel.app` |
+| F-2 | Vercel sc-system env | `VITE_ASC_API_URL`: `https://asc-backend-ona9.onrender.com` → `https://asc-mono.vercel.app` |
+| F-3 | `sc_system/.env.local` | Sincronizado con valores correctos (`asc-mono.vercel.app`) |
+| F-4 | sc-system | Redeploy forzado (dpl_598dVSCht7DGHftgdDmEReY7gD8k, READY). Alias `premoscorp.com` promovido explícitamente al nuevo deployment. |
+| F-5 | Vercel asc-mono env | `CORS_ORIGINS`: removida URL muerta `asc-frontend-delta.vercel.app`, añadida `asc-mono.vercel.app` |
+| F-6 | `frontend/asc_api/core/config.py` | CORS_ORIGINS default: `asc-frontend-delta.vercel.app` → `asc-mono.vercel.app`. Commit `ff0d979` |
+| F-7 | `backend/asc_api/core/config.py` | Mismo fix CORS. Commit `ff0d979` |
+
+### Verificaciones post-fix confirmadas
+
+| Check | Resultado |
+|---|---|
+| `premoscorp.com` → 200 OK | ✅ |
+| `asc-mono.vercel.app/health` → 200 OK | ✅ |
+| Bundle `/assets/ASCPortal-DXHXcp42.js` contiene `"https://asc-mono.vercel.app"` | ✅ |
+| Bundle NO contiene `onrender.com` ni deployment eliminado | ✅ |
+| CORS OPTIONS `premoscorp.com → asc-mono /api/v1/auth/supabase-sso` → 200 | ✅ |
+| POST `/api/v1/auth/supabase-sso` con token real-estructura → 503 `sso_jwks_error: key not found` (correcto: jwks contactado, kid incorrecto de test) | ✅ |
+| POST `/api/v1/auth/supabase-sso` con token HS256 fake → 401 `supabase_token_invalid` (correcto) | ✅ |
+
+### Pendientes identificados
+
+| # | Item | Prioridad |
+|---|---|---|
+| P-1 | `SUPABASE_URL` en asc-mono debe apuntar al proyecto Supabase de premoscorp_data (`xdgilxcmvpxhrpbuqyrr`) para validar tokens de usuarios de premoscorp.com. Actualmente puede apuntar al proyecto ASC_BD (`kqxwtayzqujlddviskwl`) que no emitiría tokens compatibles. | Alta (bloquea SSO real) |
+| P-2 | Configurar Supabase `premoscorp_data` en `sc_system/.env.local` y Vercel sc-system (URL, ANON_KEY, SERVICE_ROLE_KEY). Sin esto los usuarios de premoscorp.com no pueden autenticarse. | Alta |
+| P-3 | Stripe, Resend, HIBP keys en sc-system | Media |
+
+---
+
 ## Session 1 — 2026-06-04/05
 
 ### Planning & Architecture
