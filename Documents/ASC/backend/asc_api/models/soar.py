@@ -33,6 +33,7 @@ class PlaybookTrigger(Base):
     __tablename__ = "playbook_triggers"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     playbook_id: Mapped[str] = mapped_column(String(20), nullable=False)
     playbook_name: Mapped[str] = mapped_column(String(256), nullable=False, default="")
 
@@ -94,6 +95,7 @@ class ScheduledReport(Base):
     __tablename__ = "scheduled_reports"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     hunt_id: Mapped[str] = mapped_column(String(36), nullable=False)
     hunt_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
 

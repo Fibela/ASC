@@ -106,6 +106,7 @@ class AgentRegisterRequest(BaseModel):
     public_key: str        # Ed25519 raw public key, base64
     specter_version: str = "1.0.0"
     labels: dict[str, str] = Field(default_factory=dict)
+    tenant_id: str | None = None  # populated by the admin who generates the enrollment token
 
 
 class AgentOut(BaseModel):
@@ -262,11 +263,14 @@ async def register_agent(
         agent.specter_version = payload.specter_version
         agent.status = "active"
         agent.last_seen = datetime.now(timezone.utc)
+        if payload.tenant_id and not agent.tenant_id:
+            agent.tenant_id = payload.tenant_id
         await db.commit()
         await db.refresh(agent)
     else:
         agent = Agent(
             id=str(uuid.uuid4()),
+            tenant_id=payload.tenant_id,
             hostname=payload.hostname,
             os_type=payload.os_type,
             os_version=payload.os_version,
@@ -296,9 +300,14 @@ async def list_agents(
     threat_filter: str | None = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    q = select(Agent).order_by(Agent.last_seen.desc()).limit(limit)
+    q = (
+        select(Agent)
+        .where(Agent.tenant_id == current_user.tenant_id)
+        .order_by(Agent.last_seen.desc())
+        .limit(limit)
+    )
     if status_filter:
         q = q.where(Agent.status == status_filter)
     if threat_filter:
@@ -491,9 +500,14 @@ async def _honeypot_export(
 async def get_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
     agent = await refresh_agent_status(db, agent)
     return AgentOut.from_orm(agent).model_dump()
 
@@ -504,7 +518,12 @@ async def deregister_agent(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
     await db.delete(agent)
     await db.commit()
     log_security_action(
@@ -640,7 +659,12 @@ async def issue_agent_command(
         )
 
     # Agent lookup first â€” 404 takes semantic priority over param errors
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     # Filter: param schema validation
     param_errors = validate_command_params(payload.command_type, payload.params)
@@ -665,7 +689,10 @@ async def issue_agent_command(
             status_code=422,
             detail=f"Shell injection pattern detected in params: {flagged}",
         )
-    cmd = await issue_command(db, agent, payload.command_type, payload.params, str(current_user.id))
+    cmd = await issue_command(
+        db, agent, payload.command_type, payload.params, str(current_user.id),
+        tenant_id=current_user.tenant_id,
+    )
 
     log_security_action(
         "agent_command_issued",

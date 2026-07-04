@@ -757,23 +757,35 @@ async def get_cluster_graph(db: AsyncSession, cluster_id: str) -> dict[str, Any]
     }
 
 
-async def get_correlation_summary(db: AsyncSession) -> dict[str, Any]:
+async def get_correlation_summary(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """KPI summary for the /correlation page header strip."""
-    total_r = await db.execute(select(func.count(CorrelationCluster.id)))
+
+    def _c(q):
+        return q.where(CorrelationCluster.tenant_id == tenant_id) if tenant_id else q
+
+    def _r(q):
+        return q.where(CorrelationRule.tenant_id == tenant_id) if tenant_id else q
+
+    def _s(q):
+        return q.where(CorrelationSignal.tenant_id == tenant_id) if tenant_id else q
+
+    total_r = await db.execute(_c(select(func.count(CorrelationCluster.id))))
     active_r = await db.execute(
-        select(func.count(CorrelationCluster.id)).where(CorrelationCluster.status == "active")
+        _c(select(func.count(CorrelationCluster.id)).where(CorrelationCluster.status == "active"))
     )
     campaign_r = await db.execute(
-        select(func.count(CorrelationCluster.id)).where(CorrelationCluster.is_campaign.is_(True))
+        _c(select(func.count(CorrelationCluster.id)).where(CorrelationCluster.is_campaign.is_(True)))
     )
     critical_r = await db.execute(
-        select(func.count(CorrelationCluster.id))
-        .where(CorrelationCluster.status == "active")
-        .where(CorrelationCluster.severity == "critical")
+        _c(
+            select(func.count(CorrelationCluster.id))
+            .where(CorrelationCluster.status == "active")
+            .where(CorrelationCluster.severity == "critical")
+        )
     )
-    signal_r = await db.execute(select(func.count(CorrelationSignal.id)))
+    signal_r = await db.execute(_s(select(func.count(CorrelationSignal.id))))
     rules_r = await db.execute(
-        select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True))
+        _r(select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True)))
     )
 
     return {

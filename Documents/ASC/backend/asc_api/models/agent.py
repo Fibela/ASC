@@ -21,6 +21,7 @@ class Agent(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True,
                                     default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     hostname: Mapped[str] = mapped_column(String(255), nullable=False)
     os_type: Mapped[str] = mapped_column(String(20), nullable=False)    # windows, linux, macos
     os_version: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -82,6 +83,7 @@ class AgentCommand(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True,
                                     default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id"), nullable=False)
 
     # What to do

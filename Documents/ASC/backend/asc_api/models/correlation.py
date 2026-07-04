@@ -43,6 +43,7 @@ class CorrelationRule(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False, unique=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -90,6 +91,7 @@ class CorrelationCluster(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     rule_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("correlation_rules.id", ondelete="CASCADE"), nullable=False
     )
@@ -181,6 +183,7 @@ class CorrelationSignal(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     cluster_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("correlation_clusters.id", ondelete="CASCADE"), nullable=False
     )
