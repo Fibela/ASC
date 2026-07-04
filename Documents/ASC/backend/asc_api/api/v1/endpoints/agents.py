@@ -1,4 +1,4 @@
-﻿"""
+"""
 SPECTER Agent REST API â€” P13 + P14 (Security Hardening).
 
 Endpoint map:

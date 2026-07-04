@@ -1,4 +1,4 @@
-﻿"""
+"""
 P40 â€” API Key Management  (Toque Premos aplicado)
 ==================================================
 Endpoints for creating, listing, rotating, and revoking API keys.

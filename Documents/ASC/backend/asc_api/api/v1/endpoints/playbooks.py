@@ -1,4 +1,4 @@
-﻿"""
+"""
 Playbooks Engine â€” REST endpoints.
 
 Endpoints:

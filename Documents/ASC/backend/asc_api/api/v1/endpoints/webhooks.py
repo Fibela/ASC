@@ -1,4 +1,4 @@
-﻿"""
+"""
 P42 â€” Webhook Support  (Toque Premos aplicado)
 ================================================
 Endpoints for registering, managing, and testing outbound webhooks.

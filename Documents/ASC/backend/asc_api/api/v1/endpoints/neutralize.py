@@ -1,4 +1,4 @@
-﻿"""
+"""
 Neutralization API â€” P16 + PANL
 
 Security layers applied at the endpoint level:

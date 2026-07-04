@@ -1,4 +1,4 @@
-﻿"""
+"""
 IoCs endpoint â€” P21-F2: authentication enforced + rate limiting added.
 Previously iocs.py had NO auth dependency â€” security gap now closed.
 """

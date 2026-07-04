@@ -1,4 +1,4 @@
-﻿"""
+"""
 PremosCorp Threat Hunting API â€” P22-F3 + P23
 
 Endpoints (P22)

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Adapters REST API â€” SIEM/EDR/SOAR/Firewall/IAM integration endpoints.
 
 All endpoints require JWT authentication (analyst+ role).
