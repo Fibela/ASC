@@ -250,6 +250,10 @@ def _verify_stripe_signature(payload_bytes: bytes, sig_header: str, secret: str)
     except (KeyError, IndexError, ValueError):
         return False
 
+    import time as _time  # noqa: PLC0415
+    if abs(_time.time() - int(timestamp)) > 300:
+        return False  # replay attack guard — Stripe requires ±5 min tolerance
+
     signed_payload = f"{timestamp}.".encode() + payload_bytes
     mac = hmac.new(secret.encode(), signed_payload, hashlib.sha256)
     computed = mac.hexdigest()
@@ -566,8 +570,6 @@ async def take_snapshot(
     Counts current active resources and upserts UsageRecord rows for the current
     billing period. Idempotent — safe to call multiple times per period.
     """
-    admin_result = await db.execute(select(User).where(User.id == _.__class__))  # type: ignore[attr-defined]
-    # Re-fetch admin from dependency via the passed user object
     admin_user: User = _
     tenant_id = admin_user.tenant_id
     if not tenant_id:
@@ -720,7 +722,7 @@ async def stripe_webhook(
                 else:
                     tenant.stripe_subscription_id = stripe_sub_id
                     if new_status == "active":
-                        tenant.plan = "pro"
+                        tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
                 await db.commit()
 
     return WebhookAckResponse(received=True)
