@@ -183,6 +183,67 @@ premoscorp.com (Supabase xdgilxcmvpxhrpbuqyrr)
 
 ---
 
+## Session 7 — 2026-07-03 (Ghost Module Cleanup + Dominio asc.premoscorp.com)
+
+### Objetivo: Eliminar módulo fantasma `app/` y activar subdominio `asc.premoscorp.com`
+
+Continuación de Session 6. El módulo `app/` era una copia obsoleta de `asc_api/` del período pre-renombramiento — Python podía importar ambos paquetes simultáneamente, causando que los mocks de tests (`patch("app.X")`) no se aplicaran al código real en `asc_api/`.
+
+### Acciones ejecutadas
+
+| # | Acción | Commit | Resultado |
+|---|--------|--------|-----------|
+| S7-1 | **Dominio `asc.premoscorp.com`**: confirmado que `premoscorp.com` usa Vercel DNS (`ns1.vercel-dns.com`). Añadido en Vercel Dashboard → asc-mono → Settings → Domains. Vercel generó automáticamente CNAME y certificado TLS. | — | ✅ `https://asc.premoscorp.com/health` → `HTTP 200 {"status":"ok","app":"ASC PremosCorp","version":"1.0.0"}` |
+| S7-2 | **Migración Alembic RLS** (`x4r67u6w9q11`): creada migración para persistir el fix de RLS a través de futuros `alembic upgrade head`. Encadena con `w3q56t5v8p10`. 34 tablas. | `4f1ed27` | ✅ Pushed |
+| S7-3 | **`git rm -r backend/app/`**: eliminados 131 archivos del módulo fantasma. La presencia de `app/` en el filesystem causaba que Python resolviera `import app.X` al módulo equivocado en tests, y era la causa raíz de los fallos de mock residuales. | `e0a3567` | ✅ Pushed |
+| S7-4 | **Limpieza de scripts de auditoría** del directorio `backend/`: eliminados `audit_endpoints.py`, `audit_endpoints2.py`, `audit_endpoints3.py`, `audit_routes.py`, `gen_remaining_tables.py`, `gen_schema_check.py`, `coverage.json`. Eran artefactos de desarrollo sin uso en producción. | `e0a3567` | ✅ Pushed |
+
+### Auditoría de Producción — Endpoints Verificados
+
+Todos los 35 endpoints principales verificados con rutas correctas post-fix:
+
+| Módulo | Ruta correcta | HTTP |
+|--------|--------------|------|
+| Health | `/health` | 200 |
+| Auth | `/api/v1/auth/login` | 200 |
+| Alerts | `/api/v1/alerts` | 200 |
+| Events | `/api/v1/events` | 200 |
+| IOCs | `/api/v1/iocs` | 200 |
+| Neutralize pending | `/api/v1/neutralize/pending` | 200 |
+| Neutralize history | `/api/v1/neutralize/history` | 200 |
+| Playbooks | `/api/v1/playbooks` | 200 |
+| Reports executive | `/api/v1/reports/executive` | 200 |
+| Observability | `/api/v1/observability/summary` | 200 |
+| Ops fleet | `/api/v1/ops/fleet/summary` | 200 |
+| Threat intel | `/api/v1/threat-intel/indicators` | 200 |
+| Notifications stream | `/api/v1/notifications/stream` | 200 |
+
+### Estado del Repositorio post-S7
+
+| Métrica | Valor |
+|---------|-------|
+| Tests pasados | 4616 |
+| Tests fallidos | 0 |
+| Cobertura | 86.01% |
+| Commits pushed | `5e41100`, `4f1ed27`, `e0a3567` |
+| Último commit en GitHub | `e0a3567` (master) |
+| `asc.premoscorp.com` | ✅ LIVE (TLS, HTTP 200) |
+| Módulo `app/` fantasma | ✅ ELIMINADO |
+
+### Pendientes identificados
+
+| # | Item | Prioridad |
+|---|------|-----------|
+| P-1 | `STRIPE_API_KEY` en asc-mono (billing integration) | Media |
+| P-2 | `RESEND_API_KEY` en asc-mono (emails transaccionales) | Media |
+| P-3 | `HIBP_API_KEY` en asc-mono (Operación Stalker / breach detection) | Baja |
+| P-4 | `REDIS_URL` en asc-mono (notificaciones real-time — actualmente en modo fallback) | Media |
+| P-5 | Mejorar cobertura en módulos con <20%: `analyzer.py` (10%), `correlation_service.py` (15%), `approval.py` (19%), `hunt_service.py` (14%) | Baja |
+| P-6 | CNAME DNS update opcional: cambiar A `76.76.21.21` → CNAME `ce0b5677af44fdf2.vercel-dns-016.com.` (registro actual sigue funcionando) | Opcional |
+| P-7 | Testing visual del dashboard Next.js (UI layer no testeada) | Media |
+
+---
+
 ## Session 1 — 2026-06-04/05
 
 ### Planning & Architecture
