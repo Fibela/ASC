@@ -1,28 +1,28 @@
-"""
-P51 — Multi-Tenancy Enforcement
+﻿"""
+P51 â€” Multi-Tenancy Enforcement
 =================================
 Tests verifying:
-1. tenant_context.py — ContextVar set/get/cleanup
-2. TenantMiddleware — JWT + X-Tenant-ID header resolution, cleanup, no-crash on bad tokens
-3. apply_tenant_filter() — strict tenant isolation logic (SQL WHERE clause generation)
-4. create_access_token() — optional tenant_id claim in JWT payload
-5. API key endpoints — list/create respect tenant scope
-6. Webhook endpoints — list/create respect tenant scope
-7. main.py — TenantMiddleware wired into the middleware stack
-8. Regression — P47–P50 deliverables unaffected
+1. tenant_context.py â€” ContextVar set/get/cleanup
+2. TenantMiddleware â€” JWT + X-Tenant-ID header resolution, cleanup, no-crash on bad tokens
+3. apply_tenant_filter() â€” strict tenant isolation logic (SQL WHERE clause generation)
+4. create_access_token() â€” optional tenant_id claim in JWT payload
+5. API key endpoints â€” list/create respect tenant scope
+6. Webhook endpoints â€” list/create respect tenant scope
+7. main.py â€” TenantMiddleware wired into the middleware stack
+8. Regression â€” P47â€“P50 deliverables unaffected
 
 Testing approach
 ----------------
-• Context / filter tests: pure Python unit tests — no HTTP, no DB
-• Middleware tests: ASGI integration with an inline test app via httpx.AsyncClient
-• Endpoint tests: app.dependency_overrides pattern (same as P47/P48/P49)
-• Static analysis: import checks + file content inspection
+â€¢ Context / filter tests: pure Python unit tests â€” no HTTP, no DB
+â€¢ Middleware tests: ASGI integration with an inline test app via httpx.AsyncClient
+â€¢ Endpoint tests: app.dependency_overrides pattern (same as P47/P48/P49)
+â€¢ Static analysis: import checks + file content inspection
 
 Security scan
 -------------
-• No real tenant IDs or JWT secrets hardcoded
-• All test credentials are obviously synthetic (test-tenant-*, test-user-*)
-• Cross-tenant isolation assertions prove data never bleeds between tenants
+â€¢ No real tenant IDs or JWT secrets hardcoded
+â€¢ All test credentials are obviously synthetic (test-tenant-*, test-user-*)
+â€¢ Cross-tenant isolation assertions prove data never bleeds between tenants
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ _BACKEND    = _REPO_ROOT
 _WORKFLOWS  = _REPO_ROOT.parent / ".github" / "workflows"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(role: str = "analyst", tenant_id: str | None = None) -> MagicMock:
     u = MagicMock()
@@ -88,7 +88,7 @@ def _auth_headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-# ── 1. TenantContext ──────────────────────────────────────────────────────────
+# â”€â”€ 1. TenantContext â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantContext:
     """ContextVar set/get/cleanup behavior."""
@@ -122,14 +122,14 @@ class TestTenantContext:
         assert callable(tenant_context.get_tenant_id)
 
 
-# ── 2. TenantMiddleware ───────────────────────────────────────────────────────
+# â”€â”€ 2. TenantMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantMiddleware:
     """Middleware resolves tenant_id from JWT and X-Tenant-ID header."""
 
     @pytest.mark.asyncio
     async def test_no_auth_sets_none(self):
-        """Requests with no Authorization header → tenant_id = None."""
+        """Requests with no Authorization header â†’ tenant_id = None."""
         captured: list[str | None] = []
 
         from starlette.applications import Starlette
@@ -155,7 +155,7 @@ class TestTenantMiddleware:
 
     @pytest.mark.asyncio
     async def test_jwt_without_tenant_claim_sets_none(self):
-        """JWT with no tenant_id claim → tenant_id = None."""
+        """JWT with no tenant_id claim â†’ tenant_id = None."""
         captured: list[str | None] = []
 
         from starlette.applications import Starlette
@@ -183,7 +183,7 @@ class TestTenantMiddleware:
 
     @pytest.mark.asyncio
     async def test_jwt_with_tenant_claim_sets_context(self):
-        """JWT with tenant_id claim → ContextVar holds that tenant_id."""
+        """JWT with tenant_id claim â†’ ContextVar holds that tenant_id."""
         captured: list[str | None] = []
 
         from starlette.applications import Starlette
@@ -245,7 +245,7 @@ class TestTenantMiddleware:
 
     @pytest.mark.asyncio
     async def test_invalid_jwt_falls_back_to_none(self):
-        """A garbage Bearer token does not crash middleware — falls back to None."""
+        """A garbage Bearer token does not crash middleware â€” falls back to None."""
         captured: list[str | None] = []
 
         from starlette.applications import Starlette
@@ -307,7 +307,7 @@ class TestTenantMiddleware:
         assert issubclass(TenantMiddleware, BaseHTTPMiddleware)
 
 
-# ── 3. apply_tenant_filter ────────────────────────────────────────────────────
+# â”€â”€ 3. apply_tenant_filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantFilter:
     """apply_tenant_filter() generates correct WHERE clauses."""
@@ -349,7 +349,7 @@ class TestTenantFilter:
         set_tenant_id("tenant-strict")
         stmt = apply_tenant_filter(select(APIKey), APIKey)
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
-        # Should NOT have "IS NULL" — strict isolation, no fallback to global rows
+        # Should NOT have "IS NULL" â€” strict isolation, no fallback to global rows
         assert "IS NULL" not in compiled.upper()
 
     def test_works_with_webhook_model(self):
@@ -372,7 +372,7 @@ class TestTenantFilter:
         assert "model" in params
 
     def test_reads_from_context_var(self):
-        """Filter uses get_tenant_id() — value changes with ContextVar."""
+        """Filter uses get_tenant_id() â€” value changes with ContextVar."""
         from sqlalchemy import select
         from asc_api.db.tenant_filter import apply_tenant_filter
         from asc_api.models.api_key import APIKey
@@ -408,25 +408,25 @@ class TestTenantFilter:
         assert compiled_a != compiled_b
 
 
-# ── 4. JWT tenant_id claim ────────────────────────────────────────────────────
+# â”€â”€ 4. JWT tenant_id claim â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestJWTTenantClaim:
     """create_access_token() optional tenant_id in JWT payload."""
 
     def test_token_without_tenant_id(self):
-        """No tenant_id kwarg → no tenant_id field in payload."""
+        """No tenant_id kwarg â†’ no tenant_id field in payload."""
         token = create_access_token("user-1")
         payload = decode_token_payload(token)
         assert "tenant_id" not in payload
 
     def test_token_with_tenant_id(self):
-        """tenant_id kwarg → tenant_id present in payload."""
+        """tenant_id kwarg â†’ tenant_id present in payload."""
         token = create_access_token("user-1", tenant_id="tenant-123")
         payload = decode_token_payload(token)
         assert payload.get("tenant_id") == "tenant-123"
 
     def test_token_with_none_tenant_id_excluded(self):
-        """tenant_id=None explicitly → claim excluded (same as not passed)."""
+        """tenant_id=None explicitly â†’ claim excluded (same as not passed)."""
         token = create_access_token("user-1", tenant_id=None)
         payload = decode_token_payload(token)
         assert "tenant_id" not in payload
@@ -444,11 +444,11 @@ class TestJWTTenantClaim:
         """Tokens without tenant_id (old format) are still decodable."""
         token = create_access_token("legacy-user")
         payload = decode_token_payload(token)
-        # No KeyError, no exception — the key simply doesn't exist
+        # No KeyError, no exception â€” the key simply doesn't exist
         assert payload.get("tenant_id") is None
 
 
-# ── 5. API Keys endpoint tenant enforcement ───────────────────────────────────
+# â”€â”€ 5. API Keys endpoint tenant enforcement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAPIKeysTenantEnforcement:
     """api-keys endpoints enforce tenant isolation."""
@@ -459,7 +459,7 @@ class TestAPIKeysTenantEnforcement:
         from asc_api.core.tenant_context import set_tenant_id
 
         user = _make_user(role="analyst", tenant_id="tenant-create")
-        db_override, mock_db = _db_override(scalars_result=[])  # empty count → cap not hit
+        db_override, mock_db = _db_override(scalars_result=[])  # empty count â†’ cap not hit
 
         # Capture the object passed to db.add() and simulate what DB refresh does
         added_objects: list = []
@@ -478,13 +478,13 @@ class TestAPIKeysTenantEnforcement:
         set_tenant_id("tenant-create")
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(user.id, tenant_id="tenant-create")
                     r = await client.post(
-                        "/api/v1/api-keys/",
+                        "/api/v1/api-keys",
                         json={"name": "test-key", "scopes": ["read"]},
                         headers=_auth_headers(token),
                     )
@@ -516,13 +516,13 @@ class TestAPIKeysTenantEnforcement:
         app.dependency_overrides[get_db] = db_override
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(user.id, tenant_id="tenant-list")
                     r = await client.get(
-                        "/api/v1/api-keys/",
+                        "/api/v1/api-keys",
                         headers=_auth_headers(token),
                     )
         finally:
@@ -554,13 +554,13 @@ class TestAPIKeysTenantEnforcement:
         app.dependency_overrides[get_db] = db_override
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(admin.id, tenant_id="tenant-admin")
                     r = await client.get(
-                        "/api/v1/api-keys/",
+                        "/api/v1/api-keys",
                         headers=_auth_headers(token),
                     )
         finally:
@@ -572,7 +572,7 @@ class TestAPIKeysTenantEnforcement:
 
     @pytest.mark.asyncio
     async def test_no_tenant_produces_null_filter(self):
-        """GET /api-keys/ with no tenant in JWT → WHERE tenant_id IS NULL."""
+        """GET /api-keys/ with no tenant in JWT â†’ WHERE tenant_id IS NULL."""
         user = _make_user(role="analyst")
         db_override, mock_db = _db_override(scalars_result=[])
 
@@ -589,13 +589,13 @@ class TestAPIKeysTenantEnforcement:
         app.dependency_overrides[get_db] = db_override
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(user.id)  # no tenant_id
                     r = await client.get(
-                        "/api/v1/api-keys/",
+                        "/api/v1/api-keys",
                         headers=_auth_headers(token),
                     )
         finally:
@@ -614,7 +614,7 @@ class TestAPIKeysTenantEnforcement:
         assert "apply_tenant_filter" in source
 
 
-# ── 6. Webhooks endpoint tenant enforcement ───────────────────────────────────
+# â”€â”€ 6. Webhooks endpoint tenant enforcement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhooksTenantEnforcement:
     """webhooks endpoints enforce tenant isolation."""
@@ -633,13 +633,13 @@ class TestWebhooksTenantEnforcement:
         set_tenant_id("tenant-wh")
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(user.id, tenant_id="tenant-wh")
                     r = await client.post(
-                        "/api/v1/webhooks/",
+                        "/api/v1/webhooks",
                         json={"url": "https://hooks.example.com/recv", "events": ["alert.critical"]},
                         headers=_auth_headers(token),
                     )
@@ -670,13 +670,13 @@ class TestWebhooksTenantEnforcement:
         app.dependency_overrides[get_db] = db_override
 
         try:
-            with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+            with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
                 async with AsyncClient(
                     transport=ASGITransport(app=app), base_url="http://test"
                 ) as client:
                     token = _jwt_token(user.id, tenant_id="tenant-wh-list")
                     r = await client.get(
-                        "/api/v1/webhooks/",
+                        "/api/v1/webhooks",
                         headers=_auth_headers(token),
                     )
         finally:
@@ -714,7 +714,7 @@ class TestWebhooksTenantEnforcement:
                     ) as client:
                         token = _jwt_token(user.id, tenant_id=tenant_id)
                         await client.get(
-                            "/api/v1/webhooks/",
+                            "/api/v1/webhooks",
                             headers=_auth_headers(token),
                         )
             finally:
@@ -742,7 +742,7 @@ class TestWebhooksTenantEnforcement:
         assert "P51" in source
 
 
-# ── 7. main.py wires TenantMiddleware ────────────────────────────────────────
+# â”€â”€ 7. main.py wires TenantMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMainPyTenantWiring:
     """main.py correctly imports and registers TenantMiddleware."""
@@ -761,7 +761,7 @@ class TestMainPyTenantWiring:
         source = (_BACKEND / "app" / "main.py").read_text()
         # Find positions of add_middleware calls
         pos_tenant = source.index("add_middleware(TenantMiddleware)")
-        # CORSMiddleware may be split across lines — find first occurrence of CORSMiddleware
+        # CORSMiddleware may be split across lines â€” find first occurrence of CORSMiddleware
         # after the first add_middleware call
         first_add = source.index("add_middleware(")
         pos_cors = source.index("CORSMiddleware", first_add)
@@ -773,7 +773,7 @@ class TestMainPyTenantWiring:
         )
 
     def test_app_imports_correctly(self):
-        """The app is importable — no circular import or missing module."""
+        """The app is importable â€” no circular import or missing module."""
         from asc_api.main import app
         assert app is not None
 
@@ -782,10 +782,10 @@ class TestMainPyTenantWiring:
         assert TenantMiddleware is not None
 
 
-# ── 8. Regression: P47–P50 unaffected ────────────────────────────────────────
+# â”€â”€ 8. Regression: P47â€“P50 unaffected â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP51Regression:
-    """Key P47–P50 deliverables still present after P51 changes."""
+    """Key P47â€“P50 deliverables still present after P51 changes."""
 
     def test_tenant_model_still_importable(self):
         from asc_api.models.tenant import Tenant

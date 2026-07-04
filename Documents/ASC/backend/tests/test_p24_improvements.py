@@ -1,21 +1,21 @@
-"""
-P24 Post-Sprint Improvements — Test Suite
+﻿"""
+P24 Post-Sprint Improvements â€” Test Suite
 ==========================================
 Covers all four improvement areas:
 
-  A-FLEET  — Fleet-aware Specter dispatch (priority scoring, broadcast mode)
-  A-ESC    — Celery PCDI critical-findings escalation task
-  A-FT     — Cryptographic forensic timeline (chain hashes, event ordering)
-  A-XDASH  — Cross-domain dashboard endpoint (/ops/cross-domain)
+  A-FLEET  â€” Fleet-aware Specter dispatch (priority scoring, broadcast mode)
+  A-ESC    â€” Celery PCDI critical-findings escalation task
+  A-FT     â€” Cryptographic forensic timeline (chain hashes, event ordering)
+  A-XDASH  â€” Cross-domain dashboard endpoint (/ops/cross-domain)
 
 Security posture:
-  - No real DB connections — all DB calls are mocked with AsyncMock
-  - No Specter/ELK/Wazuh connections — agent_commander fully mocked
-  - No real cryptographic keys — ephemeral Ed25519 keys generated per-test
-  - No SSE/Redis calls — notification_bus mocked
-  - No Celery worker started — _run() tested directly as async coroutine
+  - No real DB connections â€” all DB calls are mocked with AsyncMock
+  - No Specter/ELK/Wazuh connections â€” agent_commander fully mocked
+  - No real cryptographic keys â€” ephemeral Ed25519 keys generated per-test
+  - No SSE/Redis calls â€” notification_bus mocked
+  - No Celery worker started â€” _run() tested directly as async coroutine
 
-Target: ≥ 40 tests
+Target: â‰¥ 40 tests
 """
 from __future__ import annotations
 
@@ -37,9 +37,9 @@ from fastapi.testclient import TestClient
 _celery_available = importlib.util.find_spec("celery") is not None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # Fixtures & helpers
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _gen_keypair() -> tuple[str, str]:
     """Ephemeral Ed25519 keypair. Returns (priv_b64, pub_b64)."""
@@ -177,9 +177,9 @@ def _scalars_result(items: list) -> MagicMock:
     return r
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# A-FLEET — Fleet-aware Specter dispatch
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# A-FLEET â€” Fleet-aware Specter dispatch
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAgentPriorityScore:
     """_agent_priority_score() scoring logic."""
@@ -240,7 +240,7 @@ class TestAgentPriorityScore:
         from asc_api.services.query_executor import _agent_priority_score
         agents = [
             _make_agent(threat_level="critical", last_seen_seconds_ago=5),
-            _make_agent(threat_level="normal",   last_seen_seconds_ago=2),   # ← best
+            _make_agent(threat_level="normal",   last_seen_seconds_ago=2),   # â† best
             _make_agent(threat_level="elevated",  last_seen_seconds_ago=1),
         ]
         best = min(agents, key=_agent_priority_score)
@@ -261,7 +261,7 @@ class TestSpecterFleetDispatch:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([good, worse]))
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(return_value=cmd)) as mock_ic:
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(return_value=cmd)) as mock_ic:
             result = await _dispatch_to_specter(
                 db, "test query",
                 query_id="q-1", hunt_id="h-1", executed_by="analyst@test.com",
@@ -275,7 +275,7 @@ class TestSpecterFleetDispatch:
 
     @pytest.mark.asyncio
     async def test_single_mode_result_count_is_zero(self):
-        """Specter is async — no results yet, result_count = 0."""
+        """Specter is async â€” no results yet, result_count = 0."""
         from asc_api.services.query_executor import _dispatch_to_specter
 
         agent = _make_agent()
@@ -283,7 +283,7 @@ class TestSpecterFleetDispatch:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([agent]))
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(return_value=cmd)):
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(return_value=cmd)):
             result = await _dispatch_to_specter(
                 db, "query", query_id="q", hunt_id="h", executed_by="x"
             )
@@ -301,7 +301,7 @@ class TestSpecterFleetDispatch:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([agent]))
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(return_value=cmd)):
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(return_value=cmd)):
             result = await _dispatch_to_specter(
                 db, "query", query_id="q", hunt_id="h", executed_by="x"
             )
@@ -317,7 +317,7 @@ class TestSpecterFleetDispatch:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result(agents))
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(side_effect=cmds)) as mock_ic:
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(side_effect=cmds)) as mock_ic:
             result = await _dispatch_to_specter(
                 db, "query", query_id="q", hunt_id="h", executed_by="x",
                 broadcast=True,
@@ -338,7 +338,7 @@ class TestSpecterFleetDispatch:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result(agents))
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(side_effect=cmds)):
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(side_effect=cmds)):
             result = await _dispatch_to_specter(
                 db, "q", query_id="q", hunt_id="h", executed_by="x", broadcast=True
             )
@@ -363,7 +363,7 @@ class TestSpecterFleetDispatch:
                 raise RuntimeError("agent offline")
             return good_cmd
 
-        with patch("app.services.agent_commander.issue_command", side_effect=_side_effect):
+        with patch("asc_api.services.agent_commander.issue_command", side_effect=_side_effect):
             result = await _dispatch_to_specter(
                 db, "q", query_id="q", hunt_id="h", executed_by="x", broadcast=True
             )
@@ -400,7 +400,7 @@ class TestSpecterFleetDispatch:
             captured_params.update(params)
             return cmd
 
-        with patch("app.services.agent_commander.issue_command", side_effect=_capture):
+        with patch("asc_api.services.agent_commander.issue_command", side_effect=_capture):
             await _dispatch_to_specter(
                 db, "query", query_id="q", hunt_id="h", executed_by="x"
             )
@@ -408,17 +408,17 @@ class TestSpecterFleetDispatch:
         assert captured_params.get("read_only") is True
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# A-ESC — PCDI Critical Findings Escalation Task
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# A-ESC â€” PCDI Critical Findings Escalation Task
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-@pytest.mark.skipif(not _celery_available, reason="celery not installed locally — Docker only")
+@pytest.mark.skipif(not _celery_available, reason="celery not installed locally â€” Docker only")
 class TestPCDIEscalationTask:
     """pcdi_escalation._run() logic tested directly (no Celery worker)."""
 
     @pytest.mark.asyncio
     async def test_escalates_hunt_when_max_score_critical(self):
-        """Hunt with score ≥ 80 gets priority upgraded to 'critical'."""
+        """Hunt with score â‰¥ 80 gets priority upgraded to 'critical'."""
         from asc_api.tasks.pcdi_escalation import _run, PCDI_CRITICAL_THRESHOLD
 
         hunt = _make_hunt(status="active", priority="medium")
@@ -443,8 +443,8 @@ class TestPCDIEscalationTask:
 
         # We mock at a higher level to avoid complex SQLAlchemy statement matching
         with (
-            patch("app.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
-            patch("app.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_mock_score),
+            patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
+            patch("asc_api.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_mock_score),
         ):
             # Simulate the DB returning hunts and findings
             mock_session.execute = AsyncMock(side_effect=[
@@ -454,8 +454,8 @@ class TestPCDIEscalationTask:
             mock_session.commit = AsyncMock()
 
             with (
-                patch("app.tasks.pcdi_escalation.log_security_action"),
-                patch("app.tasks.pcdi_escalation.asyncio.ensure_future"),
+                patch("asc_api.tasks.pcdi_escalation.log_security_action"),
+                patch("asc_api.tasks.pcdi_escalation.asyncio.ensure_future"),
             ):
                 result = await _run()
 
@@ -484,9 +484,9 @@ class TestPCDIEscalationTask:
         mock_session.commit = AsyncMock()
 
         with (
-            patch("app.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
-            patch("app.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_low_score),
-            patch("app.tasks.pcdi_escalation.log_security_action"),
+            patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
+            patch("asc_api.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_low_score),
+            patch("asc_api.tasks.pcdi_escalation.log_security_action"),
         ):
             result = await _run()
 
@@ -515,9 +515,9 @@ class TestPCDIEscalationTask:
         mock_session.commit = AsyncMock()
 
         with (
-            patch("app.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
-            patch("app.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_high_score),
-            patch("app.tasks.pcdi_escalation.log_security_action"),
+            patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
+            patch("asc_api.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_high_score),
+            patch("asc_api.tasks.pcdi_escalation.log_security_action"),
         ):
             result = await _run()
 
@@ -544,9 +544,9 @@ class TestPCDIEscalationTask:
         mock_session.commit = AsyncMock()
 
         with (
-            patch("app.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
-            patch("app.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_broken_score),
-            patch("app.tasks.pcdi_escalation.log_security_action"),
+            patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session),
+            patch("asc_api.tasks.pcdi_escalation.compute_adaptive_score", side_effect=_broken_score),
+            patch("asc_api.tasks.pcdi_escalation.log_security_action"),
         ):
             result = await _run()  # must not raise
 
@@ -563,7 +563,7 @@ class TestPCDIEscalationTask:
         mock_session.execute = AsyncMock(return_value=_scalars_result([]))
         mock_session.commit = AsyncMock()
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session):
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal", return_value=mock_session):
             result = await _run()
 
         assert result["active_hunts_checked"] == 0
@@ -583,9 +583,9 @@ class TestPCDIEscalationTask:
         assert "pcdi-critical-findings" in celery_app.conf.beat_schedule
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# A-FT — Forensic Timeline (chain hashes)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# A-FT â€” Forensic Timeline (chain hashes)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestForensicTimeline:
     """build_forensic_timeline() in pcdi_service."""
@@ -653,7 +653,7 @@ class TestForensicTimeline:
         db.execute = AsyncMock(side_effect=[
             hunt_r,
             _scalars_result([]),         # queries
-            _scalars_result([finding]),  # findings (has indicator_value → triggers PANL query)
+            _scalars_result([finding]),  # findings (has indicator_value â†’ triggers PANL query)
             _scalars_result([]),         # PANL neutralization actions
             _scalars_result([]),         # signed reports
         ])
@@ -809,7 +809,7 @@ class TestForensicTimeline:
         db.execute = AsyncMock(side_effect=[
             hunt_r,
             _scalars_result([]),          # queries
-            _scalars_result([finding]),   # findings (has indicator_value → PANL query)
+            _scalars_result([finding]),   # findings (has indicator_value â†’ PANL query)
             _scalars_result([]),          # PANL actions
             _scalars_result([]),          # signed reports
         ])
@@ -820,9 +820,9 @@ class TestForensicTimeline:
         assert "finding_confirmed" in event_types
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# A-XDASH — Cross-Domain Dashboard endpoint
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# A-XDASH â€” Cross-Domain Dashboard endpoint
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestCrossDomainDashboard:
     """GET /ops/cross-domain endpoint."""
@@ -1024,9 +1024,9 @@ class TestCrossDomainDashboard:
         assert resp.json()["window_hours"] == 72
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# A-FT — Forensic Timeline Endpoint
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# A-FT â€” Forensic Timeline Endpoint
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestForensicTimelineEndpoint:
     """GET /pcdi/forensic-timeline/{hunt_id}"""
@@ -1104,9 +1104,9 @@ class TestForensicTimelineEndpoint:
         assert isinstance(data["timeline"], list)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # Additional integration checks
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestIntegration:
 
@@ -1145,7 +1145,7 @@ class TestIntegration:
         assert "T" in result
 
     def test_genesis_seed_constant_is_stable(self):
-        """GENESIS_SEED must never change — changing it invalidates all stored timelines."""
+        """GENESIS_SEED must never change â€” changing it invalidates all stored timelines."""
         from asc_api.services.pcdi_service import _GENESIS_SEED
         assert _GENESIS_SEED == "GENESIS:pcdi-forensic-timeline:v1"
 

@@ -1,26 +1,26 @@
-"""
-P48 — Load Testing & Staging Deploy Readiness
+﻿"""
+P48 â€” Load Testing & Staging Deploy Readiness
 ===============================================
 Tests verifying:
 1. Locust load test file has required P48 user classes (ApiKeyUser, WebhookUser)
 2. Locust load test file imports cleanly
 3. Key endpoints respond under load-like conditions (rapid sequential requests)
 4. Staging readiness artifacts: render.yaml, docker-compose, .env.example
-5. Regression: P40–P47 still functional
+5. Regression: P40â€“P47 still functional
 
 Testing approach
 ----------------
-• Locust user classes: inspected via importlib (no real load run — Locust requires
+â€¢ Locust user classes: inspected via importlib (no real load run â€” Locust requires
   a running backend and network infrastructure for actual load tests).
-• Load-like behavior: 10 sequential requests to read endpoints to verify no
+â€¢ Load-like behavior: 10 sequential requests to read endpoints to verify no
   resource exhaustion under rapid access.
-• Artifact checks: file content inspection.
+â€¢ Artifact checks: file content inspection.
 
 Security scan
 -------------
-• Locust file verified to NOT contain real credentials or hardcoded tokens.
-• _JWT_TOKEN defaults to "REPLACE_ME_WITH_REAL_JWT_TOKEN" placeholder.
-• Sandbox IPs use RFC 6890 space (100.64.0.1 — never routed).
+â€¢ Locust file verified to NOT contain real credentials or hardcoded tokens.
+â€¢ _JWT_TOKEN defaults to "REPLACE_ME_WITH_REAL_JWT_TOKEN" placeholder.
+â€¢ Sandbox IPs use RFC 6890 space (100.64.0.1 â€” never routed).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ _REPO_ROOT = Path(__file__).parent.parent
 _LOAD_TESTS = _REPO_ROOT.parent / "load_tests"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _jwt(user_id: str) -> str:
     return create_access_token(user_id)
@@ -79,7 +79,7 @@ def _db_override(scalar_result=None, scalars_result=None):
     return override, db
 
 
-# ── Locust file structure ─────────────────────────────────────────────────────
+# â”€â”€ Locust file structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestLocustFileStructure:
     """Locust load test file has required P48 user classes."""
@@ -97,11 +97,11 @@ class TestLocustFileStructure:
 
     def test_api_key_user_targets_list_endpoint(self):
         content = (_LOAD_TESTS / "locustfile.py").read_text(encoding="utf-8")
-        assert "/api/v1/api-keys/" in content
+        assert "/api/v1/api-keys" in content
 
     def test_webhook_user_targets_list_endpoint(self):
         content = (_LOAD_TESTS / "locustfile.py").read_text(encoding="utf-8")
-        assert "/api/v1/webhooks/" in content
+        assert "/api/v1/webhooks" in content
 
     def test_rate_limit_status_endpoint_covered(self):
         content = (_LOAD_TESTS / "locustfile.py").read_text(encoding="utf-8")
@@ -131,7 +131,7 @@ class TestLocustFileStructure:
         assert "_PRAFCollector" in content or "PRAFCollector" in content
 
 
-# ── Rapid sequential load simulation ─────────────────────────────────────────
+# â”€â”€ Rapid sequential load simulation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRapidSequentialRequests:
     """Simulate rapid sequential hits to verify no resource leaks or crashes."""
@@ -144,11 +144,11 @@ class TestRapidSequentialRequests:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 statuses = []
                 for _ in range(10):
-                    r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                    r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
                     statuses.append(r.status_code)
         app.dependency_overrides.clear()
         assert all(s == 200 for s in statuses), f"Got non-200: {statuses}"
@@ -161,11 +161,11 @@ class TestRapidSequentialRequests:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 statuses = []
                 for _ in range(10):
-                    r = await ac.get("/api/v1/webhooks/", headers={"Authorization": f"Bearer {token}"})
+                    r = await ac.get("/api/v1/webhooks", headers={"Authorization": f"Bearer {token}"})
                     statuses.append(r.status_code)
         app.dependency_overrides.clear()
         assert all(s == 200 for s in statuses), f"Got non-200: {statuses}"
@@ -181,7 +181,7 @@ class TestRapidSequentialRequests:
         assert all(s == 200 for s in statuses)
 
 
-# ── Staging readiness ─────────────────────────────────────────────────────────
+# â”€â”€ Staging readiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestStagingReadiness:
     """Staging deploy readiness artifacts exist and are not missing config."""
@@ -215,10 +215,10 @@ class TestStagingReadiness:
         assert content.count("weight =") >= 5  # NeutralizeUser, HuntUser, IncidentUser, ReadOnlyUser, ApiKeyUser, WebhookUser
 
 
-# ── Deployment & regression ────────────────────────────────────────────────────
+# â”€â”€ Deployment & regression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP48Regression:
-    """P40–P47 integration unaffected."""
+    """P40â€“P47 integration unaffected."""
 
     @pytest.mark.asyncio
     async def test_liveness_still_healthy(self):
@@ -229,13 +229,13 @@ class TestP48Regression:
     @pytest.mark.asyncio
     async def test_api_keys_still_401_without_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/api-keys/")
+            r = await ac.get("/api/v1/api-keys")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
     async def test_webhooks_still_401_without_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/webhooks/")
+            r = await ac.get("/api/v1/webhooks")
         assert r.status_code == 401
 
     def test_tenant_model_still_importable(self):

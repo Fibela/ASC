@@ -1,17 +1,17 @@
-"""
-P17 Hardening — Test Suite
+﻿"""
+P17 Hardening â€” Test Suite
 
 Coverage
 --------
-TestSecurityHeadersMiddleware  (8 tests)  — all headers present, HSTS production-only
-TestBodySizeLimitMiddleware    (5 tests)  — 413 on oversized, passthrough on OK, no header
-TestStartupChecks              (8 tests)  — SECRET_KEY validation, CORS wildcard, production vs dev
-TestRateLimitConfig            (4 tests)  — settings exist, format valid, limiter importable
-TestHealthReadiness            (5 tests)  — DB ok, redis not_configured, degraded status
-TestAlembicMigration           (3 tests)  — migration file exists, revision id, upgrade/downgrade defined
-TestRequestContextMiddleware   (4 tests)  — X-Request-ID generated, client value preserved, structlog bound
-TestDocProtection              (3 tests)  — docs off in production, on in dev
-TestAnalyzerHashFix            (3 tests)  — usedforsecurity=False in md5/sha1, sha256 unchanged
+TestSecurityHeadersMiddleware  (8 tests)  â€” all headers present, HSTS production-only
+TestBodySizeLimitMiddleware    (5 tests)  â€” 413 on oversized, passthrough on OK, no header
+TestStartupChecks              (8 tests)  â€” SECRET_KEY validation, CORS wildcard, production vs dev
+TestRateLimitConfig            (4 tests)  â€” settings exist, format valid, limiter importable
+TestHealthReadiness            (5 tests)  â€” DB ok, redis not_configured, degraded status
+TestAlembicMigration           (3 tests)  â€” migration file exists, revision id, upgrade/downgrade defined
+TestRequestContextMiddleware   (4 tests)  â€” X-Request-ID generated, client value preserved, structlog bound
+TestDocProtection              (3 tests)  â€” docs off in production, on in dev
+TestAnalyzerHashFix            (3 tests)  â€” usedforsecurity=False in md5/sha1, sha256 unchanged
 
 Total: 43 tests
 """
@@ -29,7 +29,7 @@ from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_app_with_middleware(middleware_cls, **kwargs):
     app = FastAPI()
@@ -42,7 +42,7 @@ def _make_app_with_middleware(middleware_cls, **kwargs):
     return app
 
 
-# ── TestSecurityHeadersMiddleware ─────────────────────────────────────────────
+# â”€â”€ TestSecurityHeadersMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityHeadersMiddleware:
     def setup_method(self):
@@ -87,7 +87,7 @@ class TestSecurityHeadersMiddleware:
         assert "Strict-Transport-Security" not in r.headers
 
 
-# ── TestBodySizeLimitMiddleware ───────────────────────────────────────────────
+# â”€â”€ TestBodySizeLimitMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBodySizeLimitMiddleware:
     def setup_method(self):
@@ -135,10 +135,10 @@ class TestBodySizeLimitMiddleware:
             content=b"x" * 100,
             headers={"Content-Length": "100"},
         )
-        assert r.status_code == 200  # exactly at limit → allowed
+        assert r.status_code == 200  # exactly at limit â†’ allowed
 
 
-# ── TestStartupChecks ─────────────────────────────────────────────────────────
+# â”€â”€ TestStartupChecks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestStartupChecks:
     def _run(self, secret_key: str, cors_origins: list, debug: bool = False):
@@ -183,7 +183,7 @@ class TestStartupChecks:
         self._run(strong_key, ["https://asc.premoscorp.com"], debug=False)
 
 
-# ── TestRateLimitConfig ───────────────────────────────────────────────────────
+# â”€â”€ TestRateLimitConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitConfig:
     def test_rate_limit_settings_exist(self):
@@ -214,12 +214,12 @@ class TestRateLimitConfig:
         assert s.REQUEST_MAX_BODY_BYTES >= 1024 * 1024  # at least 1 MB
 
 
-# ── TestHealthReadiness ───────────────────────────────────────────────────────
+# â”€â”€ TestHealthReadiness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHealthReadiness:
     def test_readiness_returns_ready_when_db_ok(self):
         from asc_api.api.v1.endpoints.health import readiness
-        # readiness() is async — test the structure logic directly
+        # readiness() is async â€” test the structure logic directly
         import inspect
         assert inspect.iscoroutinefunction(readiness)
 
@@ -249,7 +249,7 @@ class TestHealthReadiness:
         assert "ts" in result
 
 
-# ── TestAlembicMigration ──────────────────────────────────────────────────────
+# â”€â”€ TestAlembicMigration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAlembicMigration:
     # Resolve from this test file's location to be CWD-independent
@@ -275,7 +275,7 @@ class TestAlembicMigration:
         assert "failed_login_attempts" in content
 
 
-# ── TestRequestContextMiddleware ──────────────────────────────────────────────
+# â”€â”€ TestRequestContextMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRequestContextMiddleware:
     def setup_method(self):
@@ -303,12 +303,12 @@ class TestRequestContextMiddleware:
         assert r1.headers["X-Request-ID"] != r2.headers["X-Request-ID"]
 
 
-# ── TestDocProtection ─────────────────────────────────────────────────────────
+# â”€â”€ TestDocProtection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestDocProtection:
     def test_docs_url_is_none_when_debug_false(self):
         import importlib
-        with patch("app.core.config.get_settings") as mock_settings:
+        with patch("asc_api.core.config.get_settings") as mock_settings:
             mock_settings.return_value.DEBUG = False
             mock_settings.return_value.APP_NAME = "ASC"
             mock_settings.return_value.APP_VERSION = "1.0.0"
@@ -332,7 +332,7 @@ class TestDocProtection:
         assert "_docs_url" in src or "docs_url" in src
 
 
-# ── TestAnalyzerHashFix ───────────────────────────────────────────────────────
+# â”€â”€ TestAnalyzerHashFix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAnalyzerHashFix:
     def test_md5_has_usedforsecurity_false(self):

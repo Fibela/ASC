@@ -1,22 +1,22 @@
-"""
-P29-B — Executive Reporting & PIIL — Test Suite
+﻿"""
+P29-B â€” Executive Reporting & PIIL â€” Test Suite
 ================================================
 Coverage:
-  TestExecutiveReportModel     (12) — ORM init, constants, compute_hash, is_hash_valid
-  TestPIILSigning              (14) — _sha3_512_hex, _sign_report no-key/key/error,
+  TestExecutiveReportModel     (12) â€” ORM init, constants, compute_hash, is_hash_valid
+  TestPIILSigning              (14) â€” _sha3_512_hex, _sign_report no-key/key/error,
                                       verify_report_signature valid/invalid/no-pubkey
-  TestIncidentKpis             (10) — mock DB, return dict structure and values
-  TestCampaignKpis              (8) — mock DB, new/active/critical
-  TestHuntingKpis               (8) — mock DB, hunts/findings/critical
-  TestSoarKpis                  (6) — mock DB, triggers_fired/alerts_in_period
-  TestGenerateReport           (14) — happy path, auto-title, canonical pre-bakes id,
+  TestIncidentKpis             (10) â€” mock DB, return dict structure and values
+  TestCampaignKpis              (8) â€” mock DB, new/active/critical
+  TestHuntingKpis               (8) â€” mock DB, hunts/findings/critical
+  TestSoarKpis                  (6) â€” mock DB, triggers_fired/alerts_in_period
+  TestGenerateReport           (14) â€” happy path, auto-title, canonical pre-bakes id,
                                       hash length, unsigned fallback, db.add/commit called
-  TestVerifyReport             (10) — hash_ok/sig_ok/both/neither, not-found raises,
+  TestVerifyReport             (10) â€” hash_ok/sig_ok/both/neither, not-found raises,
                                       updates signature_valid + last_verified_at
-  TestGetReport                 (4) — found / not-found
-  TestListReports               (6) — no filter / type filter / limit+offset
-  TestGetReportingSummary       (8) — totals, by_type, unsigned, latest
-  TestReportingEndpoints       (12) — summary/list/generate/get/verify/delete:
+  TestGetReport                 (4) â€” found / not-found
+  TestListReports               (6) â€” no filter / type filter / limit+offset
+  TestGetReportingSummary       (8) â€” totals, by_type, unsigned, latest
+  TestReportingEndpoints       (12) â€” summary/list/generate/get/verify/delete:
                                       auth guard, status codes, validation errors
 
 Total: 112 tests
@@ -33,7 +33,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -70,7 +70,7 @@ def _make_report(**kwargs):
 
 
 def _mock_scalar(value):
-    """Return AsyncMock.execute result that yields scalar_one() → value."""
+    """Return AsyncMock.execute result that yields scalar_one() â†’ value."""
     row = MagicMock()
     row.scalar_one.return_value = value
     row.scalar_one_or_none.return_value = value
@@ -92,7 +92,7 @@ def _mock_all(rows):
     return row_result
 
 
-# ── TestExecutiveReportModel ───────────────────────────────────────────────────
+# â”€â”€ TestExecutiveReportModel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestExecutiveReportModel:
 
@@ -177,7 +177,7 @@ class TestExecutiveReportModel:
             assert expected in cols, f"Missing column: {expected}"
 
 
-# ── TestPIILSigning ────────────────────────────────────────────────────────────
+# â”€â”€ TestPIILSigning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPIILSigning:
 
@@ -196,7 +196,7 @@ class TestPIILSigning:
 
     def test_sign_report_no_key_raises_value_error(self):
         from asc_api.services.reporting_service import _sign_report
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
             with pytest.raises(ValueError, match="SPECTER_SIGNING_PRIVATE_KEY"):
@@ -204,7 +204,7 @@ class TestPIILSigning:
 
     def test_sign_report_no_key_fingerprint_is_16_zeros(self):
         from asc_api.services.reporting_service import _sign_report
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
             with pytest.raises(ValueError):
@@ -212,7 +212,7 @@ class TestPIILSigning:
 
     def test_sign_report_with_invalid_key_raises_value_error(self):
         from asc_api.services.reporting_service import _sign_report
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAVALIDKEY=="
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
             with pytest.raises(ValueError):
@@ -221,10 +221,10 @@ class TestPIILSigning:
     def test_verify_report_signature_no_public_key_returns_false(self):
         from asc_api.services.reporting_service import verify_report_signature
         r = _make_report()
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-        # Without public key, should return False (no key → can't verify)
-        with patch("app.services.reporting_service._s") as ms:
+        # Without public key, should return False (no key â†’ can't verify)
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
             result = verify_report_signature(r)
         assert result is False
@@ -232,8 +232,8 @@ class TestPIILSigning:
     def test_verify_report_signature_invalid_hash_returns_false(self):
         from asc_api.services.reporting_service import verify_report_signature
         r = _make_report(canonical_data={"x": 1}, hash_sha3_512="0" * 128)
-        # hash won't match canonical_data → is_hash_valid() returns False
-        with patch("app.services.reporting_service._s") as ms:
+        # hash won't match canonical_data â†’ is_hash_valid() returns False
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PUBLIC_KEY = "somekey"
             result = verify_report_signature(r)
         assert result is False
@@ -242,7 +242,7 @@ class TestPIILSigning:
         from asc_api.services.reporting_service import verify_report_signature
         r = _make_report()
         with patch.object(r, "is_hash_valid", return_value=True):
-            with patch("app.services.reporting_service._s") as ms:
+            with patch("asc_api.services.reporting_service._s") as ms:
                 ms.SPECTER_SIGNING_PUBLIC_KEY = "dGVzdA=="
                 result = verify_report_signature(r)
         assert result is False
@@ -259,7 +259,7 @@ class TestPIILSigning:
         from asc_api.services.reporting_service import _sign_report
         from asc_api.core.signing import generate_analyst_keypair
         priv_b64, pub_b64 = generate_analyst_keypair()
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = priv_b64
             ms.SPECTER_SIGNING_PUBLIC_KEY = pub_b64
             result = _sign_report("abc")
@@ -285,7 +285,7 @@ class TestPIILSigning:
         assert _sha3_512_hex(data) == expected
 
 
-# ── TestIncidentKpis ───────────────────────────────────────────────────────────
+# â”€â”€ TestIncidentKpis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentKpis:
 
@@ -384,7 +384,7 @@ class TestIncidentKpis:
         assert db.execute.call_count == 8
 
 
-# ── TestCampaignKpis ───────────────────────────────────────────────────────────
+# â”€â”€ TestCampaignKpis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCampaignKpis:
 
@@ -456,7 +456,7 @@ class TestCampaignKpis:
         assert result["new_campaigns"] == 999
 
 
-# ── TestHuntingKpis ────────────────────────────────────────────────────────────
+# â”€â”€ TestHuntingKpis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntingKpis:
 
@@ -515,7 +515,7 @@ class TestHuntingKpis:
 
     @pytest.mark.asyncio
     async def test_false_positive_excluded(self):
-        # confirmed_findings count excludes false positives — verify DB is called
+        # confirmed_findings count excludes false positives â€” verify DB is called
         # (the WHERE clause in the service enforces this; we just check structure)
         from asc_api.services.reporting_service import _hunting_kpis
         db = self._make_db(findings=2)
@@ -530,7 +530,7 @@ class TestHuntingKpis:
         assert result["critical_findings"] <= result["confirmed_findings"]
 
 
-# ── TestSoarKpis ───────────────────────────────────────────────────────────────
+# â”€â”€ TestSoarKpis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSoarKpis:
 
@@ -587,7 +587,7 @@ class TestSoarKpis:
         assert result["soar_triggers_fired"] == 1000
 
 
-# ── TestGenerateReport ─────────────────────────────────────────────────────────
+# â”€â”€ TestGenerateReport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGenerateReport:
 
@@ -643,10 +643,10 @@ class TestGenerateReport:
         from asc_api.models.executive_report import ExecutiveReport
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="full_executive", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -659,10 +659,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -675,10 +675,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -691,10 +691,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -708,10 +708,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -724,10 +724,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -741,10 +741,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -758,10 +758,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -774,10 +774,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 await generate_report(
                     db, report_type="period_kpi", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -790,10 +790,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="full_executive", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -806,10 +806,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="full_executive", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -823,10 +823,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action") as mock_audit:
+            with patch("asc_api.services.reporting_service.log_security_action") as mock_audit:
                 await generate_report(
                     db, report_type="full_executive", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -839,10 +839,10 @@ class TestGenerateReport:
         from asc_api.services.reporting_service import generate_report
         db = self._make_db_for_generate()
         db.refresh = AsyncMock(side_effect=lambda r: None)
-        with patch("app.services.reporting_service._s") as ms:
+        with patch("asc_api.services.reporting_service._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             ms.SPECTER_SIGNING_PUBLIC_KEY = ""
-            with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 report = await generate_report(
                     db, report_type="full_executive", period="monthly",
                     period_start=_utcnow() - timedelta(days=30),
@@ -852,7 +852,7 @@ class TestGenerateReport:
         assert all(c in "0123456789abcdef" for c in report.pubkey_fingerprint)
 
 
-# ── TestVerifyReport ───────────────────────────────────────────────────────────
+# â”€â”€ TestVerifyReport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestVerifyReport:
 
@@ -871,8 +871,8 @@ class TestVerifyReport:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
-        with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-            with patch("app.services.reporting_service.log_security_action"):
+        with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 result = await verify_report(db, r.id)
         for key in ("report_id", "hash_valid", "signature_valid", "overall_valid", "verified_at"):
             assert key in result
@@ -885,8 +885,8 @@ class TestVerifyReport:
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
         with patch.object(r, "is_hash_valid", return_value=True):
-            with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-                with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+                with patch("asc_api.services.reporting_service.log_security_action"):
                     result = await verify_report(db, r.id)
         assert result["hash_valid"] is True
 
@@ -898,8 +898,8 @@ class TestVerifyReport:
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
         with patch.object(r, "is_hash_valid", return_value=True):
-            with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-                with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+                with patch("asc_api.services.reporting_service.log_security_action"):
                     result = await verify_report(db, r.id)
         assert result["overall_valid"] is False
 
@@ -911,8 +911,8 @@ class TestVerifyReport:
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
         with patch.object(r, "is_hash_valid", return_value=False):
-            with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-                with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+                with patch("asc_api.services.reporting_service.log_security_action"):
                     await verify_report(db, r.id)
         assert r.signature_valid is False
 
@@ -923,8 +923,8 @@ class TestVerifyReport:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
-        with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-            with patch("app.services.reporting_service.log_security_action"):
+        with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 await verify_report(db, r.id)
         assert r.last_verified_at is not None
 
@@ -935,8 +935,8 @@ class TestVerifyReport:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
-        with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-            with patch("app.services.reporting_service.log_security_action"):
+        with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 await verify_report(db, r.id)
         db.commit.assert_awaited()
 
@@ -948,8 +948,8 @@ class TestVerifyReport:
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
         with patch.object(r, "is_hash_valid", return_value=True):
-            with patch("app.services.reporting_service.verify_report_signature", return_value=True):
-                with patch("app.services.reporting_service.log_security_action"):
+            with patch("asc_api.services.reporting_service.verify_report_signature", return_value=True):
+                with patch("asc_api.services.reporting_service.log_security_action"):
                     result = await verify_report(db, r.id)
         assert result["overall_valid"] is True
         assert result["hash_valid"] is True
@@ -962,8 +962,8 @@ class TestVerifyReport:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
-        with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-            with patch("app.services.reporting_service.log_security_action"):
+        with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+            with patch("asc_api.services.reporting_service.log_security_action"):
                 result = await verify_report(db, r.id)
         assert result["pubkey_fingerprint"] == "abc123"
 
@@ -974,13 +974,13 @@ class TestVerifyReport:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_mock_scalar(r))
         db.commit = AsyncMock()
-        with patch("app.services.reporting_service.verify_report_signature", return_value=False):
-            with patch("app.services.reporting_service.log_security_action") as mock_audit:
+        with patch("asc_api.services.reporting_service.verify_report_signature", return_value=False):
+            with patch("asc_api.services.reporting_service.log_security_action") as mock_audit:
                 await verify_report(db, r.id)
         mock_audit.assert_called_once()
 
 
-# ── TestGetReport ─────────────────────────────────────────────────────────────
+# â”€â”€ TestGetReport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetReport:
 
@@ -1019,7 +1019,7 @@ class TestGetReport:
         assert result.id == "specific-id"
 
 
-# ── TestListReports ───────────────────────────────────────────────────────────
+# â”€â”€ TestListReports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestListReports:
 
@@ -1076,7 +1076,7 @@ class TestListReports:
         assert isinstance(result, list)
 
 
-# ── TestGetReportingSummary ────────────────────────────────────────────────────
+# â”€â”€ TestGetReportingSummary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetReportingSummary:
 
@@ -1160,7 +1160,7 @@ class TestGetReportingSummary:
         assert db.execute.call_count == 4
 
 
-# ── TestReportingEndpoints ────────────────────────────────────────────────────
+# â”€â”€ TestReportingEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_endpoint_app():
     from fastapi import FastAPI
@@ -1192,7 +1192,7 @@ class TestReportingEndpoints:
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.get_reporting_summary",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.get_reporting_summary",
                    new_callable=AsyncMock,
                    return_value={"total_reports": 0, "unsigned_reports": 0,
                                  "by_type": {}, "last_generated_at": None, "last_report_id": None}):
@@ -1208,7 +1208,7 @@ class TestReportingEndpoints:
         analyst = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: analyst
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        # NOT overriding get_current_admin → will raise 403
+        # NOT overriding get_current_admin â†’ will raise 403
         client = TestClient(mini, raise_server_exceptions=False)
         r = client.post("/reports/executive/generate", json={
             "report_type": "full_executive", "period": "monthly",
@@ -1273,7 +1273,7 @@ class TestReportingEndpoints:
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.get_report",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.get_report",
                    new_callable=AsyncMock, return_value=None):
             client = TestClient(mini, raise_server_exceptions=False)
             r = client.get("/reports/executive/nonexistent-id")
@@ -1287,7 +1287,7 @@ class TestReportingEndpoints:
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.list_reports",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.list_reports",
                    new_callable=AsyncMock, return_value=[]):
             client = TestClient(mini)
             r = client.get("/reports/executive")
@@ -1302,7 +1302,7 @@ class TestReportingEndpoints:
         analyst = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: analyst
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        # No get_current_admin override → 403
+        # No get_current_admin override â†’ 403
         client = TestClient(mini, raise_server_exceptions=False)
         r = client.delete("/reports/executive/some-id")
         assert r.status_code in (401, 403)
@@ -1315,7 +1315,7 @@ class TestReportingEndpoints:
         user = _mock_analyst_user("analyst")
         mini.dependency_overrides[get_analyst_or_admin] = lambda: user
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.verify_report",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.verify_report",
                    new_callable=AsyncMock,
                    return_value={"report_id": "r1", "hash_valid": True,
                                  "signature_valid": False, "overall_valid": False,
@@ -1335,7 +1335,7 @@ class TestReportingEndpoints:
         mini.dependency_overrides[get_current_admin] = lambda: admin
         mini.dependency_overrides[get_db] = lambda: AsyncMock()
         mock_report = _make_report()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.generate_report",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.generate_report",
                    new_callable=AsyncMock, return_value=mock_report):
             client = TestClient(mini)
             r = client.post("/reports/executive/generate", json={
@@ -1357,7 +1357,7 @@ class TestReportingEndpoints:
         db_mock.commit = AsyncMock()
         mini.dependency_overrides[get_db] = lambda: db_mock
         mock_report = _make_report()
-        with patch("app.api.v1.endpoints.executive_reports.reporting_service.get_report",
+        with patch("asc_api.api.v1.endpoints.executive_reports.reporting_service.get_report",
                    new_callable=AsyncMock, return_value=mock_report):
             client = TestClient(mini)
             r = client.delete(f"/reports/executive/{mock_report.id}")

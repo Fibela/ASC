@@ -1,14 +1,14 @@
-"""
-P33 Coverage — targets that push total from 82.15% → ≥85%
+﻿"""
+P33 Coverage â€” targets that push total from 82.15% â†’ â‰¥85%
 
 1. Neutralize routing-fix endpoints:
    - GET /neutralize/history      (was 404 before P33-ROUTE-FIX)
    - GET /neutralize/recommended/{severity}
    - GET /neutralize/{id}/commands
 
-2. PFN (pfn.py) pure-function unit tests — no DB required
+2. PFN (pfn.py) pure-function unit tests â€” no DB required
 
-3. Analyzer (analyzer.py) pure-function unit tests — no DB required
+3. Analyzer (analyzer.py) pure-function unit tests â€” no DB required
 
 4. Executive Reports CRUD endpoints (executive_reports.py)
 """
@@ -23,7 +23,7 @@ from types import SimpleNamespace
 import pytest
 import pytest_asyncio
 
-# ─── Rate-limit reset (for @limiter.limit endpoints) ─────────────────────────
+# â”€â”€â”€ Rate-limit reset (for @limiter.limit endpoints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.fixture(autouse=True)
 def _reset_limiter():
@@ -35,9 +35,9 @@ def _reset_limiter():
     yield
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. NEUTRALIZE — ROUTING FIX ENDPOINTS
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 1. NEUTRALIZE â€” ROUTING FIX ENDPOINTS
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestNeutralizeHistoryFixed:
     """GET /neutralize/history was shadowed by /{action_id} before P33-ROUTE-FIX.
@@ -46,7 +46,7 @@ class TestNeutralizeHistoryFixed:
     async def test_history_returns_200_not_404(self, client, analyst_headers):
         resp = await client.get("/api/v1/neutralize/history", headers=analyst_headers)
         assert resp.status_code == 200, (
-            f"Expected 200 — routing still broken? Got {resp.status_code}: {resp.text}"
+            f"Expected 200 â€” routing still broken? Got {resp.status_code}: {resp.text}"
         )
 
     async def test_history_response_shape(self, client, analyst_headers):
@@ -79,7 +79,7 @@ class TestNeutralizeHistoryFixed:
     async def test_history_contains_past_actions(self, client, analyst_headers):
         # Create an action first
         create = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             json={
                 "action_type": "block_ip",
                 "target": "192.0.2.1",
@@ -97,7 +97,7 @@ class TestNeutralizeHistoryFixed:
 
 
 class TestNeutralizeRecommendedFixed:
-    """GET /neutralize/recommended/{severity} — verify routing intact after fix."""
+    """GET /neutralize/recommended/{severity} â€” verify routing intact after fix."""
 
     @pytest.mark.parametrize("sev", ["critical", "high", "medium", "low"])
     async def test_valid_severity_returns_200(self, client, analyst_headers, sev):
@@ -128,7 +128,7 @@ class TestNeutralizeRecommendedFixed:
 
 
 class TestNeutralizeCommands:
-    """GET /neutralize/{action_id}/commands — largely untested before P33."""
+    """GET /neutralize/{action_id}/commands â€” largely untested before P33."""
 
     async def test_unknown_action_id_returns_404(self, client, analyst_headers):
         resp = await client.get(
@@ -139,7 +139,7 @@ class TestNeutralizeCommands:
 
     async def _create_action(self, client, headers) -> dict:
         resp = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             json={
                 "action_type": "block_ip",
                 "target": "192.0.2.55",
@@ -173,9 +173,9 @@ class TestNeutralizeCommands:
         assert resp.status_code == 401
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. PFN PURE FUNCTIONS — unit level (no DB, no HTTP)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 2. PFN PURE FUNCTIONS â€” unit level (no DB, no HTTP)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPFNBuildCanonical:
     def _make_action(self, **overrides) -> SimpleNamespace:
@@ -305,9 +305,9 @@ class TestPFNSignVerify:
         assert _verify_signature(tampered_hash, sig, pub_b64) is False
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. ANALYZER PURE FUNCTIONS — unit level (no DB, no HTTP)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 3. ANALYZER PURE FUNCTIONS â€” unit level (no DB, no HTTP)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAnalyzerComputeHashes:
     def test_returns_three_hash_types(self):
@@ -436,9 +436,9 @@ class TestAnalyzerExtractStrings:
         assert any("CreateRemoteThread" in s for s in strings)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 4. EXECUTIVE REPORTS ENDPOINTS
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestExecutiveReportsSummary:
     async def test_summary_requires_auth(self, client):
@@ -494,7 +494,7 @@ class TestExecutiveReportsGenerate:
     def _signing_key(self, monkeypatch):
         """
         Provide a real Ed25519 keypair so generate endpoint returns 201.
-        get_settings() is @lru_cache — patch the cached object directly.
+        get_settings() is @lru_cache â€” patch the cached object directly.
         """
         from asc_api.core.signing import generate_analyst_keypair
         import asc_api.services.reporting_service as rs
@@ -567,7 +567,7 @@ class TestExecutiveReportsGetVerifyDelete:
         """
         Generate a test Ed25519 keypair and patch the cached settings object
         so the generate endpoint doesn't return 503.
-        get_settings() uses @lru_cache, so monkeypatch.setenv has no effect —
+        get_settings() uses @lru_cache, so monkeypatch.setenv has no effect â€”
         we must patch the already-instantiated settings object directly.
         """
         from asc_api.core.signing import generate_analyst_keypair

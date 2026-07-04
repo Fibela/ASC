@@ -1,5 +1,5 @@
-"""
-P24 — Comprehensive Test Suite
+﻿"""
+P24 â€” Comprehensive Test Suite
 ================================
 Covers:
   - V1: TypeScript errors (backend validation of API contracts)
@@ -12,10 +12,10 @@ Security scan summary (performed during test file authoring):
   - No secrets or credentials in test fixtures
   - All API keys/signatures in tests are synthetic test values marked # nosec B105
   - No ELK/Wazuh connection attempted from tests (adapters fully mocked)
-  - Specter dispatch mocked — no real agent commands issued
+  - Specter dispatch mocked â€” no real agent commands issued
   - Cryptographic test keys are freshly generated ephemeral keys (not production)
 
-Total target: ≥ 50 tests
+Total target: â‰¥ 50 tests
 """
 from __future__ import annotations
 
@@ -32,9 +32,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # Test helpers / fixtures
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _gen_ed25519_keypair() -> tuple[str, str]:
     """Generate a fresh ephemeral Ed25519 keypair for test use. Returns (priv_b64, pub_b64)."""
@@ -57,7 +57,7 @@ def _db_with(return_value=None) -> AsyncMock:
 
 
 def _multi_db(*return_values) -> AsyncMock:
-    """Sequential DB mock — each call returns the next value."""
+    """Sequential DB mock â€” each call returns the next value."""
     mocks = []
     for v in return_values:
         r = AsyncMock()
@@ -169,9 +169,9 @@ def _make_pcdi_entry(hunt_id: str, hash_hex: str, signature: str) -> MagicMock:
     return e
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F1 — Specter Live Query Dispatch
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F1 â€” Specter Live Query Dispatch
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSpecterLiveDispatch:
 
@@ -191,7 +191,7 @@ class TestSpecterLiveDispatch:
         db.refresh = AsyncMock()
         db.add = MagicMock()
 
-        with patch("app.services.agent_commander.issue_command", AsyncMock(return_value=cmd)) as mock_issue:
+        with patch("asc_api.services.agent_commander.issue_command", AsyncMock(return_value=cmd)) as mock_issue:
             result = await _dispatch_to_specter(
                 db, "process.name:malware*",
                 query_id="q-1", hunt_id="h-1", executed_by="analyst@test.com"
@@ -244,7 +244,7 @@ class TestSpecterLiveDispatch:
             captured_params.update(params)
             return cmd
 
-        with patch("app.services.agent_commander.issue_command", _fake_issue):
+        with patch("asc_api.services.agent_commander.issue_command", _fake_issue):
             await _dispatch_to_specter(
                 db, "event.type:process_start",
                 query_id="q-1", hunt_id="h-1", executed_by="analyst"
@@ -280,7 +280,7 @@ class TestSpecterLiveDispatch:
             "note": "Dispatched to agent specter-01",
         }
 
-        with patch("app.services.query_executor._dispatch_to_specter", AsyncMock(return_value=async_result)):
+        with patch("asc_api.services.query_executor._dispatch_to_specter", AsyncMock(return_value=async_result)):
             result = await execute_hunt_query(db, "q-1", executed_by="analyst@test.com")
 
         assert result["mode"] == "specter_async"
@@ -315,7 +315,7 @@ class TestSpecterLiveDispatch:
 
         elk_result = {"success": True, "result_count": 5, "total": 5, "truncated": False, "execution_ms": 42, "results": [], "adapter": "elk"}
 
-        with patch("app.adapters.elk.ELKAdapter.search_raw", AsyncMock(return_value=elk_result)):
+        with patch("asc_api.adapters.elk.ELKAdapter.search_raw", AsyncMock(return_value=elk_result)):
             result = await _call_adapter("elk", "process.name:cmd.exe")
 
         assert result["success"] is True
@@ -328,16 +328,16 @@ class TestSpecterLiveDispatch:
 
         wazuh_result = {"success": True, "result_count": 3, "total": 3, "truncated": False, "execution_ms": 28, "results": [], "adapter": "wazuh"}
 
-        with patch("app.adapters.wazuh.WazuhAdapter.search_raw", AsyncMock(return_value=wazuh_result)):
+        with patch("asc_api.adapters.wazuh.WazuhAdapter.search_raw", AsyncMock(return_value=wazuh_result)):
             result = await _call_adapter("wazuh", "rule.id:5501")
 
         assert result["success"] is True
         assert result["result_count"] == 3
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F2 — PCDI Model
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F2 â€” PCDI Model
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPCDIModel:
 
@@ -371,9 +371,9 @@ class TestPCDIModel:
         assert "ix_pcdi_signed_by" in indexes
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F3 — PCDI Service: Cryptographic Helpers
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F3 â€” PCDI Service: Cryptographic Helpers
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPCDICrypto:
 
@@ -404,7 +404,7 @@ class TestPCDICrypto:
         assert h1 == h2
 
     def test_sign_and_verify_roundtrip(self):
-        """Ed25519 sign → verify roundtrip succeeds with matching keys."""
+        """Ed25519 sign â†’ verify roundtrip succeeds with matching keys."""
         from asc_api.services.pcdi_service import _sign_report_hash, _verify_report_signature
 
         priv_b64, pub_b64 = _gen_ed25519_keypair()
@@ -445,14 +445,14 @@ class TestPCDICrypto:
         """_verify_report_signature never raises on malformed input."""
         from asc_api.services.pcdi_service import _verify_report_signature
 
-        # All garbage inputs — should return False not raise
+        # All garbage inputs â€” should return False not raise
         result = _verify_report_signature("bad_hash", "bad_sig", "bad_key")
         assert result is False
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F3 — PCDI Service: Adaptive Scoring
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F3 â€” PCDI Service: Adaptive Scoring
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAdaptiveScoring:
 
@@ -474,7 +474,7 @@ class TestAdaptiveScoring:
         finding = _make_finding(severity="critical", indicator_value=None, affected_host=None)
         hunt = _make_hunt(status="draft")
 
-        # DB: finding → hunt → ti (empty) → panl (empty)
+        # DB: finding â†’ hunt â†’ ti (empty) â†’ panl (empty)
         r_finding = AsyncMock()
         r_finding.scalar_one_or_none = MagicMock(return_value=finding)
         r_hunt = AsyncMock()
@@ -514,7 +514,7 @@ class TestAdaptiveScoring:
 
         result = await compute_adaptive_score(db, finding.id)
 
-        # Medium base (40) + active hunt (5) + TI (≤8) + PANL block_ip completed (10)
+        # Medium base (40) + active hunt (5) + TI (â‰¤8) + PANL block_ip completed (10)
         assert result["adaptive_score"] > 40
         assert result["panl_correlations"]
 
@@ -585,9 +585,9 @@ class TestAdaptiveScoring:
         assert required.issubset(result.keys())
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F3 — PCDI Service: Cross-Domain Correlation
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F3 â€” PCDI Service: Cross-Domain Correlation
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestCrossdomainCorrelation:
 
@@ -676,9 +676,9 @@ class TestCrossdomainCorrelation:
         assert result["findings_analyzed"] == 0
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F3 — PCDI Service: sign_hunt_report
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F3 â€” PCDI Service: sign_hunt_report
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSignHuntReport:
 
@@ -844,9 +844,9 @@ class TestSignHuntReport:
         assert result[0]["hunt_id"] == "h-1"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F4 — PCDI Endpoints (API layer)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F4 â€” PCDI Endpoints (API layer)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPCDIEndpoints:
     """
@@ -903,7 +903,7 @@ class TestPCDIEndpoints:
             app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
             app.dependency_overrides[get_db] = lambda: db
 
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"error": "Finding not found", "finding_id": "x"})):
                 client = TestClient(app, raise_server_exceptions=False)
                 resp = client.post("/api/v1/pcdi/score/nonexistent-finding")
@@ -925,7 +925,7 @@ class TestPCDIEndpoints:
             app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
             app.dependency_overrides[get_db] = lambda: db
 
-            with patch("app.services.pcdi_service.correlate_hunt_with_panl",
+            with patch("asc_api.services.pcdi_service.correlate_hunt_with_panl",
                        AsyncMock(return_value={"error": "Hunt not found", "hunt_id": "x"})):
                 client = TestClient(app, raise_server_exceptions=False)
                 resp = client.get("/api/v1/pcdi/correlate/nonexistent-hunt")
@@ -969,7 +969,7 @@ class TestPCDIEndpoints:
             app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
             app.dependency_overrides[get_db] = lambda: db
 
-            with patch("app.services.pcdi_service.list_signed_reports", AsyncMock(return_value=[])):
+            with patch("asc_api.services.pcdi_service.list_signed_reports", AsyncMock(return_value=[])):
                 client = TestClient(app, raise_server_exceptions=False)
                 resp = client.get("/api/v1/pcdi/signed-reports")
         finally:
@@ -991,7 +991,7 @@ class TestPCDIEndpoints:
             app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
             app.dependency_overrides[get_db] = lambda: db
 
-            with patch("app.services.pcdi_service.get_signed_report", AsyncMock(return_value=None)):
+            with patch("asc_api.services.pcdi_service.get_signed_report", AsyncMock(return_value=None)):
                 client = TestClient(app, raise_server_exceptions=False)
                 resp = client.get("/api/v1/pcdi/signed-reports/nonexistent-id")
         finally:
@@ -1012,7 +1012,7 @@ class TestPCDIEndpoints:
             app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
             app.dependency_overrides[get_db] = lambda: db
 
-            with patch("app.services.pcdi_service.verify_signed_report",
+            with patch("asc_api.services.pcdi_service.verify_signed_report",
                        AsyncMock(return_value={"error": "Signed report not found", "report_id": "x"})):
                 _, pub_b64 = _gen_ed25519_keypair()
                 client = TestClient(app, raise_server_exceptions=False)
@@ -1030,9 +1030,9 @@ class TestPCDIEndpoints:
         assert any("/pcdi/" in str(r) or "/pcdi" in str(r) for r in app.routes)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# F7 — Alembic env.py graceful degradation
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# F7 â€” Alembic env.py graceful degradation
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAlembicGracefulDegradation:
 
@@ -1078,9 +1078,9 @@ class TestAlembicGracefulDegradation:
         assert "warning" in content.lower()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # Security scan: no exposed secrets / unsafe patterns
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSecurityScan:
 

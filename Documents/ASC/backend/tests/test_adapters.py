@@ -1,9 +1,9 @@
-"""
-Unit + integration tests — Priority 6: SIEM/EDR/SOAR Adapters
+﻿"""
+Unit + integration tests â€” Priority 6: SIEM/EDR/SOAR Adapters
 
 Strategy:
   - Pure-function tests (document transformers, severity maps, is_configured)
-    run without any mocking — they need no HTTP.
+    run without any mocking â€” they need no HTTP.
   - HTTP operation tests mock httpx.AsyncClient via unittest.mock.patch
     so no real network calls are ever made.
   - API integration tests mock adapter methods directly (patch the class)
@@ -11,24 +11,24 @@ Strategy:
     unconfigured adapters.
 
 Test classes:
-  TestBaseAdapter           — is_configured + _ok/_err/_not_configured helpers
-  TestELKDocumentBuilders   — alert_to_document, event_to_document, _search_query (pure)
-  TestELKSeverityMapping    — _SEVERITY_TO_ECS completeness and values
-  TestELKHTTP               — push_alert, push_event, search_events, test_connection (mocked)
-  TestELKNotConfigured      — every HTTP method returns _not_configured() when url/key missing
-  TestWazuhSeverityMapping  — wazuh_level_to_severity boundary conditions
-  TestWazuhDocumentBuilder  — wazuh_alert_to_asc_event shape and field mapping (pure)
-  TestWazuhHTTP             — get_alerts, get_agents, test_connection (mocked)
-  TestWazuhNotConfigured    — every HTTP method short-circuits when not configured
-  TestTheHiveSeverityMap    — ASC severity → TheHive int mapping
-  TestTheHiveDocumentBuilders — alert_to_case, ioc_to_observable shape (pure)
-  TestTheHiveHTTP           — create_case, create_observable, get_case, update, test_connection
-  TestTheHiveNotConfigured  — all methods short-circuit when not configured
-  TestAdaptersCatalogAPI    — GET /adapters/ shape and auth
-  TestAdaptersStatusAPI     — GET /adapters/{name}/status — 404 unknown, 503 unconfigured
-  TestELKEndpointsAPI       — push alert/event, pull events — auth, 404, 503
-  TestWazuhEndpointsAPI     — pull alerts, agents — auth, 503
-  TestTheHiveEndpointsAPI   — create case, observable, get case — auth, 404, 503
+  TestBaseAdapter           â€” is_configured + _ok/_err/_not_configured helpers
+  TestELKDocumentBuilders   â€” alert_to_document, event_to_document, _search_query (pure)
+  TestELKSeverityMapping    â€” _SEVERITY_TO_ECS completeness and values
+  TestELKHTTP               â€” push_alert, push_event, search_events, test_connection (mocked)
+  TestELKNotConfigured      â€” every HTTP method returns _not_configured() when url/key missing
+  TestWazuhSeverityMapping  â€” wazuh_level_to_severity boundary conditions
+  TestWazuhDocumentBuilder  â€” wazuh_alert_to_asc_event shape and field mapping (pure)
+  TestWazuhHTTP             â€” get_alerts, get_agents, test_connection (mocked)
+  TestWazuhNotConfigured    â€” every HTTP method short-circuits when not configured
+  TestTheHiveSeverityMap    â€” ASC severity â†’ TheHive int mapping
+  TestTheHiveDocumentBuilders â€” alert_to_case, ioc_to_observable shape (pure)
+  TestTheHiveHTTP           â€” create_case, create_observable, get_case, update, test_connection
+  TestTheHiveNotConfigured  â€” all methods short-circuit when not configured
+  TestAdaptersCatalogAPI    â€” GET /adapters/ shape and auth
+  TestAdaptersStatusAPI     â€” GET /adapters/{name}/status â€” 404 unknown, 503 unconfigured
+  TestELKEndpointsAPI       â€” push alert/event, pull events â€” auth, 404, 503
+  TestWazuhEndpointsAPI     â€” pull alerts, agents â€” auth, 503
+  TestTheHiveEndpointsAPI   â€” create case, observable, get case â€” auth, 404, 503
 """
 import uuid
 import pytest
@@ -46,7 +46,7 @@ from asc_api.adapters.wazuh   import WazuhAdapter, wazuh_level_to_severity
 from asc_api.adapters.thehive import TheHiveAdapter, _SEVERITY_MAP, _IOC_TYPE_MAP
 
 
-# ─── Fixtures ─────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.fixture
 def configured_elk(monkeypatch):
@@ -156,7 +156,7 @@ def _mock_httpx_response(status: int, body: dict) -> Response:
     )
 
 
-# ─── BaseAdapter ──────────────────────────────────────────────────────────────
+# â”€â”€â”€ BaseAdapter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBaseAdapter:
     def test_elk_not_configured_when_url_empty(self):
@@ -192,7 +192,7 @@ class TestBaseAdapter:
         assert "Accept" in h
 
 
-# ─── ELK — document builders (pure) ──────────────────────────────────────────
+# â”€â”€â”€ ELK â€” document builders (pure) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestELKDocumentBuilders:
     def test_alert_to_document_required_ecs_fields(self, configured_elk, sample_alert_dict):
@@ -269,7 +269,7 @@ class TestELKSeverityMapping:
         assert _SEVERITY_TO_ECS["low"] == 25
 
 
-# ─── ELK — HTTP operations (mocked) ──────────────────────────────────────────
+# â”€â”€â”€ ELK â€” HTTP operations (mocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestELKHTTP:
     @pytest.mark.asyncio
@@ -374,11 +374,11 @@ class TestELKHTTP:
         assert "503" in result["error"]
 
 
-# ─── ELK — not configured short-circuit ──────────────────────────────────────
+# â”€â”€â”€ ELK â€” not configured short-circuit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestELKNotConfigured:
     def setup_method(self):
-        self.adapter = ELKAdapter()   # url/key are empty strings → not configured
+        self.adapter = ELKAdapter()   # url/key are empty strings â†’ not configured
 
     @pytest.mark.asyncio
     async def test_test_connection_not_configured(self):
@@ -402,7 +402,7 @@ class TestELKNotConfigured:
         assert result["success"] is False
 
 
-# ─── Wazuh — severity mapping ─────────────────────────────────────────────────
+# â”€â”€â”€ Wazuh â€” severity mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWazuhSeverityMapping:
     def test_level_1_is_low(self):    assert wazuh_level_to_severity(1)  == "low"
@@ -416,7 +416,7 @@ class TestWazuhSeverityMapping:
     def test_level_20_is_critical(self): assert wazuh_level_to_severity(20) == "critical"
 
 
-# ─── Wazuh — document builder (pure) ─────────────────────────────────────────
+# â”€â”€â”€ Wazuh â€” document builder (pure) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWazuhDocumentBuilder:
     def test_asc_event_shape(self, configured_wazuh, sample_wazuh_alert):
@@ -424,7 +424,7 @@ class TestWazuhDocumentBuilder:
         assert evt["source"] == "wazuh"
         assert evt["category"] == "hids"
         assert evt["host"] == "PREMOS-WS-01"
-        assert evt["severity"] == "high"    # level 12 → high
+        assert evt["severity"] == "high"    # level 12 â†’ high
         assert evt["action"] == "Windows Eventlog cleared"
 
     def test_data_block_has_wazuh_fields(self, configured_wazuh, sample_wazuh_alert):
@@ -455,7 +455,7 @@ class TestWazuhDocumentBuilder:
         assert "windows" in evt["data"]["wazuh_groups"]
 
 
-# ─── Wazuh — HTTP operations (mocked) ────────────────────────────────────────
+# â”€â”€â”€ Wazuh â€” HTTP operations (mocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWazuhHTTP:
     @pytest.mark.asyncio
@@ -548,7 +548,7 @@ class TestWazuhHTTP:
         assert result["agents"][0]["name"] == "PREMOS-WS-01"
 
 
-# ─── Wazuh — not configured short-circuit ────────────────────────────────────
+# â”€â”€â”€ Wazuh â€” not configured short-circuit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWazuhNotConfigured:
     def setup_method(self):
@@ -571,7 +571,7 @@ class TestWazuhNotConfigured:
         assert result["success"] is False
 
 
-# ─── TheHive — severity and type maps ────────────────────────────────────────
+# â”€â”€â”€ TheHive â€” severity and type maps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTheHiveSeverityMap:
     def test_low_is_1(self):      assert _SEVERITY_MAP["low"]      == 1
@@ -588,7 +588,7 @@ class TestTheHiveSeverityMap:
     def test_ioc_registry_key(self):        assert _IOC_TYPE_MAP["registry_key"] == "registry"
 
 
-# ─── TheHive — document builders (pure) ──────────────────────────────────────
+# â”€â”€â”€ TheHive â€” document builders (pure) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTheHiveDocumentBuilders:
     def test_alert_to_case_title_prefixed(self, configured_thehive, sample_alert_dict):
@@ -598,7 +598,7 @@ class TestTheHiveDocumentBuilders:
 
     def test_alert_to_case_severity_mapped(self, configured_thehive, sample_alert_dict):
         case = configured_thehive.alert_to_case(sample_alert_dict)
-        assert case["severity"] == 4   # critical → 4
+        assert case["severity"] == 4   # critical â†’ 4
 
     def test_alert_to_case_medium_severity(self, configured_thehive, sample_alert_dict):
         sample_alert_dict["severity"] = "medium"
@@ -656,7 +656,7 @@ class TestTheHiveDocumentBuilders:
         assert obs["dataType"] == "hash"
 
 
-# ─── TheHive — HTTP operations (mocked) ──────────────────────────────────────
+# â”€â”€â”€ TheHive â€” HTTP operations (mocked) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTheHiveHTTP:
     @pytest.mark.asyncio
@@ -746,7 +746,7 @@ class TestTheHiveHTTP:
         assert result["success"] is True
 
 
-# ─── TheHive — not configured short-circuit ──────────────────────────────────
+# â”€â”€â”€ TheHive â€” not configured short-circuit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTheHiveNotConfigured:
     def setup_method(self):
@@ -778,36 +778,36 @@ class TestTheHiveNotConfigured:
         assert result["success"] is False
 
 
-# ─── API — adapters catalog ───────────────────────────────────────────────────
+# â”€â”€â”€ API â€” adapters catalog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestAdaptersCatalogAPI:
     async def test_list_requires_auth(self, client: AsyncClient):
-        resp = await client.get("/api/v1/adapters/")
+        resp = await client.get("/api/v1/adapters")
         assert resp.status_code in (401, 403)
 
     async def test_list_returns_200_with_auth(self, client: AsyncClient, admin_user: User, admin_headers: dict):
-        resp = await client.get("/api/v1/adapters/", headers=admin_headers)
+        resp = await client.get("/api/v1/adapters", headers=admin_headers)
         assert resp.status_code == 200
 
     async def test_list_shape_has_six_adapters(self, client: AsyncClient, admin_user: User, admin_headers: dict):
-        resp = await client.get("/api/v1/adapters/", headers=admin_headers)
+        resp = await client.get("/api/v1/adapters", headers=admin_headers)
         data = resp.json()
         assert "adapters" in data
         assert len(data["adapters"]) == 6
 
     async def test_list_adapter_names(self, client: AsyncClient, admin_user: User, admin_headers: dict):
-        resp  = await client.get("/api/v1/adapters/", headers=admin_headers)
+        resp  = await client.get("/api/v1/adapters", headers=admin_headers)
         names = {a["name"] for a in resp.json()["adapters"]}
         assert names == {"elk", "wazuh", "thehive", "paloalto", "fortinet", "active_directory"}
 
     async def test_list_adapters_not_configured_by_default(self, client: AsyncClient, admin_user: User, admin_headers: dict):
-        resp = await client.get("/api/v1/adapters/", headers=admin_headers)
+        resp = await client.get("/api/v1/adapters", headers=admin_headers)
         for a in resp.json()["adapters"]:
             assert a["configured"] is False   # no env vars set in test env
 
     async def test_list_adapter_has_type_field(self, client: AsyncClient, admin_user: User, admin_headers: dict):
-        resp = await client.get("/api/v1/adapters/", headers=admin_headers)
+        resp = await client.get("/api/v1/adapters", headers=admin_headers)
         types = {a["type"] for a in resp.json()["adapters"]}
         assert "SIEM" in types
         assert "EDR/HIDS" in types
@@ -816,7 +816,7 @@ class TestAdaptersCatalogAPI:
         assert "IAM" in types
 
 
-# ─── API — adapter status endpoint ───────────────────────────────────────────
+# â”€â”€â”€ API â€” adapter status endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestAdaptersStatusAPI:
@@ -841,7 +841,7 @@ class TestAdaptersStatusAPI:
         assert resp.status_code in (401, 403)
 
 
-# ─── API — ELK endpoints ──────────────────────────────────────────────────────
+# â”€â”€â”€ API â€” ELK endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestELKEndpointsAPI:
@@ -884,7 +884,7 @@ class TestELKEndpointsAPI:
         assert resp.status_code == 503
 
 
-# ─── API — Wazuh endpoints ────────────────────────────────────────────────────
+# â”€â”€â”€ API â€” Wazuh endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestWazuhEndpointsAPI:
@@ -909,7 +909,7 @@ class TestWazuhEndpointsAPI:
         assert resp.status_code == 503
 
 
-# ─── API — TheHive endpoints ──────────────────────────────────────────────────
+# â”€â”€â”€ API â€” TheHive endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestTheHiveEndpointsAPI:
@@ -954,11 +954,11 @@ class TestTheHiveEndpointsAPI:
         assert resp.status_code in (401, 403)
 
 
-# ─── API — F1/F2 status endpoints (paloalto, fortinet, active_directory) ─────
+# â”€â”€â”€ API â€” F1/F2 status endpoints (paloalto, fortinet, active_directory) â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestF1StatusEndpoints:
-    """GET /adapters/{name}/status for the three F1 adapters — all return 503 when
+    """GET /adapters/{name}/status for the three F1 adapters â€” all return 503 when
     unconfigured (no env vars set in test environment)."""
 
     async def test_paloalto_status_unconfigured_503(self, client: AsyncClient, admin_user: User, admin_headers: dict):
@@ -986,7 +986,7 @@ class TestF1StatusEndpoints:
         assert resp.status_code in (401, 403)
 
 
-# ─── API — Firewall endpoints (F2) ────────────────────────────────────────────
+# â”€â”€â”€ API â€” Firewall endpoints (F2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestFirewallEndpointsAPI:
@@ -995,7 +995,7 @@ class TestFirewallEndpointsAPI:
 
     No firewall env vars are set in test env, so all calls return 503.
     We also verify:
-      - Auth enforcement (no token → 401/403)
+      - Auth enforcement (no token â†’ 401/403)
       - 200 + success=True when adapter is mocked to return success
     """
 
@@ -1038,7 +1038,7 @@ class TestFirewallEndpointsAPI:
     async def test_block_ip_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.block_ip = AsyncMock(return_value={"success": True, "committed": True, "ip": "192.0.2.5"})
-        with patch("app.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/firewall/block/ip",
                 json={"ip": "192.0.2.5", "reason": "test block"},
@@ -1051,7 +1051,7 @@ class TestFirewallEndpointsAPI:
     async def test_unblock_ip_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.unblock_ip = AsyncMock(return_value={"success": True, "ip": "192.0.2.5"})
-        with patch("app.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/firewall/unblock/ip",
                 json={"ip": "192.0.2.5"},
@@ -1064,7 +1064,7 @@ class TestFirewallEndpointsAPI:
     async def test_block_domain_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.block_domain = AsyncMock(return_value={"success": True, "domain": "evil.example.com"})
-        with patch("app.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/firewall/block/domain",
                 json={"domain": "evil.example.com", "reason": "phishing C2"},
@@ -1077,7 +1077,7 @@ class TestFirewallEndpointsAPI:
     async def test_unblock_domain_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.unblock_domain = AsyncMock(return_value={"success": True, "domain": "evil.example.com"})
-        with patch("app.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/firewall/unblock/domain",
                 json={"domain": "evil.example.com"},
@@ -1090,7 +1090,7 @@ class TestFirewallEndpointsAPI:
     async def test_adapter_failure_returns_502(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.block_ip = AsyncMock(return_value={"success": False, "error": "commit_failed: job 42"})
-        with patch("app.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_firewall_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/firewall/block/ip",
                 json={"ip": "10.0.0.1"},
@@ -1099,14 +1099,14 @@ class TestFirewallEndpointsAPI:
         assert resp.status_code == 502
 
 
-# ─── API — Identity endpoints (F2) ────────────────────────────────────────────
+# â”€â”€â”€ API â€” Identity endpoints (F2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestIdentityEndpointsAPI:
     """
     POST /adapters/identity/{disable,enable,force-reset,quarantine}
 
-    No AD env vars set → 503 when no adapter mock provided.
+    No AD env vars set â†’ 503 when no adapter mock provided.
     Also tests 200 with mocked adapter and proper arg forwarding.
     """
 
@@ -1149,7 +1149,7 @@ class TestIdentityEndpointsAPI:
     async def test_disable_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.disable_account = AsyncMock(return_value={"success": True, "username": "jdoe"})
-        with patch("app.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/identity/disable",
                 json={"username": "jdoe", "domain": "corp.local", "reason": "compromised"},
@@ -1162,7 +1162,7 @@ class TestIdentityEndpointsAPI:
     async def test_enable_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.enable_account = AsyncMock(return_value={"success": True, "username": "jdoe"})
-        with patch("app.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/identity/enable",
                 json={"username": "jdoe", "domain": "corp.local"},
@@ -1175,7 +1175,7 @@ class TestIdentityEndpointsAPI:
     async def test_force_reset_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.force_password_reset = AsyncMock(return_value={"success": True, "username": "jdoe"})
-        with patch("app.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/identity/force-reset",
                 json={"username": "jdoe", "domain": "corp.local"},
@@ -1188,7 +1188,7 @@ class TestIdentityEndpointsAPI:
     async def test_quarantine_success_with_mock(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.move_to_quarantine_ou = AsyncMock(return_value={"success": True, "username": "jdoe", "new_dn": "OU=Quarantine,DC=corp,DC=local"})
-        with patch("app.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/identity/quarantine",
                 json={"username": "jdoe", "domain": "corp.local", "reason": "threat actor"},
@@ -1201,7 +1201,7 @@ class TestIdentityEndpointsAPI:
     async def test_identity_failure_returns_502(self, client: AsyncClient, admin_user: User, admin_headers: dict):
         mock_adapter = AsyncMock()
         mock_adapter.disable_account = AsyncMock(return_value={"success": False, "error": "user not found in AD"})
-        with patch("app.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
+        with patch("asc_api.api.v1.endpoints.adapters.get_identity_adapter", return_value=mock_adapter):
             resp = await client.post(
                 "/api/v1/adapters/identity/disable",
                 json={"username": "ghost", "domain": "corp.local"},

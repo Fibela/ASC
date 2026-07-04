@@ -1,19 +1,19 @@
-"""
-P41 — Rate Limiting per API Key — Test Suite
+﻿"""
+P41 â€” Rate Limiting per API Key â€” Test Suite
 =============================================
 Tests: sliding window unit, middleware ASGI, status/reset endpoints,
        security invariants (breach audit log, fail-open, no secret leakage),
        regression (JWT paths unaffected, existing endpoints intact).
 
-Pattern: AsyncClient + ASGITransport (bypasses app lifespan → no real DB/Redis).
+Pattern: AsyncClient + ASGITransport (bypasses app lifespan â†’ no real DB/Redis).
 Rate limiter is mocked or exercised in memory mode for deterministic results.
 
 Security scan coverage:
-  • Raw API key secret never appears in rate limit keys, logs, or error responses
-  • Breach logged to asc.audit channel (Ledger Premos)
-  • Malformed key headers are forwarded to auth dep unchanged (no rate-limit slot consumed)
-  • Fail-open: Redis error → request allowed, not blocked
-  • JWT-authenticated requests are completely bypassed by rate limit middleware
+  â€¢ Raw API key secret never appears in rate limit keys, logs, or error responses
+  â€¢ Breach logged to asc.audit channel (Ledger Premos)
+  â€¢ Malformed key headers are forwarded to auth dep unchanged (no rate-limit slot consumed)
+  â€¢ Fail-open: Redis error â†’ request allowed, not blocked
+  â€¢ JWT-authenticated requests are completely bypassed by rate limit middleware
 """
 
 import uuid
@@ -34,7 +34,7 @@ from asc_api.main import app
 settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(role: str = "analyst", user_id: str | None = None):
     u = MagicMock()
@@ -86,7 +86,7 @@ def _db_override(scalar_result=None, scalars_result=None):
     return override, db
 
 
-# ── Class 1: Unit tests — ApiKeyRateLimiter (memory mode) ─────────────────────
+# â”€â”€ Class 1: Unit tests â€” ApiKeyRateLimiter (memory mode) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestApiKeyRateLimiterUnit:
     """Unit tests for the core sliding window algorithm using in-memory backend."""
@@ -173,7 +173,7 @@ class TestApiKeyRateLimiterUnit:
         assert isinstance(result, RateLimitResult)
         assert result.limit == 10
         assert result.reset_at > 0
-        assert result.retry_after == 0  # allowed — no retry needed
+        assert result.retry_after == 0  # allowed â€” no retry needed
 
     @pytest.mark.asyncio
     async def test_mode_defaults_to_memory(self):
@@ -188,7 +188,7 @@ class TestApiKeyRateLimiterUnit:
         assert limiter.mode == "memory"
 
 
-# ── Class 2: Middleware tests — ApiKeyRateLimitMiddleware ─────────────────────
+# â”€â”€ Class 2: Middleware tests â€” ApiKeyRateLimitMiddleware â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestApiKeyRateLimitMiddleware:
     """Tests for the Starlette middleware via full ASGI stack."""
@@ -200,7 +200,7 @@ class TestApiKeyRateLimitMiddleware:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get("/api/v1/health/liveness", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -295,7 +295,7 @@ class TestApiKeyRateLimitMiddleware:
         allowed = RateLimitResult(allowed=True, limit=60, remaining=50, reset_at=9999999999)
         blocked = RateLimitResult(allowed=False, limit=1000, remaining=0, reset_at=9999999999, retry_after=10)
 
-        # minute OK but hour blocked → 429
+        # minute OK but hour blocked â†’ 429
         with patch.object(api_key_limiter, "check", AsyncMock(side_effect=[allowed, blocked])):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
@@ -305,7 +305,7 @@ class TestApiKeyRateLimitMiddleware:
         assert r.status_code == 429
 
 
-# ── Class 3: Rate limit status endpoint ───────────────────────────────────────
+# â”€â”€ Class 3: Rate limit status endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitStatusEndpoint:
     BASE = "/api/v1/api-keys"
@@ -318,7 +318,7 @@ class TestRateLimitStatusEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
              patch.object(api_key_limiter, "get_status", AsyncMock(return_value=5)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
@@ -343,7 +343,7 @@ class TestRateLimitStatusEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(other.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=other)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=other)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     f"{self.BASE}/{key.id}/rate-limit-status",
@@ -361,7 +361,7 @@ class TestRateLimitStatusEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(admin.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)), \
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)), \
              patch.object(api_key_limiter, "get_status", AsyncMock(return_value=0)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
@@ -385,7 +385,7 @@ class TestRateLimitStatusEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
              patch.object(api_key_limiter, "get_status", AsyncMock(return_value=0)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
@@ -397,7 +397,7 @@ class TestRateLimitStatusEndpoint:
         assert r.json()["backend"] in ("redis", "memory")
 
 
-# ── Class 4: Rate limit reset endpoint (admin-only) ───────────────────────────
+# â”€â”€ Class 4: Rate limit reset endpoint (admin-only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitResetEndpoint:
     BASE = "/api/v1/api-keys"
@@ -410,7 +410,7 @@ class TestRateLimitResetEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(admin.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)), \
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)), \
              patch.object(api_key_limiter, "reset_for_prefix_all", AsyncMock()) as mock_reset:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
@@ -429,7 +429,7 @@ class TestRateLimitResetEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(analyst.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=analyst)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=analyst)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     f"{self.BASE}/{key.id}/rate-limit-reset",
@@ -445,19 +445,19 @@ class TestRateLimitResetEndpoint:
         assert r.status_code == 401
 
 
-# ── Class 5: Security invariants ──────────────────────────────────────────────
+# â”€â”€ Class 5: Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitSecurity:
     """Security properties that must hold regardless of implementation details."""
 
     @pytest.mark.asyncio
     async def test_rate_limit_breach_emits_audit_log(self):
-        """Ledger Premos — every 429 must generate a security_action audit entry."""
+        """Ledger Premos â€” every 429 must generate a security_action audit entry."""
         blocked_result = RateLimitResult(
             allowed=False, limit=60, remaining=0, reset_at=9999999999, retry_after=30
         )
         with patch.object(api_key_limiter, "check", AsyncMock(return_value=blocked_result)), \
-             patch("app.core.middleware.log_security_action") as mock_log:
+             patch("asc_api.core.middleware.log_security_action") as mock_log:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 await c.get(
                     "/api/v1/health/liveness",
@@ -530,7 +530,7 @@ class TestRateLimitSecurity:
             allowed=False, limit=60, remaining=0, reset_at=9999999999, retry_after=30
         )
         with patch.object(api_key_limiter, "check", AsyncMock(return_value=blocked_result)), \
-             patch("app.core.middleware.log_security_action") as mock_log:
+             patch("asc_api.core.middleware.log_security_action") as mock_log:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 await c.get(
                     "/api/v1/health/liveness",
@@ -542,7 +542,7 @@ class TestRateLimitSecurity:
         assert "x" * 40 not in detail
 
 
-# ── Class 6: Deployment artifacts ─────────────────────────────────────────────
+# â”€â”€ Class 6: Deployment artifacts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitDeploymentArtifacts:
     """Verify P41 code artifacts exist and are wired up correctly."""
@@ -584,7 +584,7 @@ class TestRateLimitDeploymentArtifacts:
         assert "RateLimitStatus" in api_keys_src
 
 
-# ── Class 7: Regression ───────────────────────────────────────────────────────
+# â”€â”€ Class 7: Regression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitRegression:
     """Ensure P41 changes do not break existing functionality."""
@@ -607,7 +607,7 @@ class TestRateLimitRegression:
     @pytest.mark.asyncio
     async def test_api_keys_crud_endpoint_still_401_without_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/api-keys/")
+            r = await c.get("/api/v1/api-keys")
         assert r.status_code == 401
 
     @pytest.mark.asyncio

@@ -1,24 +1,24 @@
-"""
-P30-B — SOAR ↔ Incident Bridge & PIIL Adaptive Binding — Test Suite
+﻿"""
+P30-B â€” SOAR â†” Incident Bridge & PIIL Adaptive Binding â€” Test Suite
 ====================================================================
 Coverage:
-  TestBuildIncidentContext        (12) — all fields present, typed, no raw input
-  TestSignLedger                  (10) — no-key placeholder, error fallback, return type
-  TestWriteForensicLedger         (10) — ForensicEntry created, hash 128 chars, separate commit,
+  TestBuildIncidentContext        (12) â€” all fields present, typed, no raw input
+  TestSignLedger                  (10) â€” no-key placeholder, error fallback, return type
+  TestWriteForensicLedger         (10) â€” ForensicEntry created, hash 128 chars, separate commit,
                                          non-fatal on commit error, action_type field
-  TestWriteSoarEventToTimeline    (10) — incident found, writes IncidentTimeline, incident not found
+  TestWriteSoarEventToTimeline    (10) â€” incident found, writes IncidentTimeline, incident not found
                                          skips, commit errors non-fatal
-  TestEvaluateSoarForIncident     (14) — no triggers fired returns 0, triggers fired returns count,
+  TestEvaluateSoarForIncident     (14) â€” no triggers fired returns 0, triggers fired returns count,
                                          writes timeline entries, writes forensic ledger,
                                          soar eval error returns 0 (non-blocking),
                                          commit error returns 0, calls log_security_action
-  TestEscalateSlaBreaches         (12) — open incidents scanned, newly breached flagged,
+  TestEscalateSlaBreaches         (12) â€” open incidents scanned, newly breached flagged,
                                          already breached skipped, closed skipped, timeline entry,
                                          commit called when escalated, returns 0 when none
-  TestNewSoarConditionTypes       (16) — incident_status_change: eq/contains/missing,
+  TestNewSoarConditionTypes       (16) â€” incident_status_change: eq/contains/missing,
                                          incident_sla_breach: true/false,
                                          incident_severity: eq/gte/lte/contains
-  TestIncidentSoarIntegration     (10) — transition_status calls bridge, bridge failure
+  TestIncidentSoarIntegration     (10) â€” transition_status calls bridge, bridge failure
                                          does not block, non-blocking pattern, return value
 
 Total: 94 tests
@@ -35,7 +35,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -94,7 +94,7 @@ def _mock_scalars(rows):
     return result
 
 
-# ── TestBuildIncidentContext ───────────────────────────────────────────────────
+# â”€â”€ TestBuildIncidentContext â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBuildIncidentContext:
 
@@ -174,59 +174,59 @@ class TestBuildIncidentContext:
         assert expected.issubset(ctx.keys())
 
 
-# ── TestSignLedger ─────────────────────────────────────────────────────────────
+# â”€â”€ TestSignLedger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSignLedger:
 
     def test_no_key_returns_piil_unsigned(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("abc123")
         assert sig == base64.b64encode(b"PIIL-UNSIGNED").decode()
 
     def test_no_key_result_is_base64(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("abc")
         base64.b64decode(sig)  # should not raise
 
     def test_invalid_key_returns_error_sig(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAKEY=="
             sig = _sign_ledger("abc")
         assert sig  # not empty, does not raise
 
     def test_invalid_key_result_is_base64(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "NOTAKEY=="
             sig = _sign_ledger("abc")
         base64.b64decode(sig)  # should not raise
 
     def test_returns_string(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             result = _sign_ledger("anything")
         assert isinstance(result, str)
 
     def test_does_not_raise_on_empty_hash(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             sig = _sign_ledger("")
         assert sig
 
     def test_different_inputs_produce_same_unsigned_sig(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             s1 = _sign_ledger("hash_a")
             s2 = _sign_ledger("hash_b")
-        # Both unsigned → same placeholder
+        # Both unsigned â†’ same placeholder
         assert s1 == s2
 
     def test_unsigned_constant_decodable(self):
@@ -239,14 +239,14 @@ class TestSignLedger:
 
     def test_signing_error_uses_error_constant(self):
         from asc_api.services.soar_incident_bridge import _sign_ledger
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = "invalidbase64!@#"
             sig = _sign_ledger("abc")
         decoded = base64.b64decode(sig)
         assert decoded in (b"PIIL-SIGN-ERROR", b"PIIL-UNSIGNED")
 
 
-# ── TestWriteForensicLedger ────────────────────────────────────────────────────
+# â”€â”€ TestWriteForensicLedger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWriteForensicLedger:
 
@@ -256,7 +256,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 2, {"x": 1})
         db.add.assert_called_once()
@@ -267,7 +267,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {})
         db.commit.assert_awaited()
@@ -279,7 +279,7 @@ class TestWriteForensicLedger:
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("DB error"))
         db.rollback = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             # Must not raise
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {})
@@ -299,7 +299,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {"test": True})
         assert created_entry is not None
@@ -319,7 +319,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {"data": "x"})
         assert created_entry is not None
@@ -339,7 +339,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "incident-xyz", "closed", "actor", 1, {})
         assert "incident-xyz" in created_entry.target
@@ -358,7 +358,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {})
         assert created_entry.verified is False
@@ -377,7 +377,7 @@ class TestWriteForensicLedger:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "analyst@premos.com", 1, {})
         assert created_entry.signed_by_email == "analyst@premos.com"
@@ -397,7 +397,7 @@ class TestWriteForensicLedger:
         db.add = MagicMock(side_effect=capture_add)
         db.commit = AsyncMock()
         payload = {"key": "value", "incident_id": "inc-1"}
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, payload)
         assert created_entry.canonical_data == payload
@@ -409,13 +409,13 @@ class TestWriteForensicLedger:
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("fail"))
         db.rollback = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc-1", "triaged", "actor", 1, {})
         db.rollback.assert_awaited_once()
 
 
-# ── TestWriteSoarEventToTimeline ───────────────────────────────────────────────
+# â”€â”€ TestWriteSoarEventToTimeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWriteSoarEventToTimeline:
 
@@ -581,7 +581,7 @@ class TestWriteSoarEventToTimeline:
         assert created_entry.incident_id == "specific-inc-id"
 
 
-# ── TestEvaluateSoarForIncident ────────────────────────────────────────────────
+# â”€â”€ TestEvaluateSoarForIncident â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestEvaluateSoarForIncident:
 
@@ -592,7 +592,7 @@ class TestEvaluateSoarForIncident:
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=[]):
             count = await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         assert count == 0
@@ -610,11 +610,11 @@ class TestEvaluateSoarForIncident:
             {"trigger_id": "t2", "trigger_name": "n2", "playbook_id": "p2",
              "condition_type": "incident_severity"},
         ]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     count = await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         assert count == 2
 
@@ -629,11 +629,11 @@ class TestEvaluateSoarForIncident:
         db.commit = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         timeline_entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert len(timeline_entries) == 1
@@ -647,11 +647,11 @@ class TestEvaluateSoarForIncident:
         db.commit = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock) as mock_ledger:
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         mock_ledger.assert_awaited_once()
 
@@ -662,9 +662,9 @@ class TestEvaluateSoarForIncident:
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=[]):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock) as mock_ledger:
                 await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         mock_ledger.assert_not_awaited()
@@ -674,7 +674,7 @@ class TestEvaluateSoarForIncident:
         from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
         inc = _make_incident()
         db = AsyncMock()
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, side_effect=Exception("SOAR down")):
             count = await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         assert count == 0
@@ -689,11 +689,11 @@ class TestEvaluateSoarForIncident:
         db.rollback = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     count = await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         # Returns 0 when commit fails
         assert count == 0
@@ -707,11 +707,11 @@ class TestEvaluateSoarForIncident:
         db.commit = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action") as mock_audit:
+                with patch("asc_api.services.soar_incident_bridge.log_security_action") as mock_audit:
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         mock_audit.assert_called_once()
 
@@ -726,11 +726,11 @@ class TestEvaluateSoarForIncident:
         db.commit = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert all(e.event_type == "soar_triggered" for e in entries)
@@ -752,11 +752,11 @@ class TestEvaluateSoarForIncident:
             {"trigger_id": "t3", "trigger_name": "n3", "playbook_id": "p3",
              "condition_type": "incident_sla_breach"},
         ]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     count = await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert count == 3
@@ -769,9 +769,9 @@ class TestEvaluateSoarForIncident:
         db = AsyncMock()
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=[]):
-            with patch("app.services.soar_incident_bridge.log_security_action") as mock_audit:
+            with patch("asc_api.services.soar_incident_bridge.log_security_action") as mock_audit:
                 await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         mock_audit.assert_not_called()
 
@@ -790,7 +790,7 @@ class TestEvaluateSoarForIncident:
         assert ctx["new_status"] == "contained"
 
 
-# ── TestEscalateSlaBreaches ────────────────────────────────────────────────────
+# â”€â”€ TestEscalateSlaBreaches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestEscalateSlaBreaches:
 
@@ -810,8 +810,8 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 result = await escalate_sla_breaches(db)
         assert inc.sla_breach is True
         assert result == 1
@@ -824,7 +824,7 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=False):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=False):
             result = await escalate_sla_breaches(db)
         assert result == 0
         assert inc.sla_breach is False
@@ -839,8 +839,8 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock(side_effect=lambda obj: added.append(obj))
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 await escalate_sla_breaches(db)
         entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert len(entries) == 1
@@ -854,8 +854,8 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 await escalate_sla_breaches(db)
         db.commit.assert_awaited()
 
@@ -867,7 +867,7 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=False):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=False):
             await escalate_sla_breaches(db)
         db.commit.assert_not_awaited()
 
@@ -880,8 +880,8 @@ class TestEscalateSlaBreaches:
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("DB fail"))
         db.rollback = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 result = await escalate_sla_breaches(db)
         assert result == 0
 
@@ -893,8 +893,8 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars(incs))
         db.add = MagicMock()
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 result = await escalate_sla_breaches(db)
         assert result == 3
 
@@ -908,8 +908,8 @@ class TestEscalateSlaBreaches:
         db.execute = AsyncMock(return_value=_mock_scalars([inc]))
         db.add = MagicMock(side_effect=lambda obj: added.append(obj))
         db.commit = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 await escalate_sla_breaches(db)
         entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert entries[0].actor == "system:piil"
@@ -924,9 +924,9 @@ class TestEscalateSlaBreaches:
         db.commit = AsyncMock()
         # Only 2 of 4 actually breach
         breached = [True, False, True, False]
-        with patch("app.services.incident_service._check_sla_breach",
+        with patch("asc_api.services.incident_service._check_sla_breach",
                    side_effect=breached):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 result = await escalate_sla_breaches(db)
         assert result == 2
 
@@ -939,13 +939,13 @@ class TestEscalateSlaBreaches:
         db.add = MagicMock()
         db.commit = AsyncMock(side_effect=Exception("fail"))
         db.rollback = AsyncMock()
-        with patch("app.services.incident_service._check_sla_breach", return_value=True):
-            with patch("app.services.incident_service._utcnow", return_value=_utcnow()):
+        with patch("asc_api.services.incident_service._check_sla_breach", return_value=True):
+            with patch("asc_api.services.incident_service._utcnow", return_value=_utcnow()):
                 await escalate_sla_breaches(db)
         db.rollback.assert_awaited()
 
 
-# ── TestNewSoarConditionTypes ─────────────────────────────────────────────────
+# â”€â”€ TestNewSoarConditionTypes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNewSoarConditionTypes:
     """Verify the _evaluate_condition additions for incident-specific SOAR conditions."""
@@ -1048,7 +1048,7 @@ class TestNewSoarConditionTypes:
         ) is False
 
 
-# ── TestIncidentSoarIntegration ────────────────────────────────────────────────
+# â”€â”€ TestIncidentSoarIntegration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentSoarIntegration:
 
@@ -1073,10 +1073,10 @@ class TestIncidentSoarIntegration:
         db.commit = AsyncMock()
         db.refresh = AsyncMock()
 
-        with patch("app.services.incident_service.get_logger"):
-            with patch("app.services.soar_incident_bridge.evaluate_soar_for_incident",
+        with patch("asc_api.services.incident_service.get_logger"):
+            with patch("asc_api.services.soar_incident_bridge.evaluate_soar_for_incident",
                        new_callable=AsyncMock, side_effect=Exception("bridge boom")):
-                with patch("app.services.incident_service.log_security_action"):
+                with patch("asc_api.services.incident_service.log_security_action"):
                     # Should not raise even if bridge fails
                     try:
                         await incident_service.transition_status(
@@ -1088,7 +1088,7 @@ class TestIncidentSoarIntegration:
 
     @pytest.mark.asyncio
     async def test_bridge_called_with_new_status(self):
-        """evaluate_soar_for_incident receives the new_status — verified via source inspection"""
+        """evaluate_soar_for_incident receives the new_status â€” verified via source inspection"""
         from asc_api.services import incident_service
         import inspect
         source = inspect.getsource(incident_service.transition_status)
@@ -1121,11 +1121,11 @@ class TestIncidentSoarIntegration:
         async def capture_ledger(db, incident_id, new_status, actor, triggers_fired, canonical):
             captured_canonical.append(canonical)
 
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        side_effect=capture_ledger):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         assert len(captured_canonical) == 1
         assert captured_canonical[0].get("piil_version") == "1.0"
@@ -1162,7 +1162,7 @@ class TestIncidentSoarIntegration:
         db = AsyncMock()
         db.add = MagicMock(side_effect=capture)
         db.commit = AsyncMock()
-        with patch("app.services.soar_incident_bridge._s") as ms:
+        with patch("asc_api.services.soar_incident_bridge._s") as ms:
             ms.SPECTER_SIGNING_PRIVATE_KEY = ""
             await _write_forensic_ledger(db, "inc", "closed", "sys", 1, {"piil_version": "1.0"})
         assert created is not None
@@ -1179,11 +1179,11 @@ class TestIncidentSoarIntegration:
         db.commit = AsyncMock()
         fired = [{"trigger_id": "t1", "trigger_name": "n1", "playbook_id": "p1",
                   "condition_type": "incident_status_change"}]
-        with patch("app.services.soar_service.evaluate_triggers_for_context",
+        with patch("asc_api.services.soar_service.evaluate_triggers_for_context",
                    new_callable=AsyncMock, return_value=fired):
-            with patch("app.services.soar_incident_bridge._write_forensic_ledger",
+            with patch("asc_api.services.soar_incident_bridge._write_forensic_ledger",
                        new_callable=AsyncMock):
-                with patch("app.services.soar_incident_bridge.log_security_action"):
+                with patch("asc_api.services.soar_incident_bridge.log_security_action"):
                     await evaluate_soar_for_incident(db, inc, "triaged", "actor")
         entries = [o for o in added if isinstance(o, IncidentTimeline)]
         assert all(e.incident_id == "my-inc-999" for e in entries)

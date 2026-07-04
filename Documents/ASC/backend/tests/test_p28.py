@@ -1,24 +1,24 @@
-"""
-P28-B — Incident Response Management — Test Suite
+﻿"""
+P28-B â€” Incident Response Management â€” Test Suite
 
 Coverage:
-  TestIncidentModels           (10) — ORM instantiation, constants, forensic_hash, SLA defaults
-  TestIncidentValidTransitions  (8) — state machine VALID_TRANSITIONS coverage
-  TestIncidentNistPhase         (6) — NIST_PHASE mapping correctness
-  TestMinutesBetween            (6) — _minutes_between helper
-  TestSlaForHelper              (4) — _sla_for severity mapping
-  TestCreateIncident           (10) — creation, SLA assignment, timeline, initial link
-  TestTransitionStatus         (12) — valid transitions, phase timestamps, MTTD/MTTC/MTTR, invalid guard
-  TestAssignIncident            (4) — assignment + timeline entry
-  TestLinkEntity                (6) — add link, dedup guard, missing incident
-  TestRemoveLink                (4) — remove existing + not-found
-  TestAddNote                   (6) — happy path, closed incident guard
-  TestCloseIncident             (8) — auto-advance, KPI computation, forensic hash
-  TestDismissIncident           (6) — happy path, invalid state guard, FP flag
-  TestUpdateMitre               (4) — MITRE update + timeline
-  TestGetIncidentSummary        (6) — KPI aggregation, avg MTTD/MTTR
-  TestAutoCreateFromCluster     (6) — campaign promotion, dedup idempotency
-  TestIncidentEndpoints        (10) — REST status codes, auth, validation, 404
+  TestIncidentModels           (10) â€” ORM instantiation, constants, forensic_hash, SLA defaults
+  TestIncidentValidTransitions  (8) â€” state machine VALID_TRANSITIONS coverage
+  TestIncidentNistPhase         (6) â€” NIST_PHASE mapping correctness
+  TestMinutesBetween            (6) â€” _minutes_between helper
+  TestSlaForHelper              (4) â€” _sla_for severity mapping
+  TestCreateIncident           (10) â€” creation, SLA assignment, timeline, initial link
+  TestTransitionStatus         (12) â€” valid transitions, phase timestamps, MTTD/MTTC/MTTR, invalid guard
+  TestAssignIncident            (4) â€” assignment + timeline entry
+  TestLinkEntity                (6) â€” add link, dedup guard, missing incident
+  TestRemoveLink                (4) â€” remove existing + not-found
+  TestAddNote                   (6) â€” happy path, closed incident guard
+  TestCloseIncident             (8) â€” auto-advance, KPI computation, forensic hash
+  TestDismissIncident           (6) â€” happy path, invalid state guard, FP flag
+  TestUpdateMitre               (4) â€” MITRE update + timeline
+  TestGetIncidentSummary        (6) â€” KPI aggregation, avg MTTD/MTTR
+  TestAutoCreateFromCluster     (6) â€” campaign promotion, dedup idempotency
+  TestIncidentEndpoints        (10) â€” REST status codes, auth, validation, 404
 
 Total: 116 tests
 """
@@ -30,7 +30,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ── Shared helpers ─────────────────────────────────────────────────────────────
+# â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -147,7 +147,7 @@ def _mock_admin():
     return u
 
 
-# ── TestIncidentModels ─────────────────────────────────────────────────────────
+# â”€â”€ TestIncidentModels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentModels:
     def test_incident_constants_complete(self):
@@ -214,7 +214,7 @@ class TestIncidentModels:
         assert DEFAULT_SLA_MINUTES["info"] == 43200
 
 
-# ── TestIncidentValidTransitions ──────────────────────────────────────────────
+# â”€â”€ TestIncidentValidTransitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentValidTransitions:
     def test_detected_can_triage(self):
@@ -250,7 +250,7 @@ class TestIncidentValidTransitions:
         assert len(VALID_TRANSITIONS["dismissed"]) == 0
 
 
-# ── TestIncidentNistPhase ─────────────────────────────────────────────────────
+# â”€â”€ TestIncidentNistPhase â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentNistPhase:
     def test_detected_phase(self):
@@ -278,7 +278,7 @@ class TestIncidentNistPhase:
         assert NIST_PHASE["dismissed"] == "post_incident_activity"
 
 
-# ── TestMinutesBetween ────────────────────────────────────────────────────────
+# â”€â”€ TestMinutesBetween â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMinutesBetween:
     def test_one_hour(self):
@@ -307,12 +307,12 @@ class TestMinutesBetween:
     def test_partial_minutes_ceil(self):
         from asc_api.services.incident_service import _minutes_between
         start = _utcnow()
-        end = start + timedelta(seconds=90)  # 1.5 min → ceiled to 2
+        end = start + timedelta(seconds=90)  # 1.5 min â†’ ceiled to 2
         result = _minutes_between(start, end)
         assert result == 2
 
 
-# ── TestSlaForHelper ──────────────────────────────────────────────────────────
+# â”€â”€ TestSlaForHelper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSlaForHelper:
     def test_critical_sla(self):
@@ -332,7 +332,7 @@ class TestSlaForHelper:
         assert _sla_for("info") == 43200
 
 
-# ── TestCreateIncident ────────────────────────────────────────────────────────
+# â”€â”€ TestCreateIncident â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCreateIncident:
     @pytest.mark.asyncio
@@ -353,7 +353,7 @@ class TestCreateIncident:
         db.add.side_effect = capture_add
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="Test", incident_type="malware",
                                   severity="high", created_by="analyst@test.com")
         assert created_incident is not None
@@ -376,7 +376,7 @@ class TestCreateIncident:
         db.add.side_effect = capture_add
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="Test", incident_type="malware",
                                   severity="critical", created_by="analyst@test.com")
         assert created_incident is not None
@@ -392,7 +392,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="Test", incident_type="apt",
                                   severity="high", created_by="analyst@test.com")
 
@@ -410,7 +410,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(
                 db, title="Test", incident_type="malware",
                 severity="medium", created_by="analyst@test.com",
@@ -432,7 +432,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="low", created_by="a@b.com")
 
@@ -449,7 +449,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="medium", created_by="a@b.com")
 
@@ -463,7 +463,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="low", created_by="a@b.com")
 
@@ -479,7 +479,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="low", created_by="a@b.com")
 
@@ -495,7 +495,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="low", created_by="a@b.com",
                                   tags=["ransomware", "lateral"])
@@ -512,7 +512,7 @@ class TestCreateIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await create_incident(db, title="T", incident_type="other",
                                   severity="low", created_by="a@b.com",
                                   linked_entity_type="alert",
@@ -522,7 +522,7 @@ class TestCreateIncident:
         assert len(links) == 0
 
 
-# ── TestTransitionStatus ──────────────────────────────────────────────────────
+# â”€â”€ TestTransitionStatus â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTransitionStatus:
     def _mk_db_with_incident(self, incident):
@@ -539,7 +539,7 @@ class TestTransitionStatus:
         inc = _make_incident(status="detected", triaged_at=None)
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "triaged", "analyst@test.com")
 
         assert result.triaged_at is not None
@@ -552,7 +552,7 @@ class TestTransitionStatus:
         inc = _make_incident(status="triaged", contained_at=None)
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "contained", "analyst@test.com")
 
         assert result.contained_at is not None
@@ -564,7 +564,7 @@ class TestTransitionStatus:
         inc = _make_incident(status="eradicated", recovered_at=None)
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "recovered", "analyst@test.com")
 
         assert result.recovered_at is not None
@@ -594,7 +594,7 @@ class TestTransitionStatus:
         inc = _make_incident(status="triaged", nist_phase="detection_analysis")
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "contained", "analyst@test.com")
 
         assert result.nist_phase == "containment"
@@ -611,7 +611,7 @@ class TestTransitionStatus:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await transition_status(db, inc.id, "triaged", "analyst@test.com")
 
         timeline_entries = [o for o in added if isinstance(o, IncidentTimeline)]
@@ -634,11 +634,11 @@ class TestTransitionStatus:
         inc = _make_incident(status="contained", triaged_at=first_triage)
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "triaged", "analyst@test.com")
 
         # Rolling back to triaged should not overwrite triaged_at if already set
-        # (contained → triaged is a rollback — triaged_at stays)
+        # (contained â†’ triaged is a rollback â€” triaged_at stays)
         assert result.triaged_at == first_triage
 
     @pytest.mark.asyncio
@@ -652,7 +652,7 @@ class TestTransitionStatus:
         )
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "triaged", "analyst@test.com")
 
         assert result.sla_breach is True
@@ -663,7 +663,7 @@ class TestTransitionStatus:
         inc = _make_incident(status="detected")
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await transition_status(db, inc.id, "triaged", "analyst@test.com")
 
         db.commit.assert_awaited()
@@ -674,13 +674,13 @@ class TestTransitionStatus:
         inc = _make_incident(status="contained")
         db = self._mk_db_with_incident(inc)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await transition_status(db, inc.id, "eradicated", "analyst@test.com")
 
         assert result.eradicated_at is not None
 
 
-# ── TestAssignIncident ────────────────────────────────────────────────────────
+# â”€â”€ TestAssignIncident â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAssignIncident:
     @pytest.mark.asyncio
@@ -736,7 +736,7 @@ class TestAssignIncident:
         db.commit.assert_awaited()
 
 
-# ── TestLinkEntity ────────────────────────────────────────────────────────────
+# â”€â”€ TestLinkEntity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestLinkEntity:
     @pytest.mark.asyncio
@@ -828,7 +828,7 @@ class TestLinkEntity:
         assert links[0].added_by == "adminuser@test.com"
 
 
-# ── TestRemoveLink ────────────────────────────────────────────────────────────
+# â”€â”€ TestRemoveLink â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRemoveLink:
     @pytest.mark.asyncio
@@ -880,7 +880,7 @@ class TestRemoveLink:
         db.commit.assert_awaited()
 
 
-# ── TestAddNote ───────────────────────────────────────────────────────────────
+# â”€â”€ TestAddNote â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAddNote:
     @pytest.mark.asyncio
@@ -958,7 +958,7 @@ class TestAddNote:
         assert tl[0].actor == "sr_analyst@test.com"
 
 
-# ── TestCloseIncident ─────────────────────────────────────────────────────────
+# â”€â”€ TestCloseIncident â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCloseIncident:
     @pytest.mark.asyncio
@@ -977,7 +977,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await close_incident(db, inc.id, "admin@test.com",
                                           lessons_learned="Update patches",
                                           root_cause="Unpatched CVE-2025-1234")
@@ -995,7 +995,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await close_incident(db, inc.id, "admin@test.com",
                                           lessons_learned="Always patch")
         assert result.lessons_learned == "Always patch"
@@ -1010,7 +1010,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             with pytest.raises(ValueError, match="already closed"):
                 await close_incident(db, inc.id, "admin@test.com")
 
@@ -1024,7 +1024,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             with pytest.raises(ValueError, match="Dismissed"):
                 await close_incident(db, inc.id, "admin@test.com")
 
@@ -1038,7 +1038,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             with pytest.raises(ValueError, match="Cannot close"):
                 await close_incident(db, inc.id, "admin@test.com")
 
@@ -1052,7 +1052,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await close_incident(db, inc.id, "admin@test.com", false_positive=True)
         assert result.false_positive is True
 
@@ -1066,7 +1066,7 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await close_incident(db, inc.id, "admin@test.com")
         assert len(result.forensic_hash) == 128
 
@@ -1080,12 +1080,12 @@ class TestCloseIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await close_incident(db, inc.id, "admin@test.com")
         db.commit.assert_awaited()
 
 
-# ── TestDismissIncident ───────────────────────────────────────────────────────
+# â”€â”€ TestDismissIncident â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestDismissIncident:
     @pytest.mark.asyncio
@@ -1098,7 +1098,7 @@ class TestDismissIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await dismiss_incident(db, inc.id, "analyst@test.com", reason="FP")
 
         assert result.status == "dismissed"
@@ -1114,7 +1114,7 @@ class TestDismissIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await dismiss_incident(db, inc.id, "analyst@test.com")
         assert result.status == "dismissed"
 
@@ -1138,7 +1138,7 @@ class TestDismissIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await dismiss_incident(db, inc.id, "analyst@test.com")
         assert result.forensic_hash is not None
 
@@ -1161,12 +1161,12 @@ class TestDismissIncident:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await dismiss_incident(db, inc.id, "analyst@test.com")
         db.commit.assert_awaited()
 
 
-# ── TestUpdateMitre ───────────────────────────────────────────────────────────
+# â”€â”€ TestUpdateMitre â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUpdateMitre:
     @pytest.mark.asyncio
@@ -1220,7 +1220,7 @@ class TestUpdateMitre:
         db.commit.assert_awaited()
 
 
-# ── TestGetIncidentSummary ────────────────────────────────────────────────────
+# â”€â”€ TestGetIncidentSummary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetIncidentSummary:
     @pytest.mark.asyncio
@@ -1387,7 +1387,7 @@ class TestGetIncidentSummary:
         assert result["avg_mttd_minutes"] == 14.6
 
 
-# ── TestAutoCreateFromCluster ─────────────────────────────────────────────────
+# â”€â”€ TestAutoCreateFromCluster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAutoCreateFromCluster:
     @pytest.mark.asyncio
@@ -1396,14 +1396,14 @@ class TestAutoCreateFromCluster:
         cluster = _make_cluster(severity="high", cluster_type="host_pivot",
                                 cluster_key="ws-001")
         db = AsyncMock()
-        # First query (dedup check) returns None — no existing link
+        # First query (dedup check) returns None â€” no existing link
         db.execute = AsyncMock(return_value=_scalar_one(None))
         added = []
         db.add = MagicMock(side_effect=lambda o: added.append(o))
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             result = await auto_create_from_cluster(db, cluster)
 
         assert result is not None
@@ -1432,7 +1432,7 @@ class TestAutoCreateFromCluster:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await auto_create_from_cluster(db, cluster)
 
         assert incidents[0].created_by == "system:correlation_engine"
@@ -1449,7 +1449,7 @@ class TestAutoCreateFromCluster:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await auto_create_from_cluster(db, cluster)
 
         links = [o for o in added if isinstance(o, IncidentLink)]
@@ -1467,7 +1467,7 @@ class TestAutoCreateFromCluster:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await auto_create_from_cluster(db, cluster)
 
         assert incidents[0].incident_type == "apt"
@@ -1484,13 +1484,13 @@ class TestAutoCreateFromCluster:
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
 
-        with patch("app.services.incident_service.log_security_action"):
+        with patch("asc_api.services.incident_service.log_security_action"):
             await auto_create_from_cluster(db, cluster)
 
         assert incidents[0].severity == "critical"
 
 
-# ── TestIncidentEndpoints ─────────────────────────────────────────────────────
+# â”€â”€ TestIncidentEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_endpoint_app():
     from fastapi import FastAPI
@@ -1523,9 +1523,9 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.list_incidents",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.list_incidents",
                    new_callable=AsyncMock, return_value=[]):
-            with patch("app.api.v1.endpoints.incidents.incident_service.get_incident_summary",
+            with patch("asc_api.api.v1.endpoints.incidents.incident_service.get_incident_summary",
                        new_callable=AsyncMock):
                 client = TestClient(app)
                 resp = client.get("/incidents")
@@ -1541,7 +1541,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.create_incident",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.create_incident",
                    new_callable=AsyncMock, return_value=inc):
             client = TestClient(app)
             resp = client.post("/incidents", json={
@@ -1575,7 +1575,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.get_incident",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=None):
             client = TestClient(app)
             resp = client.get("/incidents/nonexistent-id")
@@ -1589,7 +1589,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.transition_status",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.transition_status",
                    new_callable=AsyncMock,
                    side_effect=ValueError("Transition not allowed")):
             client = TestClient(app)
@@ -1605,7 +1605,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.close_incident",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.close_incident",
                    new_callable=AsyncMock, return_value=inc):
             client = TestClient(app)
             resp = client.post("/incidents/some-id/close", json={})
@@ -1620,7 +1620,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.dismiss_incident",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.dismiss_incident",
                    new_callable=AsyncMock, return_value=inc):
             client = TestClient(app)
             resp = client.post("/incidents/some-id/dismiss", json={"reason": "FP test"})
@@ -1635,7 +1635,7 @@ class TestIncidentEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
 
-        with patch("app.api.v1.endpoints.incidents.incident_service.add_note",
+        with patch("asc_api.api.v1.endpoints.incidents.incident_service.add_note",
                    new_callable=AsyncMock, return_value=entry):
             client = TestClient(app)
             resp = client.post("/incidents/some-id/notes", json={"text": "Analyst note"})

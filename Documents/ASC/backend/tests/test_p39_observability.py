@@ -1,16 +1,16 @@
-"""
-P39 Observability + Frontend Hardening — Test Suite
+﻿"""
+P39 Observability + Frontend Hardening â€” Test Suite
 
 Coverage areas:
-  1. MetricsRegistry  — _normalize_path, gauge set/read, registry isolation
-  2. ObservabilityEndpoints — /metrics Prometheus text + /summary JSON
+  1. MetricsRegistry  â€” _normalize_path, gauge set/read, registry isolation
+  2. ObservabilityEndpoints â€” /metrics Prometheus text + /summary JSON
      Auth: no-auth 401, scrape-token, analyst JWT, viewer forbidden
-  3. HealthSystemMetrics — /health/system process section (pid, cpu, memory)
-  4. DeploymentArtifacts — .env.example + render.yaml include METRICS_SCRAPE_TOKEN
-  5. MiddlewareMetrics  — HTTP_REQUESTS / HTTP_DURATION helper tests
-  6. SSENotifications   — /api/v1/notifications/stream auth protection
-  7. FormatUptime       — unit-level helper coverage
-  8. Regression         — existing endpoints unaffected by P39
+  3. HealthSystemMetrics â€” /health/system process section (pid, cpu, memory)
+  4. DeploymentArtifacts â€” .env.example + render.yaml include METRICS_SCRAPE_TOKEN
+  5. MiddlewareMetrics  â€” HTTP_REQUESTS / HTTP_DURATION helper tests
+  6. SSENotifications   â€” /api/v1/notifications/stream auth protection
+  7. FormatUptime       â€” unit-level helper coverage
+  8. Regression         â€” existing endpoints unaffected by P39
 """
 from __future__ import annotations
 
@@ -30,13 +30,13 @@ settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 1. Metrics Registry — pure unit tests (no DB, no HTTP)
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 1. Metrics Registry â€” pure unit tests (no DB, no HTTP)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 0. Observability internal helpers — direct unit tests for coverage
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 0. Observability internal helpers â€” direct unit tests for coverage
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestObservabilityHelpers:
     """Direct unit tests for _check_scrape_token and _refresh_gauges (lines 65, 74-89)."""
@@ -49,11 +49,11 @@ class TestObservabilityHelpers:
             assert _check_scrape_token(req) is False
 
     def test_check_scrape_token_no_bearer_prefix_returns_false(self):
-        """Line 65: non-Bearer auth when token IS configured → False."""
+        """Line 65: non-Bearer auth when token IS configured â†’ False."""
         from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Basic dXNlcjpwYXNz"
-        with patch("app.api.v1.endpoints.observability.settings") as ms:
+        with patch("asc_api.api.v1.endpoints.observability.settings") as ms:
             ms.METRICS_SCRAPE_TOKEN = "configured-token"
             result = _check_scrape_token(req)
         assert result is False
@@ -62,7 +62,7 @@ class TestObservabilityHelpers:
         from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Bearer correct-token"
-        with patch("app.api.v1.endpoints.observability.settings") as ms:
+        with patch("asc_api.api.v1.endpoints.observability.settings") as ms:
             ms.METRICS_SCRAPE_TOKEN = "correct-token"
             result = _check_scrape_token(req)
         assert result is True
@@ -71,7 +71,7 @@ class TestObservabilityHelpers:
         from asc_api.api.v1.endpoints.observability import _check_scrape_token
         req = MagicMock()
         req.headers.get.return_value = "Bearer wrong-token"
-        with patch("app.api.v1.endpoints.observability.settings") as ms:
+        with patch("asc_api.api.v1.endpoints.observability.settings") as ms:
             ms.METRICS_SCRAPE_TOKEN = "correct-token"
             result = _check_scrape_token(req)
         assert result is False
@@ -87,7 +87,7 @@ class TestObservabilityHelpers:
         scalar_result.scalar.return_value = 7
         mock_db.execute = AsyncMock(return_value=scalar_result)
 
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock(cpu=5.0)):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock(cpu=5.0)):
             await _refresh_gauges(mock_db)
 
         assert ALERTS_GAUGE._value.get() == 7
@@ -128,7 +128,7 @@ class TestObservabilityHelpers:
 
 
 class TestMetricsRegistry:
-    """Unit tests for app.core.metrics_registry — importable without DB."""
+    """Unit tests for app.core.metrics_registry â€” importable without DB."""
 
     def test_registry_is_isolated_from_global(self):
         from prometheus_client import REGISTRY as GLOBAL
@@ -183,9 +183,9 @@ class TestMetricsRegistry:
         assert "text/plain" in CONTENT_TYPE_LATEST
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 2. _normalize_path — cardinality collapse unit tests
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 2. _normalize_path â€” cardinality collapse unit tests
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestNormalizePath:
 
@@ -219,7 +219,7 @@ class TestNormalizePath:
         assert self.fn("/api/v2/alerts") == "/alerts"
 
     def test_only_first_segment_kept(self):
-        # /api/v1/soar/triggers/5 → /soar
+        # /api/v1/soar/triggers/5 â†’ /soar
         assert self.fn("/api/v1/soar/triggers/5") == "/soar"
 
     def test_two_uuids_same_label(self):
@@ -228,9 +228,9 @@ class TestNormalizePath:
         assert p1 == p2 == "/agents"
 
 
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 3. Observability HTTP endpoints  (async, uses conftest `client` pattern)
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _make_proc_mock(pid=1234, cpu=0.0, rss=128*1024*1024, vms=256*1024*1024):
     mp = MagicMock()
@@ -260,14 +260,14 @@ class TestObservabilityMetricsEndpoint:
     async def test_valid_scrape_token_returns_200(self, client):
         token = "my-scrape-token-xyz"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", token), \
-             patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+             patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
 
     async def test_scrape_token_content_type_prometheus(self, client):
         token = "ct-scrape-token"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", token), \
-             patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+             patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
         assert "text/plain" in r.headers.get("content-type", "")
@@ -275,21 +275,21 @@ class TestObservabilityMetricsEndpoint:
     async def test_scrape_token_body_has_help_lines(self, client):
         token = "help-scrape-token"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", token), \
-             patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+             patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "# HELP" in r.text
 
     async def test_scrape_token_body_contains_asc_counter(self, client):
         token = "counter-scrape-token"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", token), \
-             patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+             patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "asc_http_requests_total" in r.text
 
     async def test_scrape_token_body_contains_gauges(self, client):
         token = "gauges-scrape-token"
         with patch.object(settings, "METRICS_SCRAPE_TOKEN", token), \
-             patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+             patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "asc_alerts_total" in r.text
         assert "asc_agents_active" in r.text
@@ -301,7 +301,7 @@ class TestObservabilityMetricsEndpoint:
 
     async def test_analyst_jwt_returns_200(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
 
@@ -328,19 +328,19 @@ class TestObservabilitySummaryEndpoint:
 
     async def test_analyst_returns_200(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
 
     async def test_admin_returns_200(self, client, admin_user):
         token = create_access_token(admin_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
 
     async def test_summary_has_required_sections(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         body = r.json()
         for key in ("ts", "process", "database", "agents", "prometheus"):
@@ -348,7 +348,7 @@ class TestObservabilitySummaryEndpoint:
 
     async def test_summary_process_has_fields(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock(pid=9999, cpu=7.5)):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock(pid=9999, cpu=7.5)):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         proc = r.json()["process"]
         assert "cpu_percent" in proc
@@ -358,7 +358,7 @@ class TestObservabilitySummaryEndpoint:
 
     async def test_summary_prometheus_has_endpoint_path(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         prom = r.json()["prometheus"]
         assert prom["metrics_endpoint"] == "/api/v1/observability/metrics"
@@ -366,13 +366,13 @@ class TestObservabilitySummaryEndpoint:
 
     async def test_summary_agents_section(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "active_last_5min" in r.json()["agents"]
 
     async def test_summary_ts_is_iso8601(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         from datetime import datetime
         ts = r.json()["ts"]
@@ -380,7 +380,7 @@ class TestObservabilitySummaryEndpoint:
 
     async def test_summary_database_section(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.observability._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.observability._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         db_section = r.json()["database"]
         assert "ok" in db_section
@@ -388,13 +388,13 @@ class TestObservabilitySummaryEndpoint:
         assert "events_total" in db_section
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 4. /health/system — process CPU/mem section
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 4. /health/system â€” process CPU/mem section
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @pytest.mark.asyncio
 class TestHealthSystemMetrics:
-    """Tests for GET /api/v1/health/system — process section added in P39."""
+    """Tests for GET /api/v1/health/system â€” process section added in P39."""
 
     URL = "/api/v1/health/system"
 
@@ -404,25 +404,25 @@ class TestHealthSystemMetrics:
 
     async def test_analyst_returns_200(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200
 
     async def test_system_info_has_process_section(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "process" in r.json()
 
     async def test_process_section_has_pid(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock(pid=4242)):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock(pid=4242)):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.json()["process"]["pid"] == 4242
 
     async def test_process_section_has_memory_fields(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock(rss=128*1024*1024)):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock(rss=128*1024*1024)):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         proc = r.json()["process"]
         assert "memory_rss_mb" in proc
@@ -431,7 +431,7 @@ class TestHealthSystemMetrics:
 
     async def test_system_info_has_uptime_seconds(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         body = r.json()
         assert "uptime_seconds" in body
@@ -439,14 +439,14 @@ class TestHealthSystemMetrics:
 
     async def test_system_info_has_uptime_human(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
-        with patch("app.api.v1.endpoints.health._proc", _make_proc_mock()):
+        with patch("asc_api.api.v1.endpoints.health._proc", _make_proc_mock()):
             r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert "uptime_human" in r.json()
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 5. format_uptime helper — unit-level coverage
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 5. format_uptime helper â€” unit-level coverage
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestFormatUptime:
 
@@ -480,9 +480,9 @@ class TestFormatUptime:
         assert self.fmt(86400) == "1d 0s"
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 6. Deployment artifacts — METRICS_SCRAPE_TOKEN presence
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 6. Deployment artifacts â€” METRICS_SCRAPE_TOKEN presence
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestDeploymentArtifactsP39:
 
@@ -508,13 +508,13 @@ class TestDeploymentArtifactsP39:
         assert observability.router.prefix == "/observability"
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 7. SSE Notifications endpoint — auth protection
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 7. SSE Notifications endpoint â€” auth protection
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @pytest.mark.asyncio
 class TestSSENotificationsEndpoint:
-    """Tests for GET /api/v1/notifications/stream — SSE auth gates.
+    """Tests for GET /api/v1/notifications/stream â€” SSE auth gates.
 
     The endpoint uses get_analyst_or_admin, so viewers are rejected (403).
     """
@@ -530,13 +530,13 @@ class TestSSENotificationsEndpoint:
         assert r.status_code == 401
 
     async def test_viewer_is_forbidden(self, client, viewer_user):
-        """SSE endpoint requires analyst+ — viewers get 403."""
+        """SSE endpoint requires analyst+ â€” viewers get 403."""
         token = create_access_token(viewer_user.id)
         r = await client.get(self.URL, headers={"Authorization": f"Bearer {token}"})
         assert r.status_code in (401, 403)
 
     async def test_analyst_gets_event_stream(self, client, analyst_user):
-        """Analyst gets 200 with text/event-stream — generator mocked to terminate immediately."""
+        """Analyst gets 200 with text/event-stream â€” generator mocked to terminate immediately."""
         from fastapi import Request
         from asc_api.models.user import User
 
@@ -544,7 +544,7 @@ class TestSSENotificationsEndpoint:
             # Yield one ping event then stop so the test doesn't block for 30s heartbeat
             yield ": ping\n\n"
 
-        with patch("app.api.v1.endpoints.notifications._event_stream", _fast_generator):
+        with patch("asc_api.api.v1.endpoints.notifications._event_stream", _fast_generator):
             token = create_access_token(analyst_user.id)
             async with client.stream("GET", self.URL,
                                      headers={"Authorization": f"Bearer {token}"}) as r:
@@ -553,9 +553,9 @@ class TestSSENotificationsEndpoint:
                 assert "text/event-stream" in ct
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# 8. Regression — existing endpoints unaffected
-# ════════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 8. Regression â€” existing endpoints unaffected
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @pytest.mark.asyncio
 class TestRegressionP39:
@@ -574,15 +574,15 @@ class TestRegressionP39:
         assert r.status_code in (401, 422, 400)
 
     async def test_events_endpoint_requires_auth(self, client):
-        r = await client.get("/api/v1/events/")
+        r = await client.get("/api/v1/events")
         assert r.status_code == 401
 
     async def test_alerts_endpoint_requires_auth(self, client):
-        r = await client.get("/api/v1/alerts/")
+        r = await client.get("/api/v1/alerts")
         assert r.status_code == 401
 
 
-# Sync helpers — kept outside TestRegressionP39 so the class @pytest.mark.asyncio
+# Sync helpers â€” kept outside TestRegressionP39 so the class @pytest.mark.asyncio
 # decorator does not emit PytestWarning on non-async functions.
 def test_normalize_path_no_cardinality_explosion():
     from asc_api.core.metrics_registry import _normalize_path

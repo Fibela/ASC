@@ -1,14 +1,14 @@
-"""
-Priority 12 — Monitoreo/Observabilidad test suite.
+﻿"""
+Priority 12 â€” Monitoreo/Observabilidad test suite.
 
 Covers:
-  TestFormatUptime            — pure function, no I/O (8 tests)
-  TestHealthLiveness          — GET /api/v1/health/liveness (5 tests)
-  TestHealthReadiness         — GET /api/v1/health/readiness (6 tests)
-  TestHealthSystem            — GET /api/v1/health/system (7 tests)
-  TestAuditLogger             — log_auth_event / log_security_action (10 tests)
-  TestRequestContextMiddleware— X-Request-ID header injection (6 tests)
-  TestUnhandledErrorHandler   — 500 handler shape + no stack trace (4 tests)
+  TestFormatUptime            â€” pure function, no I/O (8 tests)
+  TestHealthLiveness          â€” GET /api/v1/health/liveness (5 tests)
+  TestHealthReadiness         â€” GET /api/v1/health/readiness (6 tests)
+  TestHealthSystem            â€” GET /api/v1/health/system (7 tests)
+  TestAuditLogger             â€” log_auth_event / log_security_action (10 tests)
+  TestRequestContextMiddlewareâ€” X-Request-ID header injection (6 tests)
+  TestUnhandledErrorHandler   â€” 500 handler shape + no stack trace (4 tests)
 
 Total: 46 tests
 """
@@ -25,12 +25,12 @@ from asc_api.api.v1.endpoints.health import format_uptime
 from asc_api.core.audit import log_auth_event, log_security_action
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestFormatUptime
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestFormatUptime:
-    """format_uptime() — pure function, deterministic output."""
+    """format_uptime() â€” pure function, deterministic output."""
 
     def test_zero_seconds(self):
         assert format_uptime(0) == "0s"
@@ -67,12 +67,12 @@ class TestFormatUptime:
         assert format_uptime(int(61.9)) == "1m 1s"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestHealthLiveness
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestHealthLiveness:
-    """GET /api/v1/health/liveness — no auth required."""
+    """GET /api/v1/health/liveness â€” no auth required."""
 
     @pytest.mark.asyncio
     async def test_status_200(self, client):
@@ -97,17 +97,17 @@ class TestHealthLiveness:
 
     @pytest.mark.asyncio
     async def test_no_auth_required(self, client):
-        # No Authorization header — must still return 200
+        # No Authorization header â€” must still return 200
         resp = await client.get("/api/v1/health/liveness")
         assert resp.status_code == 200
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestHealthReadiness
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestHealthReadiness:
-    """GET /api/v1/health/readiness — no auth, DB ping."""
+    """GET /api/v1/health/readiness â€” no auth, DB ping."""
 
     @pytest.mark.asyncio
     async def test_status_200(self, client):
@@ -116,8 +116,8 @@ class TestHealthReadiness:
 
     @pytest.mark.asyncio
     async def test_status_ready_with_working_db(self, client):
-        with patch("app.api.v1.endpoints.health.settings") as mock_settings:
-            mock_settings.REDIS_URL = ""  # disable Redis check — not available in test env
+        with patch("asc_api.api.v1.endpoints.health.settings") as mock_settings:
+            mock_settings.REDIS_URL = ""  # disable Redis check â€” not available in test env
             resp = await client.get("/api/v1/health/readiness")
         assert resp.json()["status"] == "ready"
 
@@ -142,12 +142,12 @@ class TestHealthReadiness:
         assert "ts" in body
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestHealthSystem
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestHealthSystem:
-    """GET /api/v1/health/system — requires JWT."""
+    """GET /api/v1/health/system â€” requires JWT."""
 
     @pytest.mark.asyncio
     async def test_401_without_token(self, client):
@@ -197,12 +197,12 @@ class TestHealthSystem:
         assert "ts" in body
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestAuditLogger
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAuditLogger:
-    """log_auth_event() and log_security_action() — structlog capture_logs."""
+    """log_auth_event() and log_security_action() â€” structlog capture_logs."""
 
     def test_log_auth_event_action_field(self):
         with capture_logs() as logs:
@@ -221,7 +221,7 @@ class TestAuditLogger:
 
     def test_log_auth_event_user_id_none_allowed(self):
         with capture_logs() as logs:
-            log_auth_event("login_failure")  # no user_id — unauthenticated failure
+            log_auth_event("login_failure")  # no user_id â€” unauthenticated failure
         assert logs[0]["user_id"] is None
 
     def test_log_auth_event_ts_present(self):
@@ -276,12 +276,12 @@ class TestAuditLogger:
         assert logs[0]["status"] == "error"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestRequestContextMiddleware
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestRequestContextMiddleware:
-    """RequestContextMiddleware — X-Request-ID injection via the test client."""
+    """RequestContextMiddleware â€” X-Request-ID injection via the test client."""
 
     @pytest.mark.asyncio
     async def test_response_has_request_id_header(self, client):
@@ -318,9 +318,9 @@ class TestRequestContextMiddleware:
         assert "x-request-id" in resp.headers
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestUnhandledErrorHandler
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestUnhandledErrorHandler:
     """The global exception handler must not leak internals to clients."""
@@ -333,7 +333,7 @@ class TestUnhandledErrorHandler:
 
     @pytest.mark.asyncio
     async def test_401_response_has_detail_field(self, client):
-        # HTTPBearer raises 403 (no header) or 401 (bad token) — always structured JSON
+        # HTTPBearer raises 403 (no header) or 401 (bad token) â€” always structured JSON
         resp = await client.get("/api/v1/health/system")
         assert resp.status_code in (401, 403)
         assert "detail" in resp.json()
@@ -353,9 +353,9 @@ class TestUnhandledErrorHandler:
         assert isinstance(body, dict)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  TestAuditIntegration — audit calls fired from live endpoints
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  TestAuditIntegration â€” audit calls fired from live endpoints
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAuditIntegration:
     """Verify audit events are emitted when login/playbook endpoints are called."""

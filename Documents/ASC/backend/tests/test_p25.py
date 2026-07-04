@@ -1,17 +1,17 @@
-"""
-P25 Test Suite — SOAR Automation + Identity Integration
+﻿"""
+P25 Test Suite â€” SOAR Automation + Identity Integration
 
 Coverage:
-  TestSOARConditionEvaluation     (12 tests) — _evaluate_condition() pure logic
-  TestSOARCRUD                    (10 tests) — create/list/get/delete/toggle triggers
-  TestSOARFireTrigger             (6  tests) — _fire_trigger, evaluate_triggers_for_context
-  TestSOARTestTrigger             (3  tests) — dry-run test_trigger()
-  TestScheduledReportCRUD        (8  tests) — create/list/get/delete/toggle/deliver reports
-  TestScheduledReportDue         (4  tests) — _is_due() logic
-  TestADAdapterSearch            (6  tests) — search_user / list_group_members (sync stubs)
-  TestADAdapterNotConfigured     (4  tests) — not_configured guard
-  TestTheHiveExport              (8  tests) — export_hunt_to_thehive
-  TestSOAREndpoints              (5  tests) — endpoint smoke tests
+  TestSOARConditionEvaluation     (12 tests) â€” _evaluate_condition() pure logic
+  TestSOARCRUD                    (10 tests) â€” create/list/get/delete/toggle triggers
+  TestSOARFireTrigger             (6  tests) â€” _fire_trigger, evaluate_triggers_for_context
+  TestSOARTestTrigger             (3  tests) â€” dry-run test_trigger()
+  TestScheduledReportCRUD        (8  tests) â€” create/list/get/delete/toggle/deliver reports
+  TestScheduledReportDue         (4  tests) â€” _is_due() logic
+  TestADAdapterSearch            (6  tests) â€” search_user / list_group_members (sync stubs)
+  TestADAdapterNotConfigured     (4  tests) â€” not_configured guard
+  TestTheHiveExport              (8  tests) â€” export_hunt_to_thehive
+  TestSOAREndpoints              (5  tests) â€” endpoint smoke tests
 
 Total: 66 tests
 """
@@ -27,7 +27,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ─── Helpers ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _scalars_result(items: list):
     r = MagicMock()
@@ -111,7 +111,7 @@ def _make_finding(**kwargs):
     return SimpleNamespace(**defaults)
 
 
-# ─── TestSOARConditionEvaluation ────────────────────────────────────────────────
+# â”€â”€â”€ TestSOARConditionEvaluation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSOARConditionEvaluation:
 
@@ -157,7 +157,7 @@ class TestSOARConditionEvaluation:
         assert self._eval("panl_status", "eq", "approved", {"panl_status": "approved"}) is True
 
 
-# ─── TestSOARCRUD ────────────────────────────────────────────────────────────────
+# â”€â”€â”€ TestSOARCRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSOARCRUD:
 
@@ -271,7 +271,7 @@ class TestSOARCRUD:
         assert t.enabled is False
 
 
-# ─── TestSOARFireTrigger ──────────────────────────────────────────────────────────
+# â”€â”€â”€ TestSOARFireTrigger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSOARFireTrigger:
 
@@ -310,7 +310,7 @@ class TestSOARFireTrigger:
         db.execute = AsyncMock(return_value=_scalars_result([t]))
         db.commit = AsyncMock()
 
-        with patch("app.services.soar_service._fire_trigger", new=AsyncMock(return_value={"trigger_id": t.id, "matched": True})):
+        with patch("asc_api.services.soar_service._fire_trigger", new=AsyncMock(return_value={"trigger_id": t.id, "matched": True})):
             result = await evaluate_triggers_for_context(db, {"pcdi_score": 90})
         assert len(result) == 1
         assert result[0]["matched"] is True
@@ -322,14 +322,14 @@ class TestSOARFireTrigger:
         db = AsyncMock()
         db.commit = AsyncMock()
 
-        with patch("app.services.soar_service._fire_trigger.__module__"):
+        with patch("asc_api.services.soar_service._fire_trigger.__module__"):
             pass
 
         # Simulate playbook service raising exception
         async def _bad_trigger(*a, **kw):
             raise ValueError("playbook not found")
 
-        with patch("app.services.playbook.trigger_playbook", new=_bad_trigger):
+        with patch("asc_api.services.playbook.trigger_playbook", new=_bad_trigger):
             result = await _fire_trigger(db, t, {"pcdi_score": 90}, triggered_by="system")
 
         assert result["trigger_id"] == t.id
@@ -344,12 +344,12 @@ class TestSOARFireTrigger:
         db.execute = AsyncMock(return_value=_scalars_result([t1, t2]))
         db.commit = AsyncMock()
 
-        with patch("app.services.soar_service._fire_trigger", new=AsyncMock(return_value={"matched": True})) as mock_fire:
+        with patch("asc_api.services.soar_service._fire_trigger", new=AsyncMock(return_value={"matched": True})) as mock_fire:
             result = await evaluate_triggers_for_context(db, {"pcdi_score": 90})
         assert len(result) == 2
 
 
-# ─── TestSOARTestTrigger ──────────────────────────────────────────────────────────
+# â”€â”€â”€ TestSOARTestTrigger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSOARTestTrigger:
 
@@ -384,7 +384,7 @@ class TestSOARTestTrigger:
         assert "not found" in result["error"].lower()
 
 
-# ─── TestScheduledReportCRUD ──────────────────────────────────────────────────────
+# â”€â”€â”€ TestScheduledReportCRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestScheduledReportCRUD:
 
@@ -472,11 +472,11 @@ class TestScheduledReportCRUD:
         assert "not found" in result["error"].lower()
 
 
-# ─── TestScheduledReportDue ────────────────────────────────────────────────────────
+# â”€â”€â”€ TestScheduledReportDue â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestScheduledReportDue:
     """
-    Tests for _is_due() logic — implemented inline to avoid importing celery_app,
+    Tests for _is_due() logic â€” implemented inline to avoid importing celery_app,
     which depends on the `celery` package that may not be installed locally.
     This mirrors the exact logic in app/tasks/scheduled_reports.py.
     """
@@ -506,13 +506,13 @@ class TestScheduledReportDue:
         assert self._is_due(last, "daily") is True
 
 
-# ─── TestADAdapterSearch ──────────────────────────────────────────────────────────
+# â”€â”€â”€ TestADAdapterSearch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestADAdapterSearch:
 
     def _make_adapter(self):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.core.config.get_settings") as mock_settings:
+        with patch("asc_api.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="ldaps://dc.corp.local:636",
                 AD_BIND_DN="CN=svc,DC=corp,DC=local",
@@ -527,7 +527,7 @@ class TestADAdapterSearch:
     @pytest.mark.asyncio
     async def test_search_user_not_configured(self):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.core.config.get_settings") as mock_settings:
+        with patch("asc_api.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
                 AD_BASE_DN="", AD_QUARANTINE_OU="", AD_USE_SSL=True, AD_VERIFY_CERT=False,
@@ -539,7 +539,7 @@ class TestADAdapterSearch:
     @pytest.mark.asyncio
     async def test_list_group_members_not_configured(self):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.core.config.get_settings") as mock_settings:
+        with patch("asc_api.core.config.get_settings") as mock_settings:
             mock_settings.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
                 AD_BASE_DN="", AD_QUARANTINE_OU="", AD_USE_SSL=True, AD_VERIFY_CERT=False,
@@ -555,7 +555,7 @@ class TestADAdapterSearch:
         mock_conn.__exit__ = MagicMock(return_value=False)
         mock_conn.entries = []
 
-        with patch("app.adapters.identity.active_directory._import_ldap3") as mock_ldap:
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3") as mock_ldap:
             mock_ldap3 = MagicMock()
             mock_ldap3.SUBTREE = "SUBTREE"
             mock_ldap.return_value = mock_ldap3
@@ -572,7 +572,7 @@ class TestADAdapterSearch:
         mock_conn.__exit__ = MagicMock(return_value=False)
         mock_conn.entries = []
 
-        with patch("app.adapters.identity.active_directory._import_ldap3") as mock_ldap:
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3") as mock_ldap:
             mock_ldap3 = MagicMock()
             mock_ldap3.SUBTREE = "SUBTREE"
             mock_ldap.return_value = mock_ldap3
@@ -598,7 +598,7 @@ class TestADAdapterSearch:
         mock_conn.__exit__ = MagicMock(return_value=False)
         mock_conn.entries = [mock_entry]
 
-        with patch("app.adapters.identity.active_directory._import_ldap3") as mock_ldap:
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3") as mock_ldap:
             mock_ldap3 = MagicMock()
             mock_ldap3.SUBTREE = "SUBTREE"
             mock_ldap.return_value = mock_ldap3
@@ -625,7 +625,7 @@ class TestADAdapterSearch:
         mock_conn.__exit__ = MagicMock(return_value=False)
         mock_conn.entries = [mock_entry]
 
-        with patch("app.adapters.identity.active_directory._import_ldap3") as mock_ldap:
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3") as mock_ldap:
             mock_ldap3 = MagicMock()
             mock_ldap3.SUBTREE = "SUBTREE"
             mock_ldap.return_value = mock_ldap3
@@ -636,13 +636,13 @@ class TestADAdapterSearch:
         assert result.get("enabled") is False
 
 
-# ─── TestADAdapterNotConfigured ───────────────────────────────────────────────────
+# â”€â”€â”€ TestADAdapterNotConfigured â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestADAdapterNotConfigured:
 
     def _make_unconfigured(self):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.core.config.get_settings") as m:
+        with patch("asc_api.core.config.get_settings") as m:
             m.return_value = SimpleNamespace(
                 AD_SERVER_URL="", AD_BIND_DN="", AD_BIND_PASSWORD="",
                 AD_BASE_DN="", AD_QUARANTINE_OU="", AD_USE_SSL=True, AD_VERIFY_CERT=False,
@@ -670,7 +670,7 @@ class TestADAdapterNotConfigured:
         assert result.get("success") is False
 
 
-# ─── TestTheHiveExport ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ TestTheHiveExport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTheHiveExport:
 
@@ -678,7 +678,7 @@ class TestTheHiveExport:
     async def test_export_adapter_not_configured(self):
         from asc_api.services.thehive_service import export_hunt_to_thehive
         db = AsyncMock()
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             mock_cls.return_value.is_configured.return_value = False
             result = await export_hunt_to_thehive(db, "hunt-123", exported_by="analyst@corp")
         assert result["success"] is False
@@ -689,7 +689,7 @@ class TestTheHiveExport:
         from asc_api.services.thehive_service import export_hunt_to_thehive
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalar_one(None))
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             mock_cls.return_value.is_configured.return_value = True
             result = await export_hunt_to_thehive(db, "no-hunt", exported_by="analyst@corp")
         assert result["success"] is False
@@ -707,7 +707,7 @@ class TestTheHiveExport:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[r_hunt, r_findings])
 
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             adapter = mock_cls.return_value
             adapter.is_configured.return_value = True
             adapter.create_case = AsyncMock(return_value={"success": True, "case_id": "case-001", "case_number": 1})
@@ -728,7 +728,7 @@ class TestTheHiveExport:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[r_hunt, r_findings])
 
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             adapter = mock_cls.return_value
             adapter.is_configured.return_value = True
             adapter.create_case = AsyncMock(return_value={"success": False, "error": "HTTP 503"})
@@ -746,7 +746,7 @@ class TestTheHiveExport:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[_scalar_one(hunt), _scalars_result([fp_finding])])
 
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             adapter = mock_cls.return_value
             adapter.is_configured.return_value = True
             adapter.create_case = AsyncMock(return_value={"success": True, "case_id": "case-002", "case_number": 2})
@@ -764,7 +764,7 @@ class TestTheHiveExport:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[_scalar_one(hunt), _scalars_result([f1, f2])])
 
-        with patch("app.services.thehive_service.TheHiveAdapter") as mock_cls:
+        with patch("asc_api.services.thehive_service.TheHiveAdapter") as mock_cls:
             adapter = mock_cls.return_value
             adapter.is_configured.return_value = True
             adapter.create_case = AsyncMock(return_value={"success": True, "case_id": "case-003", "case_number": 3})
@@ -795,7 +795,7 @@ class TestTheHiveExport:
         assert result is None
 
 
-# ─── TestSOAREndpoints ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ TestSOAREndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSOAREndpoints:
 

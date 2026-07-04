@@ -179,7 +179,7 @@ class TestE2ENeutralization:
     async def test_submit_neutralize_medium_severity(self, client, analyst_headers, analyst_user):
         t0 = time.perf_counter()
         resp = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             json={
                 "action_type": "block_ip",
                 "target": "203.0.113.10",
@@ -376,7 +376,7 @@ class TestE2ESpectorAgent:
 
     async def test_agent_list_empty(self, client, analyst_headers):
         t0 = time.perf_counter()
-        resp = await client.get("/api/v1/agents/", headers=analyst_headers)
+        resp = await client.get("/api/v1/agents", headers=analyst_headers)
         duration_ms = (time.perf_counter() - t0) * 1000
         assert resp.status_code == 200
         _e2e_ledger.record("e2e_specter_list_agents", duration_ms, True)

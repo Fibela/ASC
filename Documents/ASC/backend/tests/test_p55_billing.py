@@ -1,5 +1,5 @@
-"""
-P55 — Billing / Metering: comprehensive test suite.
+﻿"""
+P55 â€” Billing / Metering: comprehensive test suite.
 
 Coverage targets:
   - UsageRecord model: fields, constraints, defaults
@@ -14,7 +14,7 @@ Coverage targets:
   - Model: stripe_customer_id, stripe_subscription_id on Tenant
   - Router registration
 
-Total: ≥ 90 tests across 9 classes.
+Total: â‰¥ 90 tests across 9 classes.
 """
 
 from __future__ import annotations
@@ -42,9 +42,9 @@ from asc_api.models.usage_record import UsageRecord
 _SETTINGS = get_settings()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(role: str = "admin", tenant_id: str = "t-001") -> SimpleNamespace:
     return SimpleNamespace(
@@ -83,9 +83,9 @@ def _make_stripe_sig(secret: str, payload: bytes) -> str:
     return f"t={timestamp},v1={mac.hexdigest()}"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 1. UsageRecord model
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUsageRecordModel:
     """UsageRecord model structure and constraints."""
@@ -121,16 +121,16 @@ class TestUsageRecordModel:
 
     def test_in_models_init(self):
         import asc_api.models
-        assert "UsageRecord" in dir(app.models)
+        assert "UsageRecord" in dir(asc_api.models)
 
     def test_model_exported_in_all(self):
         import asc_api.models
-        assert "UsageRecord" in app.models.__all__
+        assert "UsageRecord" in asc_api.models.__all__
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 2. _current_period helper
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCurrentPeriod:
     """_current_period returns YYYY-MM string for the current UTC month."""
@@ -160,9 +160,9 @@ class TestCurrentPeriod:
         assert len(month_str) == 2  # "06" not "6"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 3. Stripe signature verification
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestStripeSignatureVerification:
     """_verify_stripe_signature correctly validates/rejects webhooks."""
@@ -202,7 +202,7 @@ class TestStripeSignatureVerification:
         assert _verify_stripe_signature(b'data', "not-a-stripe-sig", "secret") is False
 
     def test_replayed_sig_different_payload_fails(self):
-        """Signature is tied to both timestamp and payload — replay with different payload fails."""
+        """Signature is tied to both timestamp and payload â€” replay with different payload fails."""
         secret = "whsec_s"
         original = b'{"amount":100}'
         sig = _make_stripe_sig(secret, original)
@@ -219,9 +219,9 @@ class TestStripeSignatureVerification:
         assert "compare_digest" in src
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 4. GET /billing/usage
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetMyUsage:
     """GET /billing/usage returns current period snapshot for the user's tenant."""
@@ -300,12 +300,12 @@ class TestGetMyUsage:
         assert result.period == _current_period()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 5. GET /billing/usage/{tenant_id}
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetTenantUsage:
-    """GET /billing/usage/{tenant_id} — admin access."""
+    """GET /billing/usage/{tenant_id} â€” admin access."""
 
     @pytest.mark.asyncio
     async def test_admin_can_get_other_tenant(self):
@@ -351,9 +351,9 @@ class TestGetTenantUsage:
         assert exc.value.status_code == 404
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 6. POST /billing/snapshot
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTakeSnapshot:
     """POST /billing/snapshot counts resources and persists UsageRecords."""
@@ -381,8 +381,8 @@ class TestTakeSnapshot:
         db = _make_db()
         db.execute = AsyncMock(return_value=count_result)
 
-        with patch("app.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             result = await take_snapshot(admin, db)
 
         returned_types = {item.resource_type for item in result.items}
@@ -399,8 +399,8 @@ class TestTakeSnapshot:
         db = _make_db()
         db.execute = AsyncMock(return_value=count_result)
 
-        with patch("app.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             await take_snapshot(admin, db)
 
         db.commit.assert_called_once()
@@ -415,8 +415,8 @@ class TestTakeSnapshot:
         db = _make_db()
         db.execute = AsyncMock(return_value=count_result)
 
-        with patch("app.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
-             patch("app.api.v1.endpoints.billing.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.billing._upsert_usage_record", AsyncMock()), \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action") as mock_log:
             await take_snapshot(admin, db)
 
         mock_log.assert_called_once()
@@ -436,19 +436,19 @@ class TestTakeSnapshot:
         async def mock_upsert(*args, **kwargs):
             upsert_calls.append(args)
 
-        with patch("app.api.v1.endpoints.billing._upsert_usage_record", mock_upsert), \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._upsert_usage_record", mock_upsert), \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             result = await take_snapshot(admin, db)
 
         assert result.records_written == len(RESOURCE_TYPES)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 7. POST /billing/stripe/webhook
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestStripeWebhook:
-    """POST /billing/stripe/webhook — sig validation, event handling."""
+    """POST /billing/stripe/webhook â€” sig validation, event handling."""
 
     def _make_request(self, payload: dict, sig: str | None = None) -> MagicMock:
         body = json.dumps(payload).encode()
@@ -465,8 +465,8 @@ class TestStripeWebhook:
         request = self._make_request(payload)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings, \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
             result = await stripe_webhook(request, None, db)
 
@@ -483,7 +483,7 @@ class TestStripeWebhook:
         request.body = AsyncMock(return_value=body)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings:
             mock_settings.STRIPE_WEBHOOK_SECRET = "whsec_test"
             with pytest.raises(HTTPException) as exc:
                 await stripe_webhook(request, stripe_signature=None, db=db)
@@ -500,7 +500,7 @@ class TestStripeWebhook:
         request.body = AsyncMock(return_value=body)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings:
             mock_settings.STRIPE_WEBHOOK_SECRET = "correct_secret"
             with pytest.raises(HTTPException) as exc:
                 await stripe_webhook(request, "t=1700000000,v1=wronghex", db)
@@ -519,8 +519,8 @@ class TestStripeWebhook:
         request.body = AsyncMock(return_value=body)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings, \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = secret
             result = await stripe_webhook(request, sig, db)
 
@@ -535,7 +535,7 @@ class TestStripeWebhook:
         request.body = AsyncMock(return_value=b"not-json")
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings:
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
             with pytest.raises(HTTPException) as exc:
                 await stripe_webhook(request, None, db)
@@ -567,8 +567,8 @@ class TestStripeWebhook:
         result_mock.scalar_one_or_none.return_value = tenant
         db.execute = AsyncMock(return_value=result_mock)
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings, \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
             await stripe_webhook(request, None, db)
 
@@ -600,8 +600,8 @@ class TestStripeWebhook:
         result_mock.scalar_one_or_none.return_value = tenant
         db.execute = AsyncMock(return_value=result_mock)
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings, \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
             await stripe_webhook(request, None, db)
 
@@ -618,17 +618,17 @@ class TestStripeWebhook:
         request.body = AsyncMock(return_value=body)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.billing._settings") as mock_settings, \
-             patch("app.api.v1.endpoints.billing.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
+             patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
             result = await stripe_webhook(request, None, db)
 
         assert result.received is True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 8. Config settings
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBillingConfig:
     """Stripe config keys exist and default to empty strings."""
@@ -650,8 +650,8 @@ class TestBillingConfig:
         assert isinstance(_SETTINGS.STRIPE_WEBHOOK_SECRET, str)
 
     def test_stripe_secret_not_hardcoded(self):
-        """Config default must be empty string — no live keys in source."""
-        # The default value is "" — not a real key. Comments may reference format examples.
+        """Config default must be empty string â€” no live keys in source."""
+        # The default value is "" â€” not a real key. Comments may reference format examples.
         assert _SETTINGS.STRIPE_SECRET_KEY == ""
 
     def test_webhook_secret_not_hardcoded(self):
@@ -659,9 +659,9 @@ class TestBillingConfig:
         assert _SETTINGS.STRIPE_WEBHOOK_SECRET == ""
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 9. Migration: s9m12p1r4l06
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP55Migration:
     """Migration s9m12p1r4l06 is present, correct, and chained to P53."""
@@ -725,9 +725,9 @@ class TestP55Migration:
         assert "stripe_subscription_id" in src
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 10. Router registration
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBillingRouterRegistration:
     """Billing router is registered in the main API router."""

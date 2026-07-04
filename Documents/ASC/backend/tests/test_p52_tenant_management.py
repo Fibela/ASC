@@ -1,5 +1,5 @@
-"""
-P52 — Tenant Management API — Test Suite
+﻿"""
+P52 â€” Tenant Management API â€” Test Suite
 =========================================
 Comprehensive tests for the Tenant Management API endpoints and the
 Bug#Gap-1 fix in deps.py (get_user_from_api_key must set tenant context).
@@ -14,18 +14,18 @@ Security scanning:
 
 Test Classes
 ------------
-TestSlugValidation           — 10 tests: valid/invalid slug patterns
-TestTenantSchemas            — 8 tests: Pydantic schema validation
-TestCreateTenant             — 8 tests: create endpoint (RBAC, uniqueness, slug)
-TestListTenants              — 8 tests: pagination, plan filter, active_only, RBAC
-TestGetTenant                — 5 tests: 200, 404, admin-only
-TestGetMyTenant              — 6 tests: /me endpoint for current user's tenant
-TestTenantStats              — 6 tests: live resource counts (admin only)
-TestUpdateTenant             — 7 tests: partial update, idempotency, RBAC
-TestChangePlan               — 7 tests: plan change with reason, same-plan error
-TestActivateDeactivate       — 8 tests: soft delete cycle, idempotency errors
-TestBugGap1ApiKeyTenantCtx   — 6 tests: Bug#Gap-1 fix verification
-TestP52Regression            — 5 tests: P47/P51 deliverables intact
+TestSlugValidation           â€” 10 tests: valid/invalid slug patterns
+TestTenantSchemas            â€” 8 tests: Pydantic schema validation
+TestCreateTenant             â€” 8 tests: create endpoint (RBAC, uniqueness, slug)
+TestListTenants              â€” 8 tests: pagination, plan filter, active_only, RBAC
+TestGetTenant                â€” 5 tests: 200, 404, admin-only
+TestGetMyTenant              â€” 6 tests: /me endpoint for current user's tenant
+TestTenantStats              â€” 6 tests: live resource counts (admin only)
+TestUpdateTenant             â€” 7 tests: partial update, idempotency, RBAC
+TestChangePlan               â€” 7 tests: plan change with reason, same-plan error
+TestActivateDeactivate       â€” 8 tests: soft delete cycle, idempotency errors
+TestBugGap1ApiKeyTenantCtx   â€” 6 tests: Bug#Gap-1 fix verification
+TestP52Regression            â€” 5 tests: P47/P51 deliverables intact
 
 Total: ~80 tests
 """
@@ -40,7 +40,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import pytest
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _make_user(role: str = "admin", tenant_id: str | None = None) -> MagicMock:
@@ -108,7 +108,7 @@ def _db_mock(
     return db, exec_result
 
 
-# ── 1. Slug validation ────────────────────────────────────────────────────────
+# â”€â”€ 1. Slug validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSlugValidation:
     """Slug regex: ^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$ (3-100 chars total)."""
@@ -144,7 +144,7 @@ class TestSlugValidation:
         assert not self._re.match(slug), f"Expected invalid slug: {slug!r}"
 
 
-# ── 2. Schema validation ──────────────────────────────────────────────────────
+# â”€â”€ 2. Schema validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantSchemas:
     """Pydantic schema field validation."""
@@ -215,17 +215,17 @@ class TestTenantSchemas:
         assert body.contact_email is None
 
 
-# ── 3. Create tenant ──────────────────────────────────────────────────────────
+# â”€â”€ 3. Create tenant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCreateTenant:
-    """POST /tenants — admin only, slug uniqueness, audit log."""
+    """POST /tenants â€” admin only, slug uniqueness, audit log."""
 
     @pytest.mark.asyncio
     async def test_create_tenant_success(self):
         from asc_api.api.v1.endpoints.tenants import create_tenant, TenantCreate
 
         admin = _make_user(role="admin")
-        db, exec_result = _db_mock(scalar_result=None)  # slug not found → unique
+        db, exec_result = _db_mock(scalar_result=None)  # slug not found â†’ unique
 
         created_tenant = _make_tenant(slug="new-corp", plan="pro")
 
@@ -243,7 +243,7 @@ class TestCreateTenant:
         db.refresh = AsyncMock(side_effect=_refresh)
         body = TenantCreate(name="New Corp", slug="new-corp", plan="pro")
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await create_tenant(body=body, db=db, current_user=admin)
 
         assert result.slug == "new-corp"
@@ -283,7 +283,7 @@ class TestCreateTenant:
         db.refresh = AsyncMock(side_effect=_refresh)
         body = TenantCreate(name="Audit Test Corp", slug="audit-test")
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await create_tenant(body=body, db=db, current_user=admin)
 
         mock_log.assert_called_once()
@@ -325,7 +325,7 @@ class TestCreateTenant:
             name="Full Corp", slug="full-tenant", plan="enterprise",
             contact_email="admin@full.com", max_users=200, max_api_keys_per_user=10,
         )
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await create_tenant(body=body, db=db, current_user=admin)
 
         assert result.plan == "enterprise"
@@ -348,16 +348,16 @@ class TestCreateTenant:
 
         db.refresh = AsyncMock(side_effect=_refresh)
         body = TenantCreate(name="Client 123 v2", slug="client123-v2")
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await create_tenant(body=body, db=db, current_user=admin)
 
         assert result.slug == "client123-v2"
 
 
-# ── 4. List tenants ───────────────────────────────────────────────────────────
+# â”€â”€ 4. List tenants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestListTenants:
-    """GET /tenants — pagination, filters, RBAC."""
+    """GET /tenants â€” pagination, filters, RBAC."""
 
     @pytest.mark.asyncio
     async def test_list_returns_paginated_results(self):
@@ -463,10 +463,10 @@ class TestListTenants:
         assert "get_current_admin" in repr(param.default) or "admin" in repr(param.default).lower()
 
 
-# ── 5. Get tenant ─────────────────────────────────────────────────────────────
+# â”€â”€ 5. Get tenant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetTenant:
-    """GET /tenants/{id} — admin only."""
+    """GET /tenants/{id} â€” admin only."""
 
     @pytest.mark.asyncio
     async def test_get_existing_tenant(self):
@@ -527,10 +527,10 @@ class TestGetTenant:
         assert "get_current_admin" in repr(param.default) or "admin" in repr(param.default).lower()
 
 
-# ── 6. GET /tenants/me ────────────────────────────────────────────────────────
+# â”€â”€ 6. GET /tenants/me â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetMyTenant:
-    """GET /tenants/me — any authenticated user, returns own tenant."""
+    """GET /tenants/me â€” any authenticated user, returns own tenant."""
 
     @pytest.mark.asyncio
     async def test_me_returns_own_tenant(self):
@@ -553,7 +553,7 @@ class TestGetMyTenant:
         user = _make_user(role="analyst", tenant_id=None)
         db, _ = _db_mock(scalar_result=None)
 
-        with patch("app.api.v1.endpoints.tenants.get_tenant_id", return_value=None):
+        with patch("asc_api.api.v1.endpoints.tenants.get_tenant_id", return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await get_my_tenant(db=db, current_user=user)
         assert exc_info.value.status_code == 404
@@ -582,7 +582,7 @@ class TestGetMyTenant:
         db, _ = _db_mock(scalar_result=t)
 
         # Even if ContextVar has a different value, user.tenant_id wins
-        with patch("app.api.v1.endpoints.tenants.get_tenant_id", return_value="other-id"):
+        with patch("asc_api.api.v1.endpoints.tenants.get_tenant_id", return_value="other-id"):
             result = await get_my_tenant(db=db, current_user=user)
 
         assert result.id == tid
@@ -597,7 +597,7 @@ class TestGetMyTenant:
         t = _make_tenant(slug="ctx-tenant", tenant_id=ctx_tid)
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.get_tenant_id", return_value=ctx_tid):
+        with patch("asc_api.api.v1.endpoints.tenants.get_tenant_id", return_value=ctx_tid):
             result = await get_my_tenant(db=db, current_user=user)
 
         assert result.id == ctx_tid
@@ -617,10 +617,10 @@ class TestGetMyTenant:
         assert exc_info.value.status_code == 404
 
 
-# ── 7. Tenant stats ───────────────────────────────────────────────────────────
+# â”€â”€ 7. Tenant stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantStats:
-    """GET /tenants/{id}/stats — live counts per resource type."""
+    """GET /tenants/{id}/stats â€” live counts per resource type."""
 
     @pytest.mark.asyncio
     async def test_stats_returns_correct_schema(self):
@@ -631,8 +631,8 @@ class TestTenantStats:
         db = MagicMock()
         db.commit = AsyncMock()
 
-        # First call: tenant existence check → returns the tenant
-        # Subsequent calls: COUNT queries → return integers
+        # First call: tenant existence check â†’ returns the tenant
+        # Subsequent calls: COUNT queries â†’ return integers
         call_count = [0]
 
         async def _execute(stmt):
@@ -745,10 +745,10 @@ class TestTenantStats:
         assert result.incident_count == 12
 
 
-# ── 8. Update tenant ──────────────────────────────────────────────────────────
+# â”€â”€ 8. Update tenant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUpdateTenant:
-    """PATCH /tenants/{id} — partial update, admin only."""
+    """PATCH /tenants/{id} â€” partial update, admin only."""
 
     @pytest.mark.asyncio
     async def test_update_name(self):
@@ -759,7 +759,7 @@ class TestUpdateTenant:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantUpdate(name="New Name")
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await update_tenant(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         assert t.name == "New Name"
@@ -774,7 +774,7 @@ class TestUpdateTenant:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantUpdate(contact_email="new@corp.com")
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await update_tenant(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         assert t.contact_email == "new@corp.com"
@@ -788,7 +788,7 @@ class TestUpdateTenant:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantUpdate(max_users=500)
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await update_tenant(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         assert t.max_users == 500
@@ -802,7 +802,7 @@ class TestUpdateTenant:
         db, _ = _db_mock(scalar_result=t)
 
         # Body with same values as current tenant
-        body = TenantUpdate()  # all None → no changes
+        body = TenantUpdate()  # all None â†’ no changes
         await update_tenant(tenant_id=t.id, body=body, db=db, current_user=admin)
         db.commit.assert_not_called()
 
@@ -828,7 +828,7 @@ class TestUpdateTenant:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantUpdate(name="New Name")
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await update_tenant(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         mock_log.assert_called_once()
@@ -845,10 +845,10 @@ class TestUpdateTenant:
         assert "get_current_admin" in repr(param.default) or "admin" in repr(param.default).lower()
 
 
-# ── 9. Plan change ────────────────────────────────────────────────────────────
+# â”€â”€ 9. Plan change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestChangePlan:
-    """PATCH /tenants/{id}/plan — audit-mandatory plan changes."""
+    """PATCH /tenants/{id}/plan â€” audit-mandatory plan changes."""
 
     @pytest.mark.asyncio
     async def test_plan_change_free_to_pro(self):
@@ -859,7 +859,7 @@ class TestChangePlan:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantPlanChange(plan="pro", reason="Customer signed annual contract 2026-06-14")
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await change_tenant_plan(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         assert t.plan == "pro"
@@ -889,7 +889,7 @@ class TestChangePlan:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantPlanChange(plan="enterprise", reason="Enterprise deal closed by sales team today")
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await change_tenant_plan(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         call_args = mock_log.call_args
@@ -922,7 +922,7 @@ class TestChangePlan:
         db, _ = _db_mock(scalar_result=t)
 
         body = TenantPlanChange(plan="free", reason="Customer downgrade after contract end")
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await change_tenant_plan(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         assert t.plan == "free"
@@ -938,7 +938,7 @@ class TestChangePlan:
         reason = "Q4 2026 bulk discount applied by sales team manager"
         body = TenantPlanChange(plan="pro", reason=reason)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await change_tenant_plan(tenant_id=t.id, body=body, db=db, current_user=admin)
 
         extra = mock_log.call_args[1]["extra"]
@@ -953,10 +953,10 @@ class TestChangePlan:
         assert "get_current_admin" in repr(param.default) or "admin" in repr(param.default).lower()
 
 
-# ── 10. Activate / Deactivate ─────────────────────────────────────────────────
+# â”€â”€ 10. Activate / Deactivate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestActivateDeactivate:
-    """POST /tenants/{id}/activate + deactivate — soft delete cycle."""
+    """POST /tenants/{id}/activate + deactivate â€” soft delete cycle."""
 
     @pytest.mark.asyncio
     async def test_deactivate_active_tenant(self):
@@ -966,7 +966,7 @@ class TestActivateDeactivate:
         t = _make_tenant(is_active=True)
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await deactivate_tenant(tenant_id=t.id, db=db, current_user=admin)
 
         assert t.is_active is False
@@ -993,7 +993,7 @@ class TestActivateDeactivate:
         t = _make_tenant(is_active=False)
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             result = await activate_tenant(tenant_id=t.id, db=db, current_user=admin)
 
         assert t.is_active is True
@@ -1020,7 +1020,7 @@ class TestActivateDeactivate:
         t = _make_tenant(is_active=True, slug="corp-to-deactivate")
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await deactivate_tenant(tenant_id=t.id, db=db, current_user=admin)
 
         mock_log.assert_called_once()
@@ -1034,7 +1034,7 @@ class TestActivateDeactivate:
         t = _make_tenant(is_active=False, slug="corp-to-reactivate")
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action") as mock_log:
             await activate_tenant(tenant_id=t.id, db=db, current_user=admin)
 
         mock_log.assert_called_once()
@@ -1050,10 +1050,10 @@ class TestActivateDeactivate:
                          max_users=100, contact_email="cto@corp.com")
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await deactivate_tenant(tenant_id=t.id, db=db, current_user=admin)
 
-        # Only is_active changed — all other data preserved
+        # Only is_active changed â€” all other data preserved
         assert t.slug == "data-preserved"
         assert t.plan == "enterprise"
         assert t.max_users == 100
@@ -1067,21 +1067,21 @@ class TestActivateDeactivate:
         t = _make_tenant(is_active=True)
         db, _ = _db_mock(scalar_result=t)
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await deactivate_tenant(tenant_id=t.id, db=db, current_user=admin)
         assert t.is_active is False
 
-        with patch("app.api.v1.endpoints.tenants.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.tenants.log_security_action"):
             await activate_tenant(tenant_id=t.id, db=db, current_user=admin)
         assert t.is_active is True
 
 
-# ── 11. Bug#Gap-1 — API key tenant context fix ───────────────────────────────
+# â”€â”€ 11. Bug#Gap-1 â€” API key tenant context fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBugGap1ApiKeyTenantCtx:
     """
     Bug#Gap-1 fix (P52): get_user_from_api_key must call set_tenant_id(user.tenant_id).
-    Without this fix, API key auth never sets tenant context → all queries bypass isolation.
+    Without this fix, API key auth never sets tenant context â†’ all queries bypass isolation.
     """
 
     def test_set_tenant_id_imported_in_deps(self):
@@ -1134,7 +1134,7 @@ class TestBugGap1ApiKeyTenantCtx:
         assert callable(set_tenant_id)
 
 
-# ── 12. Router registration ───────────────────────────────────────────────────
+# â”€â”€ 12. Router registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRouterRegistration:
     """Tenants router is registered in the main API router."""
@@ -1176,7 +1176,7 @@ class TestRouterRegistration:
         assert "/api/v1/tenants/{tenant_id}/deactivate" in paths
 
 
-# ── 13. Regression P47/P51 ───────────────────────────────────────────────────
+# â”€â”€ 13. Regression P47/P51 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP52Regression:
     """P47/P51 deliverables are not broken by P52."""

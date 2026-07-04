@@ -1,20 +1,20 @@
-"""
-P26 — PIDS (Premos Identity-Driven SOAR) — Test Suite
+﻿"""
+P26 â€” PIDS (Premos Identity-Driven SOAR) â€” Test Suite
 
 Coverage:
-  TestPIDSCanonical            (6)  — _build_canonical, _compute_hash, _sign_hash, _verify_signature
-  TestPIDSCreateAction         (10) — create_identity_action, invalid type, field binding, forensic token
-  TestPIDSVerify               (8)  — hash match, hash mismatch, missing action, no public key
-  TestPIDSList                 (6)  — list with all filter combinations
-  TestPIDSTimeline             (4)  — get_identity_timeline ordering + empty
-  TestPIDSSummary              (6)  — get_pids_summary global + hunt-scoped
-  TestPIDSConditionTypes       (8)  — identity_group and iam_event condition evaluation
-  TestAdaptiveOrchestration    (6)  — priority sort, dedup window check
-  TestPlaybookIdentitySteps    (6)  — DISABLE_ACCOUNT, FORCE_PASSWORD_RESET, QUARANTINE_ACCOUNT steps
-  TestPIDSEndpoints            (8)  — REST API status codes + router registration
-  TestScheduledReportForensic  (4)  — forensic_hash in delivery response + PIDS timeline inclusion
-  TestPlaybookPB005            (4)  — PB-005 definition validation
-  TestSOARTriggerP26Fields     (4)  — priority/rate_limit_per_hour/dedup_window_minutes in CRUD
+  TestPIDSCanonical            (6)  â€” _build_canonical, _compute_hash, _sign_hash, _verify_signature
+  TestPIDSCreateAction         (10) â€” create_identity_action, invalid type, field binding, forensic token
+  TestPIDSVerify               (8)  â€” hash match, hash mismatch, missing action, no public key
+  TestPIDSList                 (6)  â€” list with all filter combinations
+  TestPIDSTimeline             (4)  â€” get_identity_timeline ordering + empty
+  TestPIDSSummary              (6)  â€” get_pids_summary global + hunt-scoped
+  TestPIDSConditionTypes       (8)  â€” identity_group and iam_event condition evaluation
+  TestAdaptiveOrchestration    (6)  â€” priority sort, dedup window check
+  TestPlaybookIdentitySteps    (6)  â€” DISABLE_ACCOUNT, FORCE_PASSWORD_RESET, QUARANTINE_ACCOUNT steps
+  TestPIDSEndpoints            (8)  â€” REST API status codes + router registration
+  TestScheduledReportForensic  (4)  â€” forensic_hash in delivery response + PIDS timeline inclusion
+  TestPlaybookPB005            (4)  â€” PB-005 definition validation
+  TestSOARTriggerP26Fields     (4)  â€” priority/rate_limit_per_hour/dedup_window_minutes in CRUD
 
 Total: 80 tests
 """
@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_mock_action(**kwargs):
     """Build a minimal mock IdentityAction for tests that don't need the DB."""
@@ -73,9 +73,9 @@ def _scalar_val(val):
     return r
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSCanonical
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSCanonical:
     """Verify _build_canonical, _compute_hash, _sign_hash, _verify_signature."""
@@ -130,9 +130,9 @@ class TestPIDSCanonical:
         assert result is None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSCreateAction
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSCreateAction:
     """Test create_identity_action: validation, signing, and DB persistence."""
@@ -153,7 +153,7 @@ class TestPIDSCreateAction:
 
         mock_db.refresh = fake_refresh
 
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="disable_account",
@@ -190,7 +190,7 @@ class TestPIDSCreateAction:
             mock_db.add = MagicMock()
             mock_db.commit = AsyncMock()
             mock_db.refresh = AsyncMock()
-            with patch("app.services.pids_service._sign_hash", return_value=None):
+            with patch("asc_api.services.pids_service._sign_hash", return_value=None):
                 action = await create_identity_action(
                     mock_db,
                     action_type=action_type,
@@ -208,7 +208,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="enrich_user",
@@ -232,7 +232,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="disable_account",
@@ -256,7 +256,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="enable_account",
@@ -275,7 +275,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="force_password_reset",
@@ -292,7 +292,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             await create_identity_action(
                 mock_db,
                 action_type="quarantine_account",
@@ -310,7 +310,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value="fake_sig_b64"):
+        with patch("asc_api.services.pids_service._sign_hash", return_value="fake_sig_b64"):
             action = await create_identity_action(
                 mock_db,
                 action_type="disable_account",
@@ -327,7 +327,7 @@ class TestPIDSCreateAction:
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
-        with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.pids_service._sign_hash", return_value=None):
             action = await create_identity_action(
                 mock_db,
                 action_type="enrich_user",
@@ -338,9 +338,9 @@ class TestPIDSCreateAction:
         assert action.domain == "corp.local"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSVerify
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSVerify:
     """Test verify_identity_action: hash integrity and signature checks."""
@@ -458,9 +458,9 @@ class TestPIDSVerify:
         assert result["action_id"] == action.id
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSList
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSList:
     @pytest.mark.asyncio
@@ -517,9 +517,9 @@ class TestPIDSList:
         mock_db.execute.assert_called_once()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSTimeline
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSTimeline:
     @pytest.mark.asyncio
@@ -559,9 +559,9 @@ class TestPIDSTimeline:
         mock_db.execute.assert_called_once()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSSummary
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSSummary:
     @pytest.mark.asyncio
@@ -637,9 +637,9 @@ class TestPIDSSummary:
         assert result["success_rate_pct"] == 100.0
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSConditionTypes
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSConditionTypes:
     """Test new identity_group and iam_event condition types in _evaluate_condition."""
@@ -701,9 +701,9 @@ class TestPIDSConditionTypes:
         assert _evaluate_condition(t, ctx) is False
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestAdaptiveOrchestration
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAdaptiveOrchestration:
     """Test priority sorting and dedup window in evaluate_triggers_for_context."""
@@ -748,7 +748,7 @@ class TestAdaptiveOrchestration:
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([t_low, t_high]))
 
-        with patch("app.services.soar_service._fire_trigger", side_effect=fake_fire):
+        with patch("asc_api.services.soar_service._fire_trigger", side_effect=fake_fire):
             await evaluate_triggers_for_context(
                 mock_db, {"pcdi_score": 50}, triggered_by="test"
             )
@@ -766,8 +766,8 @@ class TestAdaptiveOrchestration:
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([t]))
 
-        with patch("app.services.soar_service._is_dedup_active", new=AsyncMock(return_value=True)):
-            with patch("app.services.soar_service._fire_trigger", new=AsyncMock()) as mock_fire:
+        with patch("asc_api.services.soar_service._is_dedup_active", new=AsyncMock(return_value=True)):
+            with patch("asc_api.services.soar_service._fire_trigger", new=AsyncMock()) as mock_fire:
                 await evaluate_triggers_for_context(
                     mock_db, {"pcdi_score": 50}, triggered_by="test"
                 )
@@ -790,7 +790,7 @@ class TestAdaptiveOrchestration:
         mock_db = AsyncMock()
         mock_db.execute = AsyncMock(return_value=_scalars_result([t]))
 
-        with patch("app.services.soar_service._fire_trigger", side_effect=fake_fire):
+        with patch("asc_api.services.soar_service._fire_trigger", side_effect=fake_fire):
             await evaluate_triggers_for_context(
                 mock_db, {"pcdi_score": 50}, triggered_by="test"
             )
@@ -835,9 +835,9 @@ class TestAdaptiveOrchestration:
             "groups": ["Admins"],
         }
 
-        with patch("app.services.soar_service.log_security_action"):
-            with patch("app.services.playbook.trigger_playbook", new=AsyncMock(side_effect=fake_trigger_playbook)):
-                with patch("app.services.soar_service._fire_trigger.__wrapped__", create=True):
+        with patch("asc_api.services.soar_service.log_security_action"):
+            with patch("asc_api.services.playbook.trigger_playbook", new=AsyncMock(side_effect=fake_trigger_playbook)):
+                with patch("asc_api.services.soar_service._fire_trigger.__wrapped__", create=True):
                     # Call _fire_trigger directly
                     await soar_svc._fire_trigger(mock_db, t, context, triggered_by="test")
 
@@ -853,7 +853,7 @@ class TestAdaptiveOrchestration:
         mock_db.commit = AsyncMock()
         mock_db.refresh = AsyncMock()
 
-        with patch("app.services.soar_service.log_security_action"):
+        with patch("asc_api.services.soar_service.log_security_action"):
             result = await create_trigger(
                 mock_db,
                 playbook_id="PB-005",
@@ -890,9 +890,9 @@ class TestAdaptiveOrchestration:
         assert "priority" in result["error"]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPlaybookIdentitySteps
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPlaybookIdentitySteps:
     """Test DISABLE_ACCOUNT, FORCE_PASSWORD_RESET, QUARANTINE_ACCOUNT step execution."""
@@ -927,9 +927,9 @@ class TestPlaybookIdentitySteps:
         ctx = self._make_ctx()
         result = {"action": "DISABLE_ACCOUNT", "status": "ok"}
 
-        with patch("app.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
+        with patch("asc_api.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
                    new=AsyncMock(return_value={"status": "ok", "username": "jdoe"})):
-            with patch("app.services.pids_service.create_identity_action",
+            with patch("asc_api.services.pids_service.create_identity_action",
                        new=AsyncMock(return_value=mock_action)):
                 await _execute_identity_step("DISABLE_ACCOUNT", ctx, run, mock_db, result)
 
@@ -947,9 +947,9 @@ class TestPlaybookIdentitySteps:
         ctx = self._make_ctx()
         result = {"action": "FORCE_PASSWORD_RESET", "status": "ok"}
 
-        with patch("app.adapters.identity.active_directory.ActiveDirectoryAdapter.force_password_reset",
+        with patch("asc_api.adapters.identity.active_directory.ActiveDirectoryAdapter.force_password_reset",
                    new=AsyncMock(return_value={"status": "ok"})):
-            with patch("app.services.pids_service.create_identity_action",
+            with patch("asc_api.services.pids_service.create_identity_action",
                        new=AsyncMock(return_value=mock_action)):
                 await _execute_identity_step("FORCE_PASSWORD_RESET", ctx, run, mock_db, result)
 
@@ -965,9 +965,9 @@ class TestPlaybookIdentitySteps:
         ctx = self._make_ctx()
         result = {"action": "QUARANTINE_ACCOUNT", "status": "ok"}
 
-        with patch("app.adapters.identity.active_directory.ActiveDirectoryAdapter.move_to_quarantine_ou",
+        with patch("asc_api.adapters.identity.active_directory.ActiveDirectoryAdapter.move_to_quarantine_ou",
                    new=AsyncMock(return_value={"status": "ok"})):
-            with patch("app.services.pids_service.create_identity_action",
+            with patch("asc_api.services.pids_service.create_identity_action",
                        new=AsyncMock(return_value=mock_action)):
                 await _execute_identity_step("QUARANTINE_ACCOUNT", ctx, run, mock_db, result)
 
@@ -997,9 +997,9 @@ class TestPlaybookIdentitySteps:
         ctx = self._make_ctx()
         result = {"action": "DISABLE_ACCOUNT", "status": "ok"}
 
-        with patch("app.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
+        with patch("asc_api.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
                    new=AsyncMock(return_value={"status": "error", "error": "modify_failed: ..."})):
-            with patch("app.services.pids_service.create_identity_action",
+            with patch("asc_api.services.pids_service.create_identity_action",
                        new=AsyncMock(return_value=mock_action)):
                 await _execute_identity_step("DISABLE_ACCOUNT", ctx, run, mock_db, result)
 
@@ -1023,18 +1023,18 @@ class TestPlaybookIdentitySteps:
         ctx = self._make_ctx(user="targetuser", domain="example.corp")
         result = {"action": "DISABLE_ACCOUNT", "status": "ok"}
 
-        with patch("app.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
+        with patch("asc_api.adapters.identity.active_directory.ActiveDirectoryAdapter.disable_account",
                    new=AsyncMock(return_value={"status": "ok"})):
-            with patch("app.services.pids_service.create_identity_action", side_effect=fake_create):
+            with patch("asc_api.services.pids_service.create_identity_action", side_effect=fake_create):
                 await _execute_identity_step("DISABLE_ACCOUNT", ctx, run, mock_db, result)
 
         assert captured["username"] == "targetuser"
         assert captured["domain"] == "example.corp"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPIDSEndpoints
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPIDSEndpoints:
     def test_pids_router_registered(self):
@@ -1079,9 +1079,9 @@ class TestPIDSEndpoints:
         assert _VALID_ACTION_TYPES == expected
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestScheduledReportForensic
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestScheduledReportForensic:
     @pytest.mark.asyncio
@@ -1133,9 +1133,9 @@ class TestScheduledReportForensic:
         mock_db.execute = fake_execute
         mock_db.commit = AsyncMock()
 
-        with patch("app.services.soar_service.log_security_action"):
-            with patch("app.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=[])):
-                with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.soar_service.log_security_action"):
+            with patch("asc_api.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=[])):
+                with patch("asc_api.services.pids_service._sign_hash", return_value=None):
                     result = await deliver_scheduled_report(mock_db, "rpt-1")
 
         assert "forensic_hash" in result
@@ -1182,9 +1182,9 @@ class TestScheduledReportForensic:
         mock_db.execute = fake_execute
         mock_db.commit = AsyncMock()
 
-        with patch("app.services.soar_service.log_security_action"):
-            with patch("app.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=fake_timeline)):
-                with patch("app.services.pids_service._sign_hash", return_value=None):
+        with patch("asc_api.services.soar_service.log_security_action"):
+            with patch("asc_api.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=fake_timeline)):
+                with patch("asc_api.services.pids_service._sign_hash", return_value=None):
                     result = await deliver_scheduled_report(mock_db, "rpt-2")
 
         assert result["summary"]["identity_timeline"] == fake_timeline
@@ -1236,17 +1236,17 @@ class TestScheduledReportForensic:
         mock_db.execute = fake_execute
         mock_db.commit = AsyncMock()
 
-        with patch("app.services.soar_service.log_security_action"):
-            with patch("app.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=[])):
+        with patch("asc_api.services.soar_service.log_security_action"):
+            with patch("asc_api.services.pids_service.get_identity_timeline", new=AsyncMock(return_value=[])):
                 with patch("os.getenv", return_value=None):
                     result = await deliver_scheduled_report(mock_db, "rpt-3")
 
         assert result["forensic_signature"] is None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPlaybookPB005
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPlaybookPB005:
     def test_pb005_defined(self):
@@ -1272,9 +1272,9 @@ class TestPlaybookPB005:
         assert pb.semaphore == "red"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestSOARTriggerP26Fields
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSOARTriggerP26Fields:
     def test_playbook_trigger_model_has_priority(self):

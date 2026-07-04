@@ -1,4 +1,4 @@
-"""
+﻿"""
 P16 Human-in-the-Loop + PANL Approval Workflow Tests
 =====================================================
 Tests: state machine, self-approval rejection, timeout/escalation, RBAC,
@@ -33,7 +33,7 @@ from asc_api.services.approval import (
 from asc_api.models.neutralization import NeutralizationAction
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _action(
     *,
@@ -92,7 +92,7 @@ def _db(action: NeutralizationAction | None = None) -> AsyncMock:
     return db
 
 
-# ── 1. needs_approval logic ───────────────────────────────────────────────────
+# â”€â”€ 1. needs_approval logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNeedsApproval:
     def test_critical_always_requires(self):
@@ -133,7 +133,7 @@ class TestNeedsApproval:
         assert TIMEOUT_BY_SEVERITY["high"] == 30
 
 
-# ── 2. _check_not_expired ─────────────────────────────────────────────────────
+# â”€â”€ 2. _check_not_expired â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCheckNotExpired:
     def test_not_expired_passes(self):
@@ -157,7 +157,7 @@ class TestCheckNotExpired:
             _check_not_expired(action)
 
 
-# ── 3. approve_action ─────────────────────────────────────────────────────────
+# â”€â”€ 3. approve_action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestApproveAction:
     @pytest.mark.asyncio
@@ -198,8 +198,8 @@ class TestApproveAction:
         mock_result.details = {}
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="bob@premos.com")
 
@@ -216,8 +216,8 @@ class TestApproveAction:
         mock_result.details = {}
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="bob@premos.com")
 
@@ -225,14 +225,14 @@ class TestApproveAction:
         assert result.error_message == "EDR timeout"
 
 
-# ── 4. reject_action ──────────────────────────────────────────────────────────
+# â”€â”€ 4. reject_action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRejectAction:
     @pytest.mark.asyncio
     async def test_happy_path(self):
         action = _action()
         db = _db(action)
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             result = await reject_action(
                 db, action_id=action.id,
                 rejected_by="admin@premos.com",
@@ -266,7 +266,7 @@ class TestRejectAction:
     async def test_reason_is_stripped(self):
         action = _action()
         db = _db(action)
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             result = await reject_action(
                 db, action_id=action.id,
                 rejected_by="admin@premos.com",
@@ -275,7 +275,7 @@ class TestRejectAction:
         assert result.rejection_reason == "falso positivo"
 
 
-# ── 5. escalate_expired ───────────────────────────────────────────────────────
+# â”€â”€ 5. escalate_expired â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestEscalateExpired:
     @pytest.mark.asyncio
@@ -289,7 +289,7 @@ class TestEscalateExpired:
         scalars_mock.scalars.return_value.all.return_value = [action]
         db.execute.return_value = scalars_mock
 
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             ids = await escalate_expired(db)
 
         assert action.id in ids
@@ -318,7 +318,7 @@ class TestEscalateExpired:
         scalars_mock.scalars.return_value.all.return_value = [a1, a2]
         db.execute.return_value = scalars_mock
 
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             ids = await escalate_expired(db)
 
         assert len(ids) == 2
@@ -326,7 +326,7 @@ class TestEscalateExpired:
         assert a2.status == "escalated"
 
 
-# ── 6. get_pending ────────────────────────────────────────────────────────────
+# â”€â”€ 6. get_pending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetPending:
     @pytest.mark.asyncio
@@ -336,7 +336,7 @@ class TestGetPending:
         scalars_mock.scalars.return_value.all.return_value = []
         db.execute.return_value = scalars_mock
 
-        with patch("app.services.approval.escalate_expired", new=AsyncMock(return_value=[])) as mock_esc:
+        with patch("asc_api.services.approval.escalate_expired", new=AsyncMock(return_value=[])) as mock_esc:
             await get_pending(db)
             mock_esc.assert_called_once_with(db)
 
@@ -348,13 +348,13 @@ class TestGetPending:
         scalars_mock.scalars.return_value.all.return_value = [action]
         db.execute.return_value = scalars_mock
 
-        with patch("app.services.approval.escalate_expired", new=AsyncMock(return_value=[])):
+        with patch("asc_api.services.approval.escalate_expired", new=AsyncMock(return_value=[])):
             result = await get_pending(db)
 
         assert action in result
 
 
-# ── 7. request_action routing ─────────────────────────────────────────────────
+# â”€â”€ 7. request_action routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRequestAction:
     @pytest.mark.asyncio
@@ -362,7 +362,7 @@ class TestRequestAction:
         db = AsyncMock()
         db.refresh = AsyncMock()
 
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             action = await request_action(
                 db,
                 action_type="block_ip",
@@ -384,8 +384,8 @@ class TestRequestAction:
         mock_result = MagicMock(success=True, message="ok", details={})
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
         ):
             action = await request_action(
                 db,
@@ -405,7 +405,7 @@ class TestRequestAction:
         db = AsyncMock()
         db.refresh = AsyncMock()
 
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             action = await request_action(
                 db,
                 action_type="isolate_endpoint",
@@ -424,7 +424,7 @@ class TestRequestAction:
         db.refresh = AsyncMock()
         before = _now()
 
-        with patch("app.services.approval.log_security_action"):
+        with patch("asc_api.services.approval.log_security_action"):
             action = await request_action(
                 db,
                 action_type="kill_process",
@@ -442,7 +442,7 @@ class TestRequestAction:
         assert abs(delta - expected_timeout) < 1
 
 
-# ── 8. RBAC and security invariants ──────────────────────────────────────────
+# â”€â”€ 8. RBAC and security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityInvariants:
     @pytest.mark.asyncio
@@ -459,8 +459,8 @@ class TestSecurityInvariants:
         mock_result = MagicMock(success=True, message="ok", details={})
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="jane@premos.com")
 
@@ -498,17 +498,17 @@ class TestSecurityInvariants:
         db = _db(action)
         logged_calls = []
 
-        with patch("app.services.approval.log_security_action", side_effect=lambda *a, **kw: logged_calls.append(kw)):
+        with patch("asc_api.services.approval.log_security_action", side_effect=lambda *a, **kw: logged_calls.append(kw)):
             await reject_action(
                 db, action_id=action.id,
                 rejected_by="ciso@premos.com",
-                reason="Accion no autorizada por política",
+                reason="Accion no autorizada por polÃ­tica",
             )
 
         assert any("reject" in c.get("detail", "") or "reject" in str(c) for c in logged_calls) or len(logged_calls) > 0
 
 
-# ── 9. NeutralizationAction model fields ─────────────────────────────────────
+# â”€â”€ 9. NeutralizationAction model fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestModelFields:
     def test_model_has_hitl_fields(self):
@@ -540,7 +540,7 @@ class TestModelFields:
         assert not missing, f"Missing PANL columns: {missing}"
 
 
-# ── 10. PANL Multi-signature approval ─────────────────────────────────────────
+# â”€â”€ 10. PANL Multi-signature approval â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMultiSignatureApproval:
     """PANL dual-analyst approval for CRITICAL actions (required_approvals=2)."""
@@ -551,8 +551,8 @@ class TestMultiSignatureApproval:
         db = _db(action)
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="bob@premos.com")
 
@@ -567,9 +567,9 @@ class TestMultiSignatureApproval:
         mock_result = MagicMock(success=True, message="ok", details={})
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="carol@premos.com")
 
@@ -592,9 +592,9 @@ class TestMultiSignatureApproval:
         mock_result = MagicMock(success=True, message="ok", details={})
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="bob@premos.com")
 
@@ -606,8 +606,8 @@ class TestMultiSignatureApproval:
         db = _db(action)
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="firstsigner@premos.com")
 

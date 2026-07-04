@@ -1,5 +1,5 @@
-"""
-P59 — SSO Bridge: Supabase JWT → ASC JWT Exchange — Test Suite
+﻿"""
+P59 â€” SSO Bridge: Supabase JWT â†’ ASC JWT Exchange â€” Test Suite
 ==============================================================
 
 Tests: 55+ in 8 classes covering JWT validation, auto-provisioning,
@@ -45,7 +45,7 @@ _TEST_UID = str(uuid.uuid4())
 _TEST_EMAIL = "sso_user@premoscorp.com"
 
 
-# ── JWT factory ───────────────────────────────────────────────────────────────
+# â”€â”€ JWT factory â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_supabase_token(
     sub: str = _TEST_UID,
@@ -71,8 +71,8 @@ def _make_supabase_token(
 def _make_db(user=None, tenant=None, supabase_user=None, email_user=None):
     """
     DB mock for SSO endpoint.
-    Call 1: supabase_uid lookup → supabase_user
-    Call 2: email lookup → email_user
+    Call 1: supabase_uid lookup â†’ supabase_user
+    Call 2: email lookup â†’ email_user
     add: records created objects; commit/refresh are no-ops.
     """
     db = AsyncMock()
@@ -114,7 +114,7 @@ def _db_override(user=None, tenant=None, supabase_user=None, email_user=None):
     return _override, db
 
 
-# ── 1. JWT Validation (unit) ──────────────────────────────────────────────────
+# â”€â”€ 1. JWT Validation (unit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _TEST_SUPABASE_URL = "https://kqxwtayzqujlddviskwl.supabase.co"
 
@@ -127,12 +127,12 @@ def _hs256_cfg(mock_cfg, secret=_TEST_SECRET, audience="authenticated"):
 
 
 class TestSupabaseJWTValidation:
-    """Unit tests for _validate_supabase_token() — covers HS256 and RS256 paths."""
+    """Unit tests for _validate_supabase_token() â€” covers HS256 and RS256 paths."""
 
     def test_valid_hs256_token_returns_payload(self):
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
             payload = _validate_supabase_token(token)
         assert payload["sub"] == _TEST_UID
@@ -142,7 +142,7 @@ class TestSupabaseJWTValidation:
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(exp_offset=-1)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
@@ -153,7 +153,7 @@ class TestSupabaseJWTValidation:
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(secret="correct-secret-that-is-long-enough-xxxxx")
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg, secret="wrong-secret-that-is-also-long-enough-xxxxx")
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
@@ -163,7 +163,7 @@ class TestSupabaseJWTValidation:
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="service_role")
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
@@ -171,11 +171,11 @@ class TestSupabaseJWTValidation:
         assert "audience" in str(exc.value.detail).lower()
 
     def test_missing_supabase_url_raises_503(self):
-        """SUPABASE_URL absent → 503 regardless of algorithm."""
+        """SUPABASE_URL absent â†’ 503 regardless of algorithm."""
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_URL = ""
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
@@ -185,11 +185,11 @@ class TestSupabaseJWTValidation:
         assert "not_configured" in str(exc.value.detail)
 
     def test_missing_hs256_secret_raises_503(self):
-        """SUPABASE_URL present but SUPABASE_JWT_SECRET absent on HS256 token → 503."""
+        """SUPABASE_URL present but SUPABASE_JWT_SECRET absent on HS256 token â†’ 503."""
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token()
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
@@ -202,7 +202,7 @@ class TestSupabaseJWTValidation:
         from fastapi import HTTPException
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token() + "tamper"
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
             with pytest.raises(HTTPException) as exc:
                 _validate_supabase_token(token)
@@ -213,7 +213,7 @@ class TestSupabaseJWTValidation:
         uid = str(uuid.uuid4())
         email = "test@example.com"
         token = _make_supabase_token(sub=uid, email=email)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg)
             payload = _validate_supabase_token(token)
         assert payload["sub"] == uid
@@ -222,13 +222,13 @@ class TestSupabaseJWTValidation:
     def test_custom_audience_accepted(self):
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
         token = _make_supabase_token(audience="my_audience")
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             _hs256_cfg(mock_cfg, audience="my_audience")
             payload = _validate_supabase_token(token)
         assert payload["sub"] == _TEST_UID
 
     def test_rs256_token_uses_jwks_not_secret(self):
-        """RS256 token (new Supabase JWT Signing Keys) verified via JWKS — secret unused."""
+        """RS256 token (new Supabase JWT Signing Keys) verified via JWKS â€” secret unused."""
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.backends import default_backend
         from asc_api.api.v1.endpoints.auth_sso import _validate_supabase_token
@@ -254,8 +254,8 @@ class TestSupabaseJWTValidation:
             captured_url.append(url)
             return mock_jwk_client
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
-             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_capture_jwks_client):
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("asc_api.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_capture_jwks_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""   # force JWKS path, not direct PEM
@@ -266,10 +266,10 @@ class TestSupabaseJWTValidation:
         assert result["sub"] == _TEST_UID
         assert result["email"] == _TEST_EMAIL
         mock_jwk_client.get_signing_key_from_jwt.assert_called_once()
-        # Verify correct OIDC discovery path — NOT the broken /auth/v1/jwks endpoint
+        # Verify correct OIDC discovery path â€” NOT the broken /auth/v1/jwks endpoint
         assert len(captured_url) == 1
         assert captured_url[0].endswith("/auth/v1/.well-known/jwks.json"), (
-            f"Wrong JWKS URL: {captured_url[0]!r} — must use /.well-known/jwks.json"
+            f"Wrong JWKS URL: {captured_url[0]!r} â€” must use /.well-known/jwks.json"
         )
 
     def test_jwks_url_uses_well_known_path(self):
@@ -297,8 +297,8 @@ class TestSupabaseJWTValidation:
             captured.append(url)
             return mock_jwk_client
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
-             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_spy):
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("asc_api.api.v1.endpoints.auth_sso.PyJWKClient", side_effect=_spy):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""
@@ -313,7 +313,7 @@ class TestSupabaseJWTValidation:
         )
 
 
-# ── 2. User provisioning (unit) ───────────────────────────────────────────────
+# â”€â”€ 2. User provisioning (unit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAutoProvisioning:
     """Unit tests for _find_or_create_user()."""
@@ -348,7 +348,7 @@ class TestAutoProvisioning:
         from asc_api.models.tenant import Tenant
 
         db = _make_db(supabase_user=None, email_user=None)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
             user, provisioned = await _find_or_create_user(
                 _TEST_UID, _TEST_EMAIL, db
@@ -361,7 +361,7 @@ class TestAutoProvisioning:
     async def test_new_user_gets_analyst_role(self):
         from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         db = _make_db(supabase_user=None, email_user=None)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
             user, _ = await _find_or_create_user(_TEST_UID, _TEST_EMAIL, db)
         assert user.role == "analyst"
@@ -370,7 +370,7 @@ class TestAutoProvisioning:
     async def test_new_user_email_verified_true(self):
         from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         db = _make_db(supabase_user=None, email_user=None)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
             user, _ = await _find_or_create_user(_TEST_UID, _TEST_EMAIL, db)
         assert user.email_verified is True
@@ -380,23 +380,23 @@ class TestAutoProvisioning:
         from asc_api.api.v1.endpoints.auth_sso import _find_or_create_user
         uid = str(uuid.uuid4())
         db = _make_db(supabase_user=None, email_user=None)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SSO_DEFAULT_PLAN = "free"
             user, _ = await _find_or_create_user(uid, _TEST_EMAIL, db)
         assert user.supabase_uid == uid
 
 
-# ── 3. POST /auth/supabase-sso endpoint ──────────────────────────────────────
+# â”€â”€ 3. POST /auth/supabase-sso endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSSOEndpoint:
 
     @pytest.mark.anyio
     async def test_sso_not_configured_returns_503(self):
-        """SUPABASE_URL absent → 503 (endpoint disabled)."""
+        """SUPABASE_URL absent â†’ 503 (endpoint disabled)."""
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_URL = ""
             mock_cfg.SUPABASE_JWT_SECRET = ""
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
@@ -410,7 +410,7 @@ class TestSSOEndpoint:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token(exp_offset=-60)
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -423,7 +423,7 @@ class TestSSOEndpoint:
     async def test_invalid_token_returns_401(self):
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -445,7 +445,7 @@ class TestSSOEndpoint:
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -470,7 +470,7 @@ class TestSSOEndpoint:
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -498,7 +498,7 @@ class TestSSOEndpoint:
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -523,7 +523,7 @@ class TestSSOEndpoint:
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
             mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -550,7 +550,7 @@ class TestSSOEndpoint:
         app.dependency_overrides[get_db] = override
         token = _make_supabase_token()
 
-        with patch("app.api.v1.endpoints.auth_sso._find_or_create_user",
+        with patch("asc_api.api.v1.endpoints.auth_sso._find_or_create_user",
                    new_callable=AsyncMock) as mock_foc:
             user_mock = MagicMock()
             user_mock.id = str(uuid.uuid4())
@@ -560,9 +560,9 @@ class TestSSOEndpoint:
             user_mock.is_active = True
             mock_foc.return_value = (user_mock, True)
 
-            with patch("app.api.v1.endpoints.auth_sso._validate_supabase_token",
+            with patch("asc_api.api.v1.endpoints.auth_sso._validate_supabase_token",
                        return_value={"sub": _TEST_UID, "email": _TEST_EMAIL}), \
-                 patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg:
+                 patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg:
                 mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
                 mock_cfg.SUPABASE_JWT_AUDIENCE = "authenticated"
                 mock_cfg.SSO_DEFAULT_PLAN = "free"
@@ -576,7 +576,7 @@ class TestSSOEndpoint:
             assert r.json().get("provisioned") is True
 
 
-# ── 4. Security invariants ────────────────────────────────────────────────────
+# â”€â”€ 4. Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityInvariants:
 
@@ -614,15 +614,15 @@ class TestSecurityInvariants:
         padded = base64.urlsafe_b64encode(header).rstrip(b"=").decode()
         tampered = padded + "." + parts[1] + "." + parts[2]
 
-        # Mock JWKS to return a real RSA public key — signature won't match
+        # Mock JWKS to return a real RSA public key â€” signature won't match
         wrong_key = rsa.generate_private_key(65537, 2048, default_backend()).public_key()
         mock_signing_key = MagicMock()
         mock_signing_key.key = wrong_key
         mock_jwk_client = MagicMock()
         mock_jwk_client.get_signing_key_from_jwt.return_value = mock_signing_key
 
-        with patch("app.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
-             patch("app.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
+        with patch("asc_api.api.v1.endpoints.auth_sso._settings") as mock_cfg, \
+             patch("asc_api.api.v1.endpoints.auth_sso.PyJWKClient", return_value=mock_jwk_client):
             mock_cfg.SUPABASE_URL = _TEST_SUPABASE_URL
             mock_cfg.SUPABASE_JWT_SECRET = _TEST_SECRET
             mock_cfg.SUPABASE_JWT_PUBLIC_KEY = ""   # force JWKS path
@@ -638,7 +638,7 @@ class TestSecurityInvariants:
         assert hasattr(User, "supabase_uid")
 
     def test_sso_endpoint_has_no_auth_dependency(self):
-        """SSO endpoint must NOT require an existing ASC token — it IS the login."""
+        """SSO endpoint must NOT require an existing ASC token â€” it IS the login."""
         import inspect
         from asc_api.api.v1.endpoints.auth_sso import supabase_sso
         sig = str(inspect.signature(supabase_sso).parameters)
@@ -667,7 +667,7 @@ class TestSecurityInvariants:
         assert s.SSO_DEFAULT_PLAN in ("free", "pro")
 
 
-# ── 5. Config completeness ────────────────────────────────────────────────────
+# â”€â”€ 5. Config completeness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestConfigCompleteness:
 
@@ -704,7 +704,7 @@ class TestConfigCompleteness:
         assert "auth_sso.router" in router_src
 
 
-# ── 6. Migration artifact ─────────────────────────────────────────────────────
+# â”€â”€ 6. Migration artifact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMigrationArtifact:
 
@@ -741,7 +741,7 @@ class TestMigrationArtifact:
         )
 
 
-# ── 7. Module structure ────────────────────────────────────────────────────────
+# â”€â”€ 7. Module structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestModuleStructure:
 
@@ -766,12 +766,12 @@ class TestModuleStructure:
             assert field in SSOResponse.model_fields, f"Missing field: {field}"
 
 
-# ── 8. Regression gates ───────────────────────────────────────────────────────
+# â”€â”€ 8. Regression gates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRegressionGates:
 
     def test_p58_test_migration_count_updated(self):
-        """test_p58 must know about migration count ≥16."""
+        """test_p58 must know about migration count â‰¥16."""
         p58_src = (Path(__file__).parent / "test_p58_adapter_registry.py").read_text(
             encoding="utf-8"
         )

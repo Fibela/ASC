@@ -1,17 +1,17 @@
-"""
-Deudas Técnicas P16 — Test Suite
+﻿"""
+Deudas TÃ©cnicas P16 â€" Test Suite
 
 Coverage
 --------
-TestTimingAttackMitigation   (5 tests)  — dummy bcrypt call present, same code-path
-TestJWTBlacklistRaceCondition(5 tests)  — IntegrityError swallowed, L1 stays correct
-TestCeleryEscalation         (6 tests)  — _run() escalates expired, publishes, returns count
-TestHybridNotificationBus    (9 tests)  — local mode, redis mode, fallback, disconnect
-TestAnalystKeypairGeneration (5 tests)  — generate, encrypt, decrypt, round-trip
-TestApprovalSigning          (8 tests)  — sign_approval, verify_approval, canonical msg
-TestKeyRotationEndpoint      (4 tests)  — rotate keys, not found, old sigs survive
-TestSignatureVerificationEndpoint (5 tests) — all_valid, partial_unsigned, invalid, not_found
-TestApprovalWithSigning      (4 tests)  — approve_action adds signature to log entry
+TestTimingAttackMitigation   (5 tests)  â€" dummy bcrypt call present, same code-path
+TestJWTBlacklistRaceCondition(5 tests)  â€" IntegrityError swallowed, L1 stays correct
+TestCeleryEscalation         (6 tests)  â€" _run() escalates expired, publishes, returns count
+TestHybridNotificationBus    (9 tests)  â€" local mode, redis mode, fallback, disconnect
+TestAnalystKeypairGeneration (5 tests)  â€" generate, encrypt, decrypt, round-trip
+TestApprovalSigning          (8 tests)  â€" sign_approval, verify_approval, canonical msg
+TestKeyRotationEndpoint      (4 tests)  â€" rotate keys, not found, old sigs survive
+TestSignatureVerificationEndpoint (5 tests) â€" all_valid, partial_unsigned, invalid, not_found
+TestApprovalWithSigning      (4 tests)  â€" approve_action adds signature to log entry
 
 Total: 51 tests
 """
@@ -37,7 +37,7 @@ from asc_api.core.jwt_blacklist import JWTBlacklist
 from asc_api.core.notifications import HybridNotificationBus, Notification, NOTIFICATION_CHANNEL
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â"€â"€ Helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 def _mock_db() -> AsyncMock:
     db = AsyncMock()
@@ -51,7 +51,7 @@ def _future(minutes: int = 60) -> datetime:
     return datetime.now(timezone.utc) + timedelta(minutes=minutes)
 
 
-# ── TestTimingAttackMitigation ────────────────────────────────────────────────
+# â"€â"€ TestTimingAttackMitigation â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestTimingAttackMitigation:
     """
@@ -73,7 +73,7 @@ class TestTimingAttackMitigation:
     def test_sentinel_does_not_verify_real_passwords(self):
         from asc_api.core.security import verify_password
         from asc_api.api.v1.endpoints.auth import _TIMING_SENTINEL_HASH
-        # The sentinel hash is for a fixed internal string — real passwords won't match
+        # The sentinel hash is for a fixed internal string â€" real passwords won't match
         assert not verify_password("any-user-password", _TIMING_SENTINEL_HASH)
         assert not verify_password("", _TIMING_SENTINEL_HASH)
 
@@ -81,7 +81,7 @@ class TestTimingAttackMitigation:
         """Two imports of the same module return the same sentinel — no recompute."""
         from asc_api.api.v1.endpoints import auth as auth1
         import importlib
-        auth2 = importlib.import_module("app.api.v1.endpoints.auth")
+        auth2 = importlib.import_module("asc_api.api.v1.endpoints.auth")
         assert auth1._TIMING_SENTINEL_HASH is auth2._TIMING_SENTINEL_HASH
 
     def test_sentinel_hash_verifies_correct_internal_string(self):
@@ -91,7 +91,7 @@ class TestTimingAttackMitigation:
         assert verify_password("asc-timing-mitigation-sentinel-v1", _TIMING_SENTINEL_HASH)
 
 
-# ── TestJWTBlacklistRaceCondition ─────────────────────────────────────────────
+# â"€â"€ TestJWTBlacklistRaceCondition â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestJWTBlacklistRaceCondition:
     def setup_method(self):
@@ -111,7 +111,7 @@ class TestJWTBlacklistRaceCondition:
 
     @pytest.mark.asyncio
     async def test_l1_set_before_db_attempt(self):
-        """L1 is updated BEFORE the DB call — so even if DB raises, L1 is correct."""
+        """L1 is updated BEFORE the DB call â€" so even if DB raises, L1 is correct."""
         from sqlalchemy.exc import IntegrityError
         jti = str(uuid.uuid4())
         exp = _future()
@@ -130,11 +130,11 @@ class TestJWTBlacklistRaceCondition:
         mr.scalar_one_or_none.return_value = None
         db.execute = AsyncMock(return_value=mr)
 
-        # First revoke — succeeds
+        # First revoke â€" succeeds
         await self.bl.revoke(jti, exp, db)
         assert jti in self.bl._local
 
-        # Second revoke — should not crash even if DB raises IntegrityError
+        # Second revoke â€" should not crash even if DB raises IntegrityError
         from sqlalchemy.exc import IntegrityError
         db2 = _mock_db()
         db2.commit = AsyncMock(side_effect=IntegrityError("dup", {}, None))
@@ -155,12 +155,12 @@ class TestJWTBlacklistRaceCondition:
     async def test_successful_revoke_does_not_call_rollback(self):
         jti = str(uuid.uuid4())
         db = _mock_db()
-        # Normal commit — no error
+        # Normal commit â€" no error
         await self.bl.revoke(jti, _future(), db)
         db.rollback.assert_not_called()
 
 
-# ── TestCeleryEscalation ──────────────────────────────────────────────────────
+# â"€â"€ TestCeleryEscalation â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 _celery_available = importlib.util.find_spec("celery") is not None
 
@@ -170,9 +170,9 @@ class TestCeleryEscalation:
     @pytest.mark.asyncio
     async def test_run_calls_escalate_expired(self):
         from asc_api.tasks.escalation import _run
-        with patch("app.tasks.escalation.AsyncSessionLocal") as mock_session_cls, \
-             patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
-             patch("app.tasks.escalation.get_settings") as mock_settings:
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal") as mock_session_cls, \
+             patch("asc_api.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
+             patch("asc_api.tasks.escalation.get_settings") as mock_settings:
             mock_settings.return_value.REDIS_URL = ""
             mock_esc.return_value = []
             mock_db = AsyncMock()
@@ -187,9 +187,9 @@ class TestCeleryEscalation:
     @pytest.mark.asyncio
     async def test_run_returns_escalated_count(self):
         from asc_api.tasks.escalation import _run
-        with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
-             patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
-             patch("app.tasks.escalation.get_settings") as mock_settings:
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal") as msc, \
+             patch("asc_api.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
+             patch("asc_api.tasks.escalation.get_settings") as mock_settings:
             mock_settings.return_value.REDIS_URL = ""
             mock_esc.return_value = ["id-1", "id-2", "id-3"]
             mock_db = AsyncMock()
@@ -203,9 +203,9 @@ class TestCeleryEscalation:
     @pytest.mark.asyncio
     async def test_run_no_redis_skips_publish(self):
         from asc_api.tasks.escalation import _run
-        with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
-             patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
-             patch("app.tasks.escalation.get_settings") as mock_settings:
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal") as msc, \
+             patch("asc_api.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
+             patch("asc_api.tasks.escalation.get_settings") as mock_settings:
             mock_settings.return_value.REDIS_URL = ""
             mock_esc.return_value = ["id-1"]
             mock_db = AsyncMock()
@@ -221,9 +221,9 @@ class TestCeleryEscalation:
     async def test_run_returns_action_ids(self):
         from asc_api.tasks.escalation import _run
         ids = ["abc", "def"]
-        with patch("app.tasks.escalation.AsyncSessionLocal") as msc, \
-             patch("app.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
-             patch("app.tasks.escalation.get_settings") as mock_settings:
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal") as msc, \
+             patch("asc_api.tasks.escalation.escalate_expired", new_callable=AsyncMock) as mock_esc, \
+             patch("asc_api.tasks.escalation.get_settings") as mock_settings:
             mock_settings.return_value.REDIS_URL = ""
             mock_esc.return_value = ids
             mock_db = AsyncMock()
@@ -245,7 +245,7 @@ class TestCeleryEscalation:
         assert schedule["proactive-escalation"]["task"] == "asc.escalation.check_expired_actions"
 
 
-# ── TestHybridNotificationBus ─────────────────────────────────────────────────
+# â"€â"€ TestHybridNotificationBus â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestHybridNotificationBus:
     def setup_method(self):
@@ -292,7 +292,7 @@ class TestHybridNotificationBus:
 
     @pytest.mark.asyncio
     async def test_redis_unavailable_falls_back_to_local(self):
-        # Simulate Redis reachable but ping fails — bus falls back to local mode.
+        # Simulate Redis reachable but ping fails â€" bus falls back to local mode.
         # Inject a fake 'redis.asyncio' into sys.modules so the import inside
         # connect() succeeds, but the ping() call raises ConnectionError.
         mock_aioredis = MagicMock()
@@ -332,7 +332,7 @@ class TestHybridNotificationBus:
         assert sse.endswith("\n\n")
 
 
-# ── TestAnalystKeypairGeneration ──────────────────────────────────────────────
+# â"€â"€ TestAnalystKeypairGeneration â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestAnalystKeypairGeneration:
     def test_generate_returns_two_b64_strings(self):
@@ -363,7 +363,7 @@ class TestAnalystKeypairGeneration:
             decrypt_analyst_private_key(encrypted, "wrong-secret")
 
 
-# ── TestApprovalSigning ───────────────────────────────────────────────────────
+# â"€â"€ TestApprovalSigning â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestApprovalSigning:
     def setup_method(self):
@@ -406,7 +406,7 @@ class TestApprovalSigning:
         assert not verify_approval_signature(self.pub, self.action_id, self.approved_by, self.approved_at, "not-a-sig")
 
 
-# ── TestKeyRotationEndpoint ───────────────────────────────────────────────────
+# â"€â"€ TestKeyRotationEndpoint â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestKeyRotationEndpoint:
     @pytest.mark.asyncio
@@ -431,7 +431,7 @@ class TestKeyRotationEndpoint:
         assert user.signing_private_key_enc != "old_enc"
 
     def test_old_signatures_still_verify_after_rotation(self):
-        """Approvals_log entries embed public_key — they remain verifiable after rotation."""
+        """Approvals_log entries embed public_key â€" they remain verifiable after rotation."""
         priv1, pub1 = generate_analyst_keypair()
         priv2, pub2 = generate_analyst_keypair()
 
@@ -459,7 +459,7 @@ class TestKeyRotationEndpoint:
         assert not verify_approval_signature(pub1, action_id, approved_by, approved_at, sig2)
 
     def test_rotate_requires_admin_guard(self):
-        """Rotation endpoint uses get_current_admin dependency — verified by import check."""
+        """Rotation endpoint uses get_current_admin dependency â€" verified by import check."""
         from asc_api.api.v1.endpoints.iam import rotate_analyst_keys
         import inspect
         sig = inspect.signature(rotate_analyst_keys)
@@ -467,7 +467,7 @@ class TestKeyRotationEndpoint:
         assert "admin" in sig.parameters
 
 
-# ── TestSignatureVerificationEndpoint ────────────────────────────────────────
+# â"€â"€ TestSignatureVerificationEndpoint â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestSignatureVerificationEndpoint:
     def test_all_valid_verdict(self):
@@ -515,7 +515,7 @@ class TestSignatureVerificationEndpoint:
         assert signed_count == 1  # Would yield "partial_unsigned"
 
 
-# ── TestApprovalWithSigning ───────────────────────────────────────────────────
+# â"€â"€ TestApprovalWithSigning â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 class TestApprovalWithSigning:
     """Verify that approve_action() includes signature in log entry when keys exist."""
@@ -542,12 +542,12 @@ class TestApprovalWithSigning:
         assert verify_approval_signature(pub, action_id, approved_by, approved_at, sig)
 
     def test_log_entry_without_keys_is_still_valid(self):
-        """Approval without signing keys degrades gracefully — no signature field."""
+        """Approval without signing keys degrades gracefully â€" no signature field."""
         log_entry = {
             "approved_by": "analyst@premoscorp.com",
             "approved_at": datetime.now(timezone.utc).isoformat(),
         }
-        # No signature — this is acceptable for pre-P16.3 accounts or signing failures
+        # No signature â€" this is acceptable for pre-P16.3 accounts or signing failures
         assert "signature" not in log_entry
 
     def test_signature_binds_action_id(self):

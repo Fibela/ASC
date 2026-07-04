@@ -1,4 +1,4 @@
-"""
+﻿"""
 P16.2 SPECTER Bridge Tests
 ===========================
 Tests: command mapping, agent resolution, targeted dispatch, broadcast dispatch,
@@ -28,7 +28,7 @@ from asc_api.core.specter_security import COMMAND_PARAM_SCHEMAS, validate_comman
 from asc_api.models.agent import Agent, AgentCommand
 
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _agent(hostname: str = "ws-001", ip: str = "10.0.0.1", status: str = "active") -> Agent:
     a = MagicMock(spec=Agent)
@@ -64,7 +64,7 @@ def _db_with_agents(agents: list[Agent]) -> AsyncMock:
     return db
 
 
-# ── 1. COMMAND_PARAM_SCHEMAS extensions ───────────────────────────────────────
+# â”€â”€ 1. COMMAND_PARAM_SCHEMAS extensions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSchemaExtensions:
     def test_block_domain_schema_exists(self):
@@ -108,7 +108,7 @@ class TestSchemaExtensions:
         assert any("Unexpected" in e for e in errors)
 
 
-# ── 2. map_specter_command ────────────────────────────────────────────────────
+# â”€â”€ 2. map_specter_command â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMapSprecterCommand:
     def test_isolate_endpoint(self):
@@ -182,7 +182,7 @@ class TestMapSprecterCommand:
         assert result is None
 
 
-# ── 3. Routing tables ─────────────────────────────────────────────────────────
+# â”€â”€ 3. Routing tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRoutingTables:
     def test_agent_targeted_set(self):
@@ -205,7 +205,7 @@ class TestRoutingTables:
         assert not overlap2
 
 
-# ── 4. resolve_agent ─────────────────────────────────────────────────────────
+# â”€â”€ 4. resolve_agent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestResolveAgent:
     @pytest.mark.asyncio
@@ -219,7 +219,7 @@ class TestResolveAgent:
     async def test_resolve_by_ip_when_hostname_fails(self):
         agent = _agent(ip="192.168.1.50")
         db = AsyncMock()
-        # First call (hostname) → None; second call (ip) → agent
+        # First call (hostname) â†’ None; second call (ip) â†’ agent
         no_result = MagicMock()
         no_result.scalar_one_or_none.return_value = None
         found_result = MagicMock()
@@ -242,7 +242,7 @@ class TestResolveAgent:
         db.execute.assert_not_called()
 
 
-# ── 5. Targeted dispatch ──────────────────────────────────────────────────────
+# â”€â”€ 5. Targeted dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTargetedDispatch:
     @pytest.mark.asyncio
@@ -255,9 +255,9 @@ class TestTargetedDispatch:
         db.execute.return_value = scalar
 
         with (
-            patch("app.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
-            patch("app.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
+            patch("asc_api.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 db,
@@ -279,9 +279,9 @@ class TestTargetedDispatch:
         mock_sim = MagicMock(success=True, message="isolated", details={})
 
         with (
-            patch("app.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=None)),
-            patch("app.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=None)),
+            patch("asc_api.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 db,
@@ -301,9 +301,9 @@ class TestTargetedDispatch:
         cmd = _cmd("quarantine_file")
 
         with (
-            patch("app.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
-            patch("app.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
+            patch("asc_api.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -318,7 +318,7 @@ class TestTargetedDispatch:
         assert result.details["command_type"] == "quarantine_file"
 
 
-# ── 6. Broadcast dispatch ─────────────────────────────────────────────────────
+# â”€â”€ 6. Broadcast dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBroadcastDispatch:
     @pytest.mark.asyncio
@@ -327,9 +327,9 @@ class TestBroadcastDispatch:
         cmds = [_cmd("block_ip"), _cmd("block_ip")]
 
         with (
-            patch("app.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
-            patch("app.services.specter_bridge.issue_command", new=AsyncMock(side_effect=cmds)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
+            patch("asc_api.services.specter_bridge.issue_command", new=AsyncMock(side_effect=cmds)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -352,9 +352,9 @@ class TestBroadcastDispatch:
         cmd = _cmd("block_domain")
 
         with (
-            patch("app.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
-            patch("app.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
+            patch("asc_api.services.specter_bridge.issue_command", new=AsyncMock(return_value=cmd)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -373,9 +373,9 @@ class TestBroadcastDispatch:
         mock_sim = MagicMock(success=True, message="blocked", details={})
 
         with (
-            patch("app.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=[])),
-            patch("app.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=[])),
+            patch("asc_api.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -400,9 +400,9 @@ class TestBroadcastDispatch:
             raise RuntimeError("agent unreachable")
 
         with (
-            patch("app.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
-            patch("app.services.specter_bridge.issue_command", new=AsyncMock(side_effect=_issue)),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
+            patch("asc_api.services.specter_bridge.issue_command", new=AsyncMock(side_effect=_issue)),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -417,7 +417,7 @@ class TestBroadcastDispatch:
         assert len(result.commands_issued) == 1
 
 
-# ── 7. Simulation-only (disable_account) ─────────────────────────────────────
+# â”€â”€ 7. Simulation-only (disable_account) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIAMActions:
     """disable_account routes through _execute_iam_action (DispatchMode.IAM) since F1."""
@@ -426,11 +426,11 @@ class TestIAMActions:
     async def test_disable_account_uses_iam_dispatch(self):
         with (
             patch(
-                "app.services.specter_bridge.iam_disable_account",
+                "asc_api.services.specter_bridge.iam_disable_account",
                 new=AsyncMock(return_value=(True, "account disabled in ASC")),
             ),
-            patch("app.services.specter_bridge._get_identity_adapter", return_value=None),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge._get_identity_adapter", return_value=None),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -448,11 +448,11 @@ class TestIAMActions:
     async def test_iam_result_has_no_agent_commands(self):
         with (
             patch(
-                "app.services.specter_bridge.iam_disable_account",
+                "asc_api.services.specter_bridge.iam_disable_account",
                 new=AsyncMock(return_value=(True, "ok")),
             ),
-            patch("app.services.specter_bridge._get_identity_adapter", return_value=None),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge._get_identity_adapter", return_value=None),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -467,12 +467,12 @@ class TestIAMActions:
         assert result.agents_targeted == []
 
 
-# ── 8. Kill process variants ──────────────────────────────────────────────────
+# â”€â”€ 8. Kill process variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestKillProcessVariants:
     @pytest.mark.asyncio
     async def test_kill_with_pid_uses_kill_process(self):
-        """kill_process WITH pid → targeted SPECTER kill_process command."""
+        """kill_process WITH pid â†’ targeted SPECTER kill_process command."""
         agent = _agent("ws-001")
         captured: list = []
 
@@ -481,9 +481,9 @@ class TestKillProcessVariants:
             return _cmd(ct)
 
         with (
-            patch("app.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
-            patch("app.services.specter_bridge.issue_command", new=_issue_cmd),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.resolve_agent", new=AsyncMock(return_value=agent)),
+            patch("asc_api.services.specter_bridge.issue_command", new=_issue_cmd),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -502,7 +502,7 @@ class TestKillProcessVariants:
 
     @pytest.mark.asyncio
     async def test_kill_by_name_only_broadcasts(self):
-        """kill_process without PID → broadcast to all agents (kill_process_name command)."""
+        """kill_process without PID â†’ broadcast to all agents (kill_process_name command)."""
         agents = [_agent("ws-001"), _agent("ws-002")]
         # side_effect as list: each call to issue_command returns the next cmd
         issued: list = []
@@ -513,9 +513,9 @@ class TestKillProcessVariants:
             return c
 
         with (
-            patch("app.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
-            patch("app.services.specter_bridge.issue_command", new=_issue_cmd),
-            patch("app.services.specter_bridge.log_security_action"),
+            patch("asc_api.services.specter_bridge.get_all_active_agents", new=AsyncMock(return_value=agents)),
+            patch("asc_api.services.specter_bridge.issue_command", new=_issue_cmd),
+            patch("asc_api.services.specter_bridge.log_security_action"),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -535,7 +535,7 @@ class TestKillProcessVariants:
         mock_sim = MagicMock(success=False, message="no target", details={})
 
         with (
-            patch("app.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
+            patch("asc_api.services.specter_bridge.execute_action", new=AsyncMock(return_value=mock_sim)),
         ):
             result = await dispatch(
                 AsyncMock(),
@@ -550,7 +550,7 @@ class TestKillProcessVariants:
         assert "incomplete params" in result.message
 
 
-# ── 9. SprecterBridgeResult structure ────────────────────────────────────────
+# â”€â”€ 9. SprecterBridgeResult structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSprecterBridgeResult:
     def test_details_always_includes_dispatch_mode(self):
@@ -571,7 +571,7 @@ class TestSprecterBridgeResult:
         assert r.agents_targeted == []
 
 
-# ── 10. Broadcast concurrency (P19.1) — asyncio.gather within batches ─────────
+# â”€â”€ 10. Broadcast concurrency (P19.1) â€” asyncio.gather within batches â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestBroadcastConcurrency:
     """
@@ -649,7 +649,7 @@ class TestBroadcastConcurrency:
             return cmd
 
         with patch(
-            "app.services.specter_bridge.issue_command",
+            "asc_api.services.specter_bridge.issue_command",
             side_effect=_fake_issue_with_error,
         ):
             cmd_ids, hostnames = await _broadcast_batched(

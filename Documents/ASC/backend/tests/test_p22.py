@@ -1,17 +1,17 @@
-"""
-P22 — Threat Hunting Test Suite
+﻿"""
+P22 â€” Threat Hunting Test Suite
 
 Coverage
 --------
-TestHuntService        (14 tests) — create, list, update status transitions, archive,
+TestHuntService        (14 tests) â€” create, list, update status transitions, archive,
                                     findings (add/list/verdict), queries (save/list/delete),
                                     stats
-TestHuntEndpoints      (12 tests) — auth enforcement (401/403), CRUD, status workflow,
+TestHuntEndpoints      (12 tests) â€” auth enforcement (401/403), CRUD, status workflow,
                                     add-finding, get-finding, verdict, list-queries, save-query
-TestHuntFindingFlow    (6 tests)  — finding verdicts (TP/FP), archived-hunt guard, missing hunt
-TestHuntQueryFlow      (5 tests)  — save/list/delete queries, invalid data_source
-TestHuntStats          (4 tests)  — stats structure, empty corpus, technique aggregation
-TestHuntValidation     (6 tests)  — invalid scope/priority/status transition/severity/type
+TestHuntFindingFlow    (6 tests)  â€” finding verdicts (TP/FP), archived-hunt guard, missing hunt
+TestHuntQueryFlow      (5 tests)  â€” save/list/delete queries, invalid data_source
+TestHuntStats          (4 tests)  â€” stats structure, empty corpus, technique aggregation
+TestHuntValidation     (6 tests)  â€” invalid scope/priority/status transition/severity/type
 
 Total: 47 tests
 """
@@ -32,7 +32,7 @@ from asc_api.models.hunt import Hunt, HuntFinding, HuntQuery
 from asc_api.services import hunt_service as svc
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _stub_user(role: str = "analyst") -> User:
     u = MagicMock(spec=User)
@@ -132,7 +132,7 @@ def _db_with(return_value=None) -> AsyncMock:
     return db
 
 
-# ── TestHuntService ───────────────────────────────────────────────────────────
+# â”€â”€ TestHuntService â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntService:
 
@@ -278,7 +278,7 @@ class TestHuntService:
         assert ok is False
 
 
-# ── TestHuntEndpoints ─────────────────────────────────────────────────────────
+# â”€â”€ TestHuntEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntEndpoints:
 
@@ -291,13 +291,13 @@ class TestHuntEndpoints:
     @pytest.mark.asyncio
     async def test_list_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/hunt/")
+            r = await c.get("/api/v1/hunt")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
     async def test_create_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/hunt/", json={"name": "Hunt"})
+            r = await c.post("/api/v1/hunt", json={"name": "Hunt"})
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -320,7 +320,7 @@ class TestHuntEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/hunt/")
+            r = await c.get("/api/v1/hunt")
 
         assert r.status_code == 200
         data = r.json()
@@ -345,7 +345,7 @@ class TestHuntEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/hunt/", json={"name": ""})
+            r = await c.post("/api/v1/hunt", json={"name": ""})
 
         assert r.status_code == 422
 
@@ -354,7 +354,7 @@ class TestHuntEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/hunt/", json={"name": "Hunt", "scope": "GALAXY"})
+            r = await c.post("/api/v1/hunt", json={"name": "Hunt", "scope": "GALAXY"})
 
         assert r.status_code == 422
 
@@ -418,7 +418,7 @@ class TestHuntEndpoints:
         app.dependency_overrides.clear()
 
 
-# ── TestHuntFindingFlow ───────────────────────────────────────────────────────
+# â”€â”€ TestHuntFindingFlow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntFindingFlow:
 
@@ -541,7 +541,7 @@ class TestHuntFindingFlow:
         app.dependency_overrides.clear()
 
 
-# ── TestHuntQueryFlow ─────────────────────────────────────────────────────────
+# â”€â”€ TestHuntQueryFlow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntQueryFlow:
 
@@ -628,7 +628,7 @@ class TestHuntQueryFlow:
         app.dependency_overrides.clear()
 
 
-# ── TestHuntStats ─────────────────────────────────────────────────────────────
+# â”€â”€ TestHuntStats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntStats:
 
@@ -712,7 +712,7 @@ async def _mock_stats_call(total_findings: int, confirmed: int) -> dict:
     return r.json()
 
 
-# ── TestHuntValidation ────────────────────────────────────────────────────────
+# â”€â”€ TestHuntValidation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntValidation:
 
@@ -730,7 +730,7 @@ class TestHuntValidation:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/hunt/", json={
+            r = await c.post("/api/v1/hunt", json={
                 "name": "APT Hunt Q2", "scope": "network", "priority": "high",
                 "mitre_technique": "T1071", "mitre_tactic": "command-and-control",
                 "tags": ["apt", "c2"],
@@ -743,7 +743,7 @@ class TestHuntValidation:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/hunt/", json={"name": "Hunt", "priority": "ULTRA"})
+            r = await c.post("/api/v1/hunt", json={"name": "Hunt", "priority": "ULTRA"})
 
         assert r.status_code == 422
 
@@ -760,7 +760,7 @@ class TestHuntValidation:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             r = await c.put(f"/api/v1/hunt/{hunt.id}", json={"status": "draft"})
 
-        # active → draft is forbidden
+        # active â†’ draft is forbidden
         assert r.status_code == 409
 
     @pytest.mark.asyncio

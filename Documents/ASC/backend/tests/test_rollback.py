@@ -1,7 +1,7 @@
-"""
+﻿"""
 PANL Dynamic Rollback Tests
 ============================
-Tests for create_rollback_action() — the forensic reversal system.
+Tests for create_rollback_action() â€” the forensic reversal system.
 
 Coverage:
   - Happy path for each reversible action type
@@ -31,7 +31,7 @@ from asc_api.services.approval import (
 from asc_api.models.neutralization import NeutralizationAction
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _completed_action(
     *,
@@ -73,7 +73,7 @@ def _db_with_action(action: MagicMock) -> AsyncMock:
     return db
 
 
-# ── 1. ROLLBACK_MAP integrity ─────────────────────────────────────────────────
+# â”€â”€ 1. ROLLBACK_MAP integrity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRollbackMap:
     def test_all_reversible_in_map(self):
@@ -101,7 +101,7 @@ class TestRollbackMap:
         assert "disable_account" not in ROLLBACK_MAP
 
 
-# ── 2. Guard conditions ───────────────────────────────────────────────────────
+# â”€â”€ 2. Guard conditions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRollbackGuards:
     @pytest.mark.asyncio
@@ -157,7 +157,7 @@ class TestRollbackGuards:
             await create_rollback_action(db, original_action_id="bad-id", initiated_by="bob@premos.com")
 
 
-# ── 3. Happy path per reversible type ────────────────────────────────────────
+# â”€â”€ 3. Happy path per reversible type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRollbackHappyPath:
     @pytest.mark.asyncio
@@ -201,10 +201,10 @@ class TestRollbackHappyPath:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             rollback = await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="bob@premos.com"
@@ -242,10 +242,10 @@ class TestRollbackHappyPath:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="charlie@premos.com"
@@ -278,10 +278,10 @@ class TestRollbackHappyPath:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="diana@premos.com"
@@ -315,20 +315,20 @@ class TestRollbackHappyPath:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             rollback = await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="eve@premos.com"
             )
 
-        # Rollback at critical severity → still needs 2 approvals
+        # Rollback at critical severity â†’ still needs 2 approvals
         assert "critical" in captured_severity
 
 
-# ── 4. Forensic audit trail ───────────────────────────────────────────────────
+# â”€â”€ 4. Forensic audit trail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRollbackForensicLog:
     @pytest.mark.asyncio
@@ -352,13 +352,13 @@ class TestRollbackForensicLog:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
             patch(
-                "app.services.approval.log_security_action",
+                "asc_api.services.approval.log_security_action",
                 side_effect=lambda *a, **kw: logged_events.append(kw),
             ),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="forensic@premos.com"
@@ -393,14 +393,14 @@ class TestRollbackForensicLog:
         mock_bus.publish = _mock_publish
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus", mock_bus),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus", mock_bus),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             await create_rollback_action(
                 db, original_action_id=original.id, initiated_by="soc@premos.com"
             )
 
-        # at least one log call happened — notification_bus.publish was called
+        # at least one log call happened â€” notification_bus.publish was called
         # (ensure_future wraps it, so we check log events instead)

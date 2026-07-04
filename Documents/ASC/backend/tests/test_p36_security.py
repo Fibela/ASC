@@ -1,17 +1,17 @@
-"""
-P36 — Security hardening & Command Center tests (FASE 3).
+﻿"""
+P36 â€” Security hardening & Command Center tests (FASE 3).
 
 Coverage areas:
   1. specter_security.py schema additions (isolate_endpoint, log_query, extra params)
   2. agents.py _VALID_COMMAND_TYPES sync + _cmd_out extended fields
   3. GET /agents/{id}/command-history endpoint (new P36 API)
-  4. FASE 3 Auth barriers — unauthenticated / wrong-role / expired token
+  4. FASE 3 Auth barriers â€” unauthenticated / wrong-role / expired token
   5. Shell injection detection (check_injection)
   6. Enrollment token logic (HMAC-SHA256, window tolerance)
   7. Command param validation edge cases (missing required, unexpected, type mismatch)
   8. Honeypot endpoint smoke tests
 
-Test count: ≥ 55 tests across 8 classes.
+Test count: â‰¥ 55 tests across 8 classes.
 """
 from __future__ import annotations
 
@@ -35,9 +35,9 @@ from asc_api.api.v1.endpoints.agents import _VALID_COMMAND_TYPES, _cmd_out
 from asc_api.models.agent import AgentCommand
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_cmd(
     command_type: str = "kill_process",
@@ -85,14 +85,14 @@ async def _make_agent_in_db(db) -> str:
     return agent.id
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. Schema additions — isolate_endpoint + log_query + extra params
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 1. Schema additions â€” isolate_endpoint + log_query + extra params
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSpecterSchemaP36:
     """validate_command_params for P35 command types added in P36."""
 
-    # ── isolate_endpoint ──────────────────────────────────────────────────────
+    # â”€â”€ isolate_endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def test_isolate_endpoint_in_schema(self):
         assert "isolate_endpoint" in COMMAND_PARAM_SCHEMAS
@@ -121,7 +121,7 @@ class TestSpecterSchemaP36:
         errs = validate_command_params("isolate_endpoint", {"asc_server_ip": 12345})
         assert any("asc_server_ip" in e for e in errs)
 
-    # ── log_query ─────────────────────────────────────────────────────────────
+    # â”€â”€ log_query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def test_log_query_in_schema(self):
         assert "log_query" in COMMAND_PARAM_SCHEMAS
@@ -162,7 +162,7 @@ class TestSpecterSchemaP36:
         errs = validate_command_params("log_query", {"pattern": "x", "read_only": True, "write_mode": True})
         assert any("Unexpected" in e for e in errs)
 
-    # ── other P35 optional extras ──────────────────────────────────────────────
+    # â”€â”€ other P35 optional extras â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def test_unisolate_dry_run_allowed(self):
         errs = validate_command_params("unisolate", {"dry_run": True})
@@ -183,9 +183,9 @@ class TestSpecterSchemaP36:
         assert "unblock_ip" in COMMAND_EXTRA_PARAMS
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 2. _VALID_COMMAND_TYPES sync + _cmd_out extended fields
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestValidCommandTypesP36:
     def test_isolate_endpoint_in_valid_types(self):
@@ -243,9 +243,9 @@ class TestCmdOutExtendedFields:
         assert out["delivered_at"] is None
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 3. GET /agents/{id}/command-history endpoint
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestCommandHistoryEndpoint:
@@ -307,20 +307,20 @@ class TestCommandHistoryEndpoint:
         assert r.json()["hostname"] == "test-host"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. FASE 3 — Auth barriers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 4. FASE 3 â€” Auth barriers
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestFase3AuthBarriers:
     """Verify authentication and role enforcement across key endpoints."""
 
     async def test_no_token_agents_list_returns_401(self, client):
-        r = await client.get("/api/v1/agents/")
+        r = await client.get("/api/v1/agents")
         assert r.status_code == 401
 
     async def test_no_token_alerts_returns_401(self, client):
-        r = await client.get("/api/v1/alerts/")
+        r = await client.get("/api/v1/alerts")
         assert r.status_code == 401
 
     async def test_no_token_neutralize_history_returns_401(self, client):
@@ -351,13 +351,13 @@ class TestFase3AuthBarriers:
 
     async def test_malformed_token_returns_401(self, client):
         r = await client.get(
-            "/api/v1/agents/",
+            "/api/v1/agents",
             headers={"Authorization": "Bearer not.a.valid.jwt"},
         )
         assert r.status_code == 401
 
     async def test_analyst_can_list_agents(self, client, analyst_headers):
-        r = await client.get("/api/v1/agents/", headers=analyst_headers)
+        r = await client.get("/api/v1/agents", headers=analyst_headers)
         assert r.status_code == 200
 
     async def test_analyst_can_read_command_history(self, client, db, analyst_headers):
@@ -366,9 +366,9 @@ class TestFase3AuthBarriers:
         assert r.status_code == 200
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 5. Shell injection detection
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFase3InjectionDetection:
     """check_injection must flag dangerous metacharacters in string param values."""
@@ -415,9 +415,9 @@ class TestFase3InjectionDetection:
         assert "clean" not in flagged
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 6. Enrollment token
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFase3EnrollmentToken:
 
@@ -457,9 +457,9 @@ class TestFase3EnrollmentToken:
         assert t1 == t2
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 7. Command param validation edge cases (FASE 3 input hardening)
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFase3ParamValidation:
 
@@ -498,9 +498,9 @@ class TestFase3ParamValidation:
         assert errs == []
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 8. Honeypot endpoint smoke tests
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.mark.asyncio
 class TestFase3HoneypotEndpoints:
@@ -530,5 +530,5 @@ class TestFase3HoneypotEndpoints:
 
     async def test_probe_no_auth_required(self, client):
         r = await client.get("/api/v1/agents/probe")
-        # Honeypot deliberately has no auth gate — it must be reachable
+        # Honeypot deliberately has no auth gate â€” it must be reachable
         assert r.status_code != 401

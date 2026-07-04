@@ -1,20 +1,20 @@
-"""
-P43 — Python SDK Test Suite
+﻿"""
+P43 â€” Python SDK Test Suite
 ============================
 Tests: exceptions, WebhookVerifier, AscClient init, resource methods (incidents,
        alerts, api_keys, webhooks, events), HTTP error mapping, security invariants,
        deployment artifacts, and regression against P40/P41/P42.
 
-All HTTP calls are intercepted via unittest.mock — zero real network traffic.
+All HTTP calls are intercepted via unittest.mock â€” zero real network traffic.
 The SDK is loaded from sdk/ without pip install by injecting the path at collection time.
 
 Security scan coverage:
-  • API key sent ONLY as X-API-Key header — not in query params, not in body
-  • WebhookVerifier uses hmac.compare_digest (constant-time) — no timing leak
-  • 429 surfaces Retry-After to callers — no silent swallow
-  • 401 raises AuthError — SDK caller cannot accidentally proceed after auth failure
-  • Raw key / webhook secret not captured in any exception response body
-  • InvalidSignatureError raised for tampered payloads — no partial trust
+  â€¢ API key sent ONLY as X-API-Key header â€” not in query params, not in body
+  â€¢ WebhookVerifier uses hmac.compare_digest (constant-time) â€” no timing leak
+  â€¢ 429 surfaces Retry-After to callers â€” no silent swallow
+  â€¢ 401 raises AuthError â€” SDK caller cannot accidentally proceed after auth failure
+  â€¢ Raw key / webhook secret not captured in any exception response body
+  â€¢ InvalidSignatureError raised for tampered payloads â€” no partial trust
 """
 
 import sys
@@ -29,7 +29,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-# ── SDK path injection ────────────────────────────────────────────────────────
+# â”€â”€ SDK path injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _REPO_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "sdk"))
 
@@ -56,7 +56,7 @@ _SDK_ROOT = _REPO_ROOT / "sdk"
 _API_KEY = "asc_test1234_" + "s" * 48  # fake key for tests
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _mock_resp(data, status: int = 200, headers: dict | None = None) -> MagicMock:
     resp = MagicMock(spec=httpx.Response)
@@ -127,7 +127,7 @@ def _webhook_data(**kw) -> dict:
     }
 
 
-# ── Class 1: Exception hierarchy ──────────────────────────────────────────────
+# â”€â”€ Class 1: Exception hierarchy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestExceptions:
 
@@ -166,7 +166,7 @@ class TestExceptions:
         assert err.response == {"detail": "bad"}
 
 
-# ── Class 2: HTTP status → exception mapping ──────────────────────────────────
+# â”€â”€ Class 2: HTTP status â†’ exception mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestExceptionMapping:
 
@@ -213,7 +213,7 @@ class TestExceptionMapping:
         _raise_for_status(resp)  # must not raise
 
 
-# ── Class 3: WebhookVerifier ──────────────────────────────────────────────────
+# â”€â”€ Class 3: WebhookVerifier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookVerifier:
 
@@ -267,7 +267,7 @@ class TestWebhookVerifier:
         assert sdk_verifier.verify(body, backend_sig) is True
 
 
-# ── Class 4: AscClient initialisation ────────────────────────────────────────
+# â”€â”€ Class 4: AscClient initialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAscClientInit:
 
@@ -298,7 +298,7 @@ class TestAscClientInit:
         await client.close()  # must not raise
 
 
-# ── Class 5: Incidents resource ───────────────────────────────────────────────
+# â”€â”€ Class 5: Incidents resource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIncidentsResource:
 
@@ -346,7 +346,7 @@ class TestIncidentsResource:
                     await client.incidents.get("unknown-id")
 
 
-# ── Class 6: Alerts resource ──────────────────────────────────────────────────
+# â”€â”€ Class 6: Alerts resource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAlertsResource:
 
@@ -382,7 +382,7 @@ class TestAlertsResource:
         assert captured["params"].get("status") == "open"
 
 
-# ── Class 7: API Keys resource ────────────────────────────────────────────────
+# â”€â”€ Class 7: API Keys resource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAPIKeysResource:
 
@@ -438,7 +438,7 @@ class TestAPIKeysResource:
         assert result.remaining_minute == 55
 
 
-# ── Class 8: Webhooks resource ────────────────────────────────────────────────
+# â”€â”€ Class 8: Webhooks resource â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhooksResource:
 
@@ -490,7 +490,7 @@ class TestWebhooksResource:
         assert result.latency_ms == 42.5
 
 
-# ── Class 9: Security invariants ──────────────────────────────────────────────
+# â”€â”€ Class 9: Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSDKSecurity:
 
@@ -505,7 +505,7 @@ class TestSDKSecurity:
         assert _API_KEY not in str(client._base_url)
 
     def test_webhook_verifier_is_constant_time(self):
-        """verify() must call hmac.compare_digest — not direct string equality."""
+        """verify() must call hmac.compare_digest â€” not direct string equality."""
         import inspect
         import asc_sdk.verifier as mod
         src = inspect.getsource(mod.WebhookVerifier.verify)
@@ -524,7 +524,7 @@ class TestSDKSecurity:
 
     @pytest.mark.asyncio
     async def test_auth_error_raised_immediately_on_401(self):
-        """SDK must raise AuthError — never silently continue on 401."""
+        """SDK must raise AuthError â€” never silently continue on 401."""
         async with AscClient(api_key=_API_KEY) as client:
             with patch.object(client._http, "request", new=AsyncMock(
                 return_value=_mock_resp({"detail": "Invalid API key"}, status=401)
@@ -540,7 +540,7 @@ class TestSDKSecurity:
         assert "asc-sdk-python" in agent
 
 
-# ── Class 10: Deployment artifacts ───────────────────────────────────────────
+# â”€â”€ Class 10: Deployment artifacts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSDKDeploymentArtifacts:
 
@@ -615,7 +615,7 @@ class TestSDKDeploymentArtifacts:
         ))
 
 
-# ── Class 11: Regression ──────────────────────────────────────────────────────
+# â”€â”€ Class 11: Regression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSDKRegression:
 
@@ -644,7 +644,7 @@ class TestSDKRegression:
         assert callable(get_user_from_api_key)
 
     def test_sdk_webhook_verifier_compatible_with_dispatcher(self):
-        """Full round-trip: dispatcher signs → SDK verifier verifies."""
+        """Full round-trip: dispatcher signs â†’ SDK verifier verifies."""
         from asc_api.core.webhook_dispatcher import sign_payload
         secret = "shared_secret_for_test_" + "x" * 40
         body = json.dumps({"event": "incident.created", "data": {"id": "test"}}).encode()
@@ -659,7 +659,7 @@ class TestSDKRegression:
         async with AsyncHTTPXClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as c:
-            r = await c.get("/api/v1/webhooks/")
+            r = await c.get("/api/v1/webhooks")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -669,5 +669,5 @@ class TestSDKRegression:
         async with AsyncHTTPXClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as c:
-            r = await c.get("/api/v1/api-keys/")
+            r = await c.get("/api/v1/api-keys")
         assert r.status_code == 401

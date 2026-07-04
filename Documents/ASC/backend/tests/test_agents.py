@@ -1,18 +1,18 @@
-"""
-P13 — SPECTER Agent API test suite.
+﻿"""
+P13 â€” SPECTER Agent API test suite.
 
 Covers:
-  TestRegisterAgent        — POST /agents/register (6 tests)
-  TestListAgents           — GET  /agents/         (5 tests)
-  TestGetAgent             — GET  /agents/{id}     (4 tests)
-  TestDeregisterAgent      — DELETE /agents/{id}   (4 tests)
-  TestIngestEvents         — POST /agents/{id}/events  (6 tests)
-  TestPollCommands         — GET  /agents/{id}/commands (5 tests)
-  TestReportResult         — POST /agents/{id}/results  (5 tests)
-  TestIssueCommand         — POST /agents/{id}/command  (6 tests)
-  TestSetThreatLevel       — PATCH /agents/{id}/threat  (5 tests)
-  TestTimeline             — GET  /agents/{id}/timeline (5 tests)
-  TestAgentCommander       — unit tests for service functions (9 tests)
+  TestRegisterAgent        â€” POST /agents/register (6 tests)
+  TestListAgents           â€” GET  /agents/         (5 tests)
+  TestGetAgent             â€” GET  /agents/{id}     (4 tests)
+  TestDeregisterAgent      â€” DELETE /agents/{id}   (4 tests)
+  TestIngestEvents         â€” POST /agents/{id}/events  (6 tests)
+  TestPollCommands         â€” GET  /agents/{id}/commands (5 tests)
+  TestReportResult         â€” POST /agents/{id}/results  (5 tests)
+  TestIssueCommand         â€” POST /agents/{id}/command  (6 tests)
+  TestSetThreatLevel       â€” PATCH /agents/{id}/threat  (5 tests)
+  TestTimeline             â€” GET  /agents/{id}/timeline (5 tests)
+  TestAgentCommander       â€” unit tests for service functions (9 tests)
 
 Total: 60 tests
 """
@@ -40,7 +40,7 @@ from asc_api.services.agent_commander import (
 )
 
 
-# ── Fixtures ───────────────────────────────────────────────────────────────────
+# â”€â”€ Fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 AGENT_PAYLOAD = {
     "hostname":        "specter-host-01",
@@ -76,9 +76,9 @@ async def agent_headers(agent: Agent) -> dict:
     return {"X-Specter-ID": agent.id}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestRegisterAgent
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestRegisterAgent:
     async def test_register_new_agent_returns_200(self, client):
@@ -105,7 +105,7 @@ class TestRegisterAgent:
         assert r1.json()["agent_id"] == r2.json()["agent_id"]
 
     async def test_register_no_auth_required(self, client):
-        # Registration must be open — no token
+        # Registration must be open â€” no token
         resp = await client.post("/api/v1/agents/register", json=AGENT_PAYLOAD)
         assert resp.status_code == 200
 
@@ -114,40 +114,40 @@ class TestRegisterAgent:
         assert resp.status_code == 422
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestListAgents
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestListAgents:
     async def test_list_requires_auth(self, client):
-        resp = await client.get("/api/v1/agents/")
+        resp = await client.get("/api/v1/agents")
         assert resp.status_code in (401, 403)
 
     async def test_list_returns_agents_key(self, client, analyst_headers):
-        resp = await client.get("/api/v1/agents/", headers=analyst_headers)
+        resp = await client.get("/api/v1/agents", headers=analyst_headers)
         assert resp.status_code == 200
         assert "agents" in resp.json()
         assert "total" in resp.json()
 
     async def test_list_includes_registered_agent(self, client, analyst_headers, agent):
-        resp = await client.get("/api/v1/agents/", headers=analyst_headers)
+        resp = await client.get("/api/v1/agents", headers=analyst_headers)
         ids = [a["id"] for a in resp.json()["agents"]]
         assert agent.id in ids
 
     async def test_viewer_cannot_list(self, client, viewer_headers):
-        resp = await client.get("/api/v1/agents/", headers=viewer_headers)
+        resp = await client.get("/api/v1/agents", headers=viewer_headers)
         assert resp.status_code in (401, 403)
 
     async def test_list_status_filter(self, client, analyst_headers, agent):
-        resp = await client.get("/api/v1/agents/?status_filter=active", headers=analyst_headers)
+        resp = await client.get("/api/v1/agents?status_filter=active", headers=analyst_headers)
         assert resp.status_code == 200
         for a in resp.json()["agents"]:
             assert a["status"] == "active"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestGetAgent
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestGetAgent:
     async def test_get_existing_agent(self, client, analyst_headers, agent):
@@ -168,9 +168,9 @@ class TestGetAgent:
         assert resp.status_code in (401, 403)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestDeregisterAgent
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestDeregisterAgent:
     async def test_admin_can_deregister(self, client, admin_headers, agent):
@@ -191,9 +191,9 @@ class TestDeregisterAgent:
         assert resp.status_code == 404
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestIngestEvents
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestIngestEvents:
     def _event(self, event_type: str = "process_start"):
@@ -258,9 +258,9 @@ class TestIngestEvents:
         assert "ts" in resp.json()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestPollCommands
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPollCommands:
     async def test_poll_returns_commands_key(self, client, agent_headers, agent):
@@ -300,9 +300,9 @@ class TestPollCommands:
         assert agent.last_seen >= old_seen
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestReportResult
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestReportResult:
     @pytest_asyncio.fixture
@@ -355,9 +355,9 @@ class TestReportResult:
         assert resp.status_code in (401, 403, 422)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestIssueCommand
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestIssueCommand:
     async def test_admin_can_issue_command(self, client, admin_headers, agent):
@@ -410,9 +410,9 @@ class TestIssueCommand:
         assert resp.status_code == 404
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestSetThreatLevel
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSetThreatLevel:
     async def test_set_elevated(self, client, analyst_headers, agent):
@@ -430,7 +430,7 @@ class TestSetThreatLevel:
             json={"threat_level": "critical"},
             headers=analyst_headers,
         )
-        assert resp.json()["poll_interval"] == 1  # critical → 1s
+        assert resp.json()["poll_interval"] == 1  # critical â†’ 1s
 
     async def test_invalid_threat_level_returns_400(self, client, analyst_headers, agent):
         resp = await client.patch(
@@ -458,9 +458,9 @@ class TestSetThreatLevel:
         assert resp.json()["poll_interval"] == 30
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 #  TestTimeline
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestTimeline:
     @pytest_asyncio.fixture
@@ -518,9 +518,9 @@ class TestTimeline:
         assert resp.status_code in (401, 403)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  TestAgentCommander  — unit tests for service layer
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+#  TestAgentCommander  â€” unit tests for service layer
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestAgentCommander:
     def test_compute_poll_interval_normal(self):

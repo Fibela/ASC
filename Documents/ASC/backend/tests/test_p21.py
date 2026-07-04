@@ -1,17 +1,17 @@
-"""
-P21 — Test Suite
+﻿"""
+P21 â€” Test Suite
 
 Coverage
 --------
-TestTIService            (12 tests) — create, list, update, delete, enrich, bulk_import, stats
-TestTIEndpoints          (10 tests) — API CRUD, auth enforcement, rate-limit header present
-TestTIEnrichEndpoint     (5 tests)  — enrich single, bulk, hit_count tracking, unknown value
-TestIoCsAuth             (4 tests)  — iocs.py now requires auth; unauthenticated → 401
-TestAlertsRateLimit      (3 tests)  — alerts.py rate-limit headers present on authenticated calls
-TestHealthAdapters       (5 tests)  — /health/adapters structure, all fields, auth required
-TestMIMEValidation       (8 tests)  — analyze/file: valid PE accepted, disallowed type rejected,
+TestTIService            (12 tests) â€” create, list, update, delete, enrich, bulk_import, stats
+TestTIEndpoints          (10 tests) â€” API CRUD, auth enforcement, rate-limit header present
+TestTIEnrichEndpoint     (5 tests)  â€” enrich single, bulk, hit_count tracking, unknown value
+TestIoCsAuth             (4 tests)  â€” iocs.py now requires auth; unauthenticated â†’ 401
+TestAlertsRateLimit      (3 tests)  â€” alerts.py rate-limit headers present on authenticated calls
+TestHealthAdapters       (5 tests)  â€” /health/adapters structure, all fields, auth required
+TestMIMEValidation       (8 tests)  â€” analyze/file: valid PE accepted, disallowed type rejected,
                                        oversized rejected, octet-stream accepted
-TestOpsRateLimit         (3 tests)  — /ops/* returns 200 with auth, 401 without
+TestOpsRateLimit         (3 tests)  â€” /ops/* returns 200 with auth, 401 without
 
 Total: 50 tests
 """
@@ -34,7 +34,7 @@ from asc_api.models.user import User
 from asc_api.services import threat_intel as ti_svc
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _stub_user(role: str = "analyst") -> User:
     u = MagicMock(spec=User)
@@ -81,7 +81,7 @@ def _make_ti(indicator_type: str = "ip", value: str = "1.2.3.4", severity: str =
     return ind
 
 
-# ── TestTIService ──────────────────────────────────────────────────────────────
+# â”€â”€ TestTIService â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTIService:
 
@@ -130,7 +130,7 @@ class TestTIService:
     @pytest.mark.asyncio
     async def test_bulk_import_creates_and_updates(self):
         db = _mock_db(rows=[])
-        # First call: no existing → create
+        # First call: no existing â†’ create
         result = await ti_svc.bulk_import(db, [
             {"indicator_type": "ip", "value": "1.2.3.4", "severity": "high"},
             {"indicator_type": "INVALID"},  # should be skipped
@@ -204,7 +204,7 @@ class TestTIService:
         assert ind.active is False
 
 
-# ── TestTIEndpoints ───────────────────────────────────────────────────────────
+# â”€â”€ TestTIEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTIEndpoints:
 
@@ -217,13 +217,13 @@ class TestTIEndpoints:
     @pytest.mark.asyncio
     async def test_list_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/threat-intel/")
+            r = await c.get("/api/v1/threat-intel")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
     async def test_create_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/threat-intel/", json={"indicator_type": "ip", "value": "1.1.1.1"})
+            r = await c.post("/api/v1/threat-intel", json={"indicator_type": "ip", "value": "1.1.1.1"})
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -259,7 +259,7 @@ class TestTIEndpoints:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/threat-intel/")
+            r = await c.get("/api/v1/threat-intel")
 
         assert r.status_code == 200
         assert "indicators" in r.json()
@@ -267,7 +267,7 @@ class TestTIEndpoints:
 
     @pytest.mark.asyncio
     async def test_delete_requires_admin(self):
-        # No auth at all → 401 (admin dependency not satisfied)
+        # No auth at all â†’ 401 (admin dependency not satisfied)
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             r = await c.delete("/api/v1/threat-intel/some-id")
         assert r.status_code == 401
@@ -292,7 +292,7 @@ class TestTIEndpoints:
         app.dependency_overrides[get_db] = lambda: _mock_db()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/threat-intel/", json={"indicator_type": "INVALID", "value": "x"})
+            r = await c.post("/api/v1/threat-intel", json={"indicator_type": "INVALID", "value": "x"})
 
         assert r.status_code == 422
 
@@ -324,7 +324,7 @@ class TestTIEndpoints:
         app.dependency_overrides.clear()
 
 
-# ── TestTIEnrichEndpoint ──────────────────────────────────────────────────────
+# â”€â”€ TestTIEnrichEndpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTIEnrichEndpoint:
 
@@ -409,7 +409,7 @@ class TestTIEnrichEndpoint:
         app.dependency_overrides.clear()
 
 
-# ── TestIoCsAuth ──────────────────────────────────────────────────────────────
+# â”€â”€ TestIoCsAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIoCsAuth:
     """Verify that iocs.py now requires authentication (security gap closed in P21-F2)."""
@@ -417,13 +417,13 @@ class TestIoCsAuth:
     @pytest.mark.asyncio
     async def test_list_iocs_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/iocs/")
+            r = await c.get("/api/v1/iocs")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
     async def test_create_ioc_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post("/api/v1/iocs/", json={"value": "1.1.1.1", "ioc_type": "ip"})
+            r = await c.post("/api/v1/iocs", json={"value": "1.1.1.1", "ioc_type": "ip"})
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -439,14 +439,14 @@ class TestIoCsAuth:
         assert r.status_code == 401
 
 
-# ── TestAlertsRateLimit ───────────────────────────────────────────────────────
+# â”€â”€ TestAlertsRateLimit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAlertsRateLimit:
 
     @pytest.mark.asyncio
     async def test_list_alerts_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/alerts/")
+            r = await c.get("/api/v1/alerts")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -463,7 +463,7 @@ class TestAlertsRateLimit:
         app.dependency_overrides[get_current_user] = lambda: _stub_user()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/alerts/")
+            r = await c.get("/api/v1/alerts")
 
         assert r.status_code == 200
 
@@ -471,7 +471,7 @@ class TestAlertsRateLimit:
         app.dependency_overrides.clear()
 
 
-# ── TestHealthAdapters ────────────────────────────────────────────────────────
+# â”€â”€ TestHealthAdapters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHealthAdapters:
 
@@ -512,7 +512,7 @@ class TestHealthAdapters:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             r = await c.get("/api/v1/health/adapters")
 
-        # In test env no adapters are configured → all should be "not_configured"
+        # In test env no adapters are configured â†’ all should be "not_configured"
         data = r.json()
         for a in data["adapters"]:
             assert a["status"] in ("not_configured", "reachable", "unreachable")
@@ -533,7 +533,7 @@ class TestHealthAdapters:
         app.dependency_overrides.clear()
 
 
-# ── TestMIMEValidation ────────────────────────────────────────────────────────
+# â”€â”€ TestMIMEValidation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _pe_bytes() -> bytes:
     """Minimal valid PE header (MZ signature)."""
@@ -555,9 +555,9 @@ class TestMIMEValidation:
     async def test_octet_stream_accepted(self):
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
-        with patch("app.api.v1.endpoints.analyze._detect_mime", return_value="application/octet-stream"), \
-             patch("app.services.analyzer.analyze_artifact", new_callable=AsyncMock) as mock_analyze, \
-             patch("app.db.session.get_db"):
+        with patch("asc_api.api.v1.endpoints.analyze._detect_mime", return_value="application/octet-stream"), \
+             patch("asc_api.services.analyzer.analyze_artifact", new_callable=AsyncMock) as mock_analyze, \
+             patch("asc_api.db.session.get_db"):
             mock_analyze.return_value = {
                 "file_type": "unknown", "size_bytes": 100,
                 "hashes": {"md5": "a"*32, "sha1": "b"*40, "sha256": "c"*64},
@@ -579,7 +579,7 @@ class TestMIMEValidation:
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
         app.dependency_overrides[get_db] = lambda: _mock_db()
 
-        with patch("app.api.v1.endpoints.analyze._detect_mime", return_value="image/jpeg"):
+        with patch("asc_api.api.v1.endpoints.analyze._detect_mime", return_value="image/jpeg"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     "/api/v1/analyze/file",
@@ -592,8 +592,8 @@ class TestMIMEValidation:
     async def test_pdf_accepted(self):
         app.dependency_overrides[get_analyst_or_admin] = lambda: _stub_user()
 
-        with patch("app.api.v1.endpoints.analyze._detect_mime", return_value="application/pdf"), \
-             patch("app.services.analyzer.analyze_artifact", new_callable=AsyncMock) as mock_analyze:
+        with patch("asc_api.api.v1.endpoints.analyze._detect_mime", return_value="application/pdf"), \
+             patch("asc_api.services.analyzer.analyze_artifact", new_callable=AsyncMock) as mock_analyze:
             mock_analyze.return_value = {
                 "file_type": "pdf", "size_bytes": 100,
                 "hashes": {"md5": "a"*32, "sha1": "b"*40, "sha256": "c"*64},
@@ -616,7 +616,7 @@ class TestMIMEValidation:
 
         # text/plain limit is 5 MB; we simulate a 6 MB payload
         big_data = b"a" * (6 * 1024 * 1024)
-        with patch("app.api.v1.endpoints.analyze._detect_mime", return_value="text/plain"):
+        with patch("asc_api.api.v1.endpoints.analyze._detect_mime", return_value="text/plain"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     "/api/v1/analyze/file",
@@ -657,7 +657,7 @@ class TestMIMEValidation:
         app.dependency_overrides.clear()
 
 
-# ── TestOpsRateLimit ──────────────────────────────────────────────────────────
+# â”€â”€ TestOpsRateLimit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestOpsRateLimit:
 
@@ -704,7 +704,7 @@ class TestOpsRateLimit:
         app.dependency_overrides.clear()
 
 
-# ── Mock helpers ──────────────────────────────────────────────────────────────
+# â”€â”€ Mock helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _scalar_result(value):
     r = MagicMock()

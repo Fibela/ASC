@@ -1,5 +1,5 @@
-"""
-P42 — Webhook Support — Test Suite
+﻿"""
+P42 â€” Webhook Support â€” Test Suite
 ====================================
 Tests: model/dispatcher unit, endpoint CRUD, RBAC, one-time secret, signing,
        test-delivery endpoint, security invariants, deployment artifacts, regression.
@@ -8,14 +8,14 @@ Pattern: AsyncClient + ASGITransport (no real DB/network).
 DB is mocked via Depends(get_db) override. HTTP delivery is mocked via httpx.
 
 Security scan coverage:
-  • Signing secret NEVER appears in list/get/patch/delete responses
-  • Signing secret NEVER logged (audit entries checked for absence)
-  • Signing secret NEVER included in 429 / error responses
-  • HMAC-SHA256 signature verified on test payload (sign_payload + verify_signature)
-  • URL validation: non-http(s) schemes rejected
-  • Event validation: unknown events rejected with 422
-  • Unauthorized access: 403 on wrong user, 401 on missing auth
-  • Admin sees all webhooks; analyst sees only own
+  â€¢ Signing secret NEVER appears in list/get/patch/delete responses
+  â€¢ Signing secret NEVER logged (audit entries checked for absence)
+  â€¢ Signing secret NEVER included in 429 / error responses
+  â€¢ HMAC-SHA256 signature verified on test payload (sign_payload + verify_signature)
+  â€¢ URL validation: non-http(s) schemes rejected
+  â€¢ Event validation: unknown events rejected with 422
+  â€¢ Unauthorized access: 403 on wrong user, 401 on missing auth
+  â€¢ Admin sees all webhooks; analyst sees only own
 """
 
 import hashlib
@@ -39,7 +39,7 @@ settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(role: str = "analyst", user_id: str | None = None):
     u = MagicMock()
@@ -91,7 +91,7 @@ def _db_override(scalar_result=None, scalars_result=None):
     return override, db
 
 
-# ── Class 1: Dispatcher unit tests ────────────────────────────────────────────
+# â”€â”€ Class 1: Dispatcher unit tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookDispatcher:
     """Unit tests for HMAC signing and verification (no HTTP calls)."""
@@ -261,7 +261,7 @@ class TestWebhookDispatcher:
         assert "X-ASC-Delivery" in captured_headers
 
 
-# ── Class 2: Webhook CRUD endpoints ───────────────────────────────────────────
+# â”€â”€ Class 2: Webhook CRUD endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookCRUD:
     BASE = "/api/v1/webhooks"
@@ -274,10 +274,10 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
-                    f"{self.BASE}/",
+                    f"{self.BASE}",
                     headers={"Authorization": f"Bearer {token}"},
                     json={"url": "https://example.com/hook", "events": ["incident.created"]},
                 )
@@ -295,10 +295,10 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
-                    f"{self.BASE}/",
+                    f"{self.BASE}",
                     headers={"Authorization": f"Bearer {token}"},
                     json={"url": "ftp://example.com/hook", "events": ["test"]},
                 )
@@ -312,10 +312,10 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
-                    f"{self.BASE}/",
+                    f"{self.BASE}",
                     headers={"Authorization": f"Bearer {token}"},
                     json={"url": "https://example.com/hook", "events": ["unknown.event"]},
                 )
@@ -325,7 +325,7 @@ class TestWebhookCRUD:
     @pytest.mark.asyncio
     async def test_register_no_auth_returns_401(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.post(f"{self.BASE}/", json={"url": "https://example.com", "events": ["test"]})
+            r = await c.post(f"{self.BASE}", json={"url": "https://example.com", "events": ["test"]})
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -336,9 +336,9 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                r = await c.get(f"{self.BASE}/", headers={"Authorization": f"Bearer {token}"})
+                r = await c.get(f"{self.BASE}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
         assert r.status_code == 200
         assert isinstance(r.json(), list)
@@ -351,7 +351,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     f"{self.BASE}/{wh.id}",
@@ -369,7 +369,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(other.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=other)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=other)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     f"{self.BASE}/{wh.id}",
@@ -386,7 +386,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.delete(
                     f"{self.BASE}/{wh.id}",
@@ -403,7 +403,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.patch(
                     f"{self.BASE}/{wh.id}",
@@ -421,7 +421,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.patch(
                     f"{self.BASE}/{wh.id}",
@@ -438,7 +438,7 @@ class TestWebhookCRUD:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     f"{self.BASE}/nonexistent-id",
@@ -448,7 +448,7 @@ class TestWebhookCRUD:
         assert r.status_code == 404
 
 
-# ── Class 3: Test delivery endpoint ───────────────────────────────────────────
+# â”€â”€ Class 3: Test delivery endpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookTestEndpoint:
     BASE = "/api/v1/webhooks"
@@ -461,8 +461,8 @@ class TestWebhookTestEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
-             patch("app.api.v1.endpoints.webhooks.deliver_to_url",
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("asc_api.api.v1.endpoints.webhooks.deliver_to_url",
                    AsyncMock(return_value=(True, 200, 45.2, None))):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
@@ -484,8 +484,8 @@ class TestWebhookTestEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
-             patch("app.api.v1.endpoints.webhooks.deliver_to_url",
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("asc_api.api.v1.endpoints.webhooks.deliver_to_url",
                    AsyncMock(return_value=(False, 503, 1500.0, "Connection refused"))):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
@@ -506,7 +506,7 @@ class TestWebhookTestEndpoint:
         app.dependency_overrides[get_db] = override
         token = _jwt(other.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=other)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=other)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
                     f"{self.BASE}/{wh.id}/test",
@@ -516,7 +516,7 @@ class TestWebhookTestEndpoint:
         assert r.status_code == 403
 
 
-# ── Class 4: Security invariants ──────────────────────────────────────────────
+# â”€â”€ Class 4: Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookSecurity:
     """Secret must never leak; RBAC must be enforced everywhere."""
@@ -529,9 +529,9 @@ class TestWebhookSecurity:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-                r = await c.get("/api/v1/webhooks/", headers={"Authorization": f"Bearer {token}"})
+                r = await c.get("/api/v1/webhooks", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
         # The secret must not appear anywhere in the response
         assert "supersecret" not in r.text
@@ -545,7 +545,7 @@ class TestWebhookSecurity:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     f"/api/v1/webhooks/{wh.id}",
@@ -567,11 +567,11 @@ class TestWebhookSecurity:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
-             patch("app.api.v1.endpoints.webhooks.log_security_action") as mock_log:
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("asc_api.api.v1.endpoints.webhooks.log_security_action") as mock_log:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 await c.post(
-                    "/api/v1/webhooks/",
+                    "/api/v1/webhooks",
                     headers={"Authorization": f"Bearer {token}"},
                     json={"url": "https://example.com/hook", "events": ["test"]},
                 )
@@ -598,11 +598,11 @@ class TestWebhookSecurity:
         def capture_log(action, **kwargs):
             logged_calls.append({"action": action, **kwargs})
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
-             patch("app.api.v1.endpoints.webhooks.log_security_action", side_effect=capture_log):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("asc_api.api.v1.endpoints.webhooks.log_security_action", side_effect=capture_log):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
-                    "/api/v1/webhooks/",
+                    "/api/v1/webhooks",
                     headers={"Authorization": f"Bearer {token}"},
                     json={"url": "https://example.com/hook", "events": ["test"]},
                 )
@@ -623,7 +623,7 @@ class TestWebhookSecurity:
         app.dependency_overrides[get_db] = override
         token = _jwt(admin.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     "/api/v1/webhooks/admin/all",
@@ -639,7 +639,7 @@ class TestWebhookSecurity:
         app.dependency_overrides[get_db] = override
         token = _jwt(analyst.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=analyst)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=analyst)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.get(
                     "/api/v1/webhooks/admin/all",
@@ -670,14 +670,14 @@ class TestWebhookSecurity:
             delivered_to.append(url)
             return True, 200, 10.0, None
 
-        with patch("app.core.webhook_dispatcher.deliver_to_url", side_effect=mock_task), \
+        with patch("asc_api.core.webhook_dispatcher.deliver_to_url", side_effect=mock_task), \
              patch("asyncio.create_task") as mock_create_task:
             count = await emit_webhook_event("incident.created", {"id": "test"}, db)
 
         assert count == 1  # only wh_subscribed matched
 
 
-# ── Class 5: Deployment artifacts ─────────────────────────────────────────────
+# â”€â”€ Class 5: Deployment artifacts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookDeploymentArtifacts:
 
@@ -722,7 +722,7 @@ class TestWebhookDeploymentArtifacts:
         assert _MAX_WEBHOOKS_PER_USER > 0
 
 
-# ── Class 6: Regression ───────────────────────────────────────────────────────
+# â”€â”€ Class 6: Regression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestWebhookRegression:
 
@@ -735,13 +735,13 @@ class TestWebhookRegression:
     @pytest.mark.asyncio
     async def test_api_keys_endpoint_still_401_without_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/api-keys/")
+            r = await c.get("/api/v1/api-keys")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
     async def test_webhooks_endpoint_401_without_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            r = await c.get("/api/v1/webhooks/")
+            r = await c.get("/api/v1/webhooks")
         assert r.status_code == 401
 
     @pytest.mark.asyncio

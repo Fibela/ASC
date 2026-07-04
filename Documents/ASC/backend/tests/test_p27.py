@@ -1,23 +1,23 @@
-"""
-P27-B — Correlation Engine — Test Suite
+﻿"""
+P27-B â€” Correlation Engine â€” Test Suite
 
 Coverage:
-  TestCorrelationModels          (8)  — ORM instantiation, forensic_hash, constants
-  TestMaxSeverity                (6)  — severity ranking helper
-  TestGatherHostSignals          (6)  — host pivot query with events/alerts/findings/panl
-  TestGatherIdentitySignals      (4)  — identity pivot with IdentityActions + findings
-  TestGatherIPSignals            (4)  — ip pivot with events/TI/panl
-  TestGatherDomainSignals        (4)  — domain pivot with TI/panl/findings
-  TestGatherTTPSignals           (4)  — ttp pivot with events/alerts
-  TestUpsertCluster              (8)  — create new, update existing, dedup signals, campaign detection
-  TestRunCorrelationSweep        (6)  — full sweep: rule iter, threshold filter, stat return
-  TestQueryAPI                   (8)  — list_rules, create_rule, update_rule, delete_rule, list_clusters
-  TestClusterStatusUpdate        (4)  — resolved/dismissed transitions
-  TestClusterGraph               (6)  — graph node/edge structure, cluster-not-found
-  TestCorrelationSummary         (4)  — KPI counts
-  TestCorrelationEndpoints       (10) — REST status codes, auth, validation
-  TestCeleryTask                 (4)  — run_sweep skips when Celery unavailable
-  TestCeleryAppRegistration      (4)  — celery include + beat schedule entry
+  TestCorrelationModels          (8)  â€” ORM instantiation, forensic_hash, constants
+  TestMaxSeverity                (6)  â€” severity ranking helper
+  TestGatherHostSignals          (6)  â€” host pivot query with events/alerts/findings/panl
+  TestGatherIdentitySignals      (4)  â€” identity pivot with IdentityActions + findings
+  TestGatherIPSignals            (4)  â€” ip pivot with events/TI/panl
+  TestGatherDomainSignals        (4)  â€” domain pivot with TI/panl/findings
+  TestGatherTTPSignals           (4)  â€” ttp pivot with events/alerts
+  TestUpsertCluster              (8)  â€” create new, update existing, dedup signals, campaign detection
+  TestRunCorrelationSweep        (6)  â€” full sweep: rule iter, threshold filter, stat return
+  TestQueryAPI                   (8)  â€” list_rules, create_rule, update_rule, delete_rule, list_clusters
+  TestClusterStatusUpdate        (4)  â€” resolved/dismissed transitions
+  TestClusterGraph               (6)  â€” graph node/edge structure, cluster-not-found
+  TestCorrelationSummary         (4)  â€” KPI counts
+  TestCorrelationEndpoints       (10) â€” REST status codes, auth, validation
+  TestCeleryTask                 (4)  â€” run_sweep skips when Celery unavailable
+  TestCeleryAppRegistration      (4)  â€” celery include + beat schedule entry
 
 Total: 90 tests
 """
@@ -30,7 +30,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ── Shared mock helpers ────────────────────────────────────────────────────────
+# â”€â”€ Shared mock helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _scalars_result(items):
     r = MagicMock()
@@ -112,7 +112,7 @@ def _make_signal(**kwargs):
     return s
 
 
-# ── TestCorrelationModels ──────────────────────────────────────────────────────
+# â”€â”€ TestCorrelationModels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCorrelationModels:
     def test_pivot_types_constant(self):
@@ -183,7 +183,7 @@ class TestCorrelationModels:
         assert "Campaign" in cluster.campaign_name
 
 
-# ── TestMaxSeverity ────────────────────────────────────────────────────────────
+# â”€â”€ TestMaxSeverity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMaxSeverity:
     def _call(self, *args):
@@ -209,7 +209,7 @@ class TestMaxSeverity:
         assert self._call("info", "low") == "low"
 
 
-# ── TestGatherHostSignals ──────────────────────────────────────────────────────
+# â”€â”€ TestGatherHostSignals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGatherHostSignals:
     @pytest.mark.asyncio
@@ -317,7 +317,7 @@ class TestGatherHostSignals:
         assert any(s["pivot_value"] == "ws-99" for s in signals)
 
 
-# ── TestGatherIdentitySignals ──────────────────────────────────────────────────
+# â”€â”€ TestGatherIdentitySignals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGatherIdentitySignals:
     @pytest.mark.asyncio
@@ -363,7 +363,7 @@ class TestGatherIdentitySignals:
         assert signals == []
 
 
-# ── TestGatherIPSignals ────────────────────────────────────────────────────────
+# â”€â”€ TestGatherIPSignals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGatherIPSignals:
     @pytest.mark.asyncio
@@ -412,7 +412,7 @@ class TestGatherIPSignals:
         assert any(s["pivot_value"] == "200.200.200.200" for s in signals)
 
 
-# ── TestGatherDomainSignals ────────────────────────────────────────────────────
+# â”€â”€ TestGatherDomainSignals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGatherDomainSignals:
     @pytest.mark.asyncio
@@ -460,7 +460,7 @@ class TestGatherDomainSignals:
         assert any(s["pivot_value"] == "evil.com" for s in signals)
 
 
-# ── TestGatherTTPSignals ───────────────────────────────────────────────────────
+# â”€â”€ TestGatherTTPSignals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGatherTTPSignals:
     @pytest.mark.asyncio
@@ -495,9 +495,9 @@ class TestGatherTTPSignals:
         db = AsyncMock()
         db.execute = AsyncMock(side_effect=[_all_result([row]), _all_result([])])
         signals = await _gather_ttp_signals(db, now - timedelta(hours=1))
-        # "some-tag" doesn't start with T→digit combo but "another" → just T-prefix filter
-        # Our filter is tag.upper().startswith("T") — so "another" doesn't pass
-        # "some-tag" also doesn't → 0 signals
+        # "some-tag" doesn't start with Tâ†’digit combo but "another" â†’ just T-prefix filter
+        # Our filter is tag.upper().startswith("T") â€” so "another" doesn't pass
+        # "some-tag" also doesn't â†’ 0 signals
         assert all(s["pivot_value"].startswith("T") for s in signals)
 
     @pytest.mark.asyncio
@@ -512,7 +512,7 @@ class TestGatherTTPSignals:
         assert any(s["pivot_value"] == "T1055" for s in signals)
 
 
-# ── TestUpsertCluster ──────────────────────────────────────────────────────────
+# â”€â”€ TestUpsertCluster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUpsertCluster:
     def _make_db(self, existing_cluster=None, existing_signals=None):
@@ -534,7 +534,7 @@ class TestUpsertCluster:
                 r = _all_result(all_sigs_rows)
                 return r
             elif call_idx == 1 and not existing_cluster:
-                # After flush — select existing signals (empty for new cluster)
+                # After flush â€” select existing signals (empty for new cluster)
                 r = _all_result([])
                 return r
             elif call_idx == 2:
@@ -554,9 +554,9 @@ class TestUpsertCluster:
         rule = _make_rule(min_signals=2)
         db = AsyncMock()
 
-        # Call 1: SELECT existing cluster → None
-        # Call 2: SELECT existing signals → []
-        # After flush — add signals
+        # Call 1: SELECT existing cluster â†’ None
+        # Call 2: SELECT existing signals â†’ []
+        # After flush â€” add signals
         # Call 3: Re-aggregate
         sig_row = MagicMock(); sig_row.severity = "high"; sig_row.signal_type = "event"
         sig_row.timestamp = datetime.now(timezone.utc)
@@ -721,7 +721,7 @@ class TestUpsertCluster:
         db.execute = AsyncMock(side_effect=execute_se)
         db.flush = AsyncMock(); db.add = MagicMock()
 
-        # Feed the same signal_id again — should NOT be added
+        # Feed the same signal_id again â€” should NOT be added
         signals = [{"signal_type": "event", "signal_id": "e1", "pivot_value": "ws-001",
                     "severity": "medium", "timestamp": now, "meta": {}}]
         await _upsert_cluster(db, rule, "ws-001", signals)
@@ -800,7 +800,7 @@ class TestUpsertCluster:
         assert cluster.severity == "critical"
 
 
-# ── TestRunCorrelationSweep ────────────────────────────────────────────────────
+# â”€â”€ TestRunCorrelationSweep â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRunCorrelationSweep:
     @pytest.mark.asyncio
@@ -810,7 +810,7 @@ class TestRunCorrelationSweep:
         # No enabled rules
         db.execute = AsyncMock(return_value=_scalars_result([]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             result = await run_correlation_sweep(db)
         assert "rules_evaluated" in result
         assert result["rules_evaluated"] == 0
@@ -822,7 +822,7 @@ class TestRunCorrelationSweep:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([rule]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             result = await run_correlation_sweep(db)
         assert result["clusters_created"] == 0
 
@@ -839,8 +839,8 @@ class TestRunCorrelationSweep:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([rule]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
-             patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
+             patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             mock_gather.return_value = low_signals
             result = await correlation_service.run_correlation_sweep(db)
         assert result["clusters_created"] == 0
@@ -849,7 +849,7 @@ class TestRunCorrelationSweep:
     async def test_signals_below_min_skipped(self):
         from asc_api.services import correlation_service
         rule = _make_rule(pivot_type="host_pivot", min_signals=5, severity_threshold="low")
-        # Only 2 signals — below min_signals=5
+        # Only 2 signals â€” below min_signals=5
         signals = [
             {"signal_type": "event", "signal_id": f"e{i}", "pivot_value": "ws-001",
              "severity": "high", "timestamp": datetime.now(timezone.utc), "meta": {}}
@@ -858,8 +858,8 @@ class TestRunCorrelationSweep:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([rule]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
-             patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
+             patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             mock_gather.return_value = signals
             result = await correlation_service.run_correlation_sweep(db)
         assert result["clusters_created"] == 0
@@ -870,7 +870,7 @@ class TestRunCorrelationSweep:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             await run_correlation_sweep(db)
         db.commit.assert_called_once()
 
@@ -878,7 +878,7 @@ class TestRunCorrelationSweep:
     async def test_deduplicates_signals_in_group(self):
         from asc_api.services import correlation_service
         rule = _make_rule(pivot_type="host_pivot", min_signals=2, severity_threshold="low")
-        # Same signal_id duplicated — after dedup, only 1 unique → below min_signals=2
+        # Same signal_id duplicated â€” after dedup, only 1 unique â†’ below min_signals=2
         signals = [
             {"signal_type": "event", "signal_id": "e1", "pivot_value": "ws-001",
              "severity": "high", "timestamp": datetime.now(timezone.utc), "meta": {}},
@@ -888,14 +888,14 @@ class TestRunCorrelationSweep:
         db = AsyncMock()
         db.execute = AsyncMock(return_value=_scalars_result([rule]))
         db.commit = AsyncMock()
-        with patch("app.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
-             patch("app.services.correlation_service.log_security_action", new_callable=AsyncMock):
+        with patch("asc_api.services.correlation_service._gather_host_signals", new_callable=AsyncMock) as mock_gather, \
+             patch("asc_api.services.correlation_service.log_security_action", new_callable=AsyncMock):
             mock_gather.return_value = signals
             result = await correlation_service.run_correlation_sweep(db)
         assert result["clusters_created"] == 0  # only 1 unique after dedup
 
 
-# ── TestQueryAPI ───────────────────────────────────────────────────────────────
+# â”€â”€ TestQueryAPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestQueryAPI:
     @pytest.mark.asyncio
@@ -978,7 +978,7 @@ class TestQueryAPI:
         assert ok is False
 
 
-# ── TestClusterStatusUpdate ────────────────────────────────────────────────────
+# â”€â”€ TestClusterStatusUpdate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestClusterStatusUpdate:
     @pytest.mark.asyncio
@@ -1023,7 +1023,7 @@ class TestClusterStatusUpdate:
         assert result is None
 
 
-# ── TestClusterGraph ───────────────────────────────────────────────────────────
+# â”€â”€ TestClusterGraph â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestClusterGraph:
     @pytest.mark.asyncio
@@ -1141,7 +1141,7 @@ class TestClusterGraph:
         from asc_api.services.correlation_service import get_cluster_graph
         rule = _make_rule()
         cluster = _make_cluster(rule_id=rule.id)
-        # Two signals with same signal_id — should produce 1 node
+        # Two signals with same signal_id â€” should produce 1 node
         sig1 = _make_signal(cluster_id=cluster.id, signal_type="event", signal_id="e1", pivot_value="ws-001")
         sig2 = _make_signal(cluster_id=cluster.id, signal_type="event", signal_id="e1", pivot_value="ws-001")
 
@@ -1163,7 +1163,7 @@ class TestClusterGraph:
         assert len(non_cluster_nodes) == 1  # deduped
 
 
-# ── TestCorrelationSummary ─────────────────────────────────────────────────────
+# â”€â”€ TestCorrelationSummary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCorrelationSummary:
     @pytest.mark.asyncio
@@ -1205,7 +1205,7 @@ class TestCorrelationSummary:
         assert len(result) == 5
 
 
-# ── TestCorrelationEndpoints ───────────────────────────────────────────────────
+# â”€â”€ TestCorrelationEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_endpoint_app():
     from fastapi import FastAPI
@@ -1241,7 +1241,7 @@ class TestCorrelationEndpoints:
         mock_db = AsyncMock()
         app.dependency_overrides[get_analyst_or_admin] = lambda: mock_user
         app.dependency_overrides[get_db] = lambda: mock_db
-        with patch("app.api.v1.endpoints.correlation.correlation_service.get_correlation_summary",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.get_correlation_summary",
                    new_callable=AsyncMock, return_value=summary):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/summary")
@@ -1257,7 +1257,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.list_rules",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.list_rules",
                    new_callable=AsyncMock, return_value=rules):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/rules")
@@ -1272,7 +1272,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.get_rule",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.get_rule",
                    new_callable=AsyncMock, return_value=None):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/rules/nonexistent")
@@ -1302,7 +1302,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.list_clusters",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.list_clusters",
                    new_callable=AsyncMock, return_value=clusters):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/clusters")
@@ -1316,7 +1316,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.get_cluster",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.get_cluster",
                    new_callable=AsyncMock, return_value=None):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/clusters/ghost")
@@ -1343,7 +1343,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.get_cluster_graph",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.get_cluster_graph",
                    new_callable=AsyncMock, return_value=None):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.get("/correlation/clusters/ghost/graph")
@@ -1373,7 +1373,7 @@ class TestCorrelationEndpoints:
         app = _make_endpoint_app()
         app.dependency_overrides[get_analyst_or_admin] = lambda: _mock_analyst()
         app.dependency_overrides[get_db] = lambda: AsyncMock()
-        with patch("app.api.v1.endpoints.correlation.correlation_service.create_rule",
+        with patch("asc_api.api.v1.endpoints.correlation.correlation_service.create_rule",
                    new_callable=AsyncMock, return_value=new_rule):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 resp = await ac.post("/correlation/rules", json={
@@ -1383,7 +1383,7 @@ class TestCorrelationEndpoints:
         assert resp.status_code == 201
 
 
-# ── TestCeleryTask ─────────────────────────────────────────────────────────────
+# â”€â”€ TestCeleryTask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCeleryTask:
     def test_task_registered_in_celery_app(self):
@@ -1415,7 +1415,7 @@ class TestCeleryTask:
         assert run_sweep.name == "asc.correlation_sweep.run_sweep"
 
 
-# ── TestCeleryAppRegistration ──────────────────────────────────────────────────
+# â”€â”€ TestCeleryAppRegistration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCeleryAppRegistration:
     def test_correlation_in_include(self):
@@ -1450,5 +1450,5 @@ class TestCeleryAppRegistration:
     def test_router_includes_correlation(self):
         from asc_api.api.v1.router import api_router
         routes = {r.path for r in api_router.routes}
-        # The correlation router is included — check for one of its paths
+        # The correlation router is included â€” check for one of its paths
         assert any("/correlation" in p for p in routes)

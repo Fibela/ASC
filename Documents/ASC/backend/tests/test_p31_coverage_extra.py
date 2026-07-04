@@ -1,5 +1,5 @@
-"""
-P31-COV Extra — Additional endpoint coverage targeting miss lines in:
+﻿"""
+P31-COV Extra â€” Additional endpoint coverage targeting miss lines in:
   iocs.py, alerts.py, detection.py, iam.py, metrics.py, notifications.py, forensic.py
 """
 import uuid
@@ -15,7 +15,7 @@ from asc_api.models.alert import Alert
 pytestmark = pytest.mark.asyncio
 
 
-# ─── Rate limit reset (all tests) ─────────────────────────────────────────────
+# â”€â”€â”€ Rate limit reset (all tests) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
@@ -25,12 +25,12 @@ def _reset_rate_limit():
     limiter._storage.reset()
 
 
-# ─── IoC Endpoints ────────────────────────────────────────────────────────────
+# â”€â”€â”€ IoC Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIoCEndpoints:
     async def test_create_ioc_returns_201(self, client, analyst_headers):
         resp = await client.post(
-            "/api/v1/iocs/",
+            "/api/v1/iocs",
             json={"value": "192.168.1.100", "ioc_type": "ip"},
             headers=analyst_headers,
         )
@@ -42,7 +42,7 @@ class TestIoCEndpoints:
 
     async def test_create_ioc_viewer_blocked(self, client, viewer_headers):
         resp = await client.post(
-            "/api/v1/iocs/",
+            "/api/v1/iocs",
             json={"value": "10.0.0.1", "ioc_type": "ip"},
             headers=viewer_headers,
         )
@@ -84,7 +84,7 @@ class TestIoCEndpoints:
         assert body["total_submitted"] == 2
 
     async def test_list_iocs_returns_list(self, client, viewer_headers):
-        resp = await client.get("/api/v1/iocs/", headers=viewer_headers)
+        resp = await client.get("/api/v1/iocs", headers=viewer_headers)
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
@@ -93,7 +93,7 @@ class TestIoCEndpoints:
         db.add(IoC(id=str(uuid.uuid4()), value="bad.com", ioc_type="domain", source="internal"))
         await db.commit()
 
-        resp = await client.get("/api/v1/iocs/?ioc_type=ip", headers=analyst_headers)
+        resp = await client.get("/api/v1/iocs?ioc_type=ip", headers=analyst_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert all(i["type"] == "ip" for i in data)
@@ -105,7 +105,7 @@ class TestIoCEndpoints:
         ))
         await db.commit()
 
-        resp = await client.get("/api/v1/iocs/?active=false", headers=analyst_headers)
+        resp = await client.get("/api/v1/iocs?active=false", headers=analyst_headers)
         assert resp.status_code == 200
 
     async def test_search_ioc_returns_results(self, client, viewer_headers, db):
@@ -146,7 +146,7 @@ class TestIoCEndpoints:
         assert resp.status_code == 403
 
 
-# ─── Alert Endpoints ──────────────────────────────────────────────────────────
+# â”€â”€â”€ Alert Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAlertEndpointsExtra:
     def _make_alert(self, **overrides) -> Alert:
@@ -275,7 +275,7 @@ class TestAlertEndpointsExtra:
         db.add(self._make_alert(severity="low"))
         await db.commit()
 
-        resp = await client.get("/api/v1/alerts/?severity=critical", headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts?severity=critical", headers=viewer_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert all(a["severity"] == "critical" for a in data)
@@ -285,13 +285,13 @@ class TestAlertEndpointsExtra:
         db.add(self._make_alert(status="open"))
         await db.commit()
 
-        resp = await client.get("/api/v1/alerts/?status=resolved", headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts?status=resolved", headers=viewer_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert all(a["status"] == "resolved" for a in data)
 
 
-# ─── Detection Endpoints ──────────────────────────────────────────────────────
+# â”€â”€â”€ Detection Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestDetectionEndpoints:
     async def test_list_rules_returns_4_rules(self, client, viewer_headers):
@@ -397,7 +397,7 @@ class TestDetectionEndpoints:
         assert resp.status_code in (401, 403)
 
 
-# ─── IAM Endpoints ────────────────────────────────────────────────────────────
+# â”€â”€â”€ IAM Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestIAMEndpoints:
     async def test_user_iam_status_not_found(self, client, admin_headers):
@@ -432,7 +432,7 @@ class TestIAMEndpoints:
         assert "message" in resp.json()
 
     async def test_lock_user_default_minutes(self, client, admin_headers, analyst_user):
-        # No body → uses default LockRequest (15 minutes)
+        # No body â†’ uses default LockRequest (15 minutes)
         resp = await client.post(
             f"/api/v1/iam/users/{analyst_user.email}/lock",
             headers=admin_headers,
@@ -542,7 +542,7 @@ class TestIAMEndpoints:
         assert resp.status_code in (401, 403)
 
 
-# ─── Metrics Endpoints ────────────────────────────────────────────────────────
+# â”€â”€â”€ Metrics Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMetricsEndpoints:
     def _make_alert(self, **overrides) -> Alert:
@@ -590,7 +590,7 @@ class TestMetricsEndpoints:
         assert body["risk_posture"] == "CRITICAL"
 
     async def test_soc_metrics_high_posture(self, client, admin_headers, db):
-        # >3 high-severity alerts → HIGH posture
+        # >3 high-severity alerts â†’ HIGH posture
         for _ in range(4):
             db.add(self._make_alert(severity="high"))
         await db.commit()
@@ -646,7 +646,7 @@ class TestMetricsEndpoints:
         assert resp.status_code in (401, 403)
 
 
-# ─── Notifications Endpoints ──────────────────────────────────────────────────
+# â”€â”€â”€ Notifications Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNotificationsEndpoints:
     async def test_notification_status_returns_subscriber_count(self, client, analyst_headers):
@@ -686,7 +686,7 @@ class TestNotificationsEndpoints:
         assert resp.status_code == 403
 
 
-# ─── Forensic Endpoints ───────────────────────────────────────────────────────
+# â”€â”€â”€ Forensic Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestForensicEndpoints:
     async def test_get_forensic_proof_not_found(self, client, analyst_headers):
@@ -697,7 +697,7 @@ class TestForensicEndpoints:
         assert resp.status_code == 404
 
     async def test_get_forensic_proof_viewer_can_access(self, client, viewer_headers):
-        # get_current_user (any role) — viewer gets 404, not 403
+        # get_current_user (any role) â€” viewer gets 404, not 403
         resp = await client.get(
             f"/api/v1/forensic/actions/{uuid.uuid4()}",
             headers=viewer_headers,

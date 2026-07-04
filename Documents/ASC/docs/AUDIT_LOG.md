@@ -105,6 +105,84 @@ premoscorp.com (Supabase xdgilxcmvpxhrpbuqyrr)
 
 ---
 
+## Session 6 — 2026-07-03 (Security Hardening + Test Suite Overhaul)
+
+### Hallazgos de Seguridad
+
+| ID | Severidad | Descripción | Estado |
+|----|-----------|-------------|--------|
+| S6-SEC-1 | **CRITICAL** | **RLS deshabilitado en 34/37 tablas Supabase**: la anon key podía leer `users`, `alerts`, `events`, `iocs` y 30 tablas más via PostgREST sin autenticación. Fix: `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `REVOKE ALL ON ... FROM anon, authenticated` en todas las tablas expuestas. Verificado: anon key retorna 401 post-fix. | ✅ FIXED |
+| S6-SEC-2 | **HIGH** | **Bucle infinito 307↔308**: FastAPI `redirect_slashes=True` (default) + Vercel `trailingSlash: false` creaban loop de redirección en producción en todos los endpoints con ruta raíz `/`. Fix: `redirect_slashes=False` en `FastAPI()` + cambio de `@router.get("/")` a `@router.get("")` en 11 archivos de endpoints. | ✅ FIXED |
+| S6-SEC-3 | LOW | **`vercel.json` faltaban headers de seguridad**: ausentes `X-XSS-Protection` y `Permissions-Policy`; faltaba campo `"framework": "nextjs"`. Añadidos. | ✅ FIXED |
+
+### Seguridad — Escáner de Secretos
+
+| Check | Resultado |
+|-------|-----------|
+| Búsqueda de keys hardcodeadas en codebase (grep: `sk_`, `password`, `secret`, `token`, `api_key`) | ✅ Solo falsos positivos (placeholders, comentarios, `.venv`) |
+| JWT hardcodeados en código fuente | ✅ No encontrados |
+| DATABASE_URL en archivos versionados | ✅ Sólo en `.env` (gitignored) |
+
+### Pruebas de Frontera de Autenticación
+
+| Ataque | Endpoint | Resultado |
+|--------|----------|-----------|
+| Alg `none` JWT | `/api/v1/auth/me` | ✅ 401 |
+| JWT con rol adulterado (payload tampered, firma original) | `/api/v1/auth/users` | ✅ 401 |
+| JWT expirado | `/api/v1/alerts` | ✅ 401 |
+| Token malformado / SQL injection en header | `/api/v1/auth/me` | ✅ 401/422 |
+| Registro abierto post-bootstrap | `POST /api/v1/auth/register` | ✅ 403 |
+| Rate limit en login | `POST /api/v1/auth/login` | ✅ 429 tras 5 intentos |
+| Verb tampering DELETE /auth/me | `/api/v1/auth/me` | ✅ 405 |
+| Path traversal `/api/v1/../` | varios | ✅ 400/404 |
+
+### Suite de Tests — Estado Final
+
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Tests pasados | ~4374 | **4616** |
+| Tests fallidos | 31 | **0** |
+| Cobertura | 40.77% | **86.01%** |
+| Umbral requerido | 85% | ✅ Alcanzado |
+
+### Correcciones en Tests
+
+| # | Categoría | Descripción | Archivos |
+|---|-----------|-------------|---------|
+| T-1 | `pytest.ini` | `--cov=app` → `--cov=asc_api` (módulo correcto) | `backend/pytest.ini` |
+| T-2 | Mocks — módulo incorrecto | 887+ ocurrencias de `patch("app.` → `patch("asc_api.` | 40+ archivos de test |
+| T-3 | Paths con trailing slash | 113+ paths literales `"/api/v1/alerts/"` → `"/api/v1/alerts"` | 22+ archivos de test |
+| T-4 | f-strings con trailing slash | `f"{self.BASE}/"` → `f"{self.BASE}"` | `test_p42_webhooks.py` |
+| T-5 | Paths con `/?query=` | `"/api/v1/events/?severity=..."` → `"/api/v1/events?severity=..."` | `test_p31_coverage.py`, `test_p37_pentest.py`, `test_p31_coverage_extra.py`, `test_agents.py`, `tests/e2e/` |
+| T-6 | Referencias `app.models` | 3 tests usaban `app.models.X` en lugar de `asc_api.models.X` | `test_p55_billing.py`, `test_p47_multitenancy.py` |
+| T-7 | Import `app.*` en mocks residuales | `patch("app.core.panl.log_security_action")` → `asc_api` | `test_panl.py`, `test_rollback.py`, `test_specter_bridge.py` |
+| T-8 | Import test_debts | `importlib.import_module("app.api.v1...")` → `asc_api` | `test_debts.py` |
+| T-9 | Encoding doble en aserciones | `"contraseÃ±a"` (UTF-8 mal-interpretado como Latin-1) → `"cambiada"` (ASCII-safe) | `test_p31_coverage.py` |
+| T-10 | Comillas curvadas en Python | `"` U+201C en delimitadores de docstring → `"` U+0022 (straight) | `test_debts.py` |
+| T-11 | `vercel.json` headers faltantes | Añadidos `X-XSS-Protection`, `Permissions-Policy` y `"framework": "nextjs"` | `frontend/vercel.json` |
+
+### Archivos Modificados esta Sesión
+
+| Archivo | Tipo de cambio |
+|---------|---------------|
+| `frontend/asc_api/main.py` | `redirect_slashes=False` |
+| `backend/asc_api/main.py` | `redirect_slashes=False` |
+| `frontend/asc_api/api/v1/endpoints/*.py` (11 archivos) | `@router.get("/")` → `@router.get("")` |
+| `backend/pytest.ini` | `--cov=app` → `--cov=asc_api` |
+| `frontend/vercel.json` | `framework`, `X-XSS-Protection`, `Permissions-Policy` |
+| `backend/tests/` (40+ archivos) | Mock paths, trailing slashes, encoding, imports |
+| `backend/tests/e2e/test_e2e_lifecycle.py` | Trailing slashes en rutas e2e |
+
+### Pendientes
+
+| # | Item | Prioridad |
+|---|------|-----------|
+| P-1 | Crear migración Alembic para RLS (persistir a través de `alembic upgrade head` futuros) | Alta |
+| P-2 | Push commit al remoto → autodeploy Vercel | Media |
+| P-3 | Dominio `asc.premoscorp.com` → CNAME setup | Opcional |
+
+---
+
 ## Session 1 — 2026-06-04/05
 
 ### Planning & Architecture

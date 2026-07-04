@@ -1,15 +1,15 @@
-"""
-P46 — Rate Limits Dashboard
+﻿"""
+P46 â€” Rate Limits Dashboard
 ===========================
 Contract tests for the rate-limit monitoring dashboard.
 
 Scope
 -----
-• GET  /api/v1/api-keys/{id}/rate-limit-status  — owner + admin access
-• POST /api/v1/api-keys/{id}/rate-limit-reset   — admin-only
-• Frontend artifacts: rate-limits/page.tsx, Sidebar entry, api.ts function
-• Security: no raw keys exposed, cross-user isolation, admin RBAC on reset
-• Regression: P40–P45 endpoints still functional
+â€¢ GET  /api/v1/api-keys/{id}/rate-limit-status  â€” owner + admin access
+â€¢ POST /api/v1/api-keys/{id}/rate-limit-reset   â€” admin-only
+â€¢ Frontend artifacts: rate-limits/page.tsx, Sidebar entry, api.ts function
+â€¢ Security: no raw keys exposed, cross-user isolation, admin RBAC on reset
+â€¢ Regression: P40â€“P45 endpoints still functional
 
 Pattern
 -------
@@ -35,7 +35,7 @@ from asc_api.main import app
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
-# ── Factories ─────────────────────────────────────────────────────────────────
+# â”€â”€ Factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _jwt(user_id: str) -> str:
     return create_access_token(user_id)
@@ -97,7 +97,7 @@ def _make_limiter(count_m: int = 5, count_h: int = 120) -> MagicMock:
     return m
 
 
-# ── Rate limit status contract ─────────────────────────────────────────────────
+# â”€â”€ Rate limit status contract â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitStatusContract:
     """GET /api-keys/{id}/rate-limit-status returns correct fields and shape."""
@@ -112,8 +112,8 @@ class TestRateLimitStatusContract:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=user)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -133,8 +133,8 @@ class TestRateLimitStatusContract:
         limiter = _make_limiter(count_m=10, count_h=250)
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=user)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -163,8 +163,8 @@ class TestRateLimitStatusContract:
         limiter = _make_limiter(count_m=count_m, count_h=count_h)
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=user)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -190,8 +190,8 @@ class TestRateLimitStatusContract:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -209,7 +209,7 @@ class TestRateLimitStatusContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(requester.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=requester)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=requester)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
                     f"/api/v1/api-keys/{key.id}/rate-limit-status",
@@ -225,10 +225,10 @@ class TestRateLimitStatusContract:
         assert r.status_code == 401
 
 
-# ── Rate limit reset contract ─────────────────────────────────────────────────
+# â”€â”€ Rate limit reset contract â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitResetContract:
-    """POST /api-keys/{id}/rate-limit-reset — admin-only."""
+    """POST /api-keys/{id}/rate-limit-reset â€” admin-only."""
 
     @pytest.mark.asyncio
     async def test_reset_returns_204_for_admin(self):
@@ -240,8 +240,8 @@ class TestRateLimitResetContract:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(
@@ -262,8 +262,8 @@ class TestRateLimitResetContract:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=admin)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=admin)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 await ac.post(
@@ -283,8 +283,8 @@ class TestRateLimitResetContract:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=analyst)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=analyst)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(
@@ -301,7 +301,7 @@ class TestRateLimitResetContract:
         assert r.status_code == 401
 
 
-# ── Security invariants ───────────────────────────────────────────────────────
+# â”€â”€ Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityInvariants:
     """Rate limit status never leaks raw keys or hashes."""
@@ -317,8 +317,8 @@ class TestSecurityInvariants:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=user)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -339,8 +339,8 @@ class TestSecurityInvariants:
         limiter = _make_limiter()
 
         with (
-            patch("app.api.deps._resolve_user", AsyncMock(return_value=user)),
-            patch("app.api.v1.endpoints.api_keys.api_key_limiter", limiter),
+            patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)),
+            patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", limiter),
         ):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
@@ -351,10 +351,10 @@ class TestSecurityInvariants:
         assert "raw_key" not in r.json()
 
 
-# ── Deployment artifacts ───────────────────────────────────────────────────────
+# â”€â”€ Deployment artifacts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP46DeploymentAndRegression:
-    """Verify P46 frontend artifacts exist and P40–P45 regression."""
+    """Verify P46 frontend artifacts exist and P40â€“P45 regression."""
 
     def test_rate_limits_page_exists(self):
         path = _REPO_ROOT / "frontend" / "src" / "app" / "rate-limits" / "page.tsx"
@@ -405,7 +405,7 @@ class TestP46DeploymentAndRegression:
     @pytest.mark.asyncio
     async def test_api_keys_endpoint_still_needs_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/api-keys/")
+            r = await ac.get("/api/v1/api-keys")
         assert r.status_code == 401
 
     @pytest.mark.asyncio

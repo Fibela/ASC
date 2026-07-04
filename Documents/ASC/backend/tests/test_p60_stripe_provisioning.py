@@ -1,13 +1,13 @@
-"""
-P60 — Stripe → ASC Tenant Auto-Provisioning — Test Suite
+﻿"""
+P60 â€” Stripe â†’ ASC Tenant Auto-Provisioning â€” Test Suite
 =========================================================
 
 Tests: 47 in 8 classes covering:
-  - checkout.session.completed webhook → new Tenant + admin User
-  - Idempotency: duplicate checkout_session_id → no double-provision
+  - checkout.session.completed webhook â†’ new Tenant + admin User
+  - Idempotency: duplicate checkout_session_id â†’ no double-provision
   - Lookup by stripe_customer_id (upgrade existing tenant)
   - Lookup by email (link existing ASC user's tenant)
-  - customer.subscription.created → subscription ID + plan upgrade
+  - customer.subscription.created â†’ subscription ID + plan upgrade
   - Security: admin role, random password, no key leaks
   - Migration artifact (#18, down_revision=P59)
   - Config completeness (STRIPE_PROVISIONING_PLAN, render.yaml, .env.example)
@@ -49,7 +49,7 @@ _TEST_STRIPE_SID = "sub_test_p60_abc456"
 _TEST_SESSION_ID = "cs_test_p60_checkout_session_001"
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_sig(secret: str, payload: bytes) -> str:
     timestamp = "1700000000"
@@ -107,10 +107,10 @@ def _make_db(
     """
     DB mock for _provision_stripe_customer().
     Call sequence:
-      1 → idempotency lookup (stripe_checkout_session_id)
-      2 → stripe_customer_id lookup
-      3 → user email lookup
-      4 → tenant by user.tenant_id
+      1 â†’ idempotency lookup (stripe_checkout_session_id)
+      2 â†’ stripe_customer_id lookup
+      3 â†’ user email lookup
+      4 â†’ tenant by user.tenant_id
     """
     db = AsyncMock()
     db.commit = AsyncMock()
@@ -164,7 +164,7 @@ def _post_webhook(client, payload: dict, secret: str = "") -> tuple:
     return body, headers
 
 
-# ── 1. checkout.session.completed — Webhook level ────────────────────────────
+# â”€â”€ 1. checkout.session.completed â€” Webhook level â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCheckoutSessionWebhook:
 
@@ -173,11 +173,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 tenant_mock = MagicMock()
                 tenant_mock.id = str(uuid.uuid4())
@@ -192,11 +192,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 tenant_mock = MagicMock(); tenant_mock.id = "t-123"
                 mock_prov.return_value = (tenant_mock, True)
@@ -210,11 +210,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 tenant_mock = MagicMock(); tenant_mock.id = "t-123"
                 mock_prov.return_value = (tenant_mock, True)
@@ -230,11 +230,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(email="")
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                     r = await c.post(_WEBHOOK_URL, json=payload)
@@ -247,11 +247,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(customer="")
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                     r = await c.post(_WEBHOOK_URL, json=payload)
@@ -263,13 +263,13 @@ class TestCheckoutSessionWebhook:
     async def test_product_filter_blocks_non_asc_product(self):
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
-        # Event has no metadata product_id → filtered out
+        # Event has no metadata product_id â†’ filtered out
         payload = _checkout_event(metadata={})
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = "prod_asc_seguridad_123"
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                     r = await c.post(_WEBHOOK_URL, json=payload)
@@ -282,11 +282,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(metadata={"product_id": "prod_asc_seguridad_123"})
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = "prod_asc_seguridad_123"
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 tenant_mock = MagicMock(); tenant_mock.id = "t-123"
                 mock_prov.return_value = (tenant_mock, True)
@@ -300,11 +300,11 @@ class TestCheckoutSessionWebhook:
         override, _ = _db_override()
         app.dependency_overrides[get_db] = override
         payload = {"id": "evt_x", "type": "payment_intent.created", "data": {"object": {}}}
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
-            with patch("app.api.v1.endpoints.billing._provision_stripe_customer",
+            with patch("asc_api.api.v1.endpoints.billing._provision_stripe_customer",
                        new_callable=AsyncMock) as mock_prov:
                 async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                     r = await c.post(_WEBHOOK_URL, json=payload)
@@ -313,7 +313,7 @@ class TestCheckoutSessionWebhook:
         mock_prov.assert_not_awaited()
 
 
-# ── 2. _provision_stripe_customer() — unit ────────────────────────────────────
+# â”€â”€ 2. _provision_stripe_customer() â€” unit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestProvisionStripeTenant:
 
@@ -321,7 +321,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_creates_two_objects(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, provisioned = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -333,7 +333,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_plan_from_config(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "enterprise"
             tenant, _ = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -344,7 +344,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_admin_role(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -357,7 +357,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_sets_stripe_customer_id(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, _ = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -368,7 +368,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_sets_checkout_session_id(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, _ = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -383,7 +383,7 @@ class TestProvisionStripeTenant:
         existing.stripe_subscription_id = None
         existing.stripe_checkout_session_id = None
         db = _make_db(stripe_cid_tenant=existing)
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, provisioned = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -399,7 +399,7 @@ class TestProvisionStripeTenant:
         existing.stripe_subscription_id = None
         existing.stripe_checkout_session_id = None
         db = _make_db(stripe_cid_tenant=existing)
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -412,7 +412,7 @@ class TestProvisionStripeTenant:
         already_provisioned = MagicMock()
         already_provisioned.id = "t-already"
         db = _make_db(idempotent_tenant=already_provisioned)
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, provisioned = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -432,7 +432,7 @@ class TestProvisionStripeTenant:
         existing_tenant.stripe_subscription_id = None
         existing_tenant.stripe_checkout_session_id = None
         db = _make_db(email_user=existing_user, email_user_tenant=existing_tenant)
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             tenant, provisioned = await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -445,7 +445,7 @@ class TestProvisionStripeTenant:
     async def test_new_tenant_email_verified(self):
         from asc_api.api.v1.endpoints.billing import _provision_stripe_customer
         db = _make_db()
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             await _provision_stripe_customer(
                 _TEST_EMAIL, _TEST_STRIPE_CID, _TEST_STRIPE_SID, _TEST_SESSION_ID, db
@@ -454,7 +454,7 @@ class TestProvisionStripeTenant:
         assert user_obj[0].email_verified is True
 
 
-# ── 3. customer.subscription.created ─────────────────────────────────────────
+# â”€â”€ 3. customer.subscription.created â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSubscriptionCreatedHandler:
 
@@ -477,7 +477,7 @@ class TestSubscriptionCreatedHandler:
         app.dependency_overrides[get_db] = override
 
         payload = _subscription_created_event(status="active")
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -505,7 +505,7 @@ class TestSubscriptionCreatedHandler:
         app.dependency_overrides[get_db] = override
 
         payload = _subscription_created_event(status="incomplete")
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -513,7 +513,7 @@ class TestSubscriptionCreatedHandler:
                 r = await c.post(_WEBHOOK_URL, json=payload)
         app.dependency_overrides.pop(get_db, None)
         assert r.status_code == 200
-        # Inactive → no update applied
+        # Inactive â†’ no update applied
         assert existing.plan == "free"
 
     @pytest.mark.anyio
@@ -529,7 +529,7 @@ class TestSubscriptionCreatedHandler:
         app.dependency_overrides[get_db] = override
 
         payload = _subscription_created_event(customer="cus_unknown_xyz")
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -564,7 +564,7 @@ class TestSubscriptionCreatedHandler:
                 "status": "canceled",
             }},
         }
-        with patch("app.api.v1.endpoints.billing._settings") as cfg:
+        with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -576,7 +576,7 @@ class TestSubscriptionCreatedHandler:
         assert existing.stripe_subscription_id is None
 
 
-# ── 4. Security invariants ────────────────────────────────────────────────────
+# â”€â”€ 4. Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityInvariants:
 
@@ -649,7 +649,7 @@ class TestSecurityInvariants:
         assert not _verify_stripe_signature(body, "t=123,v1=badmac", "correct_secret")
 
 
-# ── 5. Migration artifact ─────────────────────────────────────────────────────
+# â”€â”€ 5. Migration artifact â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMigrationArtifact:
 
@@ -687,7 +687,7 @@ class TestMigrationArtifact:
         )
 
 
-# ── 6. Config completeness ────────────────────────────────────────────────────
+# â”€â”€ 6. Config completeness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestConfigCompleteness:
 
@@ -718,7 +718,7 @@ class TestConfigCompleteness:
         assert callable(_provision_stripe_customer)
 
 
-# ── 7. Module structure ────────────────────────────────────────────────────────
+# â”€â”€ 7. Module structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestModuleStructure:
 
@@ -753,7 +753,7 @@ class TestModuleStructure:
         assert "customer.subscription.created" in src
 
 
-# ── 8. Regression gates ────────────────────────────────────────────────────────
+# â”€â”€ 8. Regression gates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRegressionGates:
 

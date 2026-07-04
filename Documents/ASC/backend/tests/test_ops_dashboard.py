@@ -1,15 +1,15 @@
-"""
-P20 — Test Suite: Operational Dashboard + Neutralizer real-adapter wiring
+﻿"""
+P20 â€” Test Suite: Operational Dashboard + Neutralizer real-adapter wiring
 
 Coverage
 --------
-TestFleetSummary         (6 tests)  — aggregation, connectivity buckets, at_risk, empty fleet
-TestCommandMetrics       (7 tests)  — by_status, latency stats, success rate, empty window
-TestInflightCommands     (5 tests)  — filter by status, age_seconds, limit, sort order
-TestNeutralizationMetrics(6 tests)  — by_status/type/severity, escalations, approval_rate
-TestOpsAuth              (4 tests)  — 401 unauthenticated, viewer blocked (if role-restricted)
-TestNeutralizerFallback  (6 tests)  — block_ip/domain/account hit adapter; simulation fallback
-TestNeutralizerSimOnly   (4 tests)  — isolate/kill/quarantine/remove always simulation
+TestFleetSummary         (6 tests)  â€” aggregation, connectivity buckets, at_risk, empty fleet
+TestCommandMetrics       (7 tests)  â€” by_status, latency stats, success rate, empty window
+TestInflightCommands     (5 tests)  â€” filter by status, age_seconds, limit, sort order
+TestNeutralizationMetrics(6 tests)  â€” by_status/type/severity, escalations, approval_rate
+TestOpsAuth              (4 tests)  â€” 401 unauthenticated, viewer blocked (if role-restricted)
+TestNeutralizerFallback  (6 tests)  â€” block_ip/domain/account hit adapter; simulation fallback
+TestNeutralizerSimOnly   (4 tests)  â€” isolate/kill/quarantine/remove always simulation
 
 Total: 38 tests
 """
@@ -34,7 +34,7 @@ from asc_api.models.user import User
 from asc_api.services import neutralizer
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _ts(minutes_ago: float = 0) -> datetime:
     return datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
@@ -104,7 +104,7 @@ def _mock_db_returning(rows: list) -> AsyncMock:
     return db
 
 
-# ── TestFleetSummary ──────────────────────────────────────────────────────────
+# â”€â”€ TestFleetSummary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFleetSummary:
 
@@ -204,7 +204,7 @@ class TestFleetSummary:
         app.dependency_overrides.clear()
 
 
-# ── TestCommandMetrics ────────────────────────────────────────────────────────
+# â”€â”€ TestCommandMetrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCommandMetrics:
 
@@ -236,7 +236,7 @@ class TestCommandMetrics:
             r = await client.get("/api/v1/ops/commands/metrics?hours=24")
 
         data = r.json()
-        # 2 completed, 1 failed → 2/3 ≈ 66.7%
+        # 2 completed, 1 failed â†’ 2/3 â‰ˆ 66.7%
         assert data["success_rate_pct"] == pytest.approx(66.7, abs=0.2)
 
     @pytest.mark.asyncio
@@ -253,7 +253,7 @@ class TestCommandMetrics:
 
     @pytest.mark.asyncio
     async def test_latency_stats_populated(self):
-        # issued 10m ago, completed 5m ago → ~300000ms
+        # issued 10m ago, completed 5m ago â†’ ~300000ms
         cmds = [
             _command(status="completed", issued_m=10.0, completed_m=5.0),
         ]
@@ -313,7 +313,7 @@ class TestCommandMetrics:
         app.dependency_overrides.clear()
 
 
-# ── TestInflightCommands ──────────────────────────────────────────────────────
+# â”€â”€ TestInflightCommands â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestInflightCommands:
 
@@ -342,7 +342,7 @@ class TestInflightCommands:
 
         items = r.json()["commands"]
         assert len(items) == 1
-        # ~300s ago; allow ±10s for test latency
+        # ~300s ago; allow Â±10s for test latency
         assert 280 <= items[0]["age_seconds"] <= 320
 
     @pytest.mark.asyncio
@@ -384,7 +384,7 @@ class TestInflightCommands:
         app.dependency_overrides.clear()
 
 
-# ── TestNeutralizationMetrics ─────────────────────────────────────────────────
+# â”€â”€ TestNeutralizationMetrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNeutralizationMetrics:
 
@@ -432,7 +432,7 @@ class TestNeutralizationMetrics:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             r = await client.get("/api/v1/ops/neutralizations/metrics?hours=24")
 
-        # 2 approved, 1 rejected → 66.7%
+        # 2 approved, 1 rejected â†’ 66.7%
         assert r.json()["approval_rate_pct"] == pytest.approx(66.7, abs=0.2)
 
     @pytest.mark.asyncio
@@ -487,7 +487,7 @@ class TestNeutralizationMetrics:
         app.dependency_overrides.clear()
 
 
-# ── TestOpsAuth ───────────────────────────────────────────────────────────────
+# â”€â”€ TestOpsAuth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestOpsAuth:
 
@@ -519,16 +519,16 @@ class TestOpsAuth:
         app.dependency_overrides.clear()
 
 
-# ── TestNeutralizerFallback ───────────────────────────────────────────────────
+# â”€â”€ TestNeutralizerFallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNeutralizerFallback:
-    """block_ip/block_domain/disable_account: try adapter → fallback to simulation."""
+    """block_ip/block_domain/disable_account: try adapter â†’ fallback to simulation."""
 
     @pytest.mark.asyncio
     async def test_block_ip_uses_real_adapter_when_configured(self):
         mock_fw = AsyncMock()
         mock_fw.block_ip = AsyncMock(return_value={"success": True, "message": "blocked by Fortinet"})
-        with patch("app.adapters.get_firewall_adapter", return_value=mock_fw):
+        with patch("asc_api.adapters.get_firewall_adapter", return_value=mock_fw):
             result = await neutralizer.block_ip("10.0.0.1", reason="test")
         assert result.success is True
         assert "[SIMULATION]" not in result.message
@@ -536,7 +536,7 @@ class TestNeutralizerFallback:
 
     @pytest.mark.asyncio
     async def test_block_ip_falls_back_to_simulation_when_no_adapter(self):
-        with patch("app.adapters.get_firewall_adapter", return_value=None):
+        with patch("asc_api.adapters.get_firewall_adapter", return_value=None):
             result = await neutralizer.block_ip("10.0.0.1")
         assert result.success is True
         assert "[SIMULATION]" in result.message
@@ -546,7 +546,7 @@ class TestNeutralizerFallback:
     async def test_block_ip_falls_back_on_adapter_exception(self):
         mock_fw = AsyncMock()
         mock_fw.block_ip = AsyncMock(side_effect=RuntimeError("adapter timeout"))
-        with patch("app.adapters.get_firewall_adapter", return_value=mock_fw):
+        with patch("asc_api.adapters.get_firewall_adapter", return_value=mock_fw):
             result = await neutralizer.block_ip("10.0.0.2")
         assert result.success is True
         assert "[SIMULATION]" in result.message
@@ -555,7 +555,7 @@ class TestNeutralizerFallback:
     async def test_block_domain_uses_real_adapter(self):
         mock_fw = AsyncMock()
         mock_fw.block_domain = AsyncMock(return_value={"success": True, "message": "sinkholed"})
-        with patch("app.adapters.get_firewall_adapter", return_value=mock_fw):
+        with patch("asc_api.adapters.get_firewall_adapter", return_value=mock_fw):
             result = await neutralizer.block_domain("evil.com")
         assert result.success is True
         assert "[SIMULATION]" not in result.message
@@ -564,21 +564,21 @@ class TestNeutralizerFallback:
     async def test_disable_account_uses_real_adapter(self):
         mock_iam = AsyncMock()
         mock_iam.disable_account = AsyncMock(return_value={"success": True, "message": "account locked in AD"})
-        with patch("app.adapters.get_identity_adapter", return_value=mock_iam):
+        with patch("asc_api.adapters.get_identity_adapter", return_value=mock_iam):
             result = await neutralizer.disable_account("malicious.user")
         assert result.success is True
         assert "[SIMULATION]" not in result.message
 
     @pytest.mark.asyncio
     async def test_disable_account_fallback_simulation(self):
-        with patch("app.adapters.get_identity_adapter", return_value=None):
+        with patch("asc_api.adapters.get_identity_adapter", return_value=None):
             result = await neutralizer.disable_account("bad.actor", domain="CORP")
         assert result.success is True
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
 
-# ── TestNeutralizerSimOnly ────────────────────────────────────────────────────
+# â”€â”€ TestNeutralizerSimOnly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNeutralizerSimOnly:
     """Agent-dependent actions must ALWAYS return simulation (with marker)."""

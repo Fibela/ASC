@@ -1,19 +1,19 @@
-"""
-P23 — Threat Hunting Enhancements Test Suite
+﻿"""
+P23 â€” Threat Hunting Enhancements Test Suite
 
 Coverage
 --------
-TestQueryExecutor        (9 tests)  — ELK/Wazuh dispatch, timeout, stub, unknown source, not-found
-TestHuntFromAlert        (7 tests)  — service create, alert not found, endpoint 201/404/401, tags, finding
-TestTIEnrichment         (9 tests)  — matched/no-match/no-indicator, notes update, not-found,
+TestQueryExecutor        (9 tests)  â€” ELK/Wazuh dispatch, timeout, stub, unknown source, not-found
+TestHuntFromAlert        (7 tests)  â€” service create, alert not found, endpoint 201/404/401, tags, finding
+TestTIEnrichment         (9 tests)  â€” matched/no-match/no-indicator, notes update, not-found,
                                        endpoint 200/401/mismatch, max_severity helper
-TestReportExport         (9 tests)  — report structure, empty findings, grouping, timeline order,
+TestReportExport         (9 tests)  â€” report structure, empty findings, grouping, timeline order,
                                        hunt not found, endpoint 200/404/401
-TestAdapterSearchRaw     (7 tests)  — ELK not-configured/success/error, Wazuh not-configured/success/error,
+TestAdapterSearchRaw     (7 tests)  â€” ELK not-configured/success/error, Wazuh not-configured/success/error,
                                        result shape
-TestExecuteQueryEndpoint (6 tests)  — 200 OK, 401, hunt not found, query not in hunt, result structure
-TestDurationHelper       (3 tests)  — both timestamps, started only, no started_at
-TestSecurityBoundaries   (4 tests)  — read-only guards, active hunt on from-alert, find enrichment passive
+TestExecuteQueryEndpoint (6 tests)  â€” 200 OK, 401, hunt not found, query not in hunt, result structure
+TestDurationHelper       (3 tests)  â€” both timestamps, started only, no started_at
+TestSecurityBoundaries   (4 tests)  â€” read-only guards, active hunt on from-alert, find enrichment passive
 
 Total: 54 tests
 """
@@ -36,7 +36,7 @@ from asc_api.services import hunt_service as svc
 from asc_api.services.query_executor import execute_hunt_query, _dispatch, _call_adapter, EXECUTE_TIMEOUT_S
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _stub_user(role: str = "analyst") -> User:
     u = MagicMock(spec=User)
@@ -186,10 +186,10 @@ def _multi_db(*returns) -> AsyncMock:
 def _db_for_execute_endpoint(hunt, query) -> AsyncMock:
     """
     Builds a DB mock for the execute_query endpoint flow:
-      1. svc.get_hunt → hunt (scalar_one_or_none)
-      2. svc.list_queries → [query] (scalars().all())
-      3. execute_hunt_query internal → query (scalar_one_or_none)
-      4. _dispatch_to_specter agent lookup → [] (scalars().all()) — only for specter_agent
+      1. svc.get_hunt â†’ hunt (scalar_one_or_none)
+      2. svc.list_queries â†’ [query] (scalars().all())
+      3. execute_hunt_query internal â†’ query (scalar_one_or_none)
+      4. _dispatch_to_specter agent lookup â†’ [] (scalars().all()) â€” only for specter_agent
     """
     db = AsyncMock()
     db.add = MagicMock()
@@ -210,7 +210,7 @@ def _db_for_execute_endpoint(hunt, query) -> AsyncMock:
     r3 = MagicMock()
     r3.scalar_one_or_none.return_value = query
 
-    # r4: agent query in _dispatch_to_specter (empty fleet — returns graceful error)
+    # r4: agent query in _dispatch_to_specter (empty fleet â€” returns graceful error)
     r4 = MagicMock()
     r4.scalars.return_value.all.return_value = []
 
@@ -218,7 +218,7 @@ def _db_for_execute_endpoint(hunt, query) -> AsyncMock:
     return db
 
 
-# ── TestQueryExecutor ──────────────────────────────────────────────────────────
+# â”€â”€ TestQueryExecutor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestQueryExecutor:
 
@@ -265,9 +265,9 @@ class TestQueryExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_specter_agent_routed_via_dispatch(self):
-        """specter_agent is handled in _dispatch(), not _call_adapter() — verify routing."""
+        """specter_agent is handled in _dispatch(), not _call_adapter() â€” verify routing."""
         from unittest.mock import AsyncMock, MagicMock, patch
-        # _call_adapter does NOT handle specter_agent (that's _dispatch → _dispatch_to_specter)
+        # _call_adapter does NOT handle specter_agent (that's _dispatch â†’ _dispatch_to_specter)
         result = await _call_adapter("specter_agent", "SELECT * FROM events")
         assert result["success"] is False
         assert "specter_agent" in result["error"]
@@ -293,8 +293,8 @@ class TestQueryExecutor:
             return {}  # never reached
 
         db = AsyncMock()
-        with patch("app.services.query_executor.EXECUTE_TIMEOUT_S", 0.01):
-            with patch("app.services.query_executor._call_adapter", side_effect=_slow):
+        with patch("asc_api.services.query_executor.EXECUTE_TIMEOUT_S", 0.01):
+            with patch("asc_api.services.query_executor._call_adapter", side_effect=_slow):
                 result = await _dispatch(
                     db, "elk", "test query",
                     query_id="q-timeout", hunt_id="h-timeout", executed_by="analyst"
@@ -329,7 +329,7 @@ class TestQueryExecutor:
         assert "refused" in result["error"]
 
 
-# ── TestHuntFromAlert ──────────────────────────────────────────────────────────
+# â”€â”€ TestHuntFromAlert â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestHuntFromAlert:
 
@@ -361,8 +361,8 @@ class TestHuntFromAlert:
     @pytest.mark.asyncio
     async def test_create_from_alert_includes_from_alert_tag(self):
         alert = self._make_alert()
-        with patch("app.services.hunt_service.Hunt") as MockHunt, \
-             patch("app.services.hunt_service.HuntFinding") as MockFinding:
+        with patch("asc_api.services.hunt_service.Hunt") as MockHunt, \
+             patch("asc_api.services.hunt_service.HuntFinding") as MockFinding:
             h_instance = MagicMock()
             h_instance.id = str(uuid.uuid4())
             h_instance.findings_count = 0
@@ -411,7 +411,7 @@ class TestHuntFromAlert:
         alert = self._make_alert()
         alert.ttps = ["T1055", "T1059"]
         db = _multi_db(alert, alert, alert)
-        with patch("app.services.hunt_service.Hunt") as MockHunt:
+        with patch("asc_api.services.hunt_service.Hunt") as MockHunt:
             instance = MagicMock()
             instance.id = str(uuid.uuid4())
             instance.findings_count = 0
@@ -440,12 +440,12 @@ class TestHuntFromAlert:
         db.execute = AsyncMock(return_value=r)
         db.add = MagicMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
-        with patch("app.services.hunt_service.Hunt") as MockHunt:
+        with patch("asc_api.services.hunt_service.Hunt") as MockHunt:
             instance = MagicMock()
             instance.id = str(uuid.uuid4())
             instance.findings_count = 0
             MockHunt.return_value = instance
-            with patch("app.services.hunt_service.HuntFinding") as MockFinding:
+            with patch("asc_api.services.hunt_service.HuntFinding") as MockFinding:
                 MockFinding.return_value = MagicMock()
                 await svc.create_hunt_from_alert(db, alert.id, created_by="analyst@asc.local")
             call_kwargs = MockHunt.call_args[1]
@@ -454,7 +454,7 @@ class TestHuntFromAlert:
             assert call_kwargs.get("started_at") is not None
 
 
-# ── TestTIEnrichment ───────────────────────────────────────────────────────────
+# â”€â”€ TestTIEnrichment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTIEnrichment:
 
@@ -494,8 +494,8 @@ class TestTIEnrichment:
     async def test_enrich_finding_no_matches_enriched_false(self):
         finding = _make_finding()
         db = _db_with(return_value=finding)
-        with patch("app.services.hunt_service.get_finding", new_callable=AsyncMock, return_value=finding):
-            with patch("app.services.threat_intel.enrich", new_callable=AsyncMock, return_value=[]) as mock_enrich:
+        with patch("asc_api.services.hunt_service.get_finding", new_callable=AsyncMock, return_value=finding):
+            with patch("asc_api.services.threat_intel.enrich", new_callable=AsyncMock, return_value=[]) as mock_enrich:
                 # Direct import path used inside hunt_service
                 import asc_api.services.threat_intel as ti_module
                 orig = ti_module.enrich
@@ -537,7 +537,7 @@ class TestTIEnrichment:
         app.dependency_overrides[get_analyst_or_admin] = lambda: user
 
         hunt = _make_hunt()
-        # Endpoint calls svc.get_finding (one DB call) → finding with different hunt_id
+        # Endpoint calls svc.get_finding (one DB call) â†’ finding with different hunt_id
         finding = _make_finding(hunt_id="different-hunt-id")
         db = _db_with(return_value=finding)
         app.dependency_overrides[get_db] = lambda: db
@@ -570,7 +570,7 @@ class TestTIEnrichment:
             app.dependency_overrides.clear()
 
 
-# ── TestReportExport ───────────────────────────────────────────────────────────
+# â”€â”€ TestReportExport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestReportExport:
 
@@ -739,7 +739,7 @@ class TestReportExport:
             app.dependency_overrides.clear()
 
 
-# ── TestAdapterSearchRaw ───────────────────────────────────────────────────────
+# â”€â”€ TestAdapterSearchRaw â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAdapterSearchRaw:
 
@@ -780,7 +780,7 @@ class TestAdapterSearchRaw:
         }
         adapter = ELKAdapter.__new__(ELKAdapter)
         adapter._url = "https://elk.local:9200"
-        adapter._api_key = "dGVzdDp0ZXN0"  # nosec B105 — test fixture: base64("test:test")
+        adapter._api_key = "dGVzdDp0ZXN0"  # nosec B105 â€” test fixture: base64("test:test")
         adapter._index_alerts = "asc-alerts"
         adapter._index_events = "asc-events"
 
@@ -808,7 +808,7 @@ class TestAdapterSearchRaw:
 
         adapter = ELKAdapter.__new__(ELKAdapter)
         adapter._url = "https://elk.local:9200"
-        adapter._api_key = "dGVzdDp0ZXN0"  # nosec B105 — test fixture: base64("test:test")
+        adapter._api_key = "dGVzdDp0ZXN0"  # nosec B105 â€” test fixture: base64("test:test")
         adapter._index_alerts = "asc-alerts"
         adapter._index_events = "asc-events"
 
@@ -887,7 +887,7 @@ class TestAdapterSearchRaw:
         WazuhAdapter.clear_cache()
 
 
-# ── TestExecuteQueryEndpoint ───────────────────────────────────────────────────
+# â”€â”€ TestExecuteQueryEndpoint â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestExecuteQueryEndpoint:
 
@@ -924,7 +924,7 @@ class TestExecuteQueryEndpoint:
         hunt = _make_hunt()
         # A query whose ID won't match `query_id` in the URL
         other_query = _make_query(hunt_id=hunt.id)
-        # Endpoint: get_hunt → hunt, list_queries → [other_query] (different id)
+        # Endpoint: get_hunt â†’ hunt, list_queries â†’ [other_query] (different id)
         db = AsyncMock()
         db.commit = AsyncMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
@@ -950,7 +950,7 @@ class TestExecuteQueryEndpoint:
 
         hunt = _make_hunt()
         query = _make_query(hunt_id=hunt.id, data_source="elk")
-        # Endpoint flow: get_hunt(r1) → list_queries(r2) → execute_hunt_query internal(r3)
+        # Endpoint flow: get_hunt(r1) â†’ list_queries(r2) â†’ execute_hunt_query internal(r3)
         db = _db_for_execute_endpoint(hunt, query)
         app.dependency_overrides[get_db] = lambda: db
 
@@ -996,7 +996,7 @@ class TestExecuteQueryEndpoint:
             app.dependency_overrides.clear()
 
 
-# ── TestDurationHelper ─────────────────────────────────────────────────────────
+# â”€â”€ TestDurationHelper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestDurationHelper:
 
@@ -1023,7 +1023,7 @@ class TestDurationHelper:
         assert 2.9 <= result <= 3.1  # ~3h
 
 
-# ── TestSecurityBoundaries ─────────────────────────────────────────────────────
+# â”€â”€ TestSecurityBoundaries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityBoundaries:
 
@@ -1065,12 +1065,12 @@ class TestSecurityBoundaries:
         db.execute = AsyncMock(return_value=r)
         db.add = MagicMock()
         db.refresh = AsyncMock(side_effect=lambda obj: None)
-        with patch("app.services.hunt_service.Hunt") as MockHunt:
+        with patch("asc_api.services.hunt_service.Hunt") as MockHunt:
             instance = MagicMock()
             instance.id = str(uuid.uuid4())
             instance.findings_count = 0
             MockHunt.return_value = instance
-            with patch("app.services.hunt_service.HuntFinding") as MockFinding:
+            with patch("asc_api.services.hunt_service.HuntFinding") as MockFinding:
                 MockFinding.return_value = MagicMock()
                 await svc.create_hunt_from_alert(db, alert.id, created_by="analyst@asc.local")
             kwargs = MockHunt.call_args[1]

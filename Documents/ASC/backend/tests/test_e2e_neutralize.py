@@ -1,24 +1,24 @@
-"""
-End-to-End Neutralization Cycle Tests — PANL
+﻿"""
+End-to-End Neutralization Cycle Tests â€” PANL
 =============================================
 Full-cycle integration tests chaining all services together:
 
-  request_action → (PANL gate) → approve_action → specter_dispatch
-  → mock SPECTER agent → action completed → rollback_available set
+  request_action â†’ (PANL gate) â†’ approve_action â†’ specter_dispatch
+  â†’ mock SPECTER agent â†’ action completed â†’ rollback_available set
 
 These tests mock the DB (no real PostgreSQL) but wire through the full
-Python service stack: approval.py → specter_bridge.py → agent_commander.py.
+Python service stack: approval.py â†’ specter_bridge.py â†’ agent_commander.py.
 This catches integration bugs that unit tests miss (argument type mismatches,
 state propagation errors, forensic link omissions).
 
 Test classes
 ------------
-  TestE2EHappyPath      — full cycle for each action type + severity
-  TestE2EMultiSig       — dual-analyst approval flow for CRITICAL actions
-  TestE2EBroadcast      — fleet-aware batched dispatch cycle
-  TestE2EBehavioralThrottle — throttle blocks excessive requests
-  TestE2EAdaptiveSeverity   — severity upgraded by context before routing
-  TestE2ERollback       — completed action → rollback request → reversal approved
+  TestE2EHappyPath      â€” full cycle for each action type + severity
+  TestE2EMultiSig       â€” dual-analyst approval flow for CRITICAL actions
+  TestE2EBroadcast      â€” fleet-aware batched dispatch cycle
+  TestE2EBehavioralThrottle â€” throttle blocks excessive requests
+  TestE2EAdaptiveSeverity   â€” severity upgraded by context before routing
+  TestE2ERollback       â€” completed action â†’ rollback request â†’ reversal approved
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ from asc_api.services.approval import (
 )
 
 
-# ── Fixtures / builders ───────────────────────────────────────────────────────
+# â”€â”€ Fixtures / builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _mock_bridge_result(*, success: bool = True, mode: str = "specter") -> MagicMock:
     r = MagicMock()
@@ -65,7 +65,7 @@ def reset_panl():
     request_rate_limiter.reset_all()
 
 
-# ── 1. Happy path — medium severity (no HitL, immediate execution) ────────────
+# â”€â”€ 1. Happy path â€” medium severity (no HitL, immediate execution) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestE2EHappyPath:
     @pytest.mark.asyncio
@@ -74,11 +74,11 @@ class TestE2EHappyPath:
         mock_result = _mock_bridge_result(mode="broadcast")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.adapt_severity", return_value="medium"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.adapt_severity", return_value="medium"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -98,10 +98,10 @@ class TestE2EHappyPath:
         db = _make_db()
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.adapt_severity", return_value="high"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.adapt_severity", return_value="high"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -122,10 +122,10 @@ class TestE2EHappyPath:
         db = _make_db()
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.adapt_severity", return_value="critical"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.adapt_severity", return_value="critical"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -146,11 +146,11 @@ class TestE2EHappyPath:
         mock_result = _mock_bridge_result(success=True, mode="broadcast")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.adapt_severity", return_value="medium"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.adapt_severity", return_value="medium"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -170,11 +170,11 @@ class TestE2EHappyPath:
         mock_result = _mock_bridge_result(success=True, mode="specter")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.adapt_severity", return_value="medium"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.adapt_severity", return_value="medium"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -189,7 +189,7 @@ class TestE2EHappyPath:
         assert action.rollback_available is False
 
 
-# ── 2. Multi-signature approval cycle ────────────────────────────────────────
+# â”€â”€ 2. Multi-signature approval cycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestE2EMultiSig:
     def _pending_critical_action(self, initiated_by: str = "alice@premos.com") -> MagicMock:
@@ -233,12 +233,12 @@ class TestE2EMultiSig:
         db = self._db(action)
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="bob@premos.com")
 
-        # Still pending — needs 2nd signature
+        # Still pending â€” needs 2nd signature
         assert result.status == "pending_approval"
         assert len(result.approvals_log) == 1
         assert result.approvals_log[0]["approved_by"] == "bob@premos.com"
@@ -252,13 +252,13 @@ class TestE2EMultiSig:
         mock_result = _mock_bridge_result(mode="broadcast")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             result = await approve_action(db, action_id=action.id, approved_by="carol@premos.com")
 
-        # Both signatures present → should execute
+        # Both signatures present â†’ should execute
         assert result.status in ("completed", "failed")
         assert len(result.approvals_log) == 2
 
@@ -288,9 +288,9 @@ class TestE2EMultiSig:
         mock_result = _mock_bridge_result(mode="broadcast")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             # Carol is the third person (initiator=alice, first=bob, second=carol)
             result = await approve_action(db, action_id=action.id, approved_by="carol@premos.com")
@@ -298,7 +298,7 @@ class TestE2EMultiSig:
         assert result.status in ("completed", "failed")
 
 
-# ── 3. Behavioral throttle integration ────────────────────────────────────────
+# â”€â”€ 3. Behavioral throttle integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestE2EBehavioralThrottle:
     @pytest.mark.asyncio
@@ -332,10 +332,10 @@ class TestE2EBehavioralThrottle:
             behavioral_throttle.check(user, "block_ip")
 
         with (
-            patch("app.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.adapt_severity", return_value="medium"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.specter_dispatch", new=AsyncMock(return_value=mock_result)),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.adapt_severity", return_value="medium"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             # automated=True skips behavioral throttle
             action = await request_action(
@@ -352,7 +352,7 @@ class TestE2EBehavioralThrottle:
         assert action.status in ("completed", "failed")
 
 
-# ── 4. Adaptive severity integration ─────────────────────────────────────────
+# â”€â”€ 4. Adaptive severity integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestE2EAdaptiveSeverity:
     @pytest.mark.asyncio
@@ -360,9 +360,9 @@ class TestE2EAdaptiveSeverity:
         db = _make_db()
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -377,7 +377,7 @@ class TestE2EAdaptiveSeverity:
                 ),
             )
 
-        # Upgraded medium → high → needs approval
+        # Upgraded medium â†’ high â†’ needs approval
         assert action.severity == "high"
         assert action.status == "pending_approval"
         assert action.severity_adapted is True
@@ -388,9 +388,9 @@ class TestE2EAdaptiveSeverity:
         db = _make_db()
 
         with (
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.check_behavioral_throttle"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.check_behavioral_throttle"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             action = await request_action(
                 db,
@@ -411,7 +411,7 @@ class TestE2EAdaptiveSeverity:
         assert action.severity_adapted is True
 
 
-# ── 5. Full rollback cycle ────────────────────────────────────────────────────
+# â”€â”€ 5. Full rollback cycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestE2ERollback:
     @pytest.mark.asyncio
@@ -458,10 +458,10 @@ class TestE2ERollback:
             return a
 
         with (
-            patch("app.services.approval.request_action", new=_mock_request_action),
-            patch("app.services.approval.log_security_action"),
-            patch("app.services.approval.notification_bus"),
-            patch("app.services.approval.asyncio.ensure_future"),
+            patch("asc_api.services.approval.request_action", new=_mock_request_action),
+            patch("asc_api.services.approval.log_security_action"),
+            patch("asc_api.services.approval.notification_bus"),
+            patch("asc_api.services.approval.asyncio.ensure_future"),
         ):
             rollback = await create_rollback_action(
                 db,

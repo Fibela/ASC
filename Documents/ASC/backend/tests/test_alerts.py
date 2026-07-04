@@ -1,13 +1,13 @@
-"""
-test_alerts.py — Tech Debt P2: Alert CRUD endpoints + JWT auth enforcement
+﻿"""
+test_alerts.py â€” Tech Debt P2: Alert CRUD endpoints + JWT auth enforcement
 
 Tests:
-  TestAlertAuth         (6)  — all endpoints reject unauthenticated requests
-  TestAlertList         (6)  — GET /alerts/ pagination, filtering, auth levels
-  TestAlertGet          (4)  — GET /alerts/{id} happy + 404
-  TestAlertPatch        (10) — PATCH /alerts/{id}: status transitions, MTTA
+  TestAlertAuth         (6)  â€” all endpoints reject unauthenticated requests
+  TestAlertList         (6)  â€” GET /alerts/ pagination, filtering, auth levels
+  TestAlertGet          (4)  â€” GET /alerts/{id} happy + 404
+  TestAlertPatch        (10) â€” PATCH /alerts/{id}: status transitions, MTTA
                                timestamps, role enforcement, 404
-  TestAlertStats        (4)  — GET /alerts/stats/summary counts
+  TestAlertStats        (4)  â€” GET /alerts/stats/summary counts
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from asc_api.models.alert import Alert
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_alert(
     severity: str = "high",
@@ -54,14 +54,14 @@ async def _seed_alert(db: AsyncSession, **kwargs) -> Alert:
     return alert
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 1. Authentication enforcement (TD2 fix)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class TestAlertAuth:
     """Every alert endpoint must reject unauthenticated requests."""
 
     async def test_list_requires_auth(self, client: AsyncClient):
-        resp = await client.get("/api/v1/alerts/")
+        resp = await client.get("/api/v1/alerts")
         assert resp.status_code in (401, 403)
 
     async def test_get_requires_auth(self, client: AsyncClient):
@@ -77,7 +77,7 @@ class TestAlertAuth:
         assert resp.status_code in (401, 403)
 
     async def test_patch_viewer_forbidden(self, client: AsyncClient, viewer_headers: dict, db: AsyncSession):
-        """Viewer role must not be able to modify alerts — analyst_or_admin required."""
+        """Viewer role must not be able to modify alerts â€” analyst_or_admin required."""
         alert = await _seed_alert(db)
         resp = await client.patch(
             f"/api/v1/alerts/{alert.id}",
@@ -97,13 +97,13 @@ class TestAlertAuth:
         assert resp.status_code == 200
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. GET /alerts/  — list with filtering
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 2. GET /alerts/  â€” list with filtering
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class TestAlertList:
 
     async def test_empty_db_returns_empty_list(self, client: AsyncClient, viewer_headers: dict):
-        resp = await client.get("/api/v1/alerts/", headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", headers=viewer_headers)
         assert resp.status_code == 200
         assert resp.json() == []
 
@@ -112,7 +112,7 @@ class TestAlertList:
     ):
         await _seed_alert(db, severity="critical")
         await _seed_alert(db, severity="high")
-        resp = await client.get("/api/v1/alerts/", headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", headers=viewer_headers)
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
@@ -121,7 +121,7 @@ class TestAlertList:
     ):
         await _seed_alert(db, severity="critical")
         await _seed_alert(db, severity="low")
-        resp = await client.get("/api/v1/alerts/", params={"severity": "critical"}, headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", params={"severity": "critical"}, headers=viewer_headers)
         assert resp.status_code == 200
         assert all(a["severity"] == "critical" for a in resp.json())
 
@@ -130,7 +130,7 @@ class TestAlertList:
     ):
         await _seed_alert(db, status="open")
         await _seed_alert(db, status="resolved")
-        resp = await client.get("/api/v1/alerts/", params={"status": "open"}, headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", params={"status": "open"}, headers=viewer_headers)
         assert resp.status_code == 200
         assert all(a["status"] == "open" for a in resp.json())
 
@@ -138,7 +138,7 @@ class TestAlertList:
         self, client: AsyncClient, viewer_headers: dict, db: AsyncSession
     ):
         await _seed_alert(db)
-        resp = await client.get("/api/v1/alerts/", headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", headers=viewer_headers)
         assert resp.status_code == 200
         alert = resp.json()[0]
         for field in ("id", "title", "severity", "status", "risk_score", "detected_at"):
@@ -149,14 +149,14 @@ class TestAlertList:
     ):
         for _ in range(5):
             await _seed_alert(db)
-        resp = await client.get("/api/v1/alerts/", params={"limit": 2}, headers=viewer_headers)
+        resp = await client.get("/api/v1/alerts", params={"limit": 2}, headers=viewer_headers)
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 3. GET /alerts/{id}
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class TestAlertGet:
 
     async def test_get_existing_alert(
@@ -188,14 +188,14 @@ class TestAlertGet:
         assert resp.status_code == 200
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. PATCH /alerts/{id} — status transitions + MTTA timestamps
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 4. PATCH /alerts/{id} â€” status transitions + MTTA timestamps
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class TestAlertPatch:
     """
     PATCH is the mechanism that drives MTTA and MTTR metrics:
-      status → "investigating"  sets acknowledged_at  (MTTA denominator)
-      status → "resolved"       sets resolved_at       (MTTR denominator)
+      status â†’ "investigating"  sets acknowledged_at  (MTTA denominator)
+      status â†’ "resolved"       sets resolved_at       (MTTR denominator)
     """
 
     async def test_patch_status_to_investigating(
@@ -239,7 +239,7 @@ class TestAlertPatch:
     async def test_patch_sets_resolved_at_on_resolved(
         self, client: AsyncClient, analyst_headers: dict, db: AsyncSession
     ):
-        """MTTR requires resolved_at to be populated when status → resolved."""
+        """MTTR requires resolved_at to be populated when status â†’ resolved."""
         alert = await _seed_alert(db, status="investigating")
         assert alert.resolved_at is None
         resp = await client.patch(
@@ -314,14 +314,14 @@ class TestAlertPatch:
     ):
         """acknowledged_at must not be overwritten on subsequent status changes."""
         alert = await _seed_alert(db, status="open")
-        # First patch: open → investigating (sets acknowledged_at)
+        # First patch: open â†’ investigating (sets acknowledged_at)
         r1 = await client.patch(
             f"/api/v1/alerts/{alert.id}",
             json={"status": "investigating"},
             headers=analyst_headers,
         )
         first_ack = r1.json()["acknowledged_at"]
-        # Second patch: investigating → contained
+        # Second patch: investigating â†’ contained
         r2 = await client.patch(
             f"/api/v1/alerts/{alert.id}",
             json={"status": "contained"},
@@ -330,9 +330,9 @@ class TestAlertPatch:
         assert r2.json()["acknowledged_at"] == first_ack
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 5. GET /alerts/stats/summary
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 class TestAlertStats:
 
     async def test_empty_stats(self, client: AsyncClient, viewer_headers: dict):

@@ -1,5 +1,5 @@
-"""
-P53 — Onboarding Flow: comprehensive test suite.
+﻿"""
+P53 â€” Onboarding Flow: comprehensive test suite.
 
 Coverage targets:
   - Registration (slug uniqueness, email uniqueness, password hashing, token gen)
@@ -12,7 +12,7 @@ Coverage targets:
   - Router registration
   - Regression: legacy users default to email_verified=True, onboarding_step='completed'
 
-Total: ≥ 85 tests across 10 classes.
+Total: â‰¥ 85 tests across 10 classes.
 """
 
 from __future__ import annotations
@@ -26,9 +26,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Module-level smoke imports
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 from asc_api.api.v1.endpoints.onboarding import (
     _token_hash,
@@ -41,9 +41,9 @@ from asc_api.core.config import get_settings
 
 _SETTINGS = get_settings()
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(**kwargs) -> User:
     defaults = dict(
@@ -76,9 +76,9 @@ def _make_db(user=None, tenant=None):
     return db
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 1. Token helpers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTokenHelpers:
     """_token_hash and _make_verification_token behave correctly."""
@@ -123,7 +123,7 @@ class TestTokenHelpers:
         assert delta_hours <= _SETTINGS.EMAIL_VERIFICATION_EXPIRE_HOURS + 0.1
 
     def test_make_verification_token_raw_length(self):
-        """secrets.token_urlsafe(32) produces ≥ 32 chars."""
+        """secrets.token_urlsafe(32) produces â‰¥ 32 chars."""
         raw, _, _ = _make_verification_token()
         assert len(raw) >= 32
 
@@ -138,9 +138,9 @@ class TestTokenHelpers:
         assert raw1 != raw2
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 2. Registration endpoint
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRegister:
     """POST /onboarding/register"""
@@ -184,9 +184,9 @@ class TestRegister:
         db.execute = _exec
         db.refresh = AsyncMock()
 
-        with patch("app.core.security.get_password_hash", return_value="$hash"), \
-             patch("app.api.v1.endpoints.onboarding._send_verification_email"), \
-             patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.core.security.get_password_hash", return_value="$hash"), \
+             patch("asc_api.api.v1.endpoints.onboarding._send_verification_email"), \
+             patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
 
             from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
@@ -209,7 +209,7 @@ class TestRegister:
         async def _exec(stmt):
             call_count[0] += 1
             m = MagicMock()
-            # First call = slug check → return existing tenant
+            # First call = slug check â†’ return existing tenant
             m.scalar_one_or_none.return_value = existing_tenant if call_count[0] == 1 else None
             return m
         db.execute = _exec
@@ -263,9 +263,9 @@ class TestRegister:
         db.execute = _exec
         db.refresh = AsyncMock()
 
-        with patch("app.core.security.get_password_hash", return_value="$hash"), \
-             patch("app.api.v1.endpoints.onboarding._send_verification_email") as mock_send, \
-             patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.core.security.get_password_hash", return_value="$hash"), \
+             patch("asc_api.api.v1.endpoints.onboarding._send_verification_email") as mock_send, \
+             patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
 
             from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
@@ -301,9 +301,9 @@ class TestRegister:
             )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 3. Email verification
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestVerifyEmail:
     """POST /onboarding/verify-email"""
@@ -329,7 +329,7 @@ class TestVerifyEmail:
             return m
         db.execute = _exec
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
             result = await verify_email(VerifyEmailRequest(token=raw), db)
 
         assert result.email_verified is True
@@ -398,7 +398,7 @@ class TestVerifyEmail:
             return m
         db.execute = _exec
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
             await verify_email(VerifyEmailRequest(token=raw), db)
 
         assert user.email_verification_token is None
@@ -424,7 +424,7 @@ class TestVerifyEmail:
             return m
         db.execute = _exec
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
             await verify_email(VerifyEmailRequest(token=raw), db)
 
         assert user.onboarding_step == "pending_setup"
@@ -435,9 +435,9 @@ class TestVerifyEmail:
         assert raw != _token_hash(raw)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 4. Onboarding status
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestOnboardingStatus:
     """GET /onboarding/status"""
@@ -494,9 +494,9 @@ class TestOnboardingStatus:
         assert result.onboarding_step == "completed"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 5. Complete onboarding
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCompleteOnboarding:
     """POST /onboarding/complete"""
@@ -508,7 +508,7 @@ class TestCompleteOnboarding:
         user = _make_user(onboarding_step="pending_setup", email_verified=True)
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
             result = await complete_onboarding(user, db)
 
         assert result.onboarding_step == "completed"
@@ -545,7 +545,7 @@ class TestCompleteOnboarding:
         user = _make_user(onboarding_step="pending_setup")
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action") as mock_log:
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action") as mock_log:
             await complete_onboarding(user, db)
 
         mock_log.assert_called_once()
@@ -559,15 +559,15 @@ class TestCompleteOnboarding:
         user = _make_user(onboarding_step="pending_setup")
         db = _make_db()
 
-        with patch("app.api.v1.endpoints.onboarding.log_security_action"):
+        with patch("asc_api.api.v1.endpoints.onboarding.log_security_action"):
             await complete_onboarding(user, db)
 
         db.commit.assert_called_once()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 6. email_verified gate in deps._resolve_user
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestEmailVerifiedGate:
     """deps._resolve_user blocks unverified users with 403 email_verification_required."""
@@ -637,13 +637,13 @@ class TestEmailVerifiedGate:
         import inspect
         import asc_api.api.deps as deps_module
         source = inspect.getsource(deps_module._resolve_user)
-        # getattr(user, "email_verified", True) — True is the default
+        # getattr(user, "email_verified", True) â€” True is the default
         assert "getattr(user" in source or "email_verified" in source
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. User model — new fields
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 7. User model â€” new fields
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUserModelFields:
     """User model contains the P53 onboarding fields."""
@@ -686,9 +686,9 @@ class TestUserModelFields:
         assert "completed" in src
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 8. Migration: r8l01o0q3k05
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP53Migration:
     """Migration r8l01o0q3k05 is present, correct, and chained properly."""
@@ -741,9 +741,9 @@ class TestP53Migration:
         assert "drop_column" in content
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 9. Config settings
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestOnboardingConfig:
     """Config settings for P53 are present and have safe defaults."""
@@ -758,9 +758,9 @@ class TestOnboardingConfig:
         assert _SETTINGS.EMAIL_VERIFICATION_EXPIRE_HOURS > 0
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 10. Router registration
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRouterRegistration:
     """Onboarding router is wired into api_router."""

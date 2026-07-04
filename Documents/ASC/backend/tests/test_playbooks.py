@@ -1,17 +1,17 @@
-"""
-Priority 3 — Playbooks Engine unit + integration tests.
+﻿"""
+Priority 3 â€” Playbooks Engine unit + integration tests.
 
 Coverage:
   - PlaybookContext construction (from_detection, from_fingerprint, manual)
   - select_playbook_id (risk-based + fingerprint routing)
   - get_playbook_catalog (catalog structure)
-  - trigger_playbook — all 4 playbooks (PB-001..PB-004)
-  - auto_trigger — risk-score routing + fingerprint routing
-  - approve_playbook_run — HitL resume, invalid token, wrong status
-  - abort_playbook_run — valid abort, abort completed run (error)
-  - _context_from_run — reconstruction from stored data
-  - API endpoints — /playbooks/, /trigger, /auto-trigger, /runs, /approve, /abort
-  - RBAC — viewer cannot trigger/approve; analyst can
+  - trigger_playbook â€” all 4 playbooks (PB-001..PB-004)
+  - auto_trigger â€” risk-score routing + fingerprint routing
+  - approve_playbook_run â€” HitL resume, invalid token, wrong status
+  - abort_playbook_run â€” valid abort, abort completed run (error)
+  - _context_from_run â€” reconstruction from stored data
+  - API endpoints â€” /playbooks/, /trigger, /auto-trigger, /runs, /approve, /abort
+  - RBAC â€” viewer cannot trigger/approve; analyst can
 """
 
 import pytest
@@ -37,7 +37,7 @@ from asc_api.services.playbook import (
 )
 
 
-# ─── PlaybookContext ──────────────────────────────────────────────────────────
+# â”€â”€â”€ PlaybookContext â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPlaybookContext:
     def test_from_detection_basic(self):
@@ -96,7 +96,7 @@ class TestPlaybookContext:
         assert ctx.fingerprint_confidence is None
 
 
-# ─── Playbook Selection ───────────────────────────────────────────────────────
+# â”€â”€â”€ Playbook Selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSelectPlaybook:
     def _ctx(self, risk: float, source: str = "auto_detection", confidence: float | None = None):
@@ -142,7 +142,7 @@ class TestSelectPlaybook:
 
     def test_fingerprint_below_030_falls_through_to_risk(self):
         ctx = self._ctx(0.90, source="auto_fingerprint", confidence=0.10)
-        # confidence 0.10 < 0.30 → falls through to risk-based → PB-003
+        # confidence 0.10 < 0.30 â†’ falls through to risk-based â†’ PB-003
         assert select_playbook_id(ctx) == "PB-003"
 
     def test_fingerprint_source_no_confidence_falls_through(self):
@@ -150,7 +150,7 @@ class TestSelectPlaybook:
         assert select_playbook_id(ctx) == "PB-001"
 
 
-# ─── Catalog ──────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Catalog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCatalog:
     def test_catalog_has_four_playbooks(self):
@@ -189,7 +189,7 @@ class TestCatalog:
         assert pb["requires_approval"] is True
 
 
-# ─── Trigger + Engine (service layer, uses in-memory DB) ─────────────────────
+# â”€â”€â”€ Trigger + Engine (service layer, uses in-memory DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTriggerPB001:
     @pytest.mark.asyncio
@@ -315,12 +315,12 @@ class TestTriggerPB004:
         assert isolate_steps[0].get("success") is True
 
 
-# ─── HitL Approval Validation ─────────────────────────────────────────────────
+# â”€â”€â”€ HitL Approval Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestApprovalValidation:
     @pytest.mark.asyncio
     async def test_approve_pb002_service_completes(self, db: AsyncSession, analyst_user):
-        """Service-layer approve works — token check is the API layer's responsibility."""
+        """Service-layer approve works â€” token check is the API layer's responsibility."""
         ctx = PlaybookContext(semaphore="yellow", risk_score=0.60, trigger_source="manual")
         run = await trigger_playbook("PB-002", ctx, db, initiated_by=str(analyst_user.id))
         await db.commit()
@@ -349,13 +349,13 @@ class TestApprovalValidation:
         run = await trigger_playbook("PB-001", ctx, db, initiated_by=str(analyst_user.id))
         await db.commit()
 
-        # PB-001 completes without HitL — status=completed
+        # PB-001 completes without HitL â€” status=completed
         assert run.status == "completed"
         with pytest.raises(ValueError, match="not awaiting approval"):
             await approve_playbook_run(run, approved_by=str(analyst_user.id), db=db)
 
 
-# ─── Abort ────────────────────────────────────────────────────────────────────
+# â”€â”€â”€ Abort â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAbort:
     @pytest.mark.asyncio
@@ -383,7 +383,7 @@ class TestAbort:
             await abort_playbook_run(run, aborted_by=str(analyst_user.id), db=db)
 
 
-# ─── Auto-trigger ─────────────────────────────────────────────────────────────
+# â”€â”€â”€ Auto-trigger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAutoTrigger:
     @pytest.mark.asyncio
@@ -418,7 +418,7 @@ class TestAutoTrigger:
         assert run.playbook_id == "PB-004"
 
 
-# ─── Context Reconstruction ───────────────────────────────────────────────────
+# â”€â”€â”€ Context Reconstruction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestContextFromRun:
     def test_reconstructs_detection_context(self):
@@ -462,7 +462,7 @@ class TestContextFromRun:
         assert ctx.trigger_source == "auto_fingerprint"
 
 
-# ─── Unknown Playbook ─────────────────────────────────────────────────────────
+# â”€â”€â”€ Unknown Playbook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUnknownPlaybook:
     @pytest.mark.asyncio
@@ -472,18 +472,18 @@ class TestUnknownPlaybook:
             await trigger_playbook("PB-999", ctx, db, initiated_by="system")
 
 
-# ─── API Endpoints ────────────────────────────────────────────────────────────
+# â”€â”€â”€ API Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPlaybooksAPI:
     @pytest.mark.asyncio
     async def test_list_playbooks_requires_auth(self, client: AsyncClient):
         # FastAPI's HTTPBearer returns 403 (not 401) when no Bearer token is present
-        resp = await client.get("/api/v1/playbooks/")
+        resp = await client.get("/api/v1/playbooks")
         assert resp.status_code in (401, 403)
 
     @pytest.mark.asyncio
     async def test_list_playbooks_viewer_ok(self, client: AsyncClient, viewer_headers: dict):
-        resp = await client.get("/api/v1/playbooks/", headers=viewer_headers)
+        resp = await client.get("/api/v1/playbooks", headers=viewer_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 4  # PB-005 added in P26

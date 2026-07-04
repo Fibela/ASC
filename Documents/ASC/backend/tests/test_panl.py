@@ -239,7 +239,7 @@ class TestCheckBehavioralThrottle:
 
         logged = []
         with patch(
-            "app.core.panl.log_security_action",
+            "asc_api.core.panl.log_security_action",
             side_effect=lambda *a, **kw: logged.append(kw),
         ):
             with pytest.raises(ValueError):

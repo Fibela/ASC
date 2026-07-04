@@ -1,14 +1,14 @@
-"""
-P33 Coverage B — second wave targeting remaining gaps
+﻿"""
+P33 Coverage B â€” second wave targeting remaining gaps
 
-Targets pushing total coverage from 82.20% toward ≥85%:
+Targets pushing total coverage from 82.20% toward â‰¥85%:
 
-1. reporter.py        — _severity_color, generate_html_report, generate_pdf_report
-2. scheduled_reports  — _is_due (pure), _run (mocked AsyncSessionLocal)
-3. escalation         — _run (mocked)
-4. sla_escalation     — _run (mocked)
-5. correlation_sweep  — _async_sweep (mocked lazy imports at source)
-6. pcdi_escalation    — _run (mocked, empty active_hunts path)
+1. reporter.py        â€” _severity_color, generate_html_report, generate_pdf_report
+2. scheduled_reports  â€” _is_due (pure), _run (mocked AsyncSessionLocal)
+3. escalation         â€” _run (mocked)
+4. sla_escalation     â€” _run (mocked)
+5. correlation_sweep  â€” _async_sweep (mocked lazy imports at source)
+6. pcdi_escalation    â€” _run (mocked, empty active_hunts path)
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# ─── Celery stub ──────────────────────────────────────────────────────────────
+# â”€â”€â”€ Celery stub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # celery==5.4.0 is in requirements.txt but may not be installed in the local venv
 # (runs inside Docker in production). Install a faithful stub so:
 #   1. Task modules import without the real package.
@@ -75,7 +75,7 @@ if "celery" not in sys.modules:
     sys.modules.setdefault("celery.utils.log", MagicMock())
 
 
-# ─── Shared helpers ────────────────────────────────────────────────────────────
+# â”€â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _FakeSession:
     """Minimal async context-manager that yields a pre-built mock DB."""
@@ -106,9 +106,9 @@ def _async_db(rows: list | None = None) -> AsyncMock:
     return db
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. REPORTER — pure functions + PDF/HTML generation
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 1. REPORTER â€” pure functions + PDF/HTML generation
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestReporterSeverityColor:
     def test_critical_returns_red(self):
@@ -207,7 +207,7 @@ class TestGenerateHtmlReport:
              "detected_at": "2026-06-12T00:00:00Z"},
         ]
         html = generate_html_report(self._data(alerts=alerts))
-        # severity "high" → sev_class = "warning" → bootstrap badge bg-warning
+        # severity "high" â†’ sev_class = "warning" â†’ bootstrap badge bg-warning
         assert "bg-warning" in html
 
     def test_empty_alerts_no_error(self):
@@ -274,9 +274,9 @@ class TestGeneratePdfReport:
         assert isinstance(generate_pdf_report(data), bytes)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 2. SCHEDULED REPORTS — _is_due pure function + _run mocked
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 2. SCHEDULED REPORTS â€” _is_due pure function + _run mocked
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestScheduledReportIsDue:
     def test_none_last_sent_always_due(self):
@@ -313,7 +313,7 @@ class TestScheduledReportIsDue:
     def test_exactly_at_24h_boundary_is_due(self):
         from asc_api.tasks.scheduled_reports import _is_due
         last = datetime.now(timezone.utc) - timedelta(hours=24)
-        assert _is_due(last, "daily") is True  # >= 24h → due
+        assert _is_due(last, "daily") is True  # >= 24h â†’ due
 
     def test_exactly_at_7day_boundary_is_due(self):
         from asc_api.tasks.scheduled_reports import _is_due
@@ -326,7 +326,7 @@ class TestScheduledReportsRun:
         from asc_api.tasks.scheduled_reports import _run
 
         db = _async_db([])
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
             result = await _run()
 
@@ -343,7 +343,7 @@ class TestScheduledReportsRun:
         report.recipient_email = "soc@premoscorp.com"
 
         db = _async_db([report])
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
             result = await _run()
 
@@ -362,9 +362,9 @@ class TestScheduledReportsRun:
 
         db = _async_db([report])
         # deliver_scheduled_report is lazily imported inside _run() from soar_service
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.soar_service.deliver_scheduled_report",
+            with patch("asc_api.services.soar_service.deliver_scheduled_report",
                        AsyncMock(return_value={"status": "delivered"})):
                 result = await _run()
 
@@ -382,9 +382,9 @@ class TestScheduledReportsRun:
         report.recipient_email = "soc@premoscorp.com"
 
         db = _async_db([report])
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.soar_service.deliver_scheduled_report",
+            with patch("asc_api.services.soar_service.deliver_scheduled_report",
                        AsyncMock(return_value={"error": "SMTP timeout"})):
                 result = await _run()
 
@@ -402,27 +402,27 @@ class TestScheduledReportsRun:
         report.recipient_email = "x@y.com"
 
         db = _async_db([report])
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.soar_service.deliver_scheduled_report",
+            with patch("asc_api.services.soar_service.deliver_scheduled_report",
                        AsyncMock(side_effect=RuntimeError("connection lost"))):
                 result = await _run()
 
         assert result["errors"] == 1
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. ESCALATION — _run mocked
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 3. ESCALATION â€” _run mocked
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestEscalationRun:
     async def test_run_no_expired_returns_zero(self):
         from asc_api.tasks.escalation import _run
 
         db = _async_db()
-        with patch("app.tasks.escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.escalation.escalate_expired",
+            with patch("asc_api.tasks.escalation.escalate_expired",
                        AsyncMock(return_value=[])):
                 result = await _run()
 
@@ -434,13 +434,13 @@ class TestEscalationRun:
         action_ids = ["aa-111", "bb-222", "cc-333"]
         db = _async_db()
         mock_settings = MagicMock()
-        mock_settings.REDIS_URL = ""  # empty → skip Redis publish block
+        mock_settings.REDIS_URL = ""  # empty â†’ skip Redis publish block
 
-        with patch("app.tasks.escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.escalation.escalate_expired",
+            with patch("asc_api.tasks.escalation.escalate_expired",
                        AsyncMock(return_value=action_ids)):
-                with patch("app.tasks.escalation.get_settings",
+                with patch("asc_api.tasks.escalation.get_settings",
                            return_value=mock_settings):
                     result = await _run()
 
@@ -458,11 +458,11 @@ class TestEscalationRun:
         mock_aioredis = MagicMock()
         mock_aioredis.from_url.side_effect = RuntimeError("connection refused")
 
-        with patch("app.tasks.escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.escalation.escalate_expired",
+            with patch("asc_api.tasks.escalation.escalate_expired",
                        AsyncMock(return_value=["id-x"])):
-                with patch("app.tasks.escalation.get_settings",
+                with patch("asc_api.tasks.escalation.get_settings",
                            return_value=mock_settings):
                     with patch.dict("sys.modules",
                                    {"redis": MagicMock(),
@@ -472,18 +472,18 @@ class TestEscalationRun:
         assert result["escalated"] == 1
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. SLA ESCALATION — _run mocked
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 4. SLA ESCALATION â€” _run mocked
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSlaEscalationRun:
     async def test_run_no_breaches(self):
         from asc_api.tasks.sla_escalation import _run
 
         db = _async_db()
-        with patch("app.tasks.sla_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.sla_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.sla_escalation.escalate_sla_breaches",
+            with patch("asc_api.tasks.sla_escalation.escalate_sla_breaches",
                        AsyncMock(return_value=0)):
                 result = await _run()
 
@@ -493,18 +493,18 @@ class TestSlaEscalationRun:
         from asc_api.tasks.sla_escalation import _run
 
         db = _async_db()
-        with patch("app.tasks.sla_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.sla_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.sla_escalation.escalate_sla_breaches",
+            with patch("asc_api.tasks.sla_escalation.escalate_sla_breaches",
                        AsyncMock(return_value=5)):
                 result = await _run()
 
         assert result == {"sla_escalated": 5}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 5. CORRELATION SWEEP — _async_sweep (lazy imports; patch at source modules)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 5. CORRELATION SWEEP â€” _async_sweep (lazy imports; patch at source modules)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestCorrelationSweepRun:
     async def test_async_sweep_calls_run_correlation_sweep(self):
@@ -514,9 +514,9 @@ class TestCorrelationSweepRun:
         stats = {"clusters_created": 2, "signals_processed": 45}
 
         # _async_sweep lazy-imports both symbols; patch at their source modules
-        with patch("app.db.session.AsyncSessionLocal",
+        with patch("asc_api.db.session.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.correlation_service.run_correlation_sweep",
+            with patch("asc_api.services.correlation_service.run_correlation_sweep",
                        AsyncMock(return_value=stats)):
                 await _async_sweep()  # must not raise
 
@@ -524,24 +524,24 @@ class TestCorrelationSweepRun:
         from asc_api.tasks.correlation_sweep import _async_sweep
 
         db = _async_db()
-        with patch("app.db.session.AsyncSessionLocal",
+        with patch("asc_api.db.session.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.correlation_service.run_correlation_sweep",
+            with patch("asc_api.services.correlation_service.run_correlation_sweep",
                        AsyncMock(return_value={})):
                 await _async_sweep()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 6. PCDI ESCALATION — _run with empty active_hunts (short-circuit path)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 6. PCDI ESCALATION â€” _run with empty active_hunts (short-circuit path)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPcdiEscalationRun:
     async def test_run_no_active_hunts(self):
-        """Zero active hunts → no scoring, no escalations."""
+        """Zero active hunts â†’ no scoring, no escalations."""
         from asc_api.tasks.pcdi_escalation import _run
 
-        db = _async_db([])  # execute() → scalars().all() = []
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        db = _async_db([])  # execute() â†’ scalars().all() = []
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
             result = await _run()
 
@@ -555,7 +555,7 @@ class TestPcdiEscalationRun:
         from asc_api.tasks.pcdi_escalation import _run
 
         db = _async_db([])
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
             result = await _run()
 

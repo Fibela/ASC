@@ -1,5 +1,5 @@
-"""
-P47 — Multi-tenancy Foundation
+﻿"""
+P47 â€” Multi-tenancy Foundation
 ================================
 Tests verifying:
 1. Tenant model is importable and has correct attributes
@@ -15,7 +15,7 @@ Endpoint regression: same async pattern as P45/P46 with app.dependency_overrides
 
 Security
 --------
-- tenant_id column is NULLABLE — NULL = single-tenant / default deployment
+- tenant_id column is NULLABLE â€” NULL = single-tenant / default deployment
 - No tenant enforcement yet (deferred to FASE 5)
 - Existing auth/RBAC unaffected by P47 schema changes
 """
@@ -37,7 +37,7 @@ from asc_api.main import app
 _REPO_ROOT = Path(__file__).parent.parent
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _jwt(user_id: str) -> str:
     return create_access_token(user_id)
@@ -75,7 +75,7 @@ def _db_override(scalar_result=None, scalars_result=None):
     return override, db
 
 
-# ── Tenant model tests ────────────────────────────────────────────────────────
+# â”€â”€ Tenant model tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantModel:
     """Tenant model importable and has expected structure."""
@@ -116,7 +116,7 @@ class TestTenantModel:
         assert Tenant is not None
 
 
-# ── tenant_id in key models ───────────────────────────────────────────────────
+# â”€â”€ tenant_id in key models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantIdColumns:
     """All key data models must have nullable tenant_id column."""
@@ -177,7 +177,7 @@ class TestTenantIdColumns:
         assert "tenant_id" in indexed
 
 
-# ── Migration file ────────────────────────────────────────────────────────────
+# â”€â”€ Migration file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMigrationFile:
     """P47 migration file exists and chains correctly."""
@@ -216,7 +216,7 @@ class TestMigrationFile:
         assert "drop_table" in content
 
 
-# ── Regression: existing endpoints unaffected ─────────────────────────────────
+# â”€â”€ Regression: existing endpoints unaffected â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP47Regression:
     """Verify P45/P46 endpoints still work after schema changes."""
@@ -230,7 +230,7 @@ class TestP47Regression:
     @pytest.mark.asyncio
     async def test_api_keys_list_still_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/api-keys/")
+            r = await ac.get("/api/v1/api-keys")
         assert r.status_code == 401
 
     @pytest.mark.asyncio
@@ -240,25 +240,25 @@ class TestP47Regression:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
         assert r.status_code == 200
 
     @pytest.mark.asyncio
     async def test_webhooks_still_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/webhooks/")
+            r = await ac.get("/api/v1/webhooks")
         assert r.status_code == 401
 
     def test_tenant_model_importable_with_all_models(self):
         """Full model registry import must succeed."""
-        import asc_api.models  # noqa: F401
-        assert hasattr(app.models, "Tenant")
-        assert hasattr(app.models, "User")
-        assert hasattr(app.models, "Alert")
-        assert hasattr(app.models, "Webhook")
+        import asc_api.models
+        assert hasattr(asc_api.models, "Tenant")
+        assert hasattr(asc_api.models, "User")
+        assert hasattr(asc_api.models, "Alert")
+        assert hasattr(asc_api.models, "Webhook")
 
     def test_p46_rate_limits_page_still_present(self):
         path = Path(__file__).parent.parent.parent / "frontend" / "src" / "app" / "rate-limits" / "page.tsx"

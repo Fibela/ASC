@@ -1,8 +1,8 @@
-"""
-P31-COV — Targeted coverage tests to push overall coverage from 80% to ≥85%.
+﻿"""
+P31-COV â€” Targeted coverage tests to push overall coverage from 80% to â‰¥85%.
 
 Modules targeted (uncovered path coverage):
-  - app/api/v1/endpoints/auth.py         (33% → target 75%+)
+  - app/api/v1/endpoints/auth.py         (33% â†’ target 75%+)
     * GET  /auth/me
     * POST /auth/logout
     * POST /auth/refresh
@@ -10,11 +10,11 @@ Modules targeted (uncovered path coverage):
     * GET  /auth/users
     * PATCH /auth/users/{id}
     * POST /auth/users/{id}/unlock
-  - app/api/v1/endpoints/events.py       (40% → target 90%+)
+  - app/api/v1/endpoints/events.py       (40% â†’ target 90%+)
     * POST /events/ingest
     * POST /events/ingest/bulk
     * GET  /events/ (with and without severity filter)
-  - app/api/v1/endpoints/neutralize.py   (43% → target 65%+)
+  - app/api/v1/endpoints/neutralize.py   (43% â†’ target 65%+)
     * GET  /neutralize/recommended
     * GET  /neutralize/pending
     * POST /neutralize/ (low severity auto-execute path)
@@ -36,7 +36,7 @@ from asc_api.core.security import create_access_token, create_refresh_token
 from asc_api.models.user import User
 
 
-# ── Rate-limit bypass ─────────────────────────────────────────────────────────
+# â”€â”€ Rate-limit bypass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limit():
@@ -46,10 +46,10 @@ def _reset_rate_limit():
     limiter._storage.reset()
 
 
-# ── TestAuthMe ────────────────────────────────────────────────────────────────
+# â”€â”€ TestAuthMe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthMe:
-    """GET /auth/me — authenticated user profile."""
+    """GET /auth/me â€” authenticated user profile."""
 
     @pytest.mark.asyncio
     async def test_me_returns_current_user_profile(self, client, admin_user):
@@ -92,10 +92,10 @@ class TestAuthMe:
         assert r.json()["is_active"] is True
 
 
-# ── TestAuthLogout ────────────────────────────────────────────────────────────
+# â”€â”€ TestAuthLogout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthLogout:
-    """POST /auth/logout — token revocation."""
+    """POST /auth/logout â€” token revocation."""
 
     @pytest.mark.asyncio
     async def test_logout_returns_success_message(self, client, admin_user):
@@ -133,10 +133,10 @@ class TestAuthLogout:
         assert r.status_code == 200
 
 
-# ── TestAuthRefresh ───────────────────────────────────────────────────────────
+# â”€â”€ TestAuthRefresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthRefresh:
-    """POST /auth/refresh — token rotation."""
+    """POST /auth/refresh â€” token rotation."""
 
     @pytest.mark.asyncio
     async def test_refresh_returns_new_access_token(self, client, admin_user):
@@ -186,10 +186,10 @@ class TestAuthRefresh:
         assert r.status_code == 200
 
 
-# ── TestAuthChangePassword ────────────────────────────────────────────────────
+# â”€â”€ TestAuthChangePassword â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthChangePassword:
-    """POST /auth/change-password — password management."""
+    """POST /auth/change-password â€” password management."""
 
     @pytest.mark.asyncio
     async def test_change_password_success_with_current_password(self, client, admin_user):
@@ -200,7 +200,7 @@ class TestAuthChangePassword:
             json={"current_password": "Admin@1234!", "new_password": "NewAdmin@5678!"},
         )
         assert r.status_code == 200
-        assert "contraseña" in r.json().get("message", "").lower()
+        assert "cambiada" in r.json().get("message", "").lower()
 
     @pytest.mark.asyncio
     async def test_change_password_wrong_current_password_returns_401(self, client, admin_user):
@@ -273,7 +273,7 @@ class TestAuthChangePassword:
         assert analyst_user.force_password_reset is False
 
 
-# ── TestAuthAdminUserManagement ───────────────────────────────────────────────
+# â”€â”€ TestAuthAdminUserManagement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthAdminUserManagement:
     """Admin endpoints: list, update, unlock users."""
@@ -409,10 +409,10 @@ class TestAuthAdminUserManagement:
         assert r.status_code == 403
 
 
-# ── TestEventsEndpoints ───────────────────────────────────────────────────────
+# â”€â”€ TestEventsEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestEventsEndpoints:
-    """Events ingestion and listing endpoints (analyst+ required — P37 fix)."""
+    """Events ingestion and listing endpoints (analyst+ required â€” P37 fix)."""
 
     @pytest.mark.asyncio
     async def test_ingest_single_event_returns_event_id(self, client, analyst_headers):
@@ -528,18 +528,18 @@ class TestEventsEndpoints:
 
     @pytest.mark.asyncio
     async def test_list_events_returns_list(self, client, analyst_headers):
-        r = await client.get("/api/v1/events/", headers=analyst_headers)
+        r = await client.get("/api/v1/events", headers=analyst_headers)
         assert r.status_code == 200
         assert isinstance(r.json(), list)
 
     @pytest.mark.asyncio
     async def test_list_events_unauthenticated_returns_401(self, client):
-        r = await client.get("/api/v1/events/")
+        r = await client.get("/api/v1/events")
         assert r.status_code in (401, 403)
 
     @pytest.mark.asyncio
     async def test_list_events_default_limit_fifty(self, client, analyst_headers):
-        r = await client.get("/api/v1/events/", headers=analyst_headers)
+        r = await client.get("/api/v1/events", headers=analyst_headers)
         assert r.status_code == 200
         assert len(r.json()) <= 50
 
@@ -550,13 +550,13 @@ class TestEventsEndpoints:
             json={"source": "wazuh", "category": "auth", "action": "fail", "host": "dc01"},
             headers=analyst_headers,
         )
-        r = await client.get("/api/v1/events/?severity=low", headers=analyst_headers)
+        r = await client.get("/api/v1/events?severity=low", headers=analyst_headers)
         assert r.status_code == 200
         assert isinstance(r.json(), list)
 
     @pytest.mark.asyncio
     async def test_list_events_with_offset_and_limit(self, client, analyst_headers):
-        r = await client.get("/api/v1/events/?limit=10&offset=0", headers=analyst_headers)
+        r = await client.get("/api/v1/events?limit=10&offset=0", headers=analyst_headers)
         assert r.status_code == 200
         assert len(r.json()) <= 10
 
@@ -567,12 +567,12 @@ class TestEventsEndpoints:
             json={"source": "wazuh", "category": "auth", "action": "fail", "host": "dc01"},
             headers=analyst_headers,
         )
-        r = await client.get("/api/v1/events/", headers=analyst_headers)
+        r = await client.get("/api/v1/events", headers=analyst_headers)
         if r.json():
             assert "id" in r.json()[0]
 
 
-# ── TestNeutralizeEndpoints ───────────────────────────────────────────────────
+# â”€â”€ TestNeutralizeEndpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestNeutralizeEndpoints:
     """Neutralization recommendation and pending action endpoints."""
@@ -650,7 +650,7 @@ class TestNeutralizeEndpoints:
     async def test_post_neutralize_invalid_action_type_returns_422(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
         r = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "action_type": "not_a_valid_action",
@@ -665,7 +665,7 @@ class TestNeutralizeEndpoints:
     async def test_post_neutralize_invalid_severity_returns_422(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
         r = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "action_type": "block_ip",
@@ -680,7 +680,7 @@ class TestNeutralizeEndpoints:
     async def test_post_neutralize_viewer_cannot_request_action(self, client, viewer_user):
         token = create_access_token(viewer_user.id)
         r = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "action_type": "block_ip",
@@ -695,7 +695,7 @@ class TestNeutralizeEndpoints:
     async def test_post_neutralize_missing_required_fields_returns_422(self, client, analyst_user):
         token = create_access_token(analyst_user.id)
         r = await client.post(
-            "/api/v1/neutralize/",
+            "/api/v1/neutralize",
             headers={"Authorization": f"Bearer {token}"},
             json={"action_type": "block_ip"},
         )
@@ -723,14 +723,14 @@ class TestNeutralizeEndpoints:
             RejectRequest(reason="")
 
 
-# ── TestAuthRegisterBootstrap ─────────────────────────────────────────────────
+# â”€â”€ TestAuthRegisterBootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuthRegisterBootstrap:
-    """POST /auth/register — bootstrap path (empty DB only)."""
+    """POST /auth/register â€” bootstrap path (empty DB only)."""
 
     @pytest.mark.asyncio
     async def test_register_first_user_succeeds(self, client):
-        """Empty DB → first user registration succeeds and becomes admin."""
+        """Empty DB â†’ first user registration succeeds and becomes admin."""
         r = await client.post(
             "/api/v1/auth/register",
             json={
@@ -746,7 +746,7 @@ class TestAuthRegisterBootstrap:
 
     @pytest.mark.asyncio
     async def test_register_second_user_blocked(self, client, admin_user):
-        """Non-empty DB → registration returns 403."""
+        """Non-empty DB â†’ registration returns 403."""
         r = await client.post(
             "/api/v1/auth/register",
             json={

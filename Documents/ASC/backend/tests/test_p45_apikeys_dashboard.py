@@ -1,23 +1,23 @@
-"""
-P45 — API Keys Dashboard Frontend — Contract Tests
+﻿"""
+P45 â€” API Keys Dashboard Frontend â€” Contract Tests
 ===================================================
-Verifica cada endpoint que la página /api-keys del frontend consume:
-  GET  /api/v1/api-keys/            → list own keys (analyst/admin)
-  POST /api/v1/api-keys/            → create (raw_key one-time)
-  GET  /api/v1/api-keys/{id}        → get single
-  PATCH /api/v1/api-keys/{id}       → update name/is_active/expires_at
-  DELETE /api/v1/api-keys/{id}      → revoke 204
-  POST /api/v1/api-keys/{id}/rotate → rotate (new raw_key)
-  GET  /api/v1/api-keys/{id}/rate-limit-status → RateLimitStatus shape
-  GET  /api/v1/api-keys/admin/all   → admin list all
+Verifica cada endpoint que la pÃ¡gina /api-keys del frontend consume:
+  GET  /api/v1/api-keys/            â†’ list own keys (analyst/admin)
+  POST /api/v1/api-keys/            â†’ create (raw_key one-time)
+  GET  /api/v1/api-keys/{id}        â†’ get single
+  PATCH /api/v1/api-keys/{id}       â†’ update name/is_active/expires_at
+  DELETE /api/v1/api-keys/{id}      â†’ revoke 204
+  POST /api/v1/api-keys/{id}/rotate â†’ rotate (new raw_key)
+  GET  /api/v1/api-keys/{id}/rate-limit-status â†’ RateLimitStatus shape
+  GET  /api/v1/api-keys/admin/all   â†’ admin list all
 
 Invariantes de seguridad:
-  • raw_key NUNCA en list/get/patch/admin-list responses
-  • key_hash NUNCA expuesto en ninguna respuesta
-  • Acceso cruzado entre usuarios → 403
-  • Sin auth → 401
-  • Scope inválido → 422
-  • Cap 20 llaves por usuario verificado
+  â€¢ raw_key NUNCA en list/get/patch/admin-list responses
+  â€¢ key_hash NUNCA expuesto en ninguna respuesta
+  â€¢ Acceso cruzado entre usuarios â†’ 403
+  â€¢ Sin auth â†’ 401
+  â€¢ Scope invÃ¡lido â†’ 422
+  â€¢ Cap 20 llaves por usuario verificado
 
 Coverage: 35 tests en 6 clases.
 """
@@ -39,7 +39,7 @@ settings = get_settings()
 _REPO_ROOT = Path(__file__).parent.parent.parent
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_user(role: str = "analyst", user_id: str | None = None):
     u = MagicMock()
@@ -95,10 +95,10 @@ def _db_override(scalar_result=None, scalars_result=None, count_result=0):
     return override, db
 
 
-# ── Class 1: List ─────────────────────────────────────────────────────────────
+# â”€â”€ Class 1: List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestListApiKeysContract:
-    """Frontend depends on GET /api/v1/api-keys/ → array of APIKeyResponse."""
+    """Frontend depends on GET /api/v1/api-keys/ â†’ array of APIKeyResponse."""
 
     @pytest.mark.asyncio
     async def test_list_returns_200_for_analyst(self):
@@ -108,9 +108,9 @@ class TestListApiKeysContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
 
         assert r.status_code == 200
@@ -124,9 +124,9 @@ class TestListApiKeysContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
 
         assert r.status_code == 200
@@ -143,9 +143,9 @@ class TestListApiKeysContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
 
         body_text = r.text
@@ -156,11 +156,11 @@ class TestListApiKeysContract:
     @pytest.mark.asyncio
     async def test_list_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.get("/api/v1/api-keys/")
+            r = await ac.get("/api/v1/api-keys")
         assert r.status_code == 401
 
 
-# ── Class 2: Create ───────────────────────────────────────────────────────────
+# â”€â”€ Class 2: Create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCreateApiKeyContract:
     """POST /api/v1/api-keys/ must return raw_key once in APIKeyCreated."""
@@ -180,10 +180,10 @@ class TestCreateApiKeyContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(
-                    "/api/v1/api-keys/",
+                    "/api/v1/api-keys",
                     json={"name": "test-key", "scopes": ["read"]},
                     headers={"Authorization": f"Bearer {token}"},
                 )
@@ -203,9 +203,9 @@ class TestCreateApiKeyContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                r = await ac.get("/api/v1/api-keys/", headers={"Authorization": f"Bearer {token}"})
+                r = await ac.get("/api/v1/api-keys", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
 
         assert "raw_key" not in r.json()[0]
@@ -217,10 +217,10 @@ class TestCreateApiKeyContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(
-                    "/api/v1/api-keys/",
+                    "/api/v1/api-keys",
                     json={"name": "bad", "scopes": ["superuser"]},
                     headers={"Authorization": f"Bearer {token}"},
                 )
@@ -235,10 +235,10 @@ class TestCreateApiKeyContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(
-                    "/api/v1/api-keys/",
+                    "/api/v1/api-keys",
                     json={"name": "", "scopes": ["read"]},
                     headers={"Authorization": f"Bearer {token}"},
                 )
@@ -249,11 +249,11 @@ class TestCreateApiKeyContract:
     @pytest.mark.asyncio
     async def test_create_requires_auth(self):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            r = await ac.post("/api/v1/api-keys/", json={"name": "x", "scopes": ["read"]})
+            r = await ac.post("/api/v1/api-keys", json={"name": "x", "scopes": ["read"]})
         assert r.status_code == 401
 
 
-# ── Class 3: Get / Patch / Revoke ─────────────────────────────────────────────
+# â”€â”€ Class 3: Get / Patch / Revoke â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetPatchRevokeContract:
     """Individual key operations used by the frontend row actions."""
@@ -266,7 +266,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(f"/api/v1/api-keys/{k.id}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -285,7 +285,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(requester.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=requester)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=requester)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(f"/api/v1/api-keys/{k.id}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -300,7 +300,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.patch(
                     f"/api/v1/api-keys/{k.id}",
@@ -321,7 +321,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.delete(f"/api/v1/api-keys/{k.id}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -337,7 +337,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(attacker.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=attacker)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=attacker)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.delete(f"/api/v1/api-keys/{k.id}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -351,7 +351,7 @@ class TestGetPatchRevokeContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(f"/api/v1/api-keys/{uuid.uuid4()}", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -359,24 +359,24 @@ class TestGetPatchRevokeContract:
         assert r.status_code == 404
 
 
-# ── Class 4: Rotate ───────────────────────────────────────────────────────────
+# â”€â”€ Class 4: Rotate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRotateApiKeyContract:
-    """POST /api/v1/api-keys/{id}/rotate — must return new raw_key."""
+    """POST /api/v1/api-keys/{id}/rotate â€” must return new raw_key."""
 
     @pytest.mark.asyncio
     async def test_rotate_returns_raw_key(self):
         user = _make_user("analyst")
         k = _make_api_key(user.id)
         override, db = _db_override(scalar_result=k)
-        # refresh on an existing key — id and is_active already set by _make_api_key; just ensure created_at
+        # refresh on an existing key â€” id and is_active already set by _make_api_key; just ensure created_at
         db.refresh = AsyncMock(side_effect=lambda obj: (
             setattr(obj, "created_at", obj.created_at or datetime.now(timezone.utc))
         ))
         app.dependency_overrides[get_db] = override
         token = _jwt(user.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(f"/api/v1/api-keys/{k.id}/rotate", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -393,7 +393,7 @@ class TestRotateApiKeyContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(attacker.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=attacker)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=attacker)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.post(f"/api/v1/api-keys/{k.id}/rotate", headers={"Authorization": f"Bearer {token}"})
         app.dependency_overrides.clear()
@@ -407,10 +407,10 @@ class TestRotateApiKeyContract:
         assert r.status_code == 401
 
 
-# ── Class 5: Rate Limit Status ────────────────────────────────────────────────
+# â”€â”€ Class 5: Rate Limit Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestRateLimitStatusContract:
-    """GET /api/v1/api-keys/{id}/rate-limit-status — shape for frontend bar."""
+    """GET /api/v1/api-keys/{id}/rate-limit-status â€” shape for frontend bar."""
 
     @pytest.mark.asyncio
     async def test_rate_limit_status_fields(self):
@@ -425,8 +425,8 @@ class TestRateLimitStatusContract:
         mock_limiter.get_status = AsyncMock(return_value=0)
         mock_limiter.mode = "memory"
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=user)), \
-             patch("app.api.v1.endpoints.api_keys.api_key_limiter", mock_limiter):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user)), \
+             patch("asc_api.api.v1.endpoints.api_keys.api_key_limiter", mock_limiter):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
                     f"/api/v1/api-keys/{k.id}/rate-limit-status",
@@ -449,7 +449,7 @@ class TestRateLimitStatusContract:
         app.dependency_overrides[get_db] = override
         token = _jwt(attacker.id)
 
-        with patch("app.api.deps._resolve_user", AsyncMock(return_value=attacker)):
+        with patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=attacker)):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 r = await ac.get(
                     f"/api/v1/api-keys/{k.id}/rate-limit-status",
@@ -460,7 +460,7 @@ class TestRateLimitStatusContract:
         assert r.status_code == 403
 
 
-# ── Class 6: Deployment artifacts & regression ───────────────────────────────
+# â”€â”€ Class 6: Deployment artifacts & regression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestP45DeploymentAndRegression:
     """Verify page file, api.ts additions, sidebar entry, no mock data."""
@@ -523,7 +523,7 @@ class TestP45DeploymentAndRegression:
         import asyncio
         async def _check():
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-                return await ac.get("/api/v1/api-keys/")
+                return await ac.get("/api/v1/api-keys")
         assert asyncio.get_event_loop().run_until_complete(_check()).status_code == 401
 
     def test_p44_webhooks_still_importable(self):

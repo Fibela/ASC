@@ -1,26 +1,26 @@
-"""
-FASE 1 — Real Integrations: Unit test suite.
+﻿"""
+FASE 1 â€” Real Integrations: Unit test suite.
 
 Coverage:
-  TestPaloAltoHelpers        — name sanitization, XML parsing utilities
-  TestPaloAltoConfiguration  — is_configured() / not-configured early returns
-  TestPaloAltoBlockIP        — block_ip / unblock_ip HTTP interactions (mocked)
-  TestPaloAltoBlockDomain    — block_domain / unblock_domain (mocked)
-  TestPaloAltoConnection     — test_connection success / failure (mocked)
-  TestFortinetConfiguration  — is_configured() / not-configured early returns
-  TestFortinetBlockIP        — block_ip / unblock_ip HTTP interactions (mocked)
-  TestFortinetBlockDomain    — block_domain / unblock_domain (mocked)
-  TestFortinetConnection     — test_connection success / failure (mocked)
-  TestADConfiguration        — is_configured() / not-configured early returns
-  TestADDisableAccount       — disable_account sync logic (mocked ldap3)
-  TestADEnableAccount        — enable_account sync logic (mocked ldap3)
-  TestADForcePasswordReset   — force_password_reset sync logic (mocked ldap3)
-  TestADMoveQuarantine       — move_to_quarantine_ou (mocked ldap3)
-  TestADHealthCheck          — test_connection / health_check (mocked ldap3)
-  TestSpectBridgeFirewallWire — SPECTER Bridge broadcast calls firewall adapter
-  TestSpectBridgeIAMWire      — SPECTER Bridge IAM calls AD adapter
+  TestPaloAltoHelpers        â€” name sanitization, XML parsing utilities
+  TestPaloAltoConfiguration  â€” is_configured() / not-configured early returns
+  TestPaloAltoBlockIP        â€” block_ip / unblock_ip HTTP interactions (mocked)
+  TestPaloAltoBlockDomain    â€” block_domain / unblock_domain (mocked)
+  TestPaloAltoConnection     â€” test_connection success / failure (mocked)
+  TestFortinetConfiguration  â€” is_configured() / not-configured early returns
+  TestFortinetBlockIP        â€” block_ip / unblock_ip HTTP interactions (mocked)
+  TestFortinetBlockDomain    â€” block_domain / unblock_domain (mocked)
+  TestFortinetConnection     â€” test_connection success / failure (mocked)
+  TestADConfiguration        â€” is_configured() / not-configured early returns
+  TestADDisableAccount       â€” disable_account sync logic (mocked ldap3)
+  TestADEnableAccount        â€” enable_account sync logic (mocked ldap3)
+  TestADForcePasswordReset   â€” force_password_reset sync logic (mocked ldap3)
+  TestADMoveQuarantine       â€” move_to_quarantine_ou (mocked ldap3)
+  TestADHealthCheck          â€” test_connection / health_check (mocked ldap3)
+  TestSpectBridgeFirewallWire â€” SPECTER Bridge broadcast calls firewall adapter
+  TestSpectBridgeIAMWire      â€” SPECTER Bridge IAM calls AD adapter
 
-All external I/O (httpx, ldap3) is mocked — no live firewall or AD required.
+All external I/O (httpx, ldap3) is mocked â€” no live firewall or AD required.
 Tests run without any external dependencies via pytest-asyncio + unittest.mock.
 
 Mandatory test runs:
@@ -37,9 +37,9 @@ from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 import pytest
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers — XML response builders
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Helpers â€” XML response builders
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _pan_ok(inner: str = "<result>ok</result>") -> str:
     return f'<response status="success">{inner}</response>'
@@ -66,9 +66,9 @@ def _pan_group_members(*names: str) -> str:
     return f'<response status="success"><result><static>{members}</static></result></response>'
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestPaloAltoHelpers
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPaloAltoHelpers(unittest.TestCase):
     def test_ip_name_sanitization(self):
@@ -124,14 +124,14 @@ class TestPaloAltoHelpers(unittest.TestCase):
         assert _extract_group_members(_pan_ok()) == []
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestPaloAltoConfiguration
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPaloAltoConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, host="", api_key=""):
         from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = host
             s.PALOALTO_API_KEY = api_key
@@ -170,14 +170,14 @@ class TestPaloAltoConfiguration(unittest.IsolatedAsyncioTestCase):
         assert result["success"] is False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestPaloAltoBlockIP
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
         from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
             s.PALOALTO_API_KEY = "test-key"
@@ -193,7 +193,7 @@ class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.raise_for_status = MagicMock()
-        # Responses: create address → get group → set member → commit → poll job
+        # Responses: create address â†’ get group â†’ set member â†’ commit â†’ poll job
         mock_resp.text = _pan_ok()
 
         responses = [
@@ -234,7 +234,7 @@ class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
 
         responses = [
             _pan_ok(),                            # create address
-            _pan_group_members(obj_name, "other"),# get group — already present
+            _pan_group_members(obj_name, "other"),# get group â€” already present
             _pan_job("2"),                        # commit
             _pan_job_fin("OK"),
         ]
@@ -311,14 +311,14 @@ class TestPaloAltoBlockIP(unittest.IsolatedAsyncioTestCase):
         assert result["success"] is True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestPaloAltoBlockDomain
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPaloAltoBlockDomain(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
         from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
             s.PALOALTO_API_KEY = "test-key"
@@ -388,14 +388,14 @@ class TestPaloAltoBlockDomain(unittest.IsolatedAsyncioTestCase):
         assert result["success"] is True
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestPaloAltoConnection
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPaloAltoConnection(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
         from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as mock_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
             s.PALOALTO_API_KEY = "test-key"
@@ -451,14 +451,14 @@ class TestPaloAltoConnection(unittest.IsolatedAsyncioTestCase):
         assert "Connection refused" in result["error"]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestFortinetConfiguration
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFortinetConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, host="", token=""):
         from asc_api.adapters.firewall.fortinet import FortinetAdapter
-        with patch("app.adapters.firewall.fortinet.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.fortinet.get_settings") as mock_s:
             s = MagicMock()
             s.FORTINET_HOST = host
             s.FORTINET_API_TOKEN = token
@@ -491,14 +491,14 @@ class TestFortinetConfiguration(unittest.IsolatedAsyncioTestCase):
         assert result["success"] is False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestFortinetBlockIP
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestFortinetBlockIP(unittest.IsolatedAsyncioTestCase):
     def _make_configured_adapter(self):
         from asc_api.adapters.firewall.fortinet import FortinetAdapter
-        with patch("app.adapters.firewall.fortinet.get_settings") as mock_s:
+        with patch("asc_api.adapters.firewall.fortinet.get_settings") as mock_s:
             s = MagicMock()
             s.FORTINET_HOST = "fg.corp.local"
             s.FORTINET_API_TOKEN = "test-token"
@@ -626,14 +626,14 @@ class TestFortinetBlockIP(unittest.IsolatedAsyncioTestCase):
         assert result["version"] == "v7.2.5"
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestADConfiguration
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestADConfiguration(unittest.IsolatedAsyncioTestCase):
     def _make_adapter(self, server="", bind_dn="", bind_pw="", base_dn=""):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
+        with patch("asc_api.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = server
             s.AD_BIND_DN = bind_dn
@@ -682,20 +682,20 @@ class TestADConfiguration(unittest.IsolatedAsyncioTestCase):
         assert result["success"] is False
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestADDisableAccount (mocked ldap3 at sync level)
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_ad_adapter_configured():
     from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-    with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
+    with patch("asc_api.adapters.identity.active_directory.get_settings") as mock_s:
         s = MagicMock()
         s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
         s.AD_BIND_DN = "CN=svc-asc,DC=corp,DC=local"
         s.AD_BIND_PASSWORD = "test-password"  # nosec B106
         s.AD_BASE_DN = "DC=corp,DC=local"
         s.AD_QUARANTINE_OU = "OU=Quarantine,DC=corp,DC=local"
-        s.AD_USE_SSL = False  # simplified for tests — no real SSL
+        s.AD_USE_SSL = False  # simplified for tests â€” no real SSL
         s.AD_VERIFY_CERT = False
         mock_s.return_value = s
         return ActiveDirectoryAdapter()
@@ -735,7 +735,7 @@ class TestADDisableAccount(unittest.TestCase):
         adapter = _make_ad_adapter_configured()
         ldap3_mock, conn_mock = self._mock_ldap3_module(uac=512)  # normal account
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._disable_account_sync("jsmith", "CORP", "test reason")
 
         assert result["success"] is True
@@ -761,7 +761,7 @@ class TestADDisableAccount(unittest.TestCase):
         conn_mock.search = MagicMock()
         ldap3_mock.Connection = MagicMock(return_value=conn_mock)
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._disable_account_sync("ghost", "CORP", "")
 
         assert result["success"] is False
@@ -776,7 +776,7 @@ class TestADDisableAccount(unittest.TestCase):
         ldap3_mock.Server = MagicMock()
         ldap3_mock.Connection = MagicMock(side_effect=Exception("LDAP connection failed"))
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._disable_account_sync("jsmith", "CORP", "")
 
         assert result["success"] is False
@@ -814,7 +814,7 @@ class TestADEnableAccount(unittest.TestCase):
         adapter = _make_ad_adapter_configured()
         ldap3_mock, conn_mock = self._mock_ldap3_module(uac=514)  # disabled account
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._enable_account_sync("jsmith", "CORP")
 
         assert result["success"] is True
@@ -853,7 +853,7 @@ class TestADForcePasswordReset(unittest.TestCase):
         adapter = _make_ad_adapter_configured()
         ldap3_mock, conn_mock = self._mock_ldap3_module()
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._force_password_reset_sync("jsmith", "CORP")
 
         assert result["success"] is True
@@ -893,7 +893,7 @@ class TestADMoveQuarantine(unittest.TestCase):
         adapter = _make_ad_adapter_configured()
         ldap3_mock, conn_mock = self._mock_ldap3_module()
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._move_to_quarantine_sync("jsmith", "CORP")
 
         assert result["success"] is True
@@ -902,7 +902,7 @@ class TestADMoveQuarantine(unittest.TestCase):
 
     def test_move_quarantine_fails_without_ou_configured(self):
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
+        with patch("asc_api.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
             s.AD_BIND_DN = "CN=svc,DC=corp,DC=local"
@@ -924,24 +924,24 @@ class TestADMoveQuarantine(unittest.TestCase):
             __exit__=MagicMock(return_value=False),
         ))
 
-        with patch("app.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
+        with patch("asc_api.adapters.identity.active_directory._import_ldap3", return_value=ldap3_mock):
             result = adapter._move_to_quarantine_sync("jsmith", "CORP")
 
         assert result["success"] is False
         assert "AD_QUARANTINE_OU" in result["error"]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestSpectBridgeFirewallWire
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSpectBridgeFirewallWire(unittest.TestCase):
     """Verify that SPECTER bridge calls the firewall adapter for broadcast actions."""
 
     def test_firewall_factory_returns_none_when_unconfigured(self):
         from asc_api.services.specter_bridge import _get_firewall_adapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as pa_s, \
-             patch("app.adapters.firewall.fortinet.get_settings") as ft_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as pa_s, \
+             patch("asc_api.adapters.firewall.fortinet.get_settings") as ft_s:
             for mock_s in (pa_s, ft_s):
                 s = MagicMock()
                 s.PALOALTO_HOST = ""
@@ -961,7 +961,7 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
     def test_firewall_factory_returns_paloalto_when_configured(self):
         from asc_api.services.specter_bridge import _get_firewall_adapter
         from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as pa_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as pa_s:
             s = MagicMock()
             s.PALOALTO_HOST = "fw.corp.local"
             s.PALOALTO_API_KEY = "key"
@@ -975,8 +975,8 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
     def test_firewall_factory_returns_fortinet_as_fallback(self):
         from asc_api.services.specter_bridge import _get_firewall_adapter
         from asc_api.adapters.firewall.fortinet import FortinetAdapter
-        with patch("app.adapters.firewall.paloalto.get_settings") as pa_s, \
-             patch("app.adapters.firewall.fortinet.get_settings") as ft_s:
+        with patch("asc_api.adapters.firewall.paloalto.get_settings") as pa_s, \
+             patch("asc_api.adapters.firewall.fortinet.get_settings") as ft_s:
             pa = MagicMock()
             pa.PALOALTO_HOST = ""
             pa.PALOALTO_API_KEY = ""
@@ -997,16 +997,16 @@ class TestSpectBridgeFirewallWire(unittest.TestCase):
         assert isinstance(adapter, FortinetAdapter)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # TestSpectBridgeIAMWire
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSpectBridgeIAMWire(unittest.TestCase):
     """Verify that SPECTER bridge calls AD adapter on disable_account."""
 
     def test_identity_factory_returns_none_when_unconfigured(self):
         from asc_api.services.specter_bridge import _get_identity_adapter
-        with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
+        with patch("asc_api.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = ""
             s.AD_BIND_DN = ""
@@ -1022,7 +1022,7 @@ class TestSpectBridgeIAMWire(unittest.TestCase):
     def test_identity_factory_returns_ad_when_configured(self):
         from asc_api.services.specter_bridge import _get_identity_adapter
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
-        with patch("app.adapters.identity.active_directory.get_settings") as mock_s:
+        with patch("asc_api.adapters.identity.active_directory.get_settings") as mock_s:
             s = MagicMock()
             s.AD_SERVER_URL = "ldaps://dc.corp.local:636"
             s.AD_BIND_DN = "CN=svc,DC=corp,DC=local"

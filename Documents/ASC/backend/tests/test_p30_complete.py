@@ -1,17 +1,17 @@
-"""
-P30-COMPLETE — SOAR ↔ Incident Integration — Full Test Suite
+﻿"""
+P30-COMPLETE â€” SOAR â†” Incident Integration â€” Full Test Suite
 =============================================================
 Covers:
-  TestSlaEscalationCeleryTask     (20) — task registration, beat schedule, config,
+  TestSlaEscalationCeleryTask     (20) â€” task registration, beat schedule, config,
                                          async runner, retry policy, return value
-  TestPiilBindingEndpoint         (20) — GET /incidents/{id}/piil-binding: 404, 200,
+  TestPiilBindingEndpoint         (20) â€” GET /incidents/{id}/piil-binding: 404, 200,
                                          response shape, auth, item fields, limit param
-  TestSoarEventsEndpoint          (20) — GET /incidents/{id}/soar-events: 404, 200,
+  TestSoarEventsEndpoint          (20) â€” GET /incidents/{id}/soar-events: 404, 200,
                                          response shape, auth, item fields, limit param
-  TestSerializerFe                (12) — _fe() serializer: all expected fields present
-  TestIncidentsModuleIntegration  (12) — imports, route registration, router prefix,
+  TestSerializerFe                (12) â€” _fe() serializer: all expected fields present
+  TestIncidentsModuleIntegration  (12) â€” imports, route registration, router prefix,
                                          docstring correctness, new route paths
-  TestCeleryAppAndConfig          (10) — celery includes, beat schedule keys/values,
+  TestCeleryAppAndConfig          (10) â€” celery includes, beat schedule keys/values,
                                          config field defaults, interval math
 
 Total: 94 tests
@@ -28,7 +28,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 
-# ── Mini helpers ───────────────────────────────────────────────────────────────
+# â”€â”€ Mini helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _make_incident(**kw):
     from asc_api.models.incident import Incident
@@ -131,10 +131,10 @@ def _make_endpoint_app():
     return app
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestSlaEscalationCeleryTask
-# (Source-inspection approach — celery not installed in test env)
-# ══════════════════════════════════════════════════════════════════════════════
+# (Source-inspection approach â€” celery not installed in test env)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _sla_src():
     import inspect, pathlib
@@ -217,9 +217,9 @@ class TestSlaEscalationCeleryTask:
         assert "celery_app.task" in _sla_src()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestPiilBindingEndpoint
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPiilBindingEndpoint:
 
@@ -228,7 +228,7 @@ class TestPiilBindingEndpoint:
 
     def test_returns_404_when_incident_not_found(self):
         client = self._client()
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=None):
             r = client.get("/incidents/no-such-id/piil-binding")
         assert r.status_code == 404
@@ -236,9 +236,9 @@ class TestPiilBindingEndpoint:
     def test_returns_200_with_empty_list(self):
         inc = _make_incident()
         client = self._client()
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
-            with patch("app.api.v1.endpoints.incidents.AsyncSession") as _:
+            with patch("asc_api.api.v1.endpoints.incidents.AsyncSession") as _:
                 app_obj = _make_endpoint_app()
                 app_obj.dependency_overrides.update({
                     **app_obj.dependency_overrides,
@@ -259,7 +259,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -272,7 +272,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -285,7 +285,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -299,7 +299,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -314,7 +314,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -328,7 +328,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -342,7 +342,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -356,7 +356,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -370,7 +370,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -384,7 +384,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -398,7 +398,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -411,7 +411,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding?limit=10")
@@ -423,7 +423,7 @@ class TestPiilBindingEndpoint:
         fresh_app = FastAPI()
         fresh_app.include_router(router)
         fresh_app.dependency_overrides[get_db] = lambda: AsyncMock()
-        # No auth override → get_analyst_or_admin enforces JWT
+        # No auth override â†’ get_analyst_or_admin enforces JWT
         c = TestClient(fresh_app, raise_server_exceptions=False)
         r = c.get("/incidents/some-id/piil-binding")
         assert r.status_code in (401, 403, 422)
@@ -436,7 +436,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -451,7 +451,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -465,7 +465,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -479,7 +479,7 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
@@ -493,22 +493,22 @@ class TestPiilBindingEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([fe]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/piil-binding")
         assert "last_verified_at" in r.json()["items"][0]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestSoarEventsEndpoint
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSoarEventsEndpoint:
 
     def test_returns_404_when_incident_not_found(self):
         client = TestClient(_make_endpoint_app(), raise_server_exceptions=False)
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=None):
             r = client.get("/incidents/missing/soar-events")
         assert r.status_code == 404
@@ -520,7 +520,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -533,7 +533,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -546,7 +546,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -559,7 +559,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -573,7 +573,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -588,7 +588,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -602,7 +602,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -616,7 +616,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -630,7 +630,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -644,7 +644,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -658,7 +658,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -671,7 +671,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events?limit=20")
@@ -695,7 +695,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars(entries))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -709,7 +709,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([tl]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -722,7 +722,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -735,7 +735,7 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/{inc.id}/soar-events")
@@ -748,16 +748,16 @@ class TestSoarEventsEndpoint:
         db.execute = AsyncMock(return_value=_mock_scalars([]))
         from asc_api.db.session import get_db
         app_obj.dependency_overrides[get_db] = lambda: db
-        with patch("app.services.incident_service.get_incident",
+        with patch("asc_api.services.incident_service.get_incident",
                    new_callable=AsyncMock, return_value=inc):
             c = TestClient(app_obj, raise_server_exceptions=False)
             r = c.get(f"/incidents/request-id-match/soar-events")
         assert r.json()["incident_id"] == "request-id-match"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestSerializerFe
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestSerializerFe:
 
@@ -814,9 +814,9 @@ class TestSerializerFe:
         assert result["last_verified_at"] is None
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestIncidentsModuleIntegration
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestIncidentsModuleIntegration:
 
@@ -888,10 +888,10 @@ class TestIncidentsModuleIntegration:
         assert len(router.routes) >= 16
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # TestCeleryAppAndConfig
-# (Source-inspection approach — celery not installed in test env)
-# ══════════════════════════════════════════════════════════════════════════════
+# (Source-inspection approach â€” celery not installed in test env)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestCeleryAppAndConfig:
 

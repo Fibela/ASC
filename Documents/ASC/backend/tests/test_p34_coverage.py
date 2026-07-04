@@ -1,5 +1,5 @@
-"""
-P34 Coverage — push 84.26% → 85%+
+﻿"""
+P34 Coverage â€” push 84.26% â†’ 85%+
 
 Primary target: app/tasks/pcdi_escalation.py lines 59-130
   (the hunt-scoring loop, escalation path, SSE notification, error branches)
@@ -8,7 +8,7 @@ Secondary: miscellaneous uncovered branches in tasks and services.
 
 Mock strategy for pcdi_escalation._run():
   - Two db.execute() calls: first for Hunt list, second for HuntFinding list.
-  - compute_adaptive_score, log_security_action, notification_bus — all lazy
+  - compute_adaptive_score, log_security_action, notification_bus â€” all lazy
     imports inside _run(), so patched at source-module level.
   - asyncio.ensure_future is called inside a try/except; patching notification_bus
     as AsyncMock lets the coroutine be created and scheduled safely.
@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
-# ─── Re-use the same celery stub from test_p33_coverage_b ────────────────────
+# â”€â”€â”€ Re-use the same celery stub from test_p33_coverage_b â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # If already installed (by that module being collected first), setdefault is a
 # no-op. Otherwise we need the stub so pcdi_escalation.py can be imported.
 
@@ -67,7 +67,7 @@ if "celery" not in sys.modules:
     sys.modules.setdefault("celery.utils.log", MagicMock())
 
 
-# ─── Shared DB-mock helpers ───────────────────────────────────────────────────
+# â”€â”€â”€ Shared DB-mock helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _FakeSession:
     def __init__(self, mock_db):
@@ -106,9 +106,9 @@ def _make_finding(finding_id: str = "f-001") -> MagicMock:
     return f
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# PCDI Escalation — full scoring loop paths
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# PCDI Escalation â€” full scoring loop paths
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestPcdiEscalationScoringLoop:
     """Cover pcdi_escalation._run() lines 59-130 via mocked DB + services."""
@@ -121,38 +121,38 @@ class TestPcdiEscalationScoringLoop:
         ]
         return db
 
-    # ── Context managers ──────────────────────────────────────────────────────
+    # â”€â”€ Context managers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _patches(self, score_return=None, log_sec=True):
         """Return a list of context managers for common lazy imports."""
         score_return = score_return or {"adaptive_score": 95}
         return [
-            patch("app.tasks.pcdi_escalation.AsyncSessionLocal"),
-            patch("app.services.pcdi_service.compute_adaptive_score",
+            patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal"),
+            patch("asc_api.services.pcdi_service.compute_adaptive_score",
                   AsyncMock(return_value=score_return)),
-            patch("app.core.audit.log_security_action", MagicMock()),
-            patch("app.core.config.get_settings", MagicMock(return_value=MagicMock())),
-            patch("app.core.notifications.notification_bus"),
+            patch("asc_api.core.audit.log_security_action", MagicMock()),
+            patch("asc_api.core.config.get_settings", MagicMock(return_value=MagicMock())),
+            patch("asc_api.core.notifications.notification_bus"),
         ]
 
-    # ── Tests ─────────────────────────────────────────────────────────────────
+    # â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     async def test_run_score_below_threshold_no_escalation(self):
-        """Score 50 < 80 threshold → hunt not escalated, priority unchanged."""
+        """Score 50 < 80 threshold â†’ hunt not escalated, priority unchanged."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="high")
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"adaptive_score": 50})):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus"):
+                        with patch("asc_api.core.notifications.notification_bus"):
                             result = await _run()
 
         assert result["active_hunts_checked"] == 1
@@ -161,21 +161,21 @@ class TestPcdiEscalationScoringLoop:
         assert hunt.priority == "high"  # unchanged
 
     async def test_run_score_at_threshold_escalates(self):
-        """Score 80 == threshold → hunt escalated to 'critical', commit called."""
+        """Score 80 == threshold â†’ hunt escalated to 'critical', commit called."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="high")
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"adaptive_score": 80})):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus") as mock_bus:
+                        with patch("asc_api.core.notifications.notification_bus") as mock_bus:
                             mock_bus.publish = AsyncMock()
                             result = await _run()
 
@@ -184,7 +184,7 @@ class TestPcdiEscalationScoringLoop:
         db.commit.assert_called_once()
 
     async def test_run_score_above_threshold_escalates_with_log(self):
-        """Score 95 > 80 → escalation + log_security_action called + hunt in escalated_ids."""
+        """Score 95 > 80 â†’ escalation + log_security_action called + hunt in escalated_ids."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="medium")
@@ -192,14 +192,14 @@ class TestPcdiEscalationScoringLoop:
         db = self._db_for([hunt], [finding])
 
         log_sec = MagicMock()
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"adaptive_score": 95})):
-                with patch("app.core.audit.log_security_action", log_sec):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", log_sec):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus") as mock_bus:
+                        with patch("asc_api.core.notifications.notification_bus") as mock_bus:
                             mock_bus.publish = AsyncMock()
                             result = await _run()
 
@@ -209,21 +209,21 @@ class TestPcdiEscalationScoringLoop:
         assert call_kwargs[0][0] == "pcdi_auto_escalation"  # action name
 
     async def test_run_hunt_already_critical_not_escalated(self):
-        """Hunt already at 'critical' priority → no escalation even if score >= 80."""
+        """Hunt already at 'critical' priority â†’ no escalation even if score >= 80."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="critical")
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"adaptive_score": 99})):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus"):
+                        with patch("asc_api.core.notifications.notification_bus"):
                             result = await _run()
 
         assert result["hunts_escalated"] == 0
@@ -231,43 +231,43 @@ class TestPcdiEscalationScoringLoop:
         assert result["findings_scored"] == 1
 
     async def test_run_score_result_has_error_key_skipped(self):
-        """compute_adaptive_score returns {'error': ...} → finding skipped, count=0."""
+        """compute_adaptive_score returns {'error': ...} â†’ finding skipped, count=0."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="high")
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"error": "finding not found"})):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus"):
+                        with patch("asc_api.core.notifications.notification_bus"):
                             result = await _run()
 
-        # Error path: skipped → not scored
+        # Error path: skipped â†’ not scored
         assert result["findings_scored"] == 0
         assert result["hunts_escalated"] == 0
 
     async def test_run_compute_score_raises_exception_logged_and_continues(self):
-        """compute_adaptive_score raises → warning logged, loop continues."""
+        """compute_adaptive_score raises â†’ warning logged, loop continues."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="high")
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(side_effect=RuntimeError("pcdi service down"))):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus"):
+                        with patch("asc_api.core.notifications.notification_bus"):
                             result = await _run()
 
         # Exception path: loop continues, scored_findings stays 0
@@ -275,25 +275,25 @@ class TestPcdiEscalationScoringLoop:
         assert result["active_hunts_checked"] == 1
 
     async def test_run_no_findings_in_hunt_no_escalation(self):
-        """Hunt with zero matching findings → max_score stays 0 → no escalation."""
+        """Hunt with zero matching findings â†’ max_score stays 0 â†’ no escalation."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="high")
         db = self._db_for([hunt], [])  # empty findings
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.core.audit.log_security_action", MagicMock()):
-                with patch("app.core.config.get_settings",
+            with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                with patch("asc_api.core.config.get_settings",
                            MagicMock(return_value=MagicMock())):
-                    with patch("app.core.notifications.notification_bus"):
+                    with patch("asc_api.core.notifications.notification_bus"):
                         result = await _run()
 
         assert result["findings_scored"] == 0
         assert result["hunts_escalated"] == 0
 
     async def test_run_multiple_findings_max_score_tracked(self):
-        """Multiple findings per hunt → max_score is the maximum across all."""
+        """Multiple findings per hunt â†’ max_score is the maximum across all."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt = _make_hunt(priority="low")
@@ -307,19 +307,19 @@ class TestPcdiEscalationScoringLoop:
             _scalars_result([f1, f2, f3]),  # findings query
         ]
 
-        # f1 → 30, f2 → 90 (triggers escalation), f3 → 60
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        # f1 â†’ 30, f2 â†’ 90 (triggers escalation), f3 â†’ 60
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(side_effect=[
                            {"adaptive_score": 30},
                            {"adaptive_score": 90},
                            {"adaptive_score": 60},
                        ])):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus") as mock_bus:
+                        with patch("asc_api.core.notifications.notification_bus") as mock_bus:
                             mock_bus.publish = AsyncMock()
                             result = await _run()
 
@@ -328,7 +328,7 @@ class TestPcdiEscalationScoringLoop:
         assert hunt.priority == "critical"
 
     async def test_run_multiple_hunts_each_processed(self):
-        """Multiple active hunts → each gets findings queried independently."""
+        """Multiple active hunts â†’ each gets findings queried independently."""
         from asc_api.tasks.pcdi_escalation import _run
 
         hunt_a = _make_hunt(priority="medium", hunt_id="h-A")
@@ -344,17 +344,17 @@ class TestPcdiEscalationScoringLoop:
         ]
 
         # hunt_a scores 50 (no escalation), hunt_b scores 85 (escalated)
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(side_effect=[
                            {"adaptive_score": 50},  # for finding_a
                            {"adaptive_score": 85},  # for finding_b
                        ])):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
-                        with patch("app.core.notifications.notification_bus") as mock_bus:
+                        with patch("asc_api.core.notifications.notification_bus") as mock_bus:
                             mock_bus.publish = AsyncMock()
                             result = await _run()
 
@@ -372,16 +372,16 @@ class TestPcdiEscalationScoringLoop:
         finding = _make_finding()
         db = self._db_for([hunt], [finding])
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.services.pcdi_service.compute_adaptive_score",
+            with patch("asc_api.services.pcdi_service.compute_adaptive_score",
                        AsyncMock(return_value={"adaptive_score": 95})):
-                with patch("app.core.audit.log_security_action", MagicMock()):
-                    with patch("app.core.config.get_settings",
+                with patch("asc_api.core.audit.log_security_action", MagicMock()):
+                    with patch("asc_api.core.config.get_settings",
                                MagicMock(return_value=MagicMock())):
                         # Patch notification_bus so ensure_future gets a non-coroutine
-                        # → TypeError raised → caught by inner except → line 130 covered
-                        with patch("app.core.notifications.notification_bus") as mock_bus:
+                        # â†’ TypeError raised â†’ caught by inner except â†’ line 130 covered
+                        with patch("asc_api.core.notifications.notification_bus") as mock_bus:
                             mock_bus.publish = MagicMock(return_value="not-a-coroutine")
                             result = await _run()
 
@@ -389,9 +389,9 @@ class TestPcdiEscalationScoringLoop:
         assert result["hunts_escalated"] == 1
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Celery wrapper — sync task execution (pcdi + sla + escalation)
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# Celery wrapper â€” sync task execution (pcdi + sla + escalation)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestCeleryTaskWrappers:
     """Cover the synchronous Celery wrapper bodies (asyncio.run(_run()) path)."""
@@ -404,9 +404,9 @@ class TestCeleryTaskWrappers:
         db.execute.return_value = _scalars_result([])
 
         mock_self = MagicMock()
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.core.config.get_settings",
+            with patch("asc_api.core.config.get_settings",
                        MagicMock(return_value=MagicMock())):
                 result = check_critical_findings(mock_self)
 
@@ -419,7 +419,7 @@ class TestCeleryTaskWrappers:
         mock_self = MagicMock()
         mock_self.retry.side_effect = RuntimeError("celery-retry")
 
-        with patch("app.tasks.pcdi_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.pcdi_escalation.AsyncSessionLocal",
                    side_effect=RuntimeError("db down")):
             with pytest.raises(RuntimeError, match="celery-retry"):
                 check_critical_findings(mock_self)
@@ -431,9 +431,9 @@ class TestCeleryTaskWrappers:
         db = AsyncMock()
         mock_self = MagicMock()
 
-        with patch("app.tasks.sla_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.sla_escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.sla_escalation.escalate_sla_breaches",
+            with patch("asc_api.tasks.sla_escalation.escalate_sla_breaches",
                        AsyncMock(return_value=0)):
                 result = check_sla_breaches(mock_self)
 
@@ -446,7 +446,7 @@ class TestCeleryTaskWrappers:
         mock_self = MagicMock()
         mock_self.retry.side_effect = RuntimeError("sla-retry")
 
-        with patch("app.tasks.sla_escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.sla_escalation.AsyncSessionLocal",
                    side_effect=RuntimeError("db error")):
             with pytest.raises(RuntimeError, match="sla-retry"):
                 check_sla_breaches(mock_self)
@@ -460,11 +460,11 @@ class TestCeleryTaskWrappers:
         mock_settings = MagicMock()
         mock_settings.REDIS_URL = ""
 
-        with patch("app.tasks.escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.escalation.escalate_expired",
+            with patch("asc_api.tasks.escalation.escalate_expired",
                        AsyncMock(return_value=[])):
-                with patch("app.tasks.escalation.get_settings",
+                with patch("asc_api.tasks.escalation.get_settings",
                            return_value=mock_settings):
                     result = check_expired_actions(mock_self)
 
@@ -478,16 +478,16 @@ class TestCeleryTaskWrappers:
         db.execute.return_value = _scalars_result([])
         mock_self = MagicMock()
 
-        with patch("app.tasks.scheduled_reports.AsyncSessionLocal",
+        with patch("asc_api.tasks.scheduled_reports.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
             result = deliver_due_reports(mock_self)
 
         assert result == {"total": 0, "sent": 0, "skipped": 0, "errors": 0}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# reporter.py — additional branches
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# reporter.py â€” additional branches
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestReporterEdgeCases:
     def test_html_critical_alert_badge(self):
@@ -496,7 +496,7 @@ class TestReporterEdgeCases:
                    "risk_score": 0.99, "status": "active",
                    "detected_at": "2026-06-13T08:00:00Z"}]
         html = generate_html_report({"alerts": alerts, "summary": {}, "metrics": {}})
-        assert "bg-danger" in html  # critical → "danger" class
+        assert "bg-danger" in html  # critical â†’ "danger" class
 
     def test_html_medium_alert_badge(self):
         from asc_api.services.reporter import generate_html_report
@@ -504,7 +504,7 @@ class TestReporterEdgeCases:
                    "risk_score": 0.5, "status": "open",
                    "detected_at": "2026-06-13T08:00:00Z"}]
         html = generate_html_report({"alerts": alerts, "summary": {}, "metrics": {}})
-        assert "bg-info" in html  # medium → "info"
+        assert "bg-info" in html  # medium â†’ "info"
 
     def test_html_low_alert_badge(self):
         from asc_api.services.reporter import generate_html_report
@@ -512,7 +512,7 @@ class TestReporterEdgeCases:
                    "risk_score": 0.2, "status": "closed",
                    "detected_at": "2026-06-13T08:00:00Z"}]
         html = generate_html_report({"alerts": alerts, "summary": {}, "metrics": {}})
-        assert "bg-success" in html  # low → "success"
+        assert "bg-success" in html  # low â†’ "success"
 
     def test_pdf_with_many_alerts_truncated_at_20(self):
         from asc_api.services.reporter import generate_pdf_report
@@ -520,7 +520,7 @@ class TestReporterEdgeCases:
             {"title": f"Alert {i}", "severity": "high",
              "risk_score": 0.7, "status": "open",
              "detected_at": "2026-06-13T00:00:00Z"}
-            for i in range(25)  # 25 > 20 → should truncate in PDF
+            for i in range(25)  # 25 > 20 â†’ should truncate in PDF
         ]
         result = generate_pdf_report({"alerts": alerts, "summary": {}, "metrics": {}})
         assert isinstance(result, bytes)
@@ -528,12 +528,12 @@ class TestReporterEdgeCases:
             assert result[:4] == b"%PDF"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# P34-COV-B  —  gap-fill: task retry paths, audit functions, pure helpers,
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# P34-COV-B  â€”  gap-fill: task retry paths, audit functions, pure helpers,
 #              PIIL signing, pids_service query helpers
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-# ── Audit functions ───────────────────────────────────────────────────────────
+# â”€â”€ Audit functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAuditFunctions:
     """Call the real audit functions so their bodies are covered."""
@@ -552,27 +552,27 @@ class TestAuditFunctions:
 
     def test_log_security_action_with_actor_alias(self):
         from asc_api.core.audit import log_security_action
-        # actor kwarg → effective_user = user_id or actor or "system"
+        # actor kwarg â†’ effective_user = user_id or actor or "system"
         log_security_action("adapter_test", actor="celery-worker", resource="adapter")
 
 
-# ── Pure helper / utility functions ──────────────────────────────────────────
+# â”€â”€ Pure helper / utility functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPureHelpers:
 
     def test_praf_band_returns_low_for_zero_score(self):
-        """_band(0) → no threshold matched → returns 'low' (line 356)."""
+        """_band(0) â†’ no threshold matched â†’ returns 'low' (line 356)."""
         from asc_api.services.praf import _band
         assert _band(0) == "low"
 
     def test_metrics_percentile_empty_list(self):
-        """_percentile([], p) → early return 0.0 (line 37)."""
+        """_percentile([], p) â†’ early return 0.0 (line 37)."""
         from asc_api.services.metrics import _percentile
         assert _percentile([], 95) == 0.0
         assert _percentile([], 50) == 0.0
 
     def test_agent_priority_score_naive_datetime(self):
-        """Naive last_seen datetime → branch at line 205 adds tzinfo=UTC."""
+        """Naive last_seen datetime â†’ branch at line 205 adds tzinfo=UTC."""
         from asc_api.services.query_executor import _agent_priority_score
         from datetime import datetime
         agent = MagicMock()
@@ -582,44 +582,44 @@ class TestPureHelpers:
         assert score >= 0  # function completes without error
 
 
-# ── Task Celery-wrapper retry paths ──────────────────────────────────────────
+# â”€â”€ Task Celery-wrapper retry paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTaskRetryPaths:
     """Each Celery sync wrapper has a try/except + retry. Test the except path."""
 
     def test_run_sweep_retries_on_asyncio_failure(self):
-        """correlation_sweep.run_sweep() exception → lines 24-26 covered."""
+        """correlation_sweep.run_sweep() exception â†’ lines 24-26 covered."""
         from asc_api.tasks.correlation_sweep import run_sweep
         mock_self = MagicMock()
         mock_self.retry.side_effect = RuntimeError("sweep-retry")
-        with patch("app.tasks.correlation_sweep.asyncio.run",
+        with patch("asc_api.tasks.correlation_sweep.asyncio.run",
                    side_effect=RuntimeError("sweep crashed")):
             with pytest.raises(RuntimeError, match="sweep-retry"):
                 run_sweep(mock_self)
         mock_self.retry.assert_called_once()
 
     def test_check_expired_actions_retries_on_failure(self):
-        """escalation.check_expired_actions() exception → lines 80-82 covered."""
+        """escalation.check_expired_actions() exception â†’ lines 80-82 covered."""
         from asc_api.tasks.escalation import check_expired_actions
         mock_self = MagicMock()
         mock_self.retry.side_effect = RuntimeError("escalation-retry")
-        with patch("app.tasks.escalation.asyncio.run",
+        with patch("asc_api.tasks.escalation.asyncio.run",
                    side_effect=RuntimeError("db down")):
             with pytest.raises(RuntimeError, match="escalation-retry"):
                 check_expired_actions(mock_self)
 
     def test_deliver_due_reports_retries_on_failure(self):
-        """scheduled_reports.deliver_due_reports() exception → lines 101-103 covered."""
+        """scheduled_reports.deliver_due_reports() exception â†’ lines 101-103 covered."""
         from asc_api.tasks.scheduled_reports import deliver_due_reports
         mock_self = MagicMock()
         mock_self.retry.side_effect = RuntimeError("reports-retry")
-        with patch("app.tasks.scheduled_reports.asyncio.run",
+        with patch("asc_api.tasks.scheduled_reports.asyncio.run",
                    side_effect=RuntimeError("run failed")):
             with pytest.raises(RuntimeError, match="reports-retry"):
                 deliver_due_reports(mock_self)
 
     async def test_escalation_run_publishes_to_redis_and_acloses(self):
-        """escalation._run() with non-empty escalated list + Redis → covers line 56 (aclose).
+        """escalation._run() with non-empty escalated list + Redis â†’ covers line 56 (aclose).
 
         Python's `import a.b as c` resolves `c` via `sys.modules["a"].b`, NOT from
         `sys.modules["a.b"]` directly. Therefore we must BOTH: (a) set sys.modules["redis"]
@@ -640,11 +640,11 @@ class TestTaskRetryPaths:
         mock_redis_mod = MagicMock()
         mock_redis_mod.asyncio = mock_aioredis
 
-        with patch("app.tasks.escalation.AsyncSessionLocal",
+        with patch("asc_api.tasks.escalation.AsyncSessionLocal",
                    return_value=_FakeSession(db)):
-            with patch("app.tasks.escalation.escalate_expired",
+            with patch("asc_api.tasks.escalation.escalate_expired",
                        AsyncMock(return_value=["act-001"])):
-                with patch("app.tasks.escalation.get_settings",
+                with patch("asc_api.tasks.escalation.get_settings",
                            return_value=mock_settings):
                     with patch.dict("sys.modules",
                                     {"redis": mock_redis_mod,
@@ -655,7 +655,7 @@ class TestTaskRetryPaths:
         mock_redis_client.aclose.assert_called_once()
 
 
-# ── Reporting service — PIIL Ed25519 signing success path ─────────────────────
+# â”€â”€ Reporting service â€” PIIL Ed25519 signing success path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestReportingServiceSigning:
     """Cover lines 76-84 and 109-111 in reporting_service.py."""
@@ -671,7 +671,7 @@ class TestReportingServiceSigning:
         return priv, priv_b64, pub_b64
 
     def test_sign_report_success_with_pubkey(self):
-        """Covers lines 76, 79, 80, 81, 84 — happy path with SPECTER keys set."""
+        """Covers lines 76, 79, 80, 81, 84 â€” happy path with SPECTER keys set."""
         import base64
         from asc_api.services import reporting_service
 
@@ -687,7 +687,7 @@ class TestReportingServiceSigning:
         assert len(fp) == 16  # SHA3-512 first 16 hex chars
 
     def test_sign_report_success_no_pubkey(self):
-        """Covers lines 82-83 — fp = 'unknown' when no public key configured."""
+        """Covers lines 82-83 â€” fp = 'unknown' when no public key configured."""
         import base64
         from asc_api.services import reporting_service
 
@@ -703,7 +703,7 @@ class TestReportingServiceSigning:
         assert len(base64.b64decode(sig_b64)) == 64
 
     def test_verify_report_signature_valid(self):
-        """Covers lines 109-111 — successful Ed25519 verification returns True."""
+        """Covers lines 109-111 â€” successful Ed25519 verification returns True."""
         import base64
         from asc_api.services import reporting_service
 
@@ -727,13 +727,13 @@ class TestReportingServiceSigning:
         assert result is True
 
 
-# ── pids_service: query helpers ───────────────────────────────────────────────
+# â”€â”€ pids_service: query helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestPidsServiceQueryHelpers:
     """Cover uncovered query functions in pids_service."""
 
     async def test_get_identity_action_not_found(self):
-        """get_identity_action() → None when DB returns nothing (lines 220-224)."""
+        """get_identity_action() â†’ None when DB returns nothing (lines 220-224)."""
         from asc_api.services.pids_service import get_identity_action
         db = AsyncMock()
         result_mock = MagicMock()
@@ -743,7 +743,7 @@ class TestPidsServiceQueryHelpers:
         assert out is None
 
     async def test_list_identity_actions_with_hunt_id_filter(self):
-        """list_identity_actions(hunt_id=...) → covers hunt_id filter branch (line 242)."""
+        """list_identity_actions(hunt_id=...) â†’ covers hunt_id filter branch (line 242)."""
         from asc_api.services.pids_service import list_identity_actions
         db = AsyncMock()
         scalars_mock = MagicMock()
@@ -755,10 +755,10 @@ class TestPidsServiceQueryHelpers:
         assert out == []
 
     async def test_verify_signature_exception_path(self):
-        """_verify_signature with invalid pub key → except → returns False (lines 99-106)."""
+        """_verify_signature with invalid pub key â†’ except â†’ returns False (lines 99-106)."""
         import base64, os
         from asc_api.services.pids_service import _verify_signature
-        # Use a base64 string that decodes to wrong size bytes (not 32) → ValueError
+        # Use a base64 string that decodes to wrong size bytes (not 32) â†’ ValueError
         bad_pub = base64.b64encode(b"not-32-bytes").decode()
         with patch.dict(os.environ, {"PIDS_SIGNING_PUBLIC_KEY": bad_pub}):
             result = _verify_signature("somehash", base64.b64encode(b"fakesig").decode())

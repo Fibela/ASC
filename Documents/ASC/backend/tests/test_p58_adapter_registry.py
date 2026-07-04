@@ -1,13 +1,13 @@
-"""
-P58 — Tenant Adapter Registry — Test Suite (TD-4)
+﻿"""
+P58 â€” Tenant Adapter Registry â€” Test Suite (TD-4)
 ==================================================
 Tests: crypto helpers, ORM model, CRUD endpoints, RBAC enforcement,
        security invariants (credentials never leaked), migration artifact,
        module wiring.
 
-Pattern: AsyncClient + ASGITransport — no real DB.
-DB mocked via app.dependency_overrides[get_db] → yields AsyncMock session.
-Auth mocked via patch("app.api.deps._resolve_user").
+Pattern: AsyncClient + ASGITransport â€” no real DB.
+DB mocked via app.dependency_overrides[get_db] â†’ yields AsyncMock session.
+Auth mocked via patch("asc_api.api.deps._resolve_user").
 
 Tests: 75+ in 11 classes
 """
@@ -28,7 +28,7 @@ _BACKEND = Path(__file__).parent.parent
 
 URL_BASE = "/api/v1/adapter-registry"
 
-# ── Mock builders ─────────────────────────────────────────────────────────────
+# â”€â”€ Mock builders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
 def _make_user(role: str = "admin"):
@@ -82,8 +82,8 @@ def _make_config(
 def _make_db(tenant=None, config=None, configs=None):
     """
     Async DB mock whose execute() always returns a result supporting both:
-      result.scalar_one_or_none()  → point lookups
-      result.scalars().all()       → list queries
+      result.scalar_one_or_none()  â†’ point lookups
+      result.scalars().all()       â†’ list queries
     Call 1 returns tenant; subsequent calls return config or configs.
     """
     db = AsyncMock()
@@ -117,10 +117,10 @@ def _make_db(tenant=None, config=None, configs=None):
 
 def _auth(user):
     """Context manager: patches _resolve_user to return user."""
-    return patch("app.api.deps._resolve_user", AsyncMock(return_value=user))
+    return patch("asc_api.api.deps._resolve_user", AsyncMock(return_value=user))
 
 
-# ── 1. Adapter Crypto ─────────────────────────────────────────────────────────
+# â”€â”€ 1. Adapter Crypto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestAdapterCrypto:
     """Unit tests for Fernet encryption helpers in app.core.adapter_crypto."""
@@ -165,7 +165,7 @@ class TestAdapterCrypto:
         assert t1 != t2
 
     def test_fernet_random_iv_per_call(self):
-        """Same plaintext → different ciphertext each call (random IV)."""
+        """Same plaintext â†’ different ciphertext each call (random IV)."""
         from asc_api.core.adapter_crypto import encrypt_credential
         assert encrypt_credential("v", self._SK) != encrypt_credential("v", self._SK)
 
@@ -176,7 +176,7 @@ class TestAdapterCrypto:
             decrypt_credential(token, "wrong-secret-32chars-padding-!!!")
 
 
-# ── 2. TenantAdapterConfig model ─────────────────────────────────────────────
+# â”€â”€ 2. TenantAdapterConfig model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTenantAdapterConfigModel:
 
@@ -236,7 +236,7 @@ class TestTenantAdapterConfigModel:
         assert TenantAdapterConfig.__tablename__ == "tenant_adapter_configs"
 
 
-# ── 3. GET /types ─────────────────────────────────────────────────────────────
+# â”€â”€ 3. GET /types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetAdapterTypes:
 
@@ -290,7 +290,7 @@ class TestGetAdapterTypes:
         assert r.status_code in (401, 403)
 
 
-# ── 4. GET /{tenant_id} — list adapters ──────────────────────────────────────
+# â”€â”€ 4. GET /{tenant_id} â€” list adapters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestListTenantAdapters:
 
@@ -337,7 +337,7 @@ class TestListTenantAdapters:
         assert r.status_code in (401, 403)
 
 
-# ── 5. GET /{tenant_id}/{adapter_type} ────────────────────────────────────────
+# â”€â”€ 5. GET /{tenant_id}/{adapter_type} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestGetTenantAdapter:
 
@@ -392,7 +392,7 @@ class TestGetTenantAdapter:
         assert "credential_encrypted" not in r.text
 
 
-# ── 6. POST /{tenant_id} — create ────────────────────────────────────────────
+# â”€â”€ 6. POST /{tenant_id} â€” create â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestCreateTenantAdapter:
 
@@ -452,7 +452,7 @@ class TestCreateTenantAdapter:
         override, _ = _make_db(tenant=_make_tenant(tid), config=None)
         app.dependency_overrides[get_db] = override
         with _auth(_make_user("admin")), \
-             patch("app.api.v1.endpoints.adapter_registry.encrypt_credential",
+             patch("asc_api.api.v1.endpoints.adapter_registry.encrypt_credential",
                    return_value="fernet_enc"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
@@ -470,7 +470,7 @@ class TestCreateTenantAdapter:
         override, _ = _make_db(tenant=_make_tenant(tid), config=None)
         app.dependency_overrides[get_db] = override
         with _auth(_make_user("admin")), \
-             patch("app.api.v1.endpoints.adapter_registry.encrypt_credential",
+             patch("asc_api.api.v1.endpoints.adapter_registry.encrypt_credential",
                    return_value="super_secret_fernet"):
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
                 r = await c.post(
@@ -498,7 +498,7 @@ class TestCreateTenantAdapter:
         assert r.status_code == 404
 
 
-# ── 7. PUT /{tenant_id}/{adapter_type} ───────────────────────────────────────
+# â”€â”€ 7. PUT /{tenant_id}/{adapter_type} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestUpdateTenantAdapter:
 
@@ -568,7 +568,7 @@ class TestUpdateTenantAdapter:
         assert r.status_code == 422
 
 
-# ── 8. DELETE /{tenant_id}/{adapter_type} ────────────────────────────────────
+# â”€â”€ 8. DELETE /{tenant_id}/{adapter_type} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestDeleteTenantAdapter:
 
@@ -620,7 +620,7 @@ class TestDeleteTenantAdapter:
         assert r.status_code == 422
 
 
-# ── 9. POST /{tenant_id}/{adapter_type}/test — connectivity stub ──────────────
+# â”€â”€ 9. POST /{tenant_id}/{adapter_type}/test â€” connectivity stub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestTestAdapter:
 
@@ -678,7 +678,7 @@ class TestTestAdapter:
         assert r.status_code == 403
 
 
-# ── 10. Security invariants ────────────────────────────────────────────────────
+# â”€â”€ 10. Security invariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestSecurityInvariants:
 
@@ -734,7 +734,7 @@ class TestSecurityInvariants:
             assert "none" in ADAPTER_PROVIDERS[t], f"'none' missing from {t} providers"
 
 
-# ── 11. Migration + module structure ──────────────────────────────────────────
+# â”€â”€ 11. Migration + module structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TestMigrationAndStructure:
 
