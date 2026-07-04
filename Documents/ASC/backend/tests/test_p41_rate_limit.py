@@ -548,7 +548,7 @@ class TestRateLimitDeploymentArtifacts:
     """Verify P41 code artifacts exist and are wired up correctly."""
 
     def test_api_key_rate_limit_module_exists(self):
-        path = _REPO_ROOT / "backend" / "app" / "core" / "api_key_rate_limit.py"
+        path = _REPO_ROOT / "backend" / "asc_api" / "core" / "api_key_rate_limit.py"
         assert path.exists(), "api_key_rate_limit.py must exist"
 
     def test_config_has_rate_limit_per_minute(self):
@@ -571,13 +571,13 @@ class TestRateLimitDeploymentArtifacts:
         assert ApiKeyRateLimitMiddleware is not None
 
     def test_main_imports_api_key_rate_limit(self):
-        main_src = (_REPO_ROOT / "backend" / "app" / "main.py").read_text()
+        main_src = (_REPO_ROOT / "backend" / "asc_api" / "main.py").read_text()
         assert "api_key_limiter" in main_src
         assert "ApiKeyRateLimitMiddleware" in main_src
 
     def test_api_keys_router_has_status_endpoint(self):
         api_keys_src = (
-            _REPO_ROOT / "backend" / "app" / "api" / "v1" / "endpoints" / "api_keys.py"
+            _REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "endpoints" / "api_keys.py"
         ).read_text()
         assert "rate-limit-status" in api_keys_src
         assert "rate-limit-reset" in api_keys_src

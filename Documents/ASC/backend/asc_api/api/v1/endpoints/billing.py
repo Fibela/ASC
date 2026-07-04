@@ -19,6 +19,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -69,6 +70,96 @@ class SnapshotResponse(BaseModel):
 
 class WebhookAckResponse(BaseModel):
     received: bool
+
+
+class PlanFeatures(BaseModel):
+    max_users: int | None
+    max_api_keys_per_user: int | None
+    siem_integration: bool
+    threat_hunting: bool
+    executive_reports: bool
+    soar_playbooks: bool
+    support: str
+
+
+class PlanInfo(BaseModel):
+    id: str
+    name: str
+    price_usd: int | None  # None = contact sales
+    billing_period: str
+    features: PlanFeatures
+
+
+class PlansResponse(BaseModel):
+    plans: list[PlanInfo]
+
+
+class SubscriptionResponse(BaseModel):
+    plan: str
+    stripe_customer_id: str | None
+    stripe_subscription_id: str | None
+    is_active: bool
+
+
+class CheckoutRequest(BaseModel):
+    plan: str  # "pro" | "enterprise"
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str
+
+
+class PortalResponse(BaseModel):
+    portal_url: str
+
+
+_PLANS: list[dict] = [
+    {
+        "id": "free",
+        "name": "Free",
+        "price_usd": 0,
+        "billing_period": "month",
+        "features": {
+            "max_users": 5,
+            "max_api_keys_per_user": 3,
+            "siem_integration": False,
+            "threat_hunting": False,
+            "executive_reports": False,
+            "soar_playbooks": False,
+            "support": "community",
+        },
+    },
+    {
+        "id": "pro",
+        "name": "Pro",
+        "price_usd": 299,
+        "billing_period": "month",
+        "features": {
+            "max_users": 50,
+            "max_api_keys_per_user": 20,
+            "siem_integration": True,
+            "threat_hunting": True,
+            "executive_reports": True,
+            "soar_playbooks": True,
+            "support": "email (24 h SLA)",
+        },
+    },
+    {
+        "id": "enterprise",
+        "name": "Enterprise",
+        "price_usd": None,
+        "billing_period": "month",
+        "features": {
+            "max_users": None,
+            "max_api_keys_per_user": None,
+            "siem_integration": True,
+            "threat_hunting": True,
+            "executive_reports": True,
+            "soar_playbooks": True,
+            "support": "24/7 dedicated",
+        },
+    },
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -267,6 +358,141 @@ async def _provision_stripe_customer(
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/plans", response_model=PlansResponse)
+async def list_plans():
+    """Return available ASC subscription plans. No authentication required."""
+    return PlansResponse(plans=[PlanInfo(**p) for p in _PLANS])
+
+
+@router.get("/subscription", response_model=SubscriptionResponse)
+async def get_subscription(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current tenant's active plan and Stripe subscription status."""
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    return SubscriptionResponse(
+        plan=tenant.plan,
+        stripe_customer_id=tenant.stripe_customer_id,
+        stripe_subscription_id=tenant.stripe_subscription_id,
+        is_active=tenant.is_active,
+    )
+
+
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_checkout_session(
+    body: CheckoutRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a Stripe Checkout session for the requested plan.
+
+    Returns a redirect URL — the frontend should redirect the user there.
+    Stripe calls POST /billing/stripe/webhook on completion to provision the plan.
+    """
+    if not _settings.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe billing no está configurado")
+
+    price_id_map = {
+        "pro": _settings.STRIPE_PRICE_PRO,
+        "enterprise": _settings.STRIPE_PRICE_ENTERPRISE,
+    }
+    price_id = price_id_map.get(body.plan, "")
+    if not price_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plan '{body.plan}' no disponible para self-serve checkout. Contacta ventas.",
+        )
+
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+
+    payload: dict = {
+        "mode": "subscription",
+        "line_items[0][price]": price_id,
+        "line_items[0][quantity]": "1",
+        "success_url": _settings.STRIPE_SUCCESS_URL,
+        "cancel_url": _settings.STRIPE_CANCEL_URL,
+        "metadata[tenant_id]": str(current_user.tenant_id),
+        "metadata[user_id]": str(current_user.id),
+    }
+    # Pre-fill email / link to existing Stripe customer if available
+    if tenant and tenant.stripe_customer_id:
+        payload["customer"] = tenant.stripe_customer_id
+    else:
+        payload["customer_email"] = current_user.email
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.stripe.com/v1/checkout/sessions",
+                auth=(_settings.STRIPE_SECRET_KEY, ""),
+                data=payload,
+            )
+        if resp.status_code != 200:
+            log_security_action(
+                "stripe.checkout_error",
+                user_id=str(current_user.id),
+                extra={"status": resp.status_code, "body": resp.text[:500]},
+            )
+            raise HTTPException(status_code=502, detail="Error al crear sesión de pago con Stripe")
+        session = resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Stripe: {exc}")
+
+    log_security_action(
+        "stripe.checkout_created",
+        user_id=str(current_user.id),
+        extra={"plan": body.plan, "session_id": session.get("id", "")},
+    )
+    return CheckoutResponse(checkout_url=session["url"])
+
+
+@router.post("/portal", response_model=PortalResponse)
+async def create_portal_session(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a Stripe Customer Portal session for the current tenant.
+
+    The portal lets customers manage their subscription, update payment info, and cancel.
+    Requires the tenant to have a stripe_customer_id (i.e. they've paid at least once).
+    """
+    if not _settings.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe billing no está configurado")
+
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant or not tenant.stripe_customer_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No existe una suscripción activa asociada a este tenant",
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.stripe.com/v1/billing_portal/sessions",
+                auth=(_settings.STRIPE_SECRET_KEY, ""),
+                data={
+                    "customer": tenant.stripe_customer_id,
+                    "return_url": _settings.STRIPE_SUCCESS_URL,
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Error al abrir portal de Stripe")
+        portal = resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Stripe: {exc}")
+
+    return PortalResponse(portal_url=portal["url"])
+
 
 @router.get("/usage", response_model=UsageSummaryResponse)
 async def get_my_usage(

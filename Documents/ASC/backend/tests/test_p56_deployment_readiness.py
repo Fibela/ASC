@@ -259,8 +259,8 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "w3q56t5v8p10"   # add_honeypot_tables_p61 (latest)
-    _EXPECTED_COUNT = 19               # total migrations (added P53 + P55 + P58 + P59 + P60 + P61)
+    _EXPECTED_HEAD  = "x4r67u6w9q11"   # enable_rls_all_tables_s6 (latest)
+    _EXPECTED_COUNT = 20               # total migrations (added P53 + P55 + P58 + P59 + P60 + P61 + S6 RLS)
 
     def test_migrations_directory_exists(self):
         assert self._MIGRATIONS_DIR.exists()
@@ -624,15 +624,15 @@ class TestDeploymentRegression:
         assert (_WORKFLOWS / "p50-e2e.yml").exists()
 
     def test_p51_tenant_middleware_wired(self):
-        main_src = (_BACKEND / "app" / "main.py").read_text(encoding="utf-8")
+        main_src = (_BACKEND / "asc_api" / "main.py").read_text(encoding="utf-8")
         assert "TenantMiddleware" in main_src
         assert "add_middleware(TenantMiddleware)" in main_src
 
     def test_p51_tenant_filter_exists(self):
-        assert (_BACKEND / "app" / "db" / "tenant_filter.py").exists()
+        assert (_BACKEND / "asc_api" / "db" / "tenant_filter.py").exists()
 
     def test_p51_tenant_context_exists(self):
-        assert (_BACKEND / "app" / "core" / "tenant_context.py").exists()
+        assert (_BACKEND / "asc_api" / "core" / "tenant_context.py").exists()
 
     def test_observability_endpoint_registered(self):
         """P39 — Prometheus metrics endpoint must be registered."""

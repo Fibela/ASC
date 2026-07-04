@@ -739,7 +739,7 @@ class TestSecurityInvariants:
 class TestMigrationAndStructure:
 
     _HEAD = "t0n23q2s5m07"
-    _TOTAL = 19  # P61 honeypot tables added
+    _TOTAL = 20  # S6 RLS migration added
 
     def test_migration_file_exists(self):
         files = list(_MIGRATIONS_DIR.glob(f"*{self._HEAD}*.py"))
@@ -772,7 +772,7 @@ class TestMigrationAndStructure:
         )
 
     def test_router_has_adapter_registry(self):
-        src = (_BACKEND / "app" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
+        src = (_BACKEND / "asc_api" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
         assert "adapter_registry" in src
         assert "include_router(adapter_registry.router)" in src
 
@@ -817,4 +817,4 @@ class TestMigrationAndStructure:
         assert ("_EXPECTED_MIGRATION_COUNT = 16" in src or
                 "_EXPECTED_MIGRATION_COUNT = 17" in src or
                 "_EXPECTED_MIGRATION_COUNT = 18" in src or
-                "_EXPECTED_MIGRATION_COUNT = 19" in src)
+                "_EXPECTED_MIGRATION_COUNT = 20" in src)

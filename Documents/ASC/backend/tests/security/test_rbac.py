@@ -452,12 +452,12 @@ class TestRBACSourceInspection:
     @pytest.fixture
     def deps_src(self) -> str:
         import pathlib
-        return pathlib.Path(__file__).parent.parent.parent / "app" / "api" / "deps.py"
+        return pathlib.Path(__file__).parent.parent.parent / "asc_api" / "api" / "deps.py"
 
     @pytest.fixture
     def auth_src(self) -> str:
         import pathlib
-        return pathlib.Path(__file__).parent.parent.parent / "app" / "api" / "v1" / "endpoints" / "auth.py"
+        return pathlib.Path(__file__).parent.parent.parent / "asc_api" / "api" / "v1" / "endpoints" / "auth.py"
 
     def test_deps_uses_bearer_scheme_auto_error_true(self, deps_src):
         txt = deps_src.read_text()

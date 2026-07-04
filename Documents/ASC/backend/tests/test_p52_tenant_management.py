@@ -1094,13 +1094,13 @@ class TestBugGap1ApiKeyTenantCtx:
     def test_deps_py_calls_set_tenant_id(self):
         """deps.py source code must contain set_tenant_id() call."""
         from pathlib import Path
-        src = (Path(__file__).parent.parent / "app" / "api" / "deps.py").read_text()
+        src = (Path(__file__).parent.parent / "asc_api" / "api" / "deps.py").read_text()
         assert "set_tenant_id" in src, "Bug#Gap-1: set_tenant_id must be called in deps.py"
 
     def test_set_tenant_id_called_with_user_tenant_id(self):
         """The call must pass user.tenant_id, not a hardcoded value."""
         from pathlib import Path
-        src = (Path(__file__).parent.parent / "app" / "api" / "deps.py").read_text()
+        src = (Path(__file__).parent.parent / "asc_api" / "api" / "deps.py").read_text()
         assert "set_tenant_id(user.tenant_id)" in src, (
             "Bug#Gap-1: must call set_tenant_id(user.tenant_id) to set correct tenant context"
         )
@@ -1111,7 +1111,7 @@ class TestBugGap1ApiKeyTenantCtx:
         (last_used_at commit), so that downstream queries use the correct tenant.
         """
         from pathlib import Path
-        src = (Path(__file__).parent.parent / "app" / "api" / "deps.py").read_text()
+        src = (Path(__file__).parent.parent / "asc_api" / "api" / "deps.py").read_text()
         idx_set = src.find("set_tenant_id(user.tenant_id)")
         idx_commit = src.find("await db.commit()", src.find("get_user_from_api_key"))
         assert idx_set != -1
@@ -1123,7 +1123,7 @@ class TestBugGap1ApiKeyTenantCtx:
     def test_import_is_from_tenant_context_module(self):
         """Import must come from the canonical tenant_context module."""
         from pathlib import Path
-        src = (Path(__file__).parent.parent / "app" / "api" / "deps.py").read_text()
+        src = (Path(__file__).parent.parent / "asc_api" / "api" / "deps.py").read_text()
         assert "from asc_api.core.tenant_context import set_tenant_id" in src, (
             "set_tenant_id must be imported from asc_api.core.tenant_context in deps.py"
         )
@@ -1218,7 +1218,7 @@ class TestP52Regression:
 
     def test_tenant_endpoint_file_exists(self):
         from pathlib import Path
-        p = Path(__file__).parent.parent / "app" / "api" / "v1" / "endpoints" / "tenants.py"
+        p = Path(__file__).parent.parent / "asc_api" / "api" / "v1" / "endpoints" / "tenants.py"
         assert p.exists()
 
     def test_deps_py_fix_does_not_break_resolve_user(self):

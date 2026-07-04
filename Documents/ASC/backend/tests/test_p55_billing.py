@@ -741,7 +741,7 @@ class TestBillingRouterRegistration:
         assert "billing" in src
 
     def test_billing_router_included(self):
-        router_path = Path(__file__).parent.parent / "app" / "api" / "v1" / "router.py"
+        router_path = Path(__file__).parent.parent / "asc_api" / "api" / "v1" / "router.py"
         content = router_path.read_text()
         assert "billing.router" in content
 

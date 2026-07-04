@@ -682,7 +682,7 @@ class TestWebhookSecurity:
 class TestWebhookDeploymentArtifacts:
 
     def test_webhook_model_file_exists(self):
-        p = _REPO_ROOT / "backend" / "app" / "models" / "webhook.py"
+        p = _REPO_ROOT / "backend" / "asc_api" / "models" / "webhook.py"
         assert p.exists()
 
     def test_migration_file_exists(self):
@@ -695,15 +695,15 @@ class TestWebhookDeploymentArtifacts:
         assert 'down_revision = "m3g47j5l8f60"' in content
 
     def test_dispatcher_module_exists(self):
-        p = _REPO_ROOT / "backend" / "app" / "core" / "webhook_dispatcher.py"
+        p = _REPO_ROOT / "backend" / "asc_api" / "core" / "webhook_dispatcher.py"
         assert p.exists()
 
     def test_webhooks_endpoint_file_exists(self):
-        p = _REPO_ROOT / "backend" / "app" / "api" / "v1" / "endpoints" / "webhooks.py"
+        p = _REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "endpoints" / "webhooks.py"
         assert p.exists()
 
     def test_router_includes_webhooks(self):
-        p = _REPO_ROOT / "backend" / "app" / "api" / "v1" / "router.py"
+        p = _REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "router.py"
         content = p.read_text()
         assert "webhooks" in content
 

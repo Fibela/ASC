@@ -41,7 +41,7 @@ _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
 _EXPECTED_MIGRATION_HEAD  = "w3q56t5v8p10"  # P61 honeypot tables (latest)
-_EXPECTED_MIGRATION_COUNT = 19  # P61 honeypot tables added
+_EXPECTED_MIGRATION_COUNT = 20  # S6 RLS migration added
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
@@ -392,7 +392,7 @@ class TestEndpointCompleteness:
     """All 27 endpoint modules registered in router.py, no orphaned routes."""
 
     def test_all_routers_registered(self):
-        router_src = (_BACKEND / "app" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
+        router_src = (_BACKEND / "asc_api" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
         expected_modules = [
             "auth", "analyze", "events", "alerts", "iocs", "metrics",
             "neutralize", "reports", "detection", "playbooks", "adapters",
@@ -407,19 +407,19 @@ class TestEndpointCompleteness:
             )
 
     def test_onboarding_router_registered(self):
-        router_src = (_BACKEND / "app" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
+        router_src = (_BACKEND / "asc_api" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
         assert "onboarding" in router_src
 
     def test_billing_router_registered(self):
-        router_src = (_BACKEND / "app" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
+        router_src = (_BACKEND / "asc_api" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
         assert "billing" in router_src
 
     def test_tenants_router_registered(self):
-        router_src = (_BACKEND / "app" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
+        router_src = (_BACKEND / "asc_api" / "api" / "v1" / "router.py").read_text(encoding="utf-8")
         assert "tenants" in router_src
 
     def test_endpoint_files_exist(self):
-        endpoints_dir = _BACKEND / "app" / "api" / "v1" / "endpoints"
+        endpoints_dir = _BACKEND / "asc_api" / "api" / "v1" / "endpoints"
         critical_files = [
             "auth.py", "alerts.py", "events.py", "onboarding.py",
             "billing.py", "api_keys.py", "webhooks.py", "tenants.py",
@@ -429,7 +429,7 @@ class TestEndpointCompleteness:
             assert (endpoints_dir / f).exists(), f"Endpoint file missing: {f}"
 
     def test_no_not_implemented_in_endpoints(self):
-        endpoints_dir = _BACKEND / "app" / "api" / "v1" / "endpoints"
+        endpoints_dir = _BACKEND / "asc_api" / "api" / "v1" / "endpoints"
         for py_file in endpoints_dir.glob("*.py"):
             content = py_file.read_text(encoding="utf-8", errors="ignore")
             assert "raise NotImplementedError" not in content, (
@@ -437,7 +437,7 @@ class TestEndpointCompleteness:
             )
 
     def test_minimum_endpoint_count(self):
-        endpoints_dir = _BACKEND / "app" / "api" / "v1" / "endpoints"
+        endpoints_dir = _BACKEND / "asc_api" / "api" / "v1" / "endpoints"
         total = 0
         for py_file in endpoints_dir.glob("*.py"):
             content = py_file.read_text(encoding="utf-8", errors="ignore")
@@ -448,7 +448,7 @@ class TestEndpointCompleteness:
         )
 
     def test_health_endpoints_present(self):
-        health_src = (_BACKEND / "app" / "api" / "v1" / "endpoints" / "health.py").read_text(encoding="utf-8")
+        health_src = (_BACKEND / "asc_api" / "api" / "v1" / "endpoints" / "health.py").read_text(encoding="utf-8")
         assert "/health" in health_src or "liveness" in health_src
 
 
@@ -657,7 +657,7 @@ class TestCodeHygieneAndGate:
 
     def test_no_print_statements_in_app_services(self):
         """Services should use structlog, not print()."""
-        services_dir = _BACKEND / "app" / "services"
+        services_dir = _BACKEND / "asc_api" / "services"
         violations = []
         for py_file in services_dir.glob("*.py"):
             content = py_file.read_text(encoding="utf-8", errors="ignore")
@@ -726,12 +726,12 @@ class TestCodeHygieneAndGate:
 
     def test_models_init_exports_usage_record(self):
         """UsageRecord must be in models __all__ for Alembic autogenerate."""
-        models_init = _BACKEND / "app" / "models" / "__init__.py"
+        models_init = _BACKEND / "asc_api" / "models" / "__init__.py"
         content = models_init.read_text(encoding="utf-8", errors="ignore")
         assert "UsageRecord" in content
 
     def test_models_init_exports_tenant(self):
-        models_init = _BACKEND / "app" / "models" / "__init__.py"
+        models_init = _BACKEND / "asc_api" / "models" / "__init__.py"
         content = models_init.read_text(encoding="utf-8", errors="ignore")
         assert "Tenant" in content
 

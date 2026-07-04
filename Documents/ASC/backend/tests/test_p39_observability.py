@@ -500,7 +500,7 @@ class TestDeploymentArtifactsP39:
         assert hasattr(settings, "METRICS_SCRAPE_TOKEN")
 
     def test_observability_router_registered_in_main_router(self):
-        content = (_REPO_ROOT / "backend" / "app" / "api" / "v1" / "router.py").read_text()
+        content = (_REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "router.py").read_text()
         assert "observability" in content
 
     def test_observability_endpoint_prefix(self):

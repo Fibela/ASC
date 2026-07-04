@@ -138,13 +138,13 @@ def _make_endpoint_app():
 
 def _sla_src():
     import inspect, pathlib
-    p = pathlib.Path(__file__).parent.parent / "app" / "tasks" / "sla_escalation.py"
+    p = pathlib.Path(__file__).parent.parent / "asc_api" / "tasks" / "sla_escalation.py"
     return p.read_text(encoding="utf-8")
 
 
 def _celery_app_src():
     import pathlib
-    p = pathlib.Path(__file__).parent.parent / "app" / "tasks" / "celery_app.py"
+    p = pathlib.Path(__file__).parent.parent / "asc_api" / "tasks" / "celery_app.py"
     return p.read_text(encoding="utf-8")
 
 
@@ -152,7 +152,7 @@ class TestSlaEscalationCeleryTask:
 
     def test_sla_escalation_file_exists(self):
         import pathlib
-        p = pathlib.Path(__file__).parent.parent / "app" / "tasks" / "sla_escalation.py"
+        p = pathlib.Path(__file__).parent.parent / "asc_api" / "tasks" / "sla_escalation.py"
         assert p.exists()
 
     def test_task_name_in_source(self):

@@ -433,7 +433,7 @@ class TestForcePasswordReset:
     async def test_get_current_user_allow_reset_skips_force_check(self):
         """get_current_user_allow_reset is the only dep that bypasses the gate."""
         import pathlib
-        src = pathlib.Path(__file__).parent.parent.parent / "app" / "api" / "deps.py"
+        src = pathlib.Path(__file__).parent.parent.parent / "asc_api" / "api" / "deps.py"
         txt = src.read_text()
         assert "get_current_user_allow_reset" in txt
         assert "check_force_reset=False" in txt
@@ -456,7 +456,7 @@ class TestForcePasswordReset:
     async def test_change_password_uses_allow_reset_dep(self):
         """The change-password endpoint must import get_current_user_allow_reset, not get_current_user."""
         import pathlib
-        src = pathlib.Path(__file__).parent.parent.parent / "app" / "api" / "v1" / "endpoints" / "auth.py"
+        src = pathlib.Path(__file__).parent.parent.parent / "asc_api" / "api" / "v1" / "endpoints" / "auth.py"
         txt = src.read_text()
         assert "get_current_user_allow_reset" in txt
 

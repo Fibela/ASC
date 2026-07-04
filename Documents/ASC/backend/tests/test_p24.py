@@ -1087,7 +1087,7 @@ class TestSecurityScan:
     def test_pcdi_service_no_hardcoded_secrets(self):
         """pcdi_service.py contains no hardcoded private keys or secrets."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "services" / "pcdi_service.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "services" / "pcdi_service.py").read_text()
         # No hardcoded base64 private key patterns (32-byte keys = 44 char b64)
         import re
         # Private Ed25519 keys are exactly 32 bytes = 44 base64 chars (padded)
@@ -1097,13 +1097,13 @@ class TestSecurityScan:
     def test_query_executor_specter_always_read_only(self):
         """Specter dispatch always includes read_only=True in params."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "services" / "query_executor.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "services" / "query_executor.py").read_text()
         assert '"read_only": True' in src
 
     def test_pcdi_endpoints_all_require_auth(self):
         """All PCDI endpoint functions use get_analyst_or_admin dependency."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "api" / "v1" / "endpoints" / "pcdi.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "api" / "v1" / "endpoints" / "pcdi.py").read_text()
         # Every @router.* decorated function must use Depends(get_analyst_or_admin)
         import re
         router_decorators = re.findall(r'@router\.\w+\(.+?\)', src)
@@ -1113,7 +1113,7 @@ class TestSecurityScan:
     def test_pcdi_signing_uses_existing_pfn_infrastructure(self):
         """PCDI signing uses SHA3-512 and Ed25519 (same as PFN)."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "services" / "pcdi_service.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "services" / "pcdi_service.py").read_text()
         assert "sha3_512" in src
         assert "Ed25519PrivateKey" in src
         assert "Ed25519PublicKey" in src
@@ -1121,7 +1121,7 @@ class TestSecurityScan:
     def test_no_mutation_in_query_executor(self):
         """query_executor.py contains no write/delete/update ELK operations."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "services" / "query_executor.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "services" / "query_executor.py").read_text()
         forbidden = ["_delete", "_update", "_create", "DELETE", "PUT", "POST /"]
         for f in forbidden:
             assert f not in src, f"Forbidden pattern '{f}' found in query_executor.py"
@@ -1129,7 +1129,7 @@ class TestSecurityScan:
     def test_specter_dispatch_issues_log_query_not_execute(self):
         """Specter dispatch uses log_query command type (read-only intent)."""
         import pathlib
-        src = (pathlib.Path(__file__).parent.parent / "app" / "services" / "query_executor.py").read_text()
+        src = (pathlib.Path(__file__).parent.parent / "asc_api" / "services" / "query_executor.py").read_text()
         assert '"log_query"' in src
 
     def test_typescript_errors_resolved(self):

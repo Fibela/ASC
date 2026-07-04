@@ -611,7 +611,7 @@ class TestBroadcastConcurrency:
             return cmd
 
         with patch(
-            "app.services.specter_bridge.issue_command",
+            "asc_api.services.specter_bridge.issue_command",
             side_effect=_fake_issue,
         ):
             cmd_ids, hostnames = await _broadcast_batched(

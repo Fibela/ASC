@@ -182,6 +182,13 @@ class Settings(BaseSettings):
     # Empty = provision on ALL checkout.session.completed events (safe when the
     # ASC webhook URL is dedicated to this Stripe account / product line).
     STRIPE_SEGURIDAD_PRODUCT_ID: str = ""
+    # Stripe Price IDs for each paid plan (price_XXXXXXXXXXXXXXXXXX from Stripe dashboard).
+    # Empty = plan not available for self-serve checkout (contact sales flow).
+    STRIPE_PRICE_PRO: str = ""        # nosec B105 — Monthly Pro price ID
+    STRIPE_PRICE_ENTERPRISE: str = "" # nosec B105 — Monthly Enterprise price ID
+    # Redirect URLs after Stripe checkout flow.
+    STRIPE_SUCCESS_URL: str = "https://asc.premoscorp.com/dashboard?billing=success"
+    STRIPE_CANCEL_URL: str = "https://asc.premoscorp.com/pricing?billing=cancelled"
 
     # ── P59 SSO Bridge — Supabase → ASC JWT Exchange ─────────────────────────
     # SUPABASE_URL: your project URL (e.g. https://xyz.supabase.co)

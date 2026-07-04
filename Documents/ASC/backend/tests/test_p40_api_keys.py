@@ -876,21 +876,21 @@ class TestDeploymentArtifactsP40:
         assert 'down_revision = "l2f36i4k7e59"' in content
 
     def test_api_key_model_file_exists(self):
-        model = _REPO_ROOT / "backend" / "app" / "models" / "api_key.py"
+        model = _REPO_ROOT / "backend" / "asc_api" / "models" / "api_key.py"
         assert model.exists()
 
     def test_router_includes_api_keys(self):
-        router = _REPO_ROOT / "backend" / "app" / "api" / "v1" / "router.py"
+        router = _REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "router.py"
         content = router.read_text()
         assert "api_keys" in content
 
     def test_models_init_exports_api_key(self):
-        init = _REPO_ROOT / "backend" / "app" / "models" / "__init__.py"
+        init = _REPO_ROOT / "backend" / "asc_api" / "models" / "__init__.py"
         content = init.read_text()
         assert "APIKey" in content
 
     def test_deps_has_x_api_key_header(self):
-        deps = _REPO_ROOT / "backend" / "app" / "api" / "deps.py"
+        deps = _REPO_ROOT / "backend" / "asc_api" / "api" / "deps.py"
         content = deps.read_text()
         assert "X-API-Key" in content
         assert "get_user_from_api_key" in content
