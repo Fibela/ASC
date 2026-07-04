@@ -325,7 +325,7 @@ class TestDocProtection:
 
     def test_main_disables_docs_in_production(self):
         import inspect
-        from app import main as main_module
+        from asc_api import main as main_module
         src = inspect.getsource(main_module)
         assert "settings.DEBUG" in src
         assert "docs_url" in src

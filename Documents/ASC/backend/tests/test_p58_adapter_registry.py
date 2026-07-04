@@ -807,7 +807,7 @@ class TestMigrationAndStructure:
         src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
             encoding="utf-8"
         )
-        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src)
+        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src or "x4r67u6w9q11" in src)
 
     def test_p57_references_current_count(self):
         """test_p57 must reference migration count >= 16 after P58."""

@@ -578,7 +578,7 @@ class TestRateLimitDeploymentArtifacts:
     def test_api_keys_router_has_status_endpoint(self):
         api_keys_src = (
             _REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "endpoints" / "api_keys.py"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         assert "rate-limit-status" in api_keys_src
         assert "rate-limit-reset" in api_keys_src
         assert "RateLimitStatus" in api_keys_src

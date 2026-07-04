@@ -609,7 +609,7 @@ class TestAPIKeysTenantEnforcement:
 
     def test_api_keys_endpoint_imports_tenant_context(self):
         """api_keys.py must import get_tenant_id (auto-assign on create)."""
-        source = (_BACKEND / "app" / "api" / "v1" / "endpoints" / "api_keys.py").read_text()
+        source = (_BACKEND / "asc_api" / "api" / "v1" / "endpoints" / "api_keys.py").read_text(encoding="utf-8")
         assert "get_tenant_id" in source
         assert "apply_tenant_filter" in source
 
@@ -706,7 +706,7 @@ class TestWebhooksTenantEnforcement:
             app.dependency_overrides[get_db] = db_override
             try:
                 with patch(
-                    "app.api.deps._resolve_user",
+                    "asc_api.api.deps._resolve_user",
                     AsyncMock(return_value=user),
                 ):
                     async with AsyncClient(
@@ -732,13 +732,13 @@ class TestWebhooksTenantEnforcement:
 
     def test_webhooks_endpoint_imports_tenant_context(self):
         """webhooks.py must import get_tenant_id and apply_tenant_filter."""
-        source = (_BACKEND / "app" / "api" / "v1" / "endpoints" / "webhooks.py").read_text()
+        source = (_BACKEND / "asc_api" / "api" / "v1" / "endpoints" / "webhooks.py").read_text(encoding="utf-8")
         assert "get_tenant_id" in source
         assert "apply_tenant_filter" in source
 
     def test_webhooks_endpoint_has_tenant_assign_comment(self):
         """P51 comment is present on the auto-assign line (traceability)."""
-        source = (_BACKEND / "app" / "api" / "v1" / "endpoints" / "webhooks.py").read_text()
+        source = (_BACKEND / "asc_api" / "api" / "v1" / "endpoints" / "webhooks.py").read_text(encoding="utf-8")
         assert "P51" in source
 
 
@@ -748,17 +748,17 @@ class TestMainPyTenantWiring:
     """main.py correctly imports and registers TenantMiddleware."""
 
     def test_main_imports_tenant_middleware(self):
-        source = (_BACKEND / "app" / "main.py").read_text()
+        source = (_BACKEND / "asc_api" / "main.py").read_text(encoding="utf-8")
         assert "TenantMiddleware" in source
 
     def test_main_adds_tenant_middleware(self):
-        source = (_BACKEND / "app" / "main.py").read_text()
+        source = (_BACKEND / "asc_api" / "main.py").read_text(encoding="utf-8")
         assert "add_middleware(TenantMiddleware)" in source
 
     def test_tenant_middleware_before_cors_in_runtime(self):
         """TenantMiddleware's add_middleware call appears before CORSMiddleware's in
         the source, meaning it wraps inside CORS (runs after CORS in the request path)."""
-        source = (_BACKEND / "app" / "main.py").read_text()
+        source = (_BACKEND / "asc_api" / "main.py").read_text(encoding="utf-8")
         # Find positions of add_middleware calls
         pos_tenant = source.index("add_middleware(TenantMiddleware)")
         # CORSMiddleware may be split across lines â€” find first occurrence of CORSMiddleware

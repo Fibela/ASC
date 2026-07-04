@@ -31,7 +31,7 @@ import yaml  # pyyaml — added to requirements-dev.txt in P8
 TESTS_DIR  = Path(__file__).parent                        # backend/tests/
 BACKEND    = TESTS_DIR.parent                             # backend/
 ROOT       = BACKEND.parent                               # repo root (ASC/)
-APP        = BACKEND / "app"
+APP        = BACKEND / "asc_api"
 WORKFLOWS  = ROOT / ".github" / "workflows"
 SERVICES   = APP / "services"
 ENDPOINTS  = APP / "api" / "v1" / "endpoints"
