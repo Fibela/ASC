@@ -5651,3 +5651,114 @@ El servicio `asc-backend-ona9.onrender.com` devolvía **410 GONE** — Render di
 | 8 | Añadir dominio `asc-api.premoscorp.com` al backend | Backend project → Domains |
 | 9 | Actualizar CORS_ORIGINS en backend con URLs frontend | Backend env var |
 
+
+---
+
+## Session 86 — 2026-07-04 (S8: Tenant Isolation + Billing Bug Fixes)
+
+### Objetivo
+Cerrar la filtración de datos multi-tenant en `ops_dashboard.py` (CRÍTICO), corregir 3 bugs en billing/Stripe, y dejar el sistema completamente aislado por tenant en toda la capa de datos.
+
+### Contexto heredado de sesiones anteriores
+- Ghost `app/` module eliminado (commit `e0a3567`)
+- 4 nuevos endpoints billing implementados (`/plans`, `/subscription`, `/checkout`, `/portal`)
+- Alembic HEAD era `y5s78t5v0r13` (compound indexes), pero ese migration tenía 4 índices inválidos
+
+---
+
+### Problemas encontrados y resueltos
+
+| # | Severidad | Archivo | Problema | Fix |
+|---|-----------|---------|----------|-----|
+| B-1 | CRITICAL | `migrations/y5s78t5v0r13` | 4 índices en tablas sin columna `tenant_id` (`agents`, `iocs`×2, `neutralization_actions`) causarían fallo de migration en producción | Eliminados del migration. Movidos a `z6t89u7x1s14` |
+| B-2 | CRITICAL | `ops_dashboard.py` | 5 endpoints retornaban datos de TODOS los tenants sin filtro (fleet_summary, commands_metrics, commands_inflight, neutralizations_metrics, cross_domain_dashboard) | Añadido `tenant_id` filter en todos |
+| B-3 | CRITICAL | `agents.py` | `list_agents`, `get_agent`, `deregister_agent`, `issue_agent_command` sin filtro por tenant | Todos ahora filtran por `current_user.tenant_id` |
+| B-4 | HIGH | `billing.py` | Replay attack: `_verify_stripe_signature` no validaba antigüedad del timestamp | Añadido `abs(time.time() - timestamp) > 300` check |
+| B-5 | HIGH | `billing.py` | Snapshot crash: query muerta `select(User).where(User.id == _.__class__)` — `__class__` no es UUID, siempre crasheaba | Línea eliminada |
+| B-6 | HIGH | `billing.py` | Plan hardcodeado: webhook `subscription.updated` usaba `tenant.plan = "pro"` — degradaba Enterprise a Pro | Cambiado a `STRIPE_PROVISIONING_PLAN` config |
+| B-7 | MEDIUM | Múltiples modelos | 15 modelos ORM sin columna `tenant_id`: agents, agent_commands, neutralization_actions, iocs, threat_intel_indicators, hunt_sessions, hunt_findings, hunt_queries, pcdi_signed_reports, playbook_triggers, scheduled_reports, identity_actions, correlation_rules, correlation_clusters, correlation_signals | Columna `tenant_id` (nullable) añadida a todos |
+| B-8 | MEDIUM | `incident_service.py`, `correlation_service.py` | `get_incident_summary()` y `get_correlation_summary()` sin scope por tenant | Actualizadas para aceptar `tenant_id` kwarg y filtrar |
+
+---
+
+### Migraciones creadas
+
+| ID | Nombre | Cambios |
+|----|--------|---------|
+| `y5s78t5v0r13` | compound_indexes_perf (fix) | Corregido: eliminados 4 índices inválidos. Ahora solo 6 índices válidos sobre alerts, events, incidents |
+| `z6t89u7x1s14` | tenant_isolation | NUEVO: `tenant_id` (nullable VARCHAR 36) + index añadido a 15 tablas. 11 índices compuestos (tenant_id, status/type/…) para rendimiento. HEAD de Alembic: `z6t89u7x1s14` |
+
+---
+
+### Cambios de esquema y modelos
+
+| Modelo | Tabla | Columna añadida |
+|--------|-------|----------------|
+| `Agent` | `agents` | `tenant_id` (nullable, indexed) |
+| `AgentCommand` | `agent_commands` | `tenant_id` (nullable, indexed) |
+| `NeutralizationAction` | `neutralization_actions` | `tenant_id` (nullable, indexed) |
+| `IoC` | `iocs` | `tenant_id` (nullable, indexed) |
+| `ThreatIntelIndicator` | `threat_intel_indicators` | `tenant_id` (nullable, indexed) |
+| `Hunt` | `hunt_sessions` | `tenant_id` (nullable, indexed) |
+| `HuntFinding` | `hunt_findings` | `tenant_id` (nullable, indexed) |
+| `HuntQuery` | `hunt_queries` | `tenant_id` (nullable, indexed) |
+| `PCDISignedReport` | `pcdi_signed_reports` | `tenant_id` (nullable, indexed) |
+| `PlaybookTrigger` | `playbook_triggers` | `tenant_id` (nullable, indexed) |
+| `ScheduledReport` | `scheduled_reports` | `tenant_id` (nullable, indexed) |
+| `IdentityAction` | `identity_actions` | `tenant_id` (nullable, indexed) |
+| `CorrelationRule` | `correlation_rules` | `tenant_id` (nullable, indexed) |
+| `CorrelationCluster` | `correlation_clusters` | `tenant_id` (nullable, indexed) |
+| `CorrelationSignal` | `correlation_signals` | `tenant_id` (nullable, indexed) |
+
+---
+
+### Endpoints actualizados
+
+| Endpoint | Cambio |
+|----------|--------|
+| `GET /ops/fleet/summary` | Filtra `Agent.tenant_id == current_user.tenant_id` |
+| `GET /ops/commands/metrics` | Filtra `AgentCommand.tenant_id == tid` |
+| `GET /ops/commands/inflight` | Filtra `AgentCommand.tenant_id == tid` |
+| `GET /ops/neutralizations/metrics` | Filtra `NeutralizationAction.tenant_id == tid` |
+| `GET /ops/cross-domain` | 8 tablas ahora filtradas por `tenant_id` |
+| `GET /agents/` | Filtra `Agent.tenant_id == current_user.tenant_id` |
+| `GET /agents/{id}` | Filtra por tenant antes de exponer detalle |
+| `DELETE /agents/{id}` | Filtra por tenant antes de borrar |
+| `POST /agents/{id}/command` | Filtra agente por tenant; almacena `tenant_id` en `AgentCommand` |
+| `POST /agents/register` | Acepta `tenant_id` en body; almacena en `Agent` |
+
+---
+
+### Commits — Session 86
+
+| Hash | Mensaje |
+|------|---------|
+| `3e09ad4` | `fix(billing): 3 security bug fixes in Stripe integration` |
+| `5c436e8` | `fix(security): full tenant isolation for ops + agent + correlation models` |
+| `6f9e01b` | `test: update migration count constants for S8 migrations` |
+
+---
+
+### Estado de tests post-sesión
+
+| Métrica | Valor |
+|---------|-------|
+| Total migrations | 22 |
+| Alembic HEAD | `z6t89u7x1s14` |
+| Syntax errors en asc_api/ | 0 (verificado con ast.parse) |
+| Test suite | En ejecución — ver próxima sesión para resultados |
+
+---
+
+### Pendientes post-sesión
+
+| # | Item | Prioridad |
+|---|------|-----------|
+| P-1 | Ejecutar `alembic upgrade head` en DB producción para aplicar `y5s78t5v0r13` + `z6t89u7x1s14` | CRÍTICO (bloqueado hasta que user ejecute en Supabase) |
+| P-2 | Backfill `tenant_id` en filas existentes de `agents`, `iocs`, etc. (nullable = no crash, pero no aparecen en queries) | Alta |
+| P-3 | Configurar `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_WEBHOOK_SECRET` en Vercel env vars | Alta (bloquea checkout real) |
+| P-4 | Regenerar Stripe restricted key `rk_live_` (fue compartida en chat) | Alta (seguridad) |
+| P-5 | `config.py` SECRET_KEY startup validation (rechazar "changeme" en prod) | Media |
+| P-6 | `adapter_registry.py` connectivity test stub → HTTP 501 | Media |
+| P-7 | `onboarding.py` email verification → integrar Resend/SES real | Media |
+
