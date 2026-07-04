@@ -77,7 +77,8 @@ def _make_db() -> AsyncMock:
 
 
 def _make_stripe_sig(secret: str, payload: bytes) -> str:
-    timestamp = "1700000000"
+    import time as _time
+    timestamp = str(int(_time.time()))  # current timestamp — replay guard rejects stale ones
     signed = f"{timestamp}.".encode() + payload
     mac = hmac.new(secret.encode(), signed, hashlib.sha256)
     return f"t={timestamp},v1={mac.hexdigest()}"
@@ -603,6 +604,7 @@ class TestStripeWebhook:
         with patch("asc_api.api.v1.endpoints.billing._settings") as mock_settings, \
              patch("asc_api.api.v1.endpoints.billing.log_security_action"):
             mock_settings.STRIPE_WEBHOOK_SECRET = ""
+            mock_settings.STRIPE_PROVISIONING_PLAN = "pro"
             await stripe_webhook(request, None, db)
 
         assert tenant.plan == "pro"

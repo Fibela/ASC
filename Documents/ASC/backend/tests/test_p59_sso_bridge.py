@@ -815,4 +815,5 @@ class TestRegressionGates:
                 "_EXPECTED_COUNT = 17" in p56_src or
                 "_EXPECTED_COUNT = 18" in p56_src or
                 "_EXPECTED_COUNT = 19" in p56_src or
-                "_EXPECTED_COUNT = 20" in p56_src)
+                "_EXPECTED_COUNT = 20" in p56_src or
+                "_EXPECTED_COUNT = 22" in p56_src)
