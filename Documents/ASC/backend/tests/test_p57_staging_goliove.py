@@ -41,7 +41,7 @@ _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
 _EXPECTED_MIGRATION_HEAD  = "w3q56t5v8p10"  # P61 honeypot tables (latest)
-_EXPECTED_MIGRATION_COUNT = 20  # S6 RLS migration added
+_EXPECTED_MIGRATION_COUNT = 22  # S8: compound indexes + tenant isolation
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0
