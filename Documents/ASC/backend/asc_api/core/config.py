@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from functools import lru_cache
 from typing import Any, List
 import json
@@ -22,12 +22,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # CORS — include all production frontend origins.
-    # Override via CORS_ORIGINS env var (JSON array) in Render for additional domains.
+    # Override via CORS_ORIGINS env var (JSON array) for additional domains.
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "https://premoscorp.com",
-        "https://asc.premoscorp.com",           # custom domain (production)
-        "https://asc-mono.vercel.app",           # Vercel asc-mono
+        "https://asc.premoscorp.com",
     ]
 
     # SOC Thresholds
@@ -157,6 +156,12 @@ class Settings(BaseSettings):
     # Number of hours before the email verification token expires.
     EMAIL_VERIFICATION_EXPIRE_HOURS: int = 24
 
+    # ── P53 Email (Resend) ────────────────────────────────────────────────────
+    # Resend API key for transactional emails (verification, alerts, reports).
+    # Empty = email disabled (stub logs only).
+    RESEND_API_KEY: str = ""              # nosec B105 — re_live_…
+    RESEND_FROM_EMAIL: str = "noreply@premoscorp.com"
+
     # ── P55 Stripe Billing ────────────────────────────────────────────────────
     # Empty = Stripe integration disabled (default for dev/test).
     # In production set these via env/Vault. Never hard-code.
@@ -221,6 +226,20 @@ class Settings(BaseSettings):
                 return json.loads(v)
             return [item.strip() for item in v.split(",") if item.strip()]
         return v
+
+    @model_validator(mode="after")
+    def _reject_default_secret_in_production(self) -> "Settings":
+        is_local = (
+            "localhost" in self.DATABASE_URL
+            or "127.0.0.1" in self.DATABASE_URL
+            or ":memory:" in self.DATABASE_URL
+        )
+        if self.SECRET_KEY.startswith("changeme") and not is_local:
+            raise ValueError(
+                "SECRET_KEY must be changed from the default value in production. "
+                "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        return self
 
 
 @lru_cache
