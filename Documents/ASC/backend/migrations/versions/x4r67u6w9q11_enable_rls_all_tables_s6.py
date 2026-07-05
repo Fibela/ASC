@@ -12,6 +12,7 @@ unauthenticated access. The application connects as the postgres superuser and
 is unaffected — superusers bypass RLS by design.
 """
 from alembic import op
+from sqlalchemy import text
 
 revision = "x4r67u6w9q11"
 down_revision = "w3q56t5v8p10"
@@ -21,40 +22,42 @@ depends_on = None
 # All application tables that must have RLS enforced.
 # Tables intentionally excluded: none (all app tables need protection).
 _TABLES = [
-    "users",
-    "tenants",
+    "agent_commands",
+    "agent_events",
+    "agents",
     "alerts",
+    "api_keys",
+    "artifacts",
+    "correlation_clusters",
+    "correlation_rules",
+    "correlation_signals",
     "events",
+    "executive_reports",
+    "forensic_ledger",
+    "honeypot_evidence_reports",
+    "honeypot_token_accesses",
+    "honeypot_tokens",
+    "hunt_findings",
+    "hunt_queries",
+    "hunt_sessions",
+    "identity_actions",
+    "incident_links",
+    "incident_timeline",
+    "incidents",
     "iocs",
     "neutralization_actions",
-    "playbooks",
-    "playbook_steps",
-    "api_keys",
-    "webhooks",
-    "webhook_deliveries",
-    "agents",
-    "agent_commands",
-    "threat_intel_indicators",
-    "hunt_sessions",
-    "hunt_matches",
-    "forensic_ledger",
-    "pcdi_reports",
-    "correlation_rules",
-    "correlation_events",
-    "incidents",
-    "incident_notes",
-    "executive_reports",
-    "identity_actions",
-    "pids_registry",
-    "soar_playbooks",
-    "soar_triggers",
+    "pcdi_signed_reports",
+    "playbook_runs",
+    "playbook_triggers",
+    "revoked_tokens",
     "scheduled_reports",
-    "onboarding_checklist",
+    "soc_metrics",
+    "tenant_adapter_configs",
+    "tenants",
+    "threat_intel_indicators",
     "usage_records",
-    "adapter_registry",
-    "stripe_checkouts",
-    "honeypot_tokens",
-    "honeypot_evidence",
+    "users",
+    "webhooks",
 ]
 
 
@@ -63,15 +66,15 @@ def upgrade() -> None:
     for table in _TABLES:
         # Enable RLS (no-op if already enabled — safe to re-run)
         conn.execute(
-            op.inline_literal(f"ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY;")
+            text(f"ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY;")
         )
         # Force RLS even for table owner (superuser is still exempt)
         conn.execute(
-            op.inline_literal(f"ALTER TABLE public.{table} FORCE ROW LEVEL SECURITY;")
+            text(f"ALTER TABLE public.{table} FORCE ROW LEVEL SECURITY;")
         )
         # Revoke all direct access from PostgREST roles
         conn.execute(
-            op.inline_literal(
+            text(
                 f"REVOKE ALL ON public.{table} FROM anon, authenticated;"
             )
         )
@@ -82,18 +85,18 @@ def downgrade() -> None:
     for table in _TABLES:
         # Re-grant default PostgREST privileges (restores pre-hardening state)
         conn.execute(
-            op.inline_literal(
+            text(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON public.{table} "
                 f"TO anon, authenticated;"
             )
         )
         conn.execute(
-            op.inline_literal(
+            text(
                 f"ALTER TABLE public.{table} NO FORCE ROW LEVEL SECURITY;"
             )
         )
         conn.execute(
-            op.inline_literal(
+            text(
                 f"ALTER TABLE public.{table} DISABLE ROW LEVEL SECURITY;"
             )
         )

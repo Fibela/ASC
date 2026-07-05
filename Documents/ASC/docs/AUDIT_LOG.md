@@ -5750,15 +5750,66 @@ Cerrar la filtración de datos multi-tenant en `ops_dashboard.py` (CRÍTICO), co
 
 ---
 
-### Pendientes post-sesión
+### Pendientes post-sesión 86
 
 | # | Item | Prioridad |
 |---|------|-----------|
-| P-1 | Ejecutar `alembic upgrade head` en DB producción para aplicar `y5s78t5v0r13` + `z6t89u7x1s14` | CRÍTICO (bloqueado hasta que user ejecute en Supabase) |
+| ~~P-1~~ | ~~Ejecutar `alembic upgrade head` en DB producción~~ | ✅ RESUELTO — Sesión 87 |
 | P-2 | Backfill `tenant_id` en filas existentes de `agents`, `iocs`, etc. (nullable = no crash, pero no aparecen en queries) | Alta |
 | P-3 | Configurar `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_WEBHOOK_SECRET` en Vercel env vars | Alta (bloquea checkout real) |
-| P-4 | Regenerar Stripe restricted key `rk_live_` (fue compartida en chat) | Alta (seguridad) |
+| P-4 | Agregar permiso "Products Write" a Stripe restricted key para crear productos via API | Alta |
 | P-5 | `config.py` SECRET_KEY startup validation (rechazar "changeme" en prod) | Media |
 | P-6 | `adapter_registry.py` connectivity test stub → HTTP 501 | Media |
 | P-7 | `onboarding.py` email verification → integrar Resend/SES real | Media |
+
+---
+
+## Session 87 — 2026-07-04 (Producción Restaurada + Alembic en DB)
+
+### Incidente CRÍTICO Resuelto: `asc_unreachable` en premoscorp.com/portal/seguridad
+
+| # | Fecha | Tipo | Descripción | Resultado |
+|---|-------|------|-------------|-----------|
+| I-1 | 2026-07-04 | FIX | **Root cause**: `VITE_ASC_API_URL=https://asc-mono.vercel.app` en sc-system apuntaba al dominio Vercel por defecto que retornaba 404. El dominio custom `asc.premoscorp.com` ya estaba activo y funcionando (`/health` → 200 OK) pero nunca se actualizó la variable. | ✅ Resuelto |
+| I-2 | 2026-07-04 | FIX | **`alembic upgrade head` — phantom row**: la tabla `alembic_version` tenía dos rows (`v2p45s4u7o09` + `w3q56t5v8p10`) causando error "overlaps". Eliminado el row fantasma del parent. | ✅ Resuelto |
+| I-3 | 2026-07-04 | FIX | **`alembic upgrade head` — pgbouncer**: asyncpg con pooler Supabase fallaba con `DuplicatePreparedStatementError`. Fix: `statement_cache_size=0` en `connect_args`. | ✅ Resuelto |
+| I-4 | 2026-07-04 | FIX | **Migración `x4r67u6w9q11`**: usaba `op.inline_literal()` no-ejecutable en SQLAlchemy 2.x. Fix: reemplazado con `text()`. | ✅ Resuelto |
+| I-5 | 2026-07-04 | FIX | **Migración `x4r67u6w9q11` — tablas incorrectas**: `_TABLES` tenía nombres de tablas obsoletos (`playbooks`, `playbook_steps`, `hunt_matches`, `pcdi_reports`, etc.) que no existen en el schema real. Fix: actualizado con los 36 nombres correctos del schema de producción. | ✅ Resuelto |
+
+### Cambios realizados
+
+| # | Archivo / Sistema | Cambio |
+|---|---|---|
+| C-1 | Vercel sc-system env `VITE_ASC_API_URL` | `https://asc-mono.vercel.app` → `https://asc.premoscorp.com` |
+| C-2 | Vercel sc-system env `VITE_ASC_APP_URL` | `https://asc-mono.vercel.app` → `https://asc.premoscorp.com` |
+| C-3 | `sc_system/.env.local` | Sincronizado con `asc.premoscorp.com` |
+| C-4 | sc-system Vercel | Redeploy producción (dpl_9xTGLtKdR6hMBHn3ymCLvveSCrx1, READY). Alias `premoscorp.com` actualizado. |
+| C-5 | `backend/migrations/env.py` | Agregado `connect_args={"statement_cache_size": 0}` para compatibilidad pgbouncer/Supabase pooler |
+| C-6 | `backend/migrations/versions/x4r67u6w9q11_enable_rls_all_tables_s6.py` | `from sqlalchemy import text` + `op.inline_literal` → `text()` + `_TABLES` actualizado con 36 tablas reales del schema |
+| C-7 | DB Producción `alembic_version` | Eliminado row fantasma `v2p45s4u7o09` |
+| C-8 | DB Producción | `alembic upgrade head` ejecutado: 3 migraciones aplicadas (`x4r67u6w9q11`, `y5s78t5v0r13`, `z6t89u7x1s14`) — DB ahora en HEAD |
+
+### Verificaciones post-sesión
+
+| Check | Resultado |
+|---|---|
+| `asc.premoscorp.com/health` → 200 `{"status":"ok","app":"ASC PremosCorp","version":"1.0.0"}` | ✅ |
+| `premoscorp.com` → sc-system desplegado y activo | ✅ |
+| Bundle sc-system contiene `"https://asc.premoscorp.com"` (bakeado por Vite) | ✅ |
+| DB `alembic_version` = `z6t89u7x1s14 (head)` | ✅ |
+| Migraciones RLS habilitadas en 36 tablas de producción | ✅ |
+| `tenant_id` agregado a 15 tablas de modelos ops | ✅ |
+| Indexes de rendimiento compuesto creados en alerts/events/incidents | ✅ |
+
+### Pendientes post-sesión 87
+
+| # | Item | Prioridad |
+|---|------|-----------|
+| P-1 | Backfill `tenant_id` en filas existentes de agents, iocs, etc. | Alta |
+| P-2 | Agregar permiso "Products Write" a Stripe restricted key en dashboard | Alta |
+| P-3 | Crear Stripe products: ASC Pro ($299/mes), ASC Enterprise | Alta |
+| P-4 | Configurar `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE`, `STRIPE_WEBHOOK_SECRET` en Vercel asc-mono | Alta |
+| P-5 | Crear Stripe webhook endpoint apuntando a `https://asc.premoscorp.com/api/v1/billing/webhook` | Alta |
+| P-6 | `config.py` SECRET_KEY startup validation (rechazar "changeme" en prod) | Media |
+| P-7 | `adapter_registry.py` connectivity test stub → HTTP 501 | Media |
 

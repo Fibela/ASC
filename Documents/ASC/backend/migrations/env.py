@@ -73,7 +73,13 @@ async def _run_async_migrations() -> None:
     cfg = config.get_section(config.config_ini_section, {})
     cfg["sqlalchemy.url"] = _get_url()
 
-    engine = async_engine_from_config(cfg, prefix="sqlalchemy.", poolclass=pool.NullPool)
+    # statement_cache_size=0 required when connecting via pgbouncer (Supabase pooler)
+    engine = async_engine_from_config(
+        cfg,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+        connect_args={"statement_cache_size": 0},
+    )
     try:
         async with engine.connect() as conn:
             await conn.run_sync(_do_run_migrations)
