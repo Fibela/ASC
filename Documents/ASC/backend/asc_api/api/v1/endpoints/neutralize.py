@@ -204,6 +204,14 @@ async def approve(
     - CRITICAL (multi-sig): first approval stays pending, second triggers execution
     - HIGH/other: immediate execution on approval
     """
+    tenant_check = await db.execute(
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
+    )
+    if not tenant_check.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action not found")
     try:
         action = await approve_action(db, action_id=action_id, approved_by=current_user.email)
     except ValueError as e:
@@ -225,6 +233,14 @@ async def reject(
     current_user: User = Depends(get_analyst_or_admin),
 ):
     """Reject a pending_approval action with a mandatory written reason."""
+    tenant_check = await db.execute(
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
+    )
+    if not tenant_check.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action not found")
     try:
         action = await reject_action(
             db,
@@ -255,6 +271,14 @@ async def rollback(
       rollback_action.rollback_of   = original_action.id
       original_action.rollback_action_id = rollback_action.id
     """
+    tenant_check = await db.execute(
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
+    )
+    if not tenant_check.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Action not found")
     try:
         rollback_action = await create_rollback_action(
             db,
@@ -302,8 +326,9 @@ async def action_history(
     await escalate_expired(db)
     result = await db.execute(
         select(NeutralizationAction)
+        .where(NeutralizationAction.tenant_id == current_user.tenant_id)
         .order_by(desc(NeutralizationAction.created_at))
-        .limit(limit)
+        .limit(min(limit, 1000))
     )
     actions = result.scalars().all()
     return {"total": len(actions), "actions": [_serialize(a) for a in actions]}
@@ -320,7 +345,10 @@ async def get_action(
     """Fetch one action by ID. Lazy-escalates it if it has expired."""
     await escalate_expired(db)
     result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.id == action_id)
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
     )
     action = result.scalar_one_or_none()
     if not action:
@@ -339,7 +367,10 @@ async def get_action_commands(
     Only populated when dispatch_mode is 'specter' or 'broadcast'.
     """
     action_result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.id == action_id)
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
     )
     action = action_result.scalar_one_or_none()
     if not action:

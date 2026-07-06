@@ -218,7 +218,10 @@ async def evaluate_context(
         from asc_api.services.soar_service import _evaluate_condition
 
         result = await db.execute(
-            sa_select(PlaybookTrigger).where(PlaybookTrigger.enabled.is_(True))
+            sa_select(PlaybookTrigger).where(
+                PlaybookTrigger.enabled.is_(True),
+                PlaybookTrigger.tenant_id == current_user.tenant_id,
+            )
         )
         triggers = list(result.scalars().all())
         hunt_id_ctx = body.context.get("hunt_id")

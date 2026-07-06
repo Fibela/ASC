@@ -23,7 +23,7 @@ import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from asc_api.api.deps import get_current_user
 from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.tenant import Tenant
 from asc_api.models.user import User
@@ -139,7 +140,9 @@ class CompleteOnboardingResponse(BaseModel):
     response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(_settings.RATE_LIMIT_REGISTER)
 async def register(
+    request: Request,
     payload: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):

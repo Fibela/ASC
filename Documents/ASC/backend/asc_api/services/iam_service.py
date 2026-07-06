@@ -11,6 +11,13 @@ All operations:
   - Emit structured audit entries via log_iam_event.
   - Never raise on "not found" — return (False, reason) instead so
     callers can decide between 404 and silent-pass semantics.
+
+tenant_id isolation:
+  - All functions accept an optional tenant_id parameter.
+  - When tenant_id is provided the query is scoped to that tenant,
+    preventing cross-tenant IAM operations by admin users.
+  - System/bridge callers (performed_by="system") may omit tenant_id
+    when operating outside of a user request context.
 """
 from __future__ import annotations
 
@@ -34,6 +41,7 @@ async def disable_account(
     db: AsyncSession,
     *,
     performed_by: str = "system",
+    tenant_id: str | None = None,
 ) -> tuple[bool, str]:
     """
     Deactivate a user account (is_active → False).
@@ -42,7 +50,10 @@ async def disable_account(
     filters on is_active == True.  No explicit token revocation is needed — the
     DB check already acts as a hard gate.
     """
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
@@ -66,9 +77,13 @@ async def enable_account(
     db: AsyncSession,
     *,
     performed_by: str = "system",
+    tenant_id: str | None = None,
 ) -> tuple[bool, str]:
     """Re-activate a previously disabled account."""
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
@@ -93,6 +108,7 @@ async def lock_account(
     *,
     performed_by: str = "system",
     minutes: int = 15,
+    tenant_id: str | None = None,
 ) -> tuple[bool, str]:
     """
     Temporarily lock an account.
@@ -101,7 +117,10 @@ async def lock_account(
     is_locked check in get_current_user.  The lock expires automatically after
     `minutes` minutes — no cleanup job is needed.
     """
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
@@ -130,9 +149,13 @@ async def unlock_account(
     db: AsyncSession,
     *,
     performed_by: str = "system",
+    tenant_id: str | None = None,
 ) -> tuple[bool, str]:
     """Remove an active lock and reset the failed-attempt counter."""
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
@@ -155,6 +178,7 @@ async def set_force_password_reset(
     db: AsyncSession,
     *,
     performed_by: str = "system",
+    tenant_id: str | None = None,
 ) -> tuple[bool, str]:
     """
     Mark an account so the user must change their password before doing anything.
@@ -162,7 +186,10 @@ async def set_force_password_reset(
     The flag blocks all endpoints (via get_current_user) except
     POST /auth/change-password (which uses get_current_user_allow_reset).
     """
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
@@ -182,9 +209,14 @@ async def set_force_password_reset(
 async def get_user_iam_status(
     target_email: str,
     db: AsyncSession,
+    *,
+    tenant_id: str | None = None,
 ) -> Optional[dict]:
     """Return IAM status dict for a user, or None if not found."""
-    result = await db.execute(select(User).where(User.email == target_email))
+    query = select(User).where(User.email == target_email)
+    if tenant_id is not None:
+        query = query.where(User.tenant_id == tenant_id)
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         return None

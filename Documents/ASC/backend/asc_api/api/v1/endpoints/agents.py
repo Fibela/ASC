@@ -181,8 +181,11 @@ async def _get_agent_by_header(
 
 # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async def _get_agent_or_404(agent_id: str, db: AsyncSession) -> Agent:
-    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+async def _get_agent_or_404(agent_id: str, db: AsyncSession, tenant_id: str | None = None) -> Agent:
+    query = select(Agent).where(Agent.id == agent_id)
+    if tenant_id is not None:
+        query = query.where(Agent.tenant_id == tenant_id)
+    result = await db.execute(query)
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -716,7 +719,7 @@ async def set_threat_level(
     if payload.threat_level not in valid:
         raise HTTPException(status_code=400, detail=f"threat_level must be one of: {sorted(valid)}")
 
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     old_level = agent.threat_level
     agent.threat_level = payload.threat_level
     agent.poll_interval = compute_poll_interval(payload.threat_level)
@@ -743,9 +746,9 @@ async def agent_timeline(
     limit: int = 100,
     anomalies_only: bool = False,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     q = (
         select(AgentEvent)
         .where(AgentEvent.agent_id == agent_id)
@@ -783,7 +786,7 @@ async def agent_command_history(
     limit: int = 20,
     status_filter: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     """
     Returns the last N commands issued to this agent, including execution results.
@@ -798,7 +801,7 @@ async def agent_command_history(
       limit        â€” max commands to return (default 20, max 100)
       status_filterâ€” optional filter: pending|delivered|completed|failed
     """
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     q = (
         select(AgentCommand)
         .where(AgentCommand.agent_id == agent_id)

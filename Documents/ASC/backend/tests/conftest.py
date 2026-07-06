@@ -19,6 +19,22 @@ from asc_api.models.user import User
 from asc_api.core.security import get_password_hash, create_access_token, create_refresh_token
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Clear in-memory SlowAPI counters before every test so asyncio and trio backends
+    don't accumulate against each other's quota."""
+    from asc_api.core.rate_limit import limiter
+    storage = limiter._storage
+    try:
+        storage.storage.clear()
+    except Exception:
+        pass
+    try:
+        storage.events.clear()
+    except Exception:
+        pass
+
+
 @pytest_asyncio.fixture
 async def db():
     """

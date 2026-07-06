@@ -76,6 +76,20 @@ def _make_db(user=None, tenant=None):
     return db
 
 
+def _make_starlette_request():
+    """Minimal real starlette.Request required by SlowAPI @limiter.limit() type check."""
+    from starlette.requests import Request as _StarletteRequest
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/api/v1/onboarding/register",
+        "headers": [],
+        "client": ("127.0.0.1", 0),
+        "query_string": b"",
+    }
+    return _StarletteRequest(scope)
+
+
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # 1. Token helpers
 # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -190,7 +204,7 @@ class TestRegister:
 
             from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
-            result = await register(payload, db)
+            result = await register(_make_starlette_request(), payload, db)
 
         assert result.onboarding_step == "pending_email"
         assert result.email == "admin@acme.com"
@@ -216,7 +230,7 @@ class TestRegister:
 
         payload = RegisterRequest(**register_payload)
         with pytest.raises(HTTPException) as exc:
-            await register(payload, db)
+            await register(_make_starlette_request(), payload, db)
         assert exc.value.status_code == 409
         assert "slug_taken" in str(exc.value.detail)
 
@@ -239,7 +253,7 @@ class TestRegister:
 
         payload = RegisterRequest(**register_payload)
         with pytest.raises(HTTPException) as exc:
-            await register(payload, db)
+            await register(_make_starlette_request(), payload, db)
         assert exc.value.status_code == 409
         assert "email_taken" in str(exc.value.detail)
 
@@ -269,7 +283,7 @@ class TestRegister:
 
             from asc_api.api.v1.endpoints.onboarding import register, RegisterRequest
             payload = RegisterRequest(**register_payload)
-            await register(payload, db)
+            await register(_make_starlette_request(), payload, db)
 
         mock_send.assert_called_once()
 

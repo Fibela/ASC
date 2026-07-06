@@ -621,7 +621,14 @@ async def stripe_webhook(
     """
     payload_bytes = await request.body()
 
-    # Signature validation (skipped in dev when secret is empty)
+    # Require HMAC validation when Stripe is active (STRIPE_SECRET_KEY set).
+    # Skipped only in pure dev mode where neither key is configured.
+    stripe_active = bool(_settings.STRIPE_SECRET_KEY)
+    if stripe_active and not _settings.STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe webhook endpoint not configured (missing STRIPE_WEBHOOK_SECRET)",
+        )
     if _settings.STRIPE_WEBHOOK_SECRET:
         if not stripe_signature:
             raise HTTPException(

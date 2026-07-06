@@ -174,6 +174,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -193,6 +194,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -211,6 +213,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event()
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -231,6 +234,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(email="")
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -248,6 +252,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(customer="")
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -266,6 +271,7 @@ class TestCheckoutSessionWebhook:
         # Event has no metadata product_id â†’ filtered out
         payload = _checkout_event(metadata={})
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = "prod_asc_seguridad_123"
@@ -283,6 +289,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = _checkout_event(metadata={"product_id": "prod_asc_seguridad_123"})
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = "prod_asc_seguridad_123"
@@ -301,6 +308,7 @@ class TestCheckoutSessionWebhook:
         app.dependency_overrides[get_db] = override
         payload = {"id": "evt_x", "type": "payment_intent.created", "data": {"object": {}}}
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -478,6 +486,7 @@ class TestSubscriptionCreatedHandler:
 
         payload = _subscription_created_event(status="active")
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -506,6 +515,7 @@ class TestSubscriptionCreatedHandler:
 
         payload = _subscription_created_event(status="incomplete")
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -530,6 +540,7 @@ class TestSubscriptionCreatedHandler:
 
         payload = _subscription_created_event(customer="cus_unknown_xyz")
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""
@@ -565,6 +576,7 @@ class TestSubscriptionCreatedHandler:
             }},
         }
         with patch("asc_api.api.v1.endpoints.billing._settings") as cfg:
+            cfg.STRIPE_SECRET_KEY = ""
             cfg.STRIPE_WEBHOOK_SECRET = ""
             cfg.STRIPE_PROVISIONING_PLAN = "pro"
             cfg.STRIPE_SEGURIDAD_PRODUCT_ID = ""

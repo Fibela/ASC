@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.db.session import get_db
 from asc_api.models.forensic_entry import ForensicEntry
+from asc_api.models.neutralization import NeutralizationAction
 from asc_api.models.user import User
 from asc_api.api.deps import get_current_user, get_current_admin
 from asc_api.core.rate_limit import limiter
@@ -56,8 +57,20 @@ async def get_forensic_proof(
     request: Request,
     action_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
+    tenant_check = await db.execute(
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
+    )
+    if not tenant_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No hay entrada forense para la acción {action_id}. "
+                   "La acción puede no haberse ejecutado aún o no tener aprobador asignado.",
+        )
     entry = await get_entry_by_action(db, action_id)
     if not entry:
         raise HTTPException(
@@ -77,12 +90,23 @@ async def verify_forensic_proof(
     request: Request,
     action_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Recomputes SHA3-512 from stored canonical_data and verifies the Ed25519 signature
     against the signing analyst's public key.
     """
+    tenant_check = await db.execute(
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_user.tenant_id,
+        )
+    )
+    if not tenant_check.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No hay entrada forense para la acción {action_id}.",
+        )
     entry = await get_entry_by_action(db, action_id)
     if not entry:
         raise HTTPException(
@@ -124,10 +148,22 @@ async def list_forensic_ledger(
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
-    entries = await list_entries(db, limit=limit, offset=offset)
-    total_result = await db.execute(select(func.count(ForensicEntry.id)))
+    result = await db.execute(
+        select(ForensicEntry)
+        .join(NeutralizationAction, ForensicEntry.action_id == NeutralizationAction.id)
+        .where(NeutralizationAction.tenant_id == current_admin.tenant_id)
+        .order_by(ForensicEntry.signed_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    entries = list(result.scalars().all())
+    total_result = await db.execute(
+        select(func.count(ForensicEntry.id))
+        .join(NeutralizationAction, ForensicEntry.action_id == NeutralizationAction.id)
+        .where(NeutralizationAction.tenant_id == current_admin.tenant_id)
+    )
     total = total_result.scalar_one()
     return {
         "total": total,
