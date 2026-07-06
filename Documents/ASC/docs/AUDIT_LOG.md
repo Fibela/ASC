@@ -5913,3 +5913,59 @@ Scan completo del backend ASC. 20 hallazgos verificados ordenados por severidad.
 | P-10 | CLABE Santander: cuenta bancaria payout en `dashboard.stripe.com/settings/payouts` | — | Manual |
 | P-11 | `RESEND_API_KEY` en Vercel asc-mono (para email verification real) | — | ~10min |
 
+---
+
+## Session 89 — 2026-07-06 (Security Fixes — 13 hallazgos + Suite Verde)
+
+### Objetivo
+
+Resolver todos los hallazgos P-1 a P-8 de Session 88. Commit + push de todas las correcciones. Suite de tests en 0 fallos.
+
+### Hallazgos resueltos en esta sesión
+
+| # | SEC-ID | Archivo(s) | Fix aplicado | Commit |
+|---|--------|-----------|--------------|--------|
+| 1 | SEC-1/SEC-13 | `iam_service.py`, `iam.py` | Las 6 funciones IAM aceptan `tenant_id`; todos los callers pasan `tenant_id=admin.tenant_id`; `rotate_analyst_keys` y `verify_action_signatures` filtran por tenant | `bc792d4` |
+| 2 | SEC-2 | `neutralize.py` | `action_history` añade `.where(NeutralizationAction.tenant_id == current_user.tenant_id)` | `bc792d4` |
+| 3 | SEC-3 | `neutralize.py` | `get_action`, `get_action_commands`, `approve`, `reject`, `rollback` — pre-check de tenant antes de delegar al servicio | `bc792d4` |
+| 4 | SEC-4 | `agents.py` | `_get_agent_or_404` acepta `tenant_id` opcional; 3 callers actualizados; `agent_timeline` y `agent_command_history` usan `current_user` | `bc792d4` |
+| 5 | SEC-5 | `forensic.py` | `list_forensic_ledger` reemplaza `list_entries()` con JOIN a `NeutralizationAction.tenant_id`; `get_forensic_proof` y `verify_forensic_proof` añaden pre-check | `bc792d4` |
+| 6 | SEC-8 | `auth_sso.py` | `@limiter.limit(_sso_settings.RATE_LIMIT_LOGIN)` + `request: Request` añadidos a `supabase_sso` | `bc792d4` |
+| 7 | SEC-9 | `billing.py` | Guard: si `STRIPE_SECRET_KEY` truthy y `STRIPE_WEBHOOK_SECRET` vacío → 503. HMAC ya no es silenciosamente bypasseable | `bc792d4` |
+| 8 | SEC-10 | `soar.py` | `PlaybookTrigger` query filtra `tenant_id == current_user.tenant_id` en dry_run | `bc792d4` |
+| 9 | SEC-11 | `webhooks.py` | `_get_webhook_or_404` acepta `tenant_id`; `_assert_owner_or_admin` verifica `wh.tenant_id == user.tenant_id`; 4 callers actualizados | `bc792d4` |
+| 10 | SEC-15 | `onboarding.py` | `@limiter.limit(_settings.RATE_LIMIT_REGISTER)` + `request: Request` añadidos a `register` | `bc792d4` |
+| 11 | SEC-18 | `neutralize.py` | `action_history` limit cap: `.limit(min(limit, 1000))` | `bc792d4` |
+
+### Fixes de tests requeridos por los cambios de seguridad
+
+| Síntoma | Causa | Fix |
+|---------|-------|-----|
+| SlowAPI `Exception: parameter 'request' must be an instance of starlette.requests.Request` en `test_p53_onboarding.py` | `@limiter.limit()` en `register` requiere starlette Request real; tests llamaban `register(payload, db)` directamente | Añadida `_make_starlette_request()` helper; 4 call sites actualizados a `register(_make_starlette_request(), payload, db)` |
+| `503` en `test_p55_billing.py` (5 tests) | `mock_settings` (MagicMock) tenía `STRIPE_SECRET_KEY` como atributo auto-creado (truthy) → nuevo guard 503 se disparaba | Añadido `mock_settings.STRIPE_SECRET_KEY = ""` en los 5 patches |
+| `429 Too Many Requests` en tests SSO asyncio/trio | Limiter in-memory compartido entre backends asyncio y trio — cuota consumida entre tests | `reset_rate_limiter` autouse fixture en `conftest.py` limpia `limiter._storage.storage` y `.events` antes de cada test |
+| `503` en `test_p60_stripe_provisioning.py` (múltiples tests) | Mismo patrón MagicMock STRIPE_SECRET_KEY | `cfg.STRIPE_SECRET_KEY = ""` añadido a todos los patches (replace_all + 2 manuales) |
+| SyntaxError smart-quotes en `test_p55_billing.py` (línea 627) | Edit tool introdujo U+201C/U+201D como delimitadores de string en el último patch | Script Python reemplazó todos los bytes `\xe2\x80\x9c/\x9d` por ASCII `"` en todo el archivo |
+
+### Resultado final
+
+| Métrica | Valor |
+|---------|-------|
+| Tests totales | 4618 passed, 0 failed, 14 skipped |
+| Cobertura | **85.48%** (≥ 85% requerido ✅) |
+| Tiempo de ejecución | 289 s |
+| Archivos modificados | 14 (10 endpoints/services + 4 tests) |
+| Commit | `bc792d4` |
+| Push | `f8aab54..bc792d4 master → master` |
+
+### Pendientes restantes (no tocados en esta sesión)
+
+| # | Item | Severidad | Estado |
+|---|------|-----------|--------|
+| P-5 | `Artifact` sin `tenant_id` — modelo + migración + endpoint filter | ALTO | Pendiente |
+| P-12 | `SPECTER_STRICT_SIGNATURE_MODE=true` en Vercel prod | BAJO | Pendiente |
+| P-13 | `SPECTER_ENROLLMENT_SECRET=<secret>` en Vercel prod | BAJO | Pendiente |
+| P-14 | `RESEND_API_KEY` en Vercel asc-mono | — | Pendiente |
+| P-15 | CLABE Santander en `dashboard.stripe.com/settings/payouts` | — | Manual |
+| P-16 | `correlation_rules` global seed (4 rows `tenant_id=NULL`) — decisión arquitectural pendiente | — | Pendiente |
+
