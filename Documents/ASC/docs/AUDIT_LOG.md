@@ -5813,3 +5813,103 @@ Cerrar la filtración de datos multi-tenant en `ops_dashboard.py` (CRÍTICO), co
 | P-6 | `config.py` SECRET_KEY startup validation (rechazar "changeme" en prod) | Media |
 | P-7 | `adapter_registry.py` connectivity test stub → HTTP 501 | Media |
 
+---
+
+## Session 88 — 2026-07-04 (Resend email + audit comprehensivo)
+
+### Trabajo completado en sesión 88
+
+#### Cambios commiteados (commit `d6e6832`)
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| C-1 | `backend/asc_api/core/config.py` | Añadidos `RESEND_API_KEY` y `RESEND_FROM_EMAIL` (soporte email transaccional Resend) |
+| C-2 | `backend/asc_api/core/config.py` | `model_validator` que lanza `ValueError` si `SECRET_KEY` empieza con "changeme" y `DATABASE_URL` no es local — previene despliegue inseguro en producción |
+| C-3 | `backend/asc_api/core/config.py` | Eliminado `https://asc-mono.vercel.app` de `CORS_ORIGINS` default (URL eliminada de Vercel — riesgo de reasignación) |
+| C-4 | `backend/asc_api/api/v1/endpoints/onboarding.py` | `_send_verification_email` reemplazado: stub → integración real Resend vía `httpx.AsyncClient` (async — no bloquea event loop) |
+| C-5 | `backend/asc_api/api/v1/endpoints/onboarding.py` | **FIX crítico**: función era `def` síncrona usando `httpx.post()` dentro de handler async — bloqueaba event loop hasta 10 s por registro. Convertida a `async def` + `await client.post()` |
+
+#### Items de sesión 87 completados
+
+| # | Item | Estado |
+|---|------|--------|
+| P-2 | Permiso "Products Write" habilitado en Stripe por el usuario | ✅ |
+| P-3 | Stripe Products/Prices creados: ASC Seguridad Pro ($299/mes `price_1TcCk3...`), Enterprise ($699/mes `price_1TcCkR...`) | ✅ |
+| P-4 | Vercel asc-mono env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PROVISIONING_PLAN`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE` configurados y deployment activado | ✅ |
+| P-5 | Stripe webhook `we_1TcClA...` creado apuntando a `https://asc.premoscorp.com/api/v1/billing/stripe/webhook` (eventos: checkout.session.completed, customer.subscription.*) | ✅ |
+| P-6 | SECRET_KEY startup validation implementada en config.py (P-6) | ✅ |
+| Payout | Cuenta bancaria CLABE Santander: usuario debe agregar manualmente en `dashboard.stripe.com/settings/payouts` (restricted key carece de permisos "Vault GB Bank Accounts Write") | ⚠️ Manual |
+
+### Audit de seguridad comprehensivo — 2026-07-04
+
+Scan completo del backend ASC. 20 hallazgos verificados ordenados por severidad.
+
+#### CRÍTICO (3 hallazgos)
+
+| # | Archivo | Descripción | Acción recomendada |
+|---|---------|-------------|-------------------|
+| SEC-1 | `api/v1/endpoints/iam.py` + `services/iam_service.py:45` | **Cross-tenant IAM total**: todos los endpoints de lock/unlock/disable/enable/rotate buscan usuario por email sin filtrar `tenant_id`. Admin del Tenant A puede operar sobre usuarios del Tenant B. | Añadir `.where(User.tenant_id == current_user.tenant_id)` en `iam_service.py` en todas las funciones |
+| SEC-2 | `api/v1/endpoints/neutralize.py:303` | **Cross-tenant history**: `GET /neutralize/history` devuelve acciones de todos los tenants sin filtro. | Añadir `.where(NeutralizationAction.tenant_id == current_user.tenant_id)` |
+| SEC-3 | `api/v1/endpoints/neutralize.py:320-380` | **Cross-tenant action ops**: `GET/approve/reject/rollback` de `action_id` sin filtro de `tenant_id`. Analista puede aprobar neutralizaciones de otros tenants. | Crear helper `_get_action_or_404(action_id, tenant_id, db)` y usarlo en todos los endpoints de acción |
+
+#### ALTO (5 hallazgos)
+
+| # | Archivo | Descripción | Acción recomendada |
+|---|---------|-------------|-------------------|
+| SEC-4 | `api/v1/endpoints/agents.py:184` | **Cross-tenant agents**: `_get_agent_or_404` sin tenant filter — usado en `PATCH /{id}/threat`, `GET /{id}/timeline`, `GET /{id}/command-history` | Añadir `tenant_id` al helper |
+| SEC-5 | `api/v1/endpoints/forensic.py:55-137` | **Cross-tenant forensic**: `get_entry_by_action` y `list_entries` sin `tenant_id`. Cualquier usuario ve pruebas forenses de otros tenants. | Agregar `tenant_id` a los service calls |
+| SEC-6 | `models/artifact.py` + `api/v1/endpoints/analyze.py:175` | **Sin aislamiento de artefactos**: modelo `Artifact` sin columna `tenant_id`. `GET /analyze/artifact/{id}` devuelve cualquier artefacto a cualquier usuario autenticado. | Añadir migración con `tenant_id` a `Artifact` y filtro en endpoint |
+| SEC-7 | `api/v1/endpoints/onboarding.py` | **Blocking I/O** (ya corregido en commit `d6e6832`): `httpx.post()` síncrono dentro de handler async bloqueaba event loop hasta 10 s. | ✅ Corregido — cambiado a `async with httpx.AsyncClient()` |
+| SEC-8 | `api/v1/endpoints/auth_sso.py:265` | **SSO sin rate limiting**: `POST /auth/supabase-sso` no tiene `@limiter.limit()`. Docstring afirma rate limiting que no existe. Permite replay de tokens a velocidad arbitraria. | Añadir `@limiter.limit(settings.RATE_LIMIT_LOGIN)` |
+
+#### MEDIO (6 hallazgos)
+
+| # | Archivo | Descripción | Acción recomendada |
+|---|---------|-------------|-------------------|
+| SEC-9 | `api/v1/endpoints/billing.py:624` | **Stripe webhook bypasseable**: si `STRIPE_WEBHOOK_SECRET=""`, la verificación HMAC se omite completamente. Cualquier actor puede fabricar eventos. | Hacer la validación obligatoria si `STRIPE_SECRET_KEY` está configurado; rechazar sin secreto |
+| SEC-10 | `api/v1/endpoints/soar.py:221` | **Cross-tenant SOAR dry_run**: `evaluate_context` en modo dry_run lista todos los `PlaybookTrigger` sin filtro de tenant | Añadir filtro de tenant |
+| SEC-11 | `api/v1/endpoints/webhooks.py:140` | **Cross-tenant webhook ops**: `_get_webhook_or_404` sin tenant filter + `_assert_owner_or_admin` permite a admin de cualquier tenant operar sobre webhooks ajenos | Añadir `tenant_id` al helper |
+| SEC-12 | `api/v1/endpoints/observability.py:116` | **Métricas con token revocado**: validación manual de JWT no verifica blacklist ni `user.is_locked` | Integrar `jwt_blacklist.is_revoked()` y check `is_locked` |
+| SEC-13 | `api/v1/endpoints/iam.py:220` | **Cross-tenant IAM signature verify**: `GET /iam/actions/{id}/verify-signatures` sin filtro de tenant | Añadir filtro |
+| SEC-14 | `api/v1/endpoints/analyze.py:144` | **Inputs sin validar**: `analyze_domain` acepta strings arbitrarios (sin `max_length`); `analyze_ip` con IP inválida consume cuota externa | Añadir `Query(max_length=255, regex=...)` |
+
+#### BAJO (6 hallazgos)
+
+| # | Archivo | Descripción | Acción recomendada |
+|---|---------|-------------|-------------------|
+| SEC-15 | `api/v1/endpoints/onboarding.py:137` | `/register` sin `@limiter.limit()` — permite crear miles de tenants/min | Añadir `@limiter.limit(settings.RATE_LIMIT_REGISTER)` |
+| SEC-16 | `core/config.py:231` | Guard de `SECRET_KEY` frágil en Docker/Compose donde DB es localhost pero servicio expuesto | Aceptable en la práctica; documentar la limitación |
+| SEC-17 | `core/middleware.py:80` | `BodySizeLimitMiddleware` bypasseable omitiendo `Content-Length` | Leer body completo y medir tamaño real |
+| SEC-18 | `api/v1/endpoints/neutralize.py:297` | `?limit=` sin cota máxima en `/neutralize/history` | Añadir `Query(le=1000, ge=1)` |
+| SEC-19 | `core/config.py:177` | `SPECTER_STRICT_SIGNATURE_MODE=False` por defecto — permite inyección de telemetría falsa | Documentar; activar en producción (`SPECTER_STRICT_SIGNATURE_MODE=true` en Vercel) |
+| SEC-20 | `core/config.py:174` | `SPECTER_ENROLLMENT_SECRET=""` por defecto — registro de agentes abierto sin credenciales | Documentar; configurar en producción |
+
+#### Estado de producción post-sesión 88
+
+| Check | Estado |
+|-------|--------|
+| `asc.premoscorp.com/health` → 200 | ✅ |
+| `premoscorp.com` → sc-system con `VITE_ASC_API_URL=https://asc.premoscorp.com` | ✅ |
+| DB en HEAD `z6t89u7x1s14` (22 migraciones aplicadas) | ✅ |
+| Stripe Products/Prices/Webhook configurados | ✅ |
+| Vercel asc-mono: todas las env vars Stripe configuradas | ✅ |
+| Email verificación: Resend async (no bloqueante) | ✅ |
+| SECRET_KEY prod guard activo | ✅ |
+| Tests: 4618 passed, 0 failed, 85.71% coverage | ✅ |
+
+### Pendientes post-sesión 88 (por prioridad)
+
+| # | Item | Severidad | Esfuerzo |
+|---|------|-----------|---------|
+| P-1 | Fix cross-tenant en IAM service (`iam_service.py`) | CRÍTICO | ~1h |
+| P-2 | Fix cross-tenant en Neutralize (history + action ops) | CRÍTICO | ~1h |
+| P-3 | Fix cross-tenant en Agents `_get_agent_or_404` | ALTO | ~30min |
+| P-4 | Fix cross-tenant en Forensic service calls | ALTO | ~30min |
+| P-5 | Añadir `tenant_id` al modelo `Artifact` + migración + endpoint filter | ALTO | ~2h |
+| P-6 | Rate limiting en `POST /auth/supabase-sso` | ALTO | ~15min |
+| P-7 | Stripe webhook: hacer HMAC obligatorio si Stripe está configurado | MEDIO | ~30min |
+| P-8 | Rate limiting en `POST /onboarding/register` | BAJO | ~15min |
+| P-9 | `SPECTER_STRICT_SIGNATURE_MODE=true` + `SPECTER_ENROLLMENT_SECRET=<secret>` en Vercel prod | BAJO | ~10min |
+| P-10 | CLABE Santander: cuenta bancaria payout en `dashboard.stripe.com/settings/payouts` | — | Manual |
+| P-11 | `RESEND_API_KEY` en Vercel asc-mono (para email verification real) | — | ~10min |
+
