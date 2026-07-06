@@ -5958,14 +5958,21 @@ Resolver todos los hallazgos P-1 a P-8 de Session 88. Commit + push de todas las
 | Commit | `bc792d4` |
 | Push | `f8aab54..bc792d4 master → master` |
 
-### Pendientes restantes (no tocados en esta sesión)
+### Pendientes resueltos post-sesión 89 (sesión continuación 2026-07-06)
+
+| # | Item | Acción | Deploy |
+|---|------|--------|--------|
+| P-12 | `SPECTER_STRICT_SIGNATURE_MODE=true` | PATCH Vercel API `dbQpPqNZKJkIWNA4` → `"true"` | `dpl_HLS6gLjCvQH33swA4hfxvtSywR9U` |
+| P-13 | `SPECTER_ENROLLMENT_SECRET=<hex-64>` | PATCH Vercel API `BjoWF4LSsVdi67ri` → 64-char CSPRNG hex | `dpl_HLS6gLjCvQH33swA4hfxvtSywR9U` |
+| P-14 | `RESEND_API_KEY=re_DEoib…` + `RESEND_FROM_EMAIL=noreply@premoscorp.com` | POST Vercel API (ids: `rPBQue239sGSfe3O`, `fETm8fHKg0AjJi10`) | `dpl_2iAen96Ut11mKfrBf5JQwj9xv9xN` |
+
+Deployment final `dpl_2iAen96Ut11mKfrBf5JQwj9xv9xN` — READY. `asc.premoscorp.com/health` → 200 OK.
+
+### Pendientes restantes
 
 | # | Item | Severidad | Estado |
 |---|------|-----------|--------|
 | P-5 | `Artifact` sin `tenant_id` — modelo + migración + endpoint filter | ALTO | Pendiente |
-| P-12 | `SPECTER_STRICT_SIGNATURE_MODE=true` en Vercel prod | BAJO | Pendiente |
-| P-13 | `SPECTER_ENROLLMENT_SECRET=<secret>` en Vercel prod | BAJO | Pendiente |
-| P-14 | `RESEND_API_KEY` en Vercel asc-mono | — | Pendiente |
-| P-15 | CLABE Santander en `dashboard.stripe.com/settings/payouts` | — | Manual |
+| P-15 | CLABE Santander en `dashboard.stripe.com/settings/payouts` | — | Manual (restricted key sin permisos Vault) |
 | P-16 | `correlation_rules` global seed (4 rows `tenant_id=NULL`) — decisión arquitectural pendiente | — | Pendiente |
 
