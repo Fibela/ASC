@@ -81,6 +81,11 @@ async def agent_headers(agent: Agent) -> dict:
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class TestRegisterAgent:
+    @pytest.fixture(autouse=True)
+    def _open_enrollment(self, monkeypatch):
+        import asc_api.api.v1.endpoints.agents as _mod
+        monkeypatch.setattr(_mod.settings, "SPECTER_ENROLLMENT_SECRET", "")
+
     async def test_register_new_agent_returns_200(self, client):
         resp = await client.post("/api/v1/agents/register", json=AGENT_PAYLOAD)
         assert resp.status_code == 200

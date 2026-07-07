@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Float, Text, JSON, BigInteger
+from sqlalchemy import String, DateTime, Float, JSON, BigInteger
 from sqlalchemy.orm import Mapped, mapped_column
 from asc_api.db.base import Base
 
@@ -22,6 +22,8 @@ class Artifact(Base):
     matched_iocs: Mapped[list] = mapped_column(JSON, default=list)
     yara_matches: Mapped[list] = mapped_column(JSON, default=list)
     vt_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    submitted_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    submitted_by: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # SEC-6: tenant isolation — added to prevent cross-tenant artifact access
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)

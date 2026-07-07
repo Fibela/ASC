@@ -5972,7 +5972,63 @@ Deployment final `dpl_2iAen96Ut11mKfrBf5JQwj9xv9xN` — READY. `asc.premoscorp.c
 
 | # | Item | Severidad | Estado |
 |---|------|-----------|--------|
-| P-5 | `Artifact` sin `tenant_id` — modelo + migración + endpoint filter | ALTO | Pendiente |
+| P-5 | `Artifact` sin `tenant_id` — modelo + migración + endpoint filter | ALTO | **Resuelto en Session 90** |
 | P-15 | CLABE Santander en `dashboard.stripe.com/settings/payouts` | — | Manual (restricted key sin permisos Vault) |
 | P-16 | `correlation_rules` global seed (4 rows `tenant_id=NULL`) — decisión arquitectural pendiente | — | Pendiente |
+
+---
+
+## Session 90 — 2026-07-07 (SEC-6: Artifact Tenant Isolation + Suite 4656/0 @ 85.50%)
+
+### Objetivo
+
+Cerrar P-5 / SEC-6: el modelo `Artifact` no tenía `tenant_id`, permitiendo a cualquier usuario autenticado leer artefactos de otros tenants vía `GET /analyze/artifact/{id}`. Además, resolver las 17 regresiones de tests introducidas en Session 89 (SPECTER enrollment secret + contadores de migración).
+
+### SEC-6 — Cambios implementados
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| 1 | `backend/asc_api/models/artifact.py` | `tenant_id: Mapped[str \| None]` — columna nullable + índice `ix_artifacts_tenant_id`. `submitted_by` ahora también indexado. |
+| 2 | `backend/asc_api/api/v1/endpoints/analyze.py` | `analyze_file`: asigna `submitted_by=current_user.id` y `tenant_id=current_user.tenant_id` al crear el `Artifact`. `get_artifact`: filtra por `Artifact.tenant_id == current_user.tenant_id` (o `.is_(None)` para legado). Cross-tenant → 404 indistinguible de "no existe". |
+| 3 | `backend/migrations/versions/a7b90v8w2x25_artifact_tenant_isolation.py` | Nueva migración. `op.add_column("artifacts", tenant_id VARCHAR(36) NULL)` + `ix_artifacts_tenant_id` + `ix_artifacts_submitted_by`. `down_revision = "z6t89u7x1s14"`. |
+| 4 | `backend/tests/test_sec6_artifact_tenant.py` | Suite nueva: 38 tests en 8 clases — `TestArtifactModelSchema`, `TestAnalyzeFileUpload`, `TestGetArtifactSameTenant`, `TestCrossTenantIsolation`, `TestNullTenantIsolation`, `TestDomainIpInputGuards`, `TestMigrationIntegrity`, `TestEndpointSecurityScan`. |
+
+### Correcciones de regresiones (17 tests)
+
+**Categoría A — Contadores de migración (22 → 23) — 6 archivos:**
+
+| Archivo | Constante actualizada | Cross-checks OR actualizados |
+|---------|----------------------|------------------------------|
+| `test_p56_deployment_readiness.py` | `_EXPECTED_COUNT = 23`, `_EXPECTED_HEAD = "a7b90v8w2x25"` | — |
+| `test_p57_staging_goliove.py` | `_EXPECTED_MIGRATION_COUNT = 23` | — |
+| `test_p58_adapter_registry.py` | `_TOTAL = 23` | `test_p57_references_current_count` + `test_p56_references_current_head` añaden OR con 23 / a7b90v8w2x25 |
+| `test_p59_sso_bridge.py` | `_EXPECTED_TOTAL_MIGRATIONS = 23` | 3 cross-checks de p56/p57/p58 actualizados |
+| `test_p60_stripe_provisioning.py` | `_EXPECTED_TOTAL_MIGRATIONS = 23` | 2 cross-checks de p56/p57 actualizados |
+
+**Categoría B — SPECTER enrollment secret (11 tests):**
+
+| Clase | Archivo | Fix |
+|-------|---------|-----|
+| `TestRegisterAgent` | `test_agents.py` | `@pytest.fixture(autouse=True) _open_enrollment` — `monkeypatch.setattr(_mod.settings, "SPECTER_ENROLLMENT_SECRET", "")` |
+| `TestEnrollmentOnRegister` | `test_specter_security.py` | Mismo fixture autouse |
+| `TestSpecterGuardHeader` | `test_specter_security.py` | Mismo fixture autouse (solo `test_register_has_guard_header` fallaba, pero se aplica a toda la clase) |
+
+Causa raíz: `.env` de producción ahora tiene `SPECTER_ENROLLMENT_SECRET=<hex-64>` (P-13). Tests que prueban comportamiento funcional (no el propio guard de enrollment) enviaban POST `/agents/register` sin token → 403. Los fixtures restauran "dev mode" (secret vacío) para aislar lo que cada clase testea.
+
+### Resultado final
+
+| Métrica | Valor |
+|---------|-------|
+| Tests totales | **4656 passed, 0 failed, 14 skipped** |
+| Cobertura | **85.50%** (≥ 85% requerido ✅) |
+| Tiempo de ejecución | 864 s (14 min 24 s) |
+| Migración Alembic HEAD | `a7b90v8w2x25` (23 migraciones en cadena) |
+| Archivos modificados | 11 (modelo + endpoint + migración + 8 test files) |
+
+### Pendientes restantes
+
+| # | Item | Severidad | Estado |
+|---|------|-----------|--------|
+| P-16 | `correlation_rules` global seed (4 rows `tenant_id=NULL`) — decisión arquitectural | Media | Pendiente |
+| P-15 | CLABE Santander (payout account) | — | Resuelto manualmente vía Stripe dashboard |
 

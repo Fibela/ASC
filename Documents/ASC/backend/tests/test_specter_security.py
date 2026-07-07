@@ -284,6 +284,11 @@ class TestHoneypotEndpoints:
 
 @pytest.mark.asyncio
 class TestEnrollmentOnRegister:
+    @pytest.fixture(autouse=True)
+    def _open_enrollment(self, monkeypatch):
+        import asc_api.api.v1.endpoints.agents as _mod
+        monkeypatch.setattr(_mod.settings, "SPECTER_ENROLLMENT_SECRET", "")
+
     async def test_no_secret_configured_allows_any_registration(self, client: AsyncClient):
         # Default SPECTER_ENROLLMENT_SECRET is "" — dev mode, all registrations pass
         payload = {**AGENT_PAYLOAD, "hostname": f"h-{uuid.uuid4().hex[:6]}"}
@@ -514,6 +519,11 @@ class TestCanaryPingFlow:
 @pytest.mark.asyncio
 class TestSpecterGuardHeader:
     _GUARD = "SPECTER-Guard-PremosCorp-v1"
+
+    @pytest.fixture(autouse=True)
+    def _open_enrollment(self, monkeypatch):
+        import asc_api.api.v1.endpoints.agents as _mod
+        monkeypatch.setattr(_mod.settings, "SPECTER_ENROLLMENT_SECRET", "")
 
     async def test_register_has_guard_header(self, client: AsyncClient):
         payload = {**AGENT_PAYLOAD, "hostname": f"guard-test-{uuid.uuid4().hex[:6]}"}

@@ -133,6 +133,8 @@ async def analyze_file(
         analysis_result=result,
         yara_matches=result["signature_hits"],
         analyzed_at=datetime.now(timezone.utc),
+        submitted_by=current_user.id,
+        tenant_id=current_user.tenant_id,
     )
     db.add(artifact)
     await db.commit()
@@ -172,7 +174,15 @@ async def get_artifact(
     current_user: User = Depends(get_current_user),
 ):
     from sqlalchemy import select
-    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id))
+    # SEC-6: scope by tenant_id — same NULL-vs-value semantics as tenant_filter.py
+    tenant_filter = (
+        Artifact.tenant_id.is_(None)
+        if current_user.tenant_id is None
+        else Artifact.tenant_id == current_user.tenant_id
+    )
+    result = await db.execute(
+        select(Artifact).where(Artifact.id == artifact_id, tenant_filter)
+    )
     artifact = result.scalar_one_or_none()
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
