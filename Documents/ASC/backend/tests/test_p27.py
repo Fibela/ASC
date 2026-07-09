@@ -931,6 +931,11 @@ class TestQueryAPI:
         db.add = MagicMock()
         db.commit = AsyncMock()
         db.refresh = AsyncMock()
+        # P-16: create_rule now does a dup-check via db.execute().scalar();
+        # mock it to return 0 (no duplicate found) so the rule is created.
+        _dup_result = MagicMock()
+        _dup_result.scalar.return_value = 0
+        db.execute = AsyncMock(return_value=_dup_result)
         rule = await create_rule(db, name="New Rule", pivot_type="host_pivot", min_signals=3)
         assert rule.name == "New Rule"
         assert rule.pivot_type == "host_pivot"

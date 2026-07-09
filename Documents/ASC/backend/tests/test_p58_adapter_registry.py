@@ -739,7 +739,7 @@ class TestSecurityInvariants:
 class TestMigrationAndStructure:
 
     _HEAD = "t0n23q2s5m07"
-    _TOTAL = 23  # SEC-6: artifact tenant isolation
+    _TOTAL = 24  # P-16: correlation global rules uniqueness
 
     def test_migration_file_exists(self):
         files = list(_MIGRATIONS_DIR.glob(f"*{self._HEAD}*.py"))
@@ -807,7 +807,7 @@ class TestMigrationAndStructure:
         src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
             encoding="utf-8"
         )
-        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src or "x4r67u6w9q11" in src or "y5s78t5v0r13" in src or "z6t89u7x1s14" in src or "a7b90v8w2x25" in src)
+        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src or "x4r67u6w9q11" in src or "y5s78t5v0r13" in src or "z6t89u7x1s14" in src or "a7b90v8w2x25" in src or "a8c01v9x3y26" in src)
 
     def test_p57_references_current_count(self):
         """test_p57 must reference migration count >= 16 after P58."""
@@ -819,4 +819,5 @@ class TestMigrationAndStructure:
                 "_EXPECTED_MIGRATION_COUNT = 18" in src or
                 "_EXPECTED_MIGRATION_COUNT = 20" in src or
                 "_EXPECTED_MIGRATION_COUNT = 22" in src or
-                "_EXPECTED_MIGRATION_COUNT = 23" in src)
+                "_EXPECTED_MIGRATION_COUNT = 23" in src or
+                "_EXPECTED_MIGRATION_COUNT = 24" in src)

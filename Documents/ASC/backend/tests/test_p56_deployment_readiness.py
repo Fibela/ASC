@@ -259,8 +259,8 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "a7b90v8w2x25"   # SEC-6: artifact_tenant_isolation (latest)
-    _EXPECTED_COUNT = 23               # total migrations (SEC-6: artifact tenant isolation)
+    _EXPECTED_HEAD  = "a8c01v9x3y26"   # P-16: correlation_global_rules (latest)
+    _EXPECTED_COUNT = 24               # total migrations (P-16: correlation global rules uniqueness)
 
     def test_migrations_directory_exists(self):
         assert self._MIGRATIONS_DIR.exists()
