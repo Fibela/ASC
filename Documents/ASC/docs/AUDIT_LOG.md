@@ -6102,5 +6102,75 @@ Cerrar P-16: el Correlation Engine no tenía filtrado de tenant en ningún endpo
 
 | # | Item | Severidad | Estado |
 |---|------|-----------|--------|
-| Catálogo de productos | Portal de productos PremosCorp — funcional + impactante visualmente | Alta | Pendiente → siguiente |
+| Catálogo de productos | Portal de productos PremosCorp — funcional + impactante visualmente | Alta | **Resuelto en Session 92** |
+
+---
+
+## Session 92 — 2026-07-09 (Catálogo de Planes + QoS — ASC & sc_system)
+
+### Objetivo
+
+Construir el catálogo de productos de PremosCorp con principios de calidad de venta (anchoring, decoy pricing, loss aversion, social proof) para ambos portales: ASC SaaS (backend FastAPI + Next.js) y sc_system/premoscorp.com (React 18 + Vite). El plan más popular/recomendado aparece prominentemente en el landing de PremosCorp.
+
+### Cambios — ASC Backend & Frontend
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/asc_api/api/v1/endpoints/billing.py` | `_PLANS` enriquecido: `highlight`, `tagline`, `cta`, `price_usd_annual`, `features_list` para Free/Pro/Enterprise; `PlanFeatures` y `PlanInfo` con 8 nuevos campos |
+| `frontend/src/lib/api.ts` | Interfaces TypeScript `BillingPlan`, `PlanFeatures`, `PlansResponse`, `SubscriptionStatus` + funciones `getBillingPlans`, `getBillingSubscription`, `createCheckoutSession`, `createPortalSession` |
+| `frontend/src/app/pricing/page.tsx` | **NUEVA** — Página pública de precios ASC (Next.js App Router): toggle mensual/anual, 3 tarjetas, 16 filas comparativa, 6 FAQ acordeón, trust signals strip, banner Enterprise CTA |
+| `frontend/src/components/dashboard/Sidebar.tsx` | Enlace `/pricing` (icono `CreditCard`) en grupo "Plataforma" |
+| `backend/tests/test_billing_catalog.py` | **NUEVO** — 50 tests (8 clases): estructura _PLANS, precios, highlight/decoy flag, PlanFeatures schema, PlanInfo schema, list_plans() endpoint, scan seguridad (no secrets hardcodeados), scan endpoints (rutas registradas, response_model correcto, list_plans sin auth) |
+
+### Principios de Calidad de Venta — ASC Portal
+
+| Técnica | Aplicación |
+|---------|-----------|
+| Anchoring | Free ($0) como baseline → Pro ($299 → $239 anual = ahorro visible) → Enterprise (contacto) |
+| Highlight Pro | `highlight=True` en Pro → resaltado visualmente como "más popular" en portal B2B |
+| Annual billing | `price_usd_annual=239` — ahorro 20% anual mostrado en toggle |
+| Trust signals | Zero-trust, encryption, RLS, OWASP en strip inferior |
+| Loss aversion | FAQ: "¿Puedo cancelar?", "¿Qué pasa si supero los límites?" |
+| Feature anchoring | `features_list` detallado por plan — Pro lista "Todo lo de Free +" para anclar valor |
+
+### Cambios — sc_system / premoscorp.com
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/pages/Precios.jsx` | **BUNDLE ahora es el plan más popular** (popular=true); PLAN_META MAESTRO→false; `PLAN_VALUE` con anclaje por token ($4.00/token BUNDLE vs $6.67 EXPERTO vs $6.00 MAESTRO); `SocialProofBar` hardcoded (2,000+ estudiantes, 18 países, 4.9★, Stripe, Garantía 7d); layout dividido en 2 secciones: "Conocimiento profundo" (EXPERTO/MAESTRO/BUNDLE) y "Laboratorio especializado" (LAB_30D/LAB_90D); Trust strip (SSL 256-bit, Stripe PCI DSS, Garantía 7d, Acceso instantáneo, Sin suscripciones); ancla cruzada $89.97 tachado → $39.99 en BUNDLE |
+| `src/locales/es/common.json` | BUNDLE: descripción y características actualizadas con lenguaje de anclaje de valor — "menor costo por token: $4.00/token", "Niveles Experto + Maestro completos (8 módulos)" |
+
+### Principios de Calidad de Venta — sc_system/premoscorp.com
+
+| Técnica | Aplicación |
+|---------|-----------|
+| Decoy pricing | MAESTRO ($6.00/token) hace que BUNDLE ($4.00/token) parezca la opción obvia |
+| Anchoring | Precio tachado $89.97 → $39.99 en BUNDLE (valor percibido vs precio real) |
+| Social proof | "2,000+ estudiantes · 18 países · 4.9 promedio" en barra prominente |
+| Loss aversion | "Actualizaciones y contenido nuevo de por vida" — no perder acceso futuro |
+| Trust signals | Stripe PCI DSS Level 1 · Garantía 7 días · SSL 256-bit · Acceso instantáneo |
+| Sección anclaje | "Conocimiento profundo — acceso permanente, paga una sola vez" |
+| FOMO implícito | "Sin suscripciones" — pago único, sin compromiso recurrente |
+
+### Scan de seguridad
+
+| Check | ASC backend | sc_system |
+|-------|-------------|-----------|
+| No `STRIPE_SECRET_KEY` hardcodeado | ✅ (via `_settings`) | ✅ (serverless only) |
+| No `service_role` en billing source | ✅ | ✅ |
+| No `DATABASE_URL` hardcodeado | ✅ | N/A |
+| No `SERVICE_ROLE` en Precios.jsx | N/A | ✅ |
+| `price_id` desde settings, no literal | ✅ | ✅ (via PLANES dict) |
+| `user_id` del JWT, no del body | ✅ | ✅ |
+| HMAC webhook signature validada | ✅ (`_verify_stripe_signature`) | ✅ |
+
+### Resultado final
+
+| Métrica | ASC Backend | sc_system |
+|---------|-------------|-----------|
+| Tests totales | **4759 passed, 0 failed, 14 skipped** | **4698 passed, 0 failed** (p63 pre-existing) |
+| Tests nuevos | +50 (test_billing_catalog.py, 8 clases) | 0 nuevos (143/143 manual_m6 ✅) |
+| Cobertura | **85.54%** (≥ 85% requerido ✅) | N/A (estáticos) |
+| Commits | `95bf7d4` (master) | `8d66732` (CorporacionPremos) |
+| Push | ✅ origin/master | ✅ origin/CorporacionPremos |
 
