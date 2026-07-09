@@ -6194,54 +6194,61 @@ Post-mortem de la caída de `asc.premoscorp.com`. Diagnóstico completo, correcc
 ### Causa Raíz — ASC Caído
 
 1. **Proyectos Vercel eliminados**: `asc-mono` (prj_ZqNGLUkpH44cPOGvzllnwifhmsQz) y `backend` (prj_kKYcnnhuDVquG1gpTKkAIe3P77gP) no existen. Vercel API retorna 404 para ambos. Solo `sc-system` (prj_l2SKDeesPe9MF0rduoCDoH8FTS4t) sigue activo.
-2. **Arquitectura mono inviable**: el diseño original (Next.js + FastAPI en un mismo proyecto Vercel vía `api/index.py` + adaptador Mangum) nunca fue completado — `frontend/api/index.py` no existe. Además es incompatible con las dependencias pesadas del backend (YARA, python-magic) y `--workers 4` que no aplica en Lambda serverless.
-3. **Dockerfile CMD obsoleto**: `CMD ["uvicorn", "app.main:app", ...]` referenciaba el módulo fantasma `app/` eliminado en Session 7 (commit `e0a3567`).
+2. **`frontend/asc_api/` desincronizado**: `frontend/api/index.py` SÍ existe (`from asc_api.main import app`) y `frontend/asc_api/` SÍ existe, pero había derivado 35 archivos respecto a `backend/asc_api/` — todos los fixes de S4..S92 (tenant isolation, security patches, billing, correlation) se aplicaron solo a `backend/asc_api/`. La copia de Vercel corría código de junio 2026.
+3. **Dockerfile deps incorrectas**: `COPY requirements.txt .` copiaba `requirements.txt` (versión Vercel slim, sin uvicorn) en lugar de `requirements-docker.txt`. El contenedor Docker arrancaba sin uvicorn instalado.
+4. **Dockerfile CMD obsoleto**: `CMD ["uvicorn", "app.main:app", ...]` referenciaba el módulo fantasma `app/` eliminado en Session 7 (commit `e0a3567`).
+
+### Decisión de Arquitectura — Mono-deploy Vercel confirmado
+
+**Arquitectura elegida: Vercel mono** — Next.js + FastAPI en un mismo proyecto Vercel.
+
+La arquitectura original (`asc-mono`) es la correcta y sigue siendo el plan. `frontend/` tiene todo lo necesario:
+- `frontend/api/index.py` — entrypoint ASGI (`from asc_api.main import app`)
+- `frontend/asc_api/` — código FastAPI completo
+- `frontend/requirements.txt` — deps slim sin uvicorn/yara/python-magic (Vercel los excluye con fallback)
+- `frontend/vercel.json` — builds Next.js + Python, rutas `/api/*` y `/health`
+
+El error fue que los proyectos Vercel fueron eliminados (no el diseño).
 
 ### Fixes Aplicados
 
 | # | Archivo | Fix | Commit |
 |---|---------|-----|--------|
-| S93-1 | `backend/Dockerfile` | `app.main:app` → `asc_api.main:app` en CMD. El módulo `app/` fue eliminado en S7 pero Dockerfile nunca se actualizó. | ver abajo |
-| S93-2 | `frontend/vercel.json` | Eliminado build Python mono (`api/index.py`, `@vercel/python`, rutas `/health` y `/api/*`). CSP actualizado: añadido `https://*.railway.app` para nueva arquitectura. Solo queda: framework nextjs + headers seguridad + regions. | ver abajo |
+| S93-1 | `backend/Dockerfile` | `app.main:app` → `asc_api.main:app` en CMD | `f8768fb` |
+| S93-2 | `backend/Dockerfile` | `COPY requirements.txt` → `COPY requirements-docker.txt` (con uvicorn, yara, python-magic) | `1c8a214` |
+| S93-3 | `frontend/vercel.json` | Restaurado completo con builds Python, rutas /api y /health (fue erróneamente limpiado en diagnóstico inicial) | `1c8a214` |
+| S93-4 | `frontend/asc_api/` | Sincronizado con `backend/asc_api/` — 35 archivos actualizados, `seed_correlation.py` eliminado | `1c8a214` |
 
-### Decisión de Arquitectura — Re-despliegue
-
-**Elegido: Vercel (frontend) + Railway (backend)**
-
-| Componente | Plataforma | Razón |
-|------------|-----------|-------|
-| Next.js frontend | Vercel (nuevo proyecto) | Natural para Next.js, CI/CD desde GitHub, dominio custom `asc.premoscorp.com` |
-| FastAPI backend | Railway (Docker) | Proceso persistente con `--workers 4`, dependencias pesadas (YARA, python-magic), Dockerfile ya disponible y corregido |
-
-**Descartado: Vercel mono** — `api/index.py` no existe, 50MB Lambda ajustado, `--workers 4` incompatible con serverless.
-
-### Plan de Acción Pendiente (requiere acción manual)
+### Plan de Acción Pendiente (requiere acción manual del usuario)
 
 | # | Acción | Responsable |
 |---|--------|-------------|
 | P1 | Agregar `HIBP_API_KEY` en Vercel sc-system → Settings → Env Vars → Redeploy | Usuario |
-| P2 | Railway: nuevo proyecto → Deploy desde GitHub → `backend/` → configurar env vars | Usuario |
-| P3 | Vercel: nuevo proyecto → Import ASC → root `frontend/` → `NEXT_PUBLIC_API_URL`=Railway URL → deploy | Usuario |
-| P4 | Vercel sc-system: actualizar `VITE_ASC_API_URL`=Railway URL, `VITE_ASC_APP_URL`=https://asc.premoscorp.com → Redeploy | Usuario |
-| P5 | Vercel nuevo proyecto ASC: Settings → Domains → agregar `asc.premoscorp.com` | Usuario |
+| P2 | Vercel → Add New Project → Import repo ASC → Root directory: `frontend/` → Deploy | Usuario |
+| P3 | Nuevo proyecto Vercel: Settings → Env Vars → agregar todas las vars del backend (ver tabla) | Usuario |
+| P4 | Nuevo proyecto Vercel: Settings → Domains → agregar `asc.premoscorp.com` | Usuario |
+| P5 | Vercel sc-system: `VITE_ASC_API_URL` y `VITE_ASC_APP_URL` → `https://asc.premoscorp.com` → Redeploy | Usuario |
 
-### Variables de Entorno Railway (backend)
+### Variables de Entorno — Nuevo Proyecto Vercel (asc-mono)
 
-| Variable | Fuente |
-|----------|--------|
+| Variable | Valor / Fuente |
+|----------|----------------|
 | `DATABASE_URL` | Supabase pooler: `postgresql+asyncpg://postgres.kqxwtayzqujlddviskwl:...@aws-1-us-east-1.pooler.supabase.com:6543/postgres` |
 | `SECRET_KEY` | `backend/.env` |
 | `SPECTER_ENROLLMENT_SECRET` | `backend/.env` |
 | `CORS_ORIGINS` | `https://asc.premoscorp.com,https://premoscorp.com` |
-| `RESEND_API_KEY` | `backend/.env` |
+| `RESEND_API_KEY` | `backend/.env` (`re_DEoibFRW…`) |
 | `SPECTER_STRICT_SIGNATURE_MODE` | `true` |
+| `NEXT_PUBLIC_API_URL` | `''` (vacío — misma URL, sin CORS, mono-deploy) |
+| `NEXT_PUBLIC_PORTAL_URL` | `https://premoscorp.com` |
 
 ### Resultado
 
 | Métrica | Valor |
 |---------|-------|
-| Issues identificados | 4 (1 crítico, 2 altos, 1 acción manual) |
-| Fixes en código | 2 (Dockerfile CMD, vercel.json) |
-| Pendiente de acción manual | 2 (HIBP_API_KEY, re-despliegue Railway+Vercel) |
+| Issues identificados | 4 (1 crítico, 2 en Dockerfile, 1 acción manual) |
+| Fixes en código | 4 (Dockerfile CMD, Dockerfile deps, vercel.json restaurado, asc_api sync) |
+| Pendiente de acción manual | 2 (HIBP_API_KEY en sc-system, re-crear proyecto asc-mono en Vercel) |
+| Commits | `f8768fb`, `1c8a214` |
 | Tests (sin cambios) | 4759 ASC / 4698 sc-system — sin regresiones |
 
