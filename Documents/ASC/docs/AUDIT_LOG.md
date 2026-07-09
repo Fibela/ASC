@@ -6032,3 +6032,75 @@ Causa raíz: `.env` de producción ahora tiene `SPECTER_ENROLLMENT_SECRET=<hex-6
 | P-16 | `correlation_rules` global seed (4 rows `tenant_id=NULL`) — decisión arquitectural | Media | Pendiente |
 | P-15 | CLABE Santander (payout account) | — | Resuelto manualmente vía Stripe dashboard |
 
+---
+
+## Session 91 — 2026-07-08 (P-16: Correlation Engine Tenant Isolation + SEC-7 Suite)
+
+### Objetivo
+
+Cerrar P-16: el Correlation Engine no tenía filtrado de tenant en ningún endpoint ni en el servicio de correlación. Cualquier analista autenticado podía leer/modificar reglas, clusters y señales de cualquier otro tenant (IDOR masivo). Implementar aislamiento completo de tenant + suite de tests SEC-7 + migración Alembic para corregir el constraint UNIQUE(name) global que rompía entornos multi-tenant.
+
+### P-16 — Decisión Arquitectural
+
+| Componente | Decisión |
+|------------|----------|
+| `tenant_id=NULL` en `correlation_rules` | Reglas globales del sistema (R001-R004) — visibles a TODOS los tenants, solo el sistema puede modificarlas |
+| `tenant_id=X` en `correlation_rules` | Regla privada del tenant X — invisible e inmodificable desde otros tenants |
+| Visibilidad (`list_rules`, `get_rule`) | `WHERE tenant_id IS NULL OR tenant_id == user.tenant_id` (or_ filter) |
+| Clusters/Signals | Scope estricto: `WHERE tenant_id == user.tenant_id` (sin visibilidad global) |
+| Sweep | `run_correlation_sweep(db, tenant_id)` — procesa señales y crea clusters bajo el tenant del caller |
+| Constraint UNIQUE(name) global | Eliminado del modelo — reemplazado por dos índices parciales PostgreSQL |
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `backend/asc_api/services/correlation_service.py` | `tenant_id` añadido a las 5 funciones gatherer, `list_rules`, `get_rule`, `_get_rule_unchecked` (nuevo), `create_rule` (dup-check por scope), `update_rule`/`delete_rule` (PermissionError en reglas globales), `list_clusters`, `get_cluster`, `update_cluster_status`, `get_cluster_graph`, `get_correlation_summary` (helpers _c/_r/_s), `run_correlation_sweep`, `_upsert_cluster`, `_cluster_exists` |
+| `backend/asc_api/api/v1/endpoints/correlation.py` | Todos los endpoints pasan `tenant_id=current_user.tenant_id`; `_rule_out` expone `is_global`; `PermissionError→403`, `ValueError→409` |
+| `backend/asc_api/models/correlation.py` | Removido `unique=True` de `CorrelationRule.name` (constraint global roto en multi-tenant) |
+| `backend/asc_api/db/seed_correlation.py` | **NUEVO** — constante `SEED_RULES` (R001-R004 con `tenant_id=None`) para tests y tooling |
+| `backend/migrations/versions/a8c01v9x3y26_correlation_global_rules.py` | **NUEVA** migración — drop `correlation_rules_name_key`, crea `uq_cr_global_name` (WHERE NULL) y `uq_cr_tenant_name` (WHERE NOT NULL) |
+| `backend/tests/test_sec7_correlation_tenant.py` | **NUEVO** — 53 tests en 9 clases: schema, seed, visibility, IDOR isolation, global protection, cluster isolation, sweep scope, summary scope, migration check, secret scan |
+| `backend/tests/test_p27.py` | `test_create_rule`: mocked `db.execute().scalar()` → 0 (dup-check compatible con P-16) |
+| `backend/tests/test_p56/57/58/59/60_*.py` | Count 23→24, HEAD `a7b90v8w2x25`→`a8c01v9x3y26`, OR conditions actualizadas |
+
+### Vulnerabilidades corregidas
+
+| ID | Descripción | Impacto | Fix |
+|----|-------------|---------|-----|
+| IDOR-CORR-1 | `list_rules` sin filtro tenant → analista A ve reglas de tenant B | Alto | `or_` visibility filter en `list_rules`/`get_rule` |
+| IDOR-CORR-2 | `list_clusters` sin filtro → analista A ve clusters de tenant B | Alto | `WHERE tenant_id == X` estricto en `list_clusters`/`get_cluster` |
+| IDOR-CORR-3 | `update_rule`/`delete_rule` sin scope → analista A borra reglas de tenant B | Crítico | Tenant check via `get_rule(tenant_id)` antes de cualquier mutación |
+| IDOR-CORR-4 | `run_correlation_sweep` globalmente sin scope → clusters contaminados | Alto | `tenant_id` pasado a todas las funciones gatherer y `_upsert_cluster` |
+| UNIQUE-GLOBAL | `UNIQUE(name)` global en `correlation_rules` → tenant A bloquea nombres a tenant B | Medio | Partial unique indexes; uniqueness verificada por scope en service layer |
+| PERM-CORR-1 | Sin protección en reglas globales (R001-R004) → tenant podía borrar reglas del sistema | Alto | `PermissionError` si `rule.tenant_id is None and tenant_id is not None` |
+
+### Scan de seguridad
+
+| Check | Resultado |
+|-------|-----------|
+| Claves hardcodeadas en correlation_service.py | ✅ Ninguna |
+| Claves hardcodeadas en correlation.py endpoint | ✅ Ninguna |
+| Imports HTTP externos en correlation_service | ✅ Ninguno (postura read-only mantenida) |
+| `tenant_id` referenciado en todos los endpoints | ✅ |
+| `PermissionError` capturada → 403 | ✅ |
+| `ValueError` capturada → 409 | ✅ |
+| `is_global` expuesto en respuesta | ✅ |
+
+### Resultado final
+
+| Métrica | Valor |
+|---------|-------|
+| Tests totales | **4709 passed, 0 failed, 14 skipped** |
+| Tests nuevos (SEC-7) | +53 tests |
+| Cobertura | **85.52%** (≥ 85% requerido ✅) |
+| Tiempo de ejecución | ~294 s (4 min 54 s) |
+| Migración Alembic HEAD | `a8c01v9x3y26` (24 migraciones en cadena) |
+| Commit | `538f1d3` pushed a master |
+
+### Pendientes restantes
+
+| # | Item | Severidad | Estado |
+|---|------|-----------|--------|
+| Catálogo de productos | Portal de productos PremosCorp — funcional + impactante visualmente | Alta | Pendiente → siguiente |
+
