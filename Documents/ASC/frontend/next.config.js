@@ -12,8 +12,11 @@ const nextConfig = {
   // This guarantees the correct URL even if Vercel's env injection has a timing issue
   // on the very first build of a new project (env vars set after the build starts).
   env: {
+    // Mono-deploy: frontend and FastAPI share the same origin — empty string means
+    // all /api/* calls are relative (same domain, no CORS needed).
+    // Only override with an absolute URL when running outside of asc.premoscorp.com.
     NEXT_PUBLIC_API_URL:
-      process.env.NEXT_PUBLIC_API_URL || 'https://asc-api.premoscorp.com',
+      process.env.NEXT_PUBLIC_API_URL ?? '',
     NEXT_PUBLIC_PORTAL_URL:
       process.env.NEXT_PUBLIC_PORTAL_URL || 'https://premoscorp.com',
   },
@@ -46,7 +49,7 @@ const nextConfig = {
                 "style-src 'self' 'unsafe-inline'",
                 "img-src 'self' data: blob:",
                 "font-src 'self'",
-                `connect-src 'self' ${apiUrl} https://*.onrender.com https://*.premoscorp.com`,
+                `connect-src 'self' ${apiUrl} https://*.premoscorp.com https://*.supabase.co`,
                 "frame-ancestors 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
