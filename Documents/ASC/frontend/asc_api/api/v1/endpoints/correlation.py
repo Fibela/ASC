@@ -116,6 +116,7 @@ def _rule_out(rule) -> dict[str, Any]:
         "time_window_minutes": rule.time_window_minutes,
         "severity_threshold": rule.severity_threshold,
         "enabled": rule.enabled,
+        "is_global": rule.tenant_id is None,
         "created_at": rule.created_at.isoformat() if rule.created_at else None,
         "updated_at": rule.updated_at.isoformat() if rule.updated_at else None,
     }
@@ -166,9 +167,9 @@ def _signal_out(s) -> dict[str, Any]:
 async def get_summary(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    return await correlation_service.get_correlation_summary(db)
+    return await correlation_service.get_correlation_summary(db, tenant_id=current_user.tenant_id)
 
 
 # ── Rules ─────────────────────────────────────────────────────────────────────
@@ -178,9 +179,9 @@ async def get_summary(
 async def list_rules(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    rules = await correlation_service.list_rules(db)
+    rules = await correlation_service.list_rules(db, tenant_id=current_user.tenant_id)
     return [_rule_out(r) for r in rules]
 
 
@@ -190,17 +191,21 @@ async def create_rule(
     body: CreateRuleRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    rule = await correlation_service.create_rule(
-        db,
-        name=body.name,
-        pivot_type=body.pivot_type,
-        min_signals=body.min_signals,
-        time_window_minutes=body.time_window_minutes,
-        severity_threshold=body.severity_threshold,
-        description=body.description,
-    )
+    try:
+        rule = await correlation_service.create_rule(
+            db,
+            name=body.name,
+            pivot_type=body.pivot_type,
+            min_signals=body.min_signals,
+            time_window_minutes=body.time_window_minutes,
+            severity_threshold=body.severity_threshold,
+            description=body.description,
+            tenant_id=current_user.tenant_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
     return _rule_out(rule)
 
 
@@ -210,9 +215,9 @@ async def get_rule(
     rule_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    rule = await correlation_service.get_rule(db, rule_id)
+    rule = await correlation_service.get_rule(db, rule_id, tenant_id=current_user.tenant_id)
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
     return _rule_out(rule)
@@ -225,12 +230,17 @@ async def update_rule(
     body: UpdateRuleRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update")
-    rule = await correlation_service.update_rule(db, rule_id, **updates)
+    try:
+        rule = await correlation_service.update_rule(
+            db, rule_id, tenant_id=current_user.tenant_id, **updates
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     if rule is None:
         raise HTTPException(status_code=404, detail="Rule not found")
     return _rule_out(rule)
@@ -242,9 +252,12 @@ async def delete_rule(
     rule_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
-    ok = await correlation_service.delete_rule(db, rule_id)
+    try:
+        ok = await correlation_service.delete_rule(db, rule_id, tenant_id=current_user.tenant_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     if not ok:
         raise HTTPException(status_code=404, detail="Rule not found")
 
@@ -261,7 +274,7 @@ async def list_clusters(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     clusters = await correlation_service.list_clusters(
         db,
@@ -270,6 +283,7 @@ async def list_clusters(
         is_campaign=True if campaigns_only else None,
         limit=limit,
         offset=offset,
+        tenant_id=current_user.tenant_id,
     )
     return [_cluster_out(c) for c in clusters]
 
@@ -280,9 +294,9 @@ async def get_cluster(
     cluster_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    cluster = await correlation_service.get_cluster(db, cluster_id)
+    cluster = await correlation_service.get_cluster(db, cluster_id, tenant_id=current_user.tenant_id)
     if cluster is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     return _cluster_out(cluster)
@@ -295,7 +309,7 @@ async def update_cluster_status(
     body: UpdateClusterStatusRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     cluster = await correlation_service.update_cluster_status(
         db,
@@ -303,6 +317,7 @@ async def update_cluster_status(
         status=body.status,
         analyst_notes=body.analyst_notes,
         assigned_to=body.assigned_to,
+        tenant_id=current_user.tenant_id,
     )
     if cluster is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
@@ -315,9 +330,10 @@ async def get_cluster_signals(
     cluster_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    cluster = await correlation_service.get_cluster(db, cluster_id)
+    # Verify tenant ownership before returning signals
+    cluster = await correlation_service.get_cluster(db, cluster_id, tenant_id=current_user.tenant_id)
     if cluster is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     signals = await correlation_service.get_cluster_signals(db, cluster_id)
@@ -330,9 +346,9 @@ async def get_cluster_graph(
     cluster_id: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    graph = await correlation_service.get_cluster_graph(db, cluster_id)
+    graph = await correlation_service.get_cluster_graph(db, cluster_id, tenant_id=current_user.tenant_id)
     if graph is None:
         raise HTTPException(status_code=404, detail="Cluster not found")
     return graph
@@ -343,9 +359,9 @@ async def get_cluster_graph(
 async def trigger_sweep(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
-    """Manually enqueue a correlation sweep. Returns immediately (async task)."""
+    """Manually enqueue a correlation sweep scoped to the requesting tenant."""
     try:
         from asc_api.tasks.correlation_sweep import run_sweep
         task = run_sweep.delay()
@@ -353,5 +369,5 @@ async def trigger_sweep(
     except Exception:
         # Celery not available — run inline (dev/test mode)
         log.warning("Celery not available — running correlation sweep inline")
-        stats = await correlation_service.run_correlation_sweep(db)
+        stats = await correlation_service.run_correlation_sweep(db, tenant_id=current_user.tenant_id)
         return {"status": "completed_inline", "stats": stats}

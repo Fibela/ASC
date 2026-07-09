@@ -72,16 +72,20 @@ def _meets_threshold(severity: str, threshold: str) -> bool:
 # Signal gathering — one function per pivot type
 # ---------------------------------------------------------------------------
 
-async def _gather_host_signals(db: AsyncSession, window_start: datetime) -> list[dict[str, Any]]:
+async def _gather_host_signals(
+    db: AsyncSession, window_start: datetime, tenant_id: str | None = None
+) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
 
     # Events with non-null host
-    r = await db.execute(
+    _q = (
         select(Event.id, Event.host, Event.severity, Event.timestamp)
         .where(Event.host.isnot(None))
         .where(Event.timestamp >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(Event.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "event",
             "signal_id": row.id,
@@ -92,13 +96,15 @@ async def _gather_host_signals(db: AsyncSession, window_start: datetime) -> list
         })
 
     # Alerts — affected_hosts is a JSON list
-    r = await db.execute(
+    _q = (
         select(Alert.id, Alert.affected_hosts, Alert.severity, Alert.detected_at)
         .where(Alert.affected_hosts.isnot(None))
         .where(Alert.detected_at >= window_start)
         .where(Alert.false_positive.is_(False))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(Alert.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         hosts = row.affected_hosts or []
         if isinstance(hosts, str):
             try:
@@ -117,13 +123,15 @@ async def _gather_host_signals(db: AsyncSession, window_start: datetime) -> list
                 })
 
     # HuntFindings with affected_host
-    r = await db.execute(
+    _q = (
         select(HuntFinding.id, HuntFinding.affected_host, HuntFinding.severity, HuntFinding.created_at)
         .where(HuntFinding.affected_host.isnot(None))
         .where(HuntFinding.created_at >= window_start)
         .where(HuntFinding.is_false_positive.is_(False))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(HuntFinding.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "finding",
             "signal_id": row.id,
@@ -134,14 +142,16 @@ async def _gather_host_signals(db: AsyncSession, window_start: datetime) -> list
         })
 
     # PANL — isolate_endpoint actions
-    r = await db.execute(
+    _q = (
         select(NeutralizationAction.id, NeutralizationAction.target,
                NeutralizationAction.severity, NeutralizationAction.executed_at)
         .where(NeutralizationAction.action_type == "isolate_endpoint")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "panl_action",
             "signal_id": row.id,
@@ -154,34 +164,40 @@ async def _gather_host_signals(db: AsyncSession, window_start: datetime) -> list
     return signals
 
 
-async def _gather_identity_signals(db: AsyncSession, window_start: datetime) -> list[dict[str, Any]]:
+async def _gather_identity_signals(
+    db: AsyncSession, window_start: datetime, tenant_id: str | None = None
+) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
 
     # IdentityAction — every IAM enforcement action has a username
-    r = await db.execute(
+    _q = (
         select(IdentityAction.id, IdentityAction.username, IdentityAction.domain,
                IdentityAction.action_type, IdentityAction.executed_at)
         .where(IdentityAction.executed_at >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(IdentityAction.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         pivot = f"{row.username}@{row.domain}".lower()
         signals.append({
             "signal_type": "identity_action",
             "signal_id": row.id,
             "pivot_value": pivot,
-            "severity": "high",  # identity actions are always high-interest
+            "severity": "high",
             "timestamp": row.executed_at,
             "meta": {"username": row.username, "domain": row.domain, "action_type": row.action_type},
         })
 
     # HuntFindings with affected_user
-    r = await db.execute(
+    _q = (
         select(HuntFinding.id, HuntFinding.affected_user, HuntFinding.severity, HuntFinding.created_at)
         .where(HuntFinding.affected_user.isnot(None))
         .where(HuntFinding.created_at >= window_start)
         .where(HuntFinding.is_false_positive.is_(False))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(HuntFinding.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "finding",
             "signal_id": row.id,
@@ -194,16 +210,20 @@ async def _gather_identity_signals(db: AsyncSession, window_start: datetime) -> 
     return signals
 
 
-async def _gather_ip_signals(db: AsyncSession, window_start: datetime) -> list[dict[str, Any]]:
+async def _gather_ip_signals(
+    db: AsyncSession, window_start: datetime, tenant_id: str | None = None
+) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
 
     # Events — extract src_ip / dst_ip from normalized JSON
-    r = await db.execute(
+    _q = (
         select(Event.id, Event.normalized, Event.severity, Event.timestamp)
         .where(Event.normalized.isnot(None))
         .where(Event.timestamp >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(Event.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         norm = row.normalized or {}
         if isinstance(norm, str):
             try:
@@ -223,14 +243,16 @@ async def _gather_ip_signals(db: AsyncSession, window_start: datetime) -> list[d
                 })
 
     # ThreatIntelIndicator type=ip
-    r = await db.execute(
+    _q = (
         select(ThreatIntelIndicator.id, ThreatIntelIndicator.value,
                ThreatIntelIndicator.severity, ThreatIntelIndicator.last_seen)
         .where(ThreatIntelIndicator.indicator_type == "ip")
         .where(ThreatIntelIndicator.active.is_(True))
         .where(ThreatIntelIndicator.last_seen >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(ThreatIntelIndicator.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "ti_indicator",
             "signal_id": row.id,
@@ -241,14 +263,16 @@ async def _gather_ip_signals(db: AsyncSession, window_start: datetime) -> list[d
         })
 
     # PANL — block_ip actions
-    r = await db.execute(
+    _q = (
         select(NeutralizationAction.id, NeutralizationAction.target,
                NeutralizationAction.severity, NeutralizationAction.executed_at)
         .where(NeutralizationAction.action_type == "block_ip")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "panl_action",
             "signal_id": row.id,
@@ -261,11 +285,13 @@ async def _gather_ip_signals(db: AsyncSession, window_start: datetime) -> list[d
     return signals
 
 
-async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> list[dict[str, Any]]:
+async def _gather_domain_signals(
+    db: AsyncSession, window_start: datetime, tenant_id: str | None = None
+) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
 
     # ThreatIntelIndicator type=domain|url
-    r = await db.execute(
+    _q = (
         select(ThreatIntelIndicator.id, ThreatIntelIndicator.value,
                ThreatIntelIndicator.indicator_type, ThreatIntelIndicator.severity,
                ThreatIntelIndicator.last_seen)
@@ -273,7 +299,9 @@ async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> li
         .where(ThreatIntelIndicator.active.is_(True))
         .where(ThreatIntelIndicator.last_seen >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(ThreatIntelIndicator.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "ti_indicator",
             "signal_id": row.id,
@@ -284,14 +312,16 @@ async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> li
         })
 
     # PANL — block_domain
-    r = await db.execute(
+    _q = (
         select(NeutralizationAction.id, NeutralizationAction.target,
                NeutralizationAction.severity, NeutralizationAction.executed_at)
         .where(NeutralizationAction.action_type == "block_domain")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "panl_action",
             "signal_id": row.id,
@@ -302,7 +332,7 @@ async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> li
         })
 
     # HuntFindings with indicator_type=domain
-    r = await db.execute(
+    _q = (
         select(HuntFinding.id, HuntFinding.indicator_value, HuntFinding.severity,
                HuntFinding.created_at)
         .where(HuntFinding.indicator_type == "domain")
@@ -310,7 +340,9 @@ async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> li
         .where(HuntFinding.created_at >= window_start)
         .where(HuntFinding.is_false_positive.is_(False))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(HuntFinding.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         signals.append({
             "signal_type": "finding",
             "signal_id": row.id,
@@ -323,16 +355,20 @@ async def _gather_domain_signals(db: AsyncSession, window_start: datetime) -> li
     return signals
 
 
-async def _gather_ttp_signals(db: AsyncSession, window_start: datetime) -> list[dict[str, Any]]:
+async def _gather_ttp_signals(
+    db: AsyncSession, window_start: datetime, tenant_id: str | None = None
+) -> list[dict[str, Any]]:
     signals: list[dict[str, Any]] = []
 
     # Events — tags JSON list (filter for T#### MITRE patterns)
-    r = await db.execute(
+    _q = (
         select(Event.id, Event.tags, Event.severity, Event.timestamp)
         .where(Event.tags.isnot(None))
         .where(Event.timestamp >= window_start)
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(Event.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         tags = row.tags or []
         if isinstance(tags, str):
             try:
@@ -351,13 +387,15 @@ async def _gather_ttp_signals(db: AsyncSession, window_start: datetime) -> list[
                 })
 
     # Alerts — ttps JSON list
-    r = await db.execute(
+    _q = (
         select(Alert.id, Alert.ttps, Alert.severity, Alert.detected_at)
         .where(Alert.ttps.isnot(None))
         .where(Alert.detected_at >= window_start)
         .where(Alert.false_positive.is_(False))
     )
-    for row in r.all():
+    if tenant_id is not None:
+        _q = _q.where(Alert.tenant_id == tenant_id)
+    for row in (await db.execute(_q)).all():
         ttps = row.ttps or []
         if isinstance(ttps, str):
             try:
@@ -396,16 +434,22 @@ async def _upsert_cluster(
     rule: CorrelationRule,
     pivot_value: str,
     new_signals: list[dict[str, Any]],
+    tenant_id: str | None = None,
 ) -> CorrelationCluster:
     now = datetime.now(timezone.utc)
 
-    # Find or create the active cluster for this rule + pivot_value
-    r = await db.execute(
+    # Find or create the active cluster for this rule + pivot_value + tenant
+    _q = (
         select(CorrelationCluster)
         .where(CorrelationCluster.rule_id == rule.id)
         .where(CorrelationCluster.cluster_key == pivot_value)
         .where(CorrelationCluster.status == "active")
     )
+    if tenant_id is not None:
+        _q = _q.where(CorrelationCluster.tenant_id == tenant_id)
+    else:
+        _q = _q.where(CorrelationCluster.tenant_id.is_(None))
+    r = await db.execute(_q)
     cluster: CorrelationCluster | None = r.scalar_one_or_none()
 
     if cluster is None:
@@ -414,6 +458,7 @@ async def _upsert_cluster(
             rule_id=rule.id,
             cluster_key=pivot_value,
             cluster_type=rule.pivot_type,
+            tenant_id=tenant_id,
             first_seen=now,
             last_seen=now,
             status="active",
@@ -436,6 +481,7 @@ async def _upsert_cluster(
         cs = CorrelationSignal(
             id=str(uuid.uuid4()),
             cluster_id=cluster.id,
+            tenant_id=tenant_id,
             signal_type=sig["signal_type"],
             signal_id=sig["signal_id"],
             pivot_value=sig["pivot_value"],
@@ -482,17 +528,18 @@ async def _upsert_cluster(
 # Main sweep
 # ---------------------------------------------------------------------------
 
-async def run_correlation_sweep(db: AsyncSession) -> dict[str, Any]:
+async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """
-    Iterate all enabled rules, gather cross-domain signals, and upsert clusters.
+    Iterate enabled rules visible to *tenant_id* (global + own), gather signals
+    scoped to that tenant, and upsert clusters tagged with *tenant_id*.
+    When tenant_id is None (single-tenant / legacy mode) no tenant scoping is applied.
     Returns a summary dict suitable for task logging.
     """
     now = datetime.now(timezone.utc)
 
-    r = await db.execute(
-        select(CorrelationRule).where(CorrelationRule.enabled.is_(True))
-    )
-    rules: list[CorrelationRule] = list(r.scalars().all())
+    # Use list_rules to respect global + tenant visibility
+    all_rules = await list_rules(db, tenant_id)
+    rules: list[CorrelationRule] = [r for r in all_rules if r.enabled]
 
     stats = {
         "rules_evaluated": len(rules),
@@ -509,7 +556,7 @@ async def run_correlation_sweep(db: AsyncSession) -> dict[str, Any]:
             log.warning("correlation_sweep: unknown pivot_type %s for rule %s", rule.pivot_type, rule.id)
             continue
 
-        raw_signals = await gather_fn(db, window_start)
+        raw_signals = await gather_fn(db, window_start, tenant_id=tenant_id)
 
         # Filter by severity threshold
         filtered = [
@@ -535,8 +582,8 @@ async def run_correlation_sweep(db: AsyncSession) -> dict[str, Any]:
             if len(deduped) < rule.min_signals:
                 continue
 
-            was_existing = await _cluster_exists(db, rule.id, pivot_value)
-            cluster = await _upsert_cluster(db, rule, pivot_value, deduped)
+            was_existing = await _cluster_exists(db, rule.id, pivot_value, tenant_id)
+            cluster = await _upsert_cluster(db, rule, pivot_value, deduped, tenant_id)
 
             if was_existing:
                 stats["clusters_updated"] += 1
@@ -557,13 +604,20 @@ async def run_correlation_sweep(db: AsyncSession) -> dict[str, Any]:
     return stats
 
 
-async def _cluster_exists(db: AsyncSession, rule_id: str, pivot_value: str) -> bool:
-    r = await db.execute(
+async def _cluster_exists(
+    db: AsyncSession, rule_id: str, pivot_value: str, tenant_id: str | None = None
+) -> bool:
+    _q = (
         select(func.count(CorrelationCluster.id))
         .where(CorrelationCluster.rule_id == rule_id)
         .where(CorrelationCluster.cluster_key == pivot_value)
         .where(CorrelationCluster.status == "active")
     )
+    if tenant_id is not None:
+        _q = _q.where(CorrelationCluster.tenant_id == tenant_id)
+    else:
+        _q = _q.where(CorrelationCluster.tenant_id.is_(None))
+    r = await db.execute(_q)
     return (r.scalar() or 0) > 0
 
 
@@ -571,12 +625,29 @@ async def _cluster_exists(db: AsyncSession, rule_id: str, pivot_value: str) -> b
 # Query API helpers
 # ---------------------------------------------------------------------------
 
-async def list_rules(db: AsyncSession) -> list[CorrelationRule]:
-    r = await db.execute(select(CorrelationRule).order_by(CorrelationRule.created_at))
+async def list_rules(db: AsyncSession, tenant_id: str | None = None) -> list[CorrelationRule]:
+    """Return global (NULL) rules + rules owned by *tenant_id*."""
+    stmt = (
+        select(CorrelationRule)
+        .where(or_(CorrelationRule.tenant_id.is_(None), CorrelationRule.tenant_id == tenant_id))
+        .order_by(CorrelationRule.created_at)
+    )
+    r = await db.execute(stmt)
     return list(r.scalars().all())
 
 
-async def get_rule(db: AsyncSession, rule_id: str) -> CorrelationRule | None:
+async def get_rule(db: AsyncSession, rule_id: str, tenant_id: str | None = None) -> CorrelationRule | None:
+    """Fetch a rule visible to *tenant_id*: global rules are always visible."""
+    stmt = select(CorrelationRule).where(
+        CorrelationRule.id == rule_id,
+        or_(CorrelationRule.tenant_id.is_(None), CorrelationRule.tenant_id == tenant_id),
+    )
+    r = await db.execute(stmt)
+    return r.scalar_one_or_none()
+
+
+async def _get_rule_unchecked(db: AsyncSession, rule_id: str) -> CorrelationRule | None:
+    """Internal-only: fetch rule without tenant scope (used for graph building)."""
     r = await db.execute(select(CorrelationRule).where(CorrelationRule.id == rule_id))
     return r.scalar_one_or_none()
 
@@ -589,7 +660,16 @@ async def create_rule(
     time_window_minutes: int = 60,
     severity_threshold: str = "low",
     description: str | None = None,
+    tenant_id: str | None = None,
 ) -> CorrelationRule:
+    # Uniqueness check within the same tenant scope
+    dup_q = select(func.count(CorrelationRule.id)).where(CorrelationRule.name == name)
+    if tenant_id is None:
+        dup_q = dup_q.where(CorrelationRule.tenant_id.is_(None))
+    else:
+        dup_q = dup_q.where(CorrelationRule.tenant_id == tenant_id)
+    if (await db.execute(dup_q)).scalar() or 0:
+        raise ValueError(f"A rule named '{name}' already exists")
     rule = CorrelationRule(
         id=str(uuid.uuid4()),
         name=name,
@@ -599,6 +679,7 @@ async def create_rule(
         time_window_minutes=time_window_minutes,
         severity_threshold=severity_threshold,
         enabled=True,
+        tenant_id=tenant_id,
     )
     db.add(rule)
     await db.commit()
@@ -609,11 +690,14 @@ async def create_rule(
 async def update_rule(
     db: AsyncSession,
     rule_id: str,
+    tenant_id: str | None = None,
     **kwargs: Any,
 ) -> CorrelationRule | None:
-    rule = await get_rule(db, rule_id)
+    rule = await get_rule(db, rule_id, tenant_id)
     if rule is None:
         return None
+    if rule.tenant_id is None and tenant_id is not None:
+        raise PermissionError("Cannot modify system global rules")
     allowed = {"name", "description", "pivot_type", "min_signals", "time_window_minutes",
                 "severity_threshold", "enabled"}
     for k, v in kwargs.items():
@@ -625,10 +709,12 @@ async def update_rule(
     return rule
 
 
-async def delete_rule(db: AsyncSession, rule_id: str) -> bool:
-    rule = await get_rule(db, rule_id)
+async def delete_rule(db: AsyncSession, rule_id: str, tenant_id: str | None = None) -> bool:
+    rule = await get_rule(db, rule_id, tenant_id)
     if rule is None:
         return False
+    if rule.tenant_id is None and tenant_id is not None:
+        raise PermissionError("Cannot delete system global rules")
     await db.delete(rule)
     await db.commit()
     return True
@@ -641,8 +727,14 @@ async def list_clusters(
     is_campaign: bool | None = None,
     limit: int = 50,
     offset: int = 0,
+    tenant_id: str | None = None,
 ) -> list[CorrelationCluster]:
     q = select(CorrelationCluster).order_by(CorrelationCluster.last_seen.desc())
+    # Strict tenant scope: NULL tenant sees NULL clusters; set tenant sees own
+    if tenant_id is not None:
+        q = q.where(CorrelationCluster.tenant_id == tenant_id)
+    else:
+        q = q.where(CorrelationCluster.tenant_id.is_(None))
     if status:
         q = q.where(CorrelationCluster.status == status)
     if cluster_type:
@@ -654,10 +746,13 @@ async def list_clusters(
     return list(r.scalars().all())
 
 
-async def get_cluster(db: AsyncSession, cluster_id: str) -> CorrelationCluster | None:
-    r = await db.execute(
-        select(CorrelationCluster).where(CorrelationCluster.id == cluster_id)
-    )
+async def get_cluster(db: AsyncSession, cluster_id: str, tenant_id: str | None = None) -> CorrelationCluster | None:
+    q = select(CorrelationCluster).where(CorrelationCluster.id == cluster_id)
+    if tenant_id is not None:
+        q = q.where(CorrelationCluster.tenant_id == tenant_id)
+    else:
+        q = q.where(CorrelationCluster.tenant_id.is_(None))
+    r = await db.execute(q)
     return r.scalar_one_or_none()
 
 
@@ -667,8 +762,9 @@ async def update_cluster_status(
     status: str,
     analyst_notes: str | None = None,
     assigned_to: str | None = None,
+    tenant_id: str | None = None,
 ) -> CorrelationCluster | None:
-    cluster = await get_cluster(db, cluster_id)
+    cluster = await get_cluster(db, cluster_id, tenant_id)
     if cluster is None:
         return None
     cluster.status = status
@@ -691,7 +787,9 @@ async def get_cluster_signals(db: AsyncSession, cluster_id: str) -> list[Correla
     return list(r.scalars().all())
 
 
-async def get_cluster_graph(db: AsyncSession, cluster_id: str) -> dict[str, Any] | None:
+async def get_cluster_graph(
+    db: AsyncSession, cluster_id: str, tenant_id: str | None = None
+) -> dict[str, Any] | None:
     """
     Build a graph representation of a cluster for the frontend visualizer.
 
@@ -702,14 +800,14 @@ async def get_cluster_graph(db: AsyncSession, cluster_id: str) -> dict[str, Any]
     Edges:
       - Cluster → signal (pivot_type + pivot_value as edge label)
     """
-    cluster = await get_cluster(db, cluster_id)
+    cluster = await get_cluster(db, cluster_id, tenant_id)
     if cluster is None:
         return None
 
     signals = await get_cluster_signals(db, cluster_id)
 
-    # Rule info
-    rule = await get_rule(db, cluster.rule_id)
+    # Rule info (unchecked — cluster already tenant-verified; rule is metadata)
+    rule = await _get_rule_unchecked(db, cluster.rule_id)
     pivot_type = rule.pivot_type if rule else cluster.cluster_type
 
     nodes: list[dict[str, Any]] = [
@@ -757,23 +855,42 @@ async def get_cluster_graph(db: AsyncSession, cluster_id: str) -> dict[str, Any]
     }
 
 
-async def get_correlation_summary(db: AsyncSession) -> dict[str, Any]:
+async def get_correlation_summary(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """KPI summary for the /correlation page header strip."""
-    total_r = await db.execute(select(func.count(CorrelationCluster.id)))
+
+    def _c(q):
+        if tenant_id is not None:
+            return q.where(CorrelationCluster.tenant_id == tenant_id)
+        return q.where(CorrelationCluster.tenant_id.is_(None))
+
+    def _r(q):
+        # Global rules (NULL) always count; also include tenant-specific if set
+        if tenant_id is not None:
+            return q.where(or_(CorrelationRule.tenant_id.is_(None), CorrelationRule.tenant_id == tenant_id))
+        return q.where(CorrelationRule.tenant_id.is_(None))
+
+    def _s(q):
+        if tenant_id is not None:
+            return q.where(CorrelationSignal.tenant_id == tenant_id)
+        return q.where(CorrelationSignal.tenant_id.is_(None))
+
+    total_r = await db.execute(_c(select(func.count(CorrelationCluster.id))))
     active_r = await db.execute(
-        select(func.count(CorrelationCluster.id)).where(CorrelationCluster.status == "active")
+        _c(select(func.count(CorrelationCluster.id)).where(CorrelationCluster.status == "active"))
     )
     campaign_r = await db.execute(
-        select(func.count(CorrelationCluster.id)).where(CorrelationCluster.is_campaign.is_(True))
+        _c(select(func.count(CorrelationCluster.id)).where(CorrelationCluster.is_campaign.is_(True)))
     )
     critical_r = await db.execute(
-        select(func.count(CorrelationCluster.id))
-        .where(CorrelationCluster.status == "active")
-        .where(CorrelationCluster.severity == "critical")
+        _c(
+            select(func.count(CorrelationCluster.id))
+            .where(CorrelationCluster.status == "active")
+            .where(CorrelationCluster.severity == "critical")
+        )
     )
-    signal_r = await db.execute(select(func.count(CorrelationSignal.id)))
+    signal_r = await db.execute(_s(select(func.count(CorrelationSignal.id))))
     rules_r = await db.execute(
-        select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True))
+        _r(select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True)))
     )
 
     return {

@@ -9,6 +9,7 @@ class IoC(Base):
     __tablename__ = "iocs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     value: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
     ioc_type: Mapped[str] = mapped_column(String(50), nullable=False)   # hash_md5, hash_sha256, ip, domain, url, mutex, yara_rule
     threat_type: Mapped[str] = mapped_column(String(100), nullable=True) # ransomware, trojan, apt, c2, phishing

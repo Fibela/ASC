@@ -54,9 +54,9 @@ class LockRequest(BaseModel):
 async def user_iam_status(
     email: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    admin: User = Depends(get_current_admin),
 ):
-    data = await get_user_iam_status(email, db)
+    data = await get_user_iam_status(email, db, tenant_id=admin.tenant_id)
     if not data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     return data
@@ -72,7 +72,7 @@ async def lock_user(
     admin: User = Depends(get_current_admin),
 ):
     success, message = await lock_account(
-        email, db, performed_by=admin.email, minutes=payload.minutes
+        email, db, performed_by=admin.email, minutes=payload.minutes, tenant_id=admin.tenant_id
     )
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
@@ -85,7 +85,7 @@ async def unlock_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    success, message = await unlock_account(email, db, performed_by=admin.email)
+    success, message = await unlock_account(email, db, performed_by=admin.email, tenant_id=admin.tenant_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
     return {"message": message}
@@ -105,7 +105,7 @@ async def disable_user(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No puedes desactivar tu propia cuenta",
         )
-    success, message = await disable_account(email, db, performed_by=admin.email)
+    success, message = await disable_account(email, db, performed_by=admin.email, tenant_id=admin.tenant_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
     return {"message": message}
@@ -117,7 +117,7 @@ async def enable_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    success, message = await enable_account(email, db, performed_by=admin.email)
+    success, message = await enable_account(email, db, performed_by=admin.email, tenant_id=admin.tenant_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
     return {"message": message}
@@ -131,7 +131,7 @@ async def force_reset_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    success, message = await set_force_password_reset(email, db, performed_by=admin.email)
+    success, message = await set_force_password_reset(email, db, performed_by=admin.email, tenant_id=admin.tenant_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
     return {"message": message}
@@ -175,7 +175,9 @@ async def rotate_analyst_keys(
     Use this after a suspected key compromise or as part of a periodic rotation policy.
     """
     settings = get_settings()
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(
+        select(User).where(User.email == email, User.tenant_id == admin.tenant_id)
+    )
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
@@ -206,7 +208,7 @@ async def rotate_analyst_keys(
 async def verify_action_signatures(
     action_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_admin),
 ):
     """
     Cryptographically verify all approval signatures in an action's approvals_log.
@@ -218,7 +220,10 @@ async def verify_action_signatures(
     Returns a per-entry verification report plus an overall verdict.
     """
     result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.id == action_id)
+        select(NeutralizationAction).where(
+            NeutralizationAction.id == action_id,
+            NeutralizationAction.tenant_id == current_admin.tenant_id,
+        )
     )
     action = result.scalar_one_or_none()
     if not action:

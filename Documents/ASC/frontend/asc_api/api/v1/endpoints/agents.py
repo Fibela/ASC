@@ -1,4 +1,4 @@
-﻿"""
+"""
 SPECTER Agent REST API â€” P13 + P14 (Security Hardening).
 
 Endpoint map:
@@ -106,6 +106,7 @@ class AgentRegisterRequest(BaseModel):
     public_key: str        # Ed25519 raw public key, base64
     specter_version: str = "1.0.0"
     labels: dict[str, str] = Field(default_factory=dict)
+    tenant_id: str | None = None  # populated by the admin who generates the enrollment token
 
 
 class AgentOut(BaseModel):
@@ -180,8 +181,11 @@ async def _get_agent_by_header(
 
 # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async def _get_agent_or_404(agent_id: str, db: AsyncSession) -> Agent:
-    result = await db.execute(select(Agent).where(Agent.id == agent_id))
+async def _get_agent_or_404(agent_id: str, db: AsyncSession, tenant_id: str | None = None) -> Agent:
+    query = select(Agent).where(Agent.id == agent_id)
+    if tenant_id is not None:
+        query = query.where(Agent.tenant_id == tenant_id)
+    result = await db.execute(query)
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -262,11 +266,14 @@ async def register_agent(
         agent.specter_version = payload.specter_version
         agent.status = "active"
         agent.last_seen = datetime.now(timezone.utc)
+        if payload.tenant_id and not agent.tenant_id:
+            agent.tenant_id = payload.tenant_id
         await db.commit()
         await db.refresh(agent)
     else:
         agent = Agent(
             id=str(uuid.uuid4()),
+            tenant_id=payload.tenant_id,
             hostname=payload.hostname,
             os_type=payload.os_type,
             os_version=payload.os_version,
@@ -296,9 +303,14 @@ async def list_agents(
     threat_filter: str | None = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    q = select(Agent).order_by(Agent.last_seen.desc()).limit(limit)
+    q = (
+        select(Agent)
+        .where(Agent.tenant_id == current_user.tenant_id)
+        .order_by(Agent.last_seen.desc())
+        .limit(limit)
+    )
     if status_filter:
         q = q.where(Agent.status == status_filter)
     if threat_filter:
@@ -491,9 +503,14 @@ async def _honeypot_export(
 async def get_agent(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
     agent = await refresh_agent_status(db, agent)
     return AgentOut.from_orm(agent).model_dump()
 
@@ -504,7 +521,12 @@ async def deregister_agent(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
     await db.delete(agent)
     await db.commit()
     log_security_action(
@@ -640,7 +662,12 @@ async def issue_agent_command(
         )
 
     # Agent lookup first â€” 404 takes semantic priority over param errors
-    agent = await _get_agent_or_404(agent_id, db)
+    result = await db.execute(
+        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
+    )
+    agent = result.scalar_one_or_none()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
 
     # Filter: param schema validation
     param_errors = validate_command_params(payload.command_type, payload.params)
@@ -665,7 +692,10 @@ async def issue_agent_command(
             status_code=422,
             detail=f"Shell injection pattern detected in params: {flagged}",
         )
-    cmd = await issue_command(db, agent, payload.command_type, payload.params, str(current_user.id))
+    cmd = await issue_command(
+        db, agent, payload.command_type, payload.params, str(current_user.id),
+        tenant_id=current_user.tenant_id,
+    )
 
     log_security_action(
         "agent_command_issued",
@@ -689,7 +719,7 @@ async def set_threat_level(
     if payload.threat_level not in valid:
         raise HTTPException(status_code=400, detail=f"threat_level must be one of: {sorted(valid)}")
 
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     old_level = agent.threat_level
     agent.threat_level = payload.threat_level
     agent.poll_interval = compute_poll_interval(payload.threat_level)
@@ -716,9 +746,9 @@ async def agent_timeline(
     limit: int = 100,
     anomalies_only: bool = False,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     q = (
         select(AgentEvent)
         .where(AgentEvent.agent_id == agent_id)
@@ -756,7 +786,7 @@ async def agent_command_history(
     limit: int = 20,
     status_filter: str | None = None,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     """
     Returns the last N commands issued to this agent, including execution results.
@@ -771,7 +801,7 @@ async def agent_command_history(
       limit        â€” max commands to return (default 20, max 100)
       status_filterâ€” optional filter: pending|delivered|completed|failed
     """
-    agent = await _get_agent_or_404(agent_id, db)
+    agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
     q = (
         select(AgentCommand)
         .where(AgentCommand.agent_id == agent_id)

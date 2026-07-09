@@ -43,7 +43,7 @@ _s = get_settings()
 async def fleet_summary(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     """
     Returns:
@@ -52,8 +52,11 @@ async def fleet_summary(
     - Count of agents with elevated/critical threat
     """
     now = datetime.now(timezone.utc)
+    tid = current_user.tenant_id
 
-    rows = (await db.execute(select(Agent))).scalars().all()
+    rows = (await db.execute(
+        select(Agent).where(Agent.tenant_id == tid)
+    )).scalars().all()
 
     total = len(rows)
     by_status: dict[str, int] = {}
@@ -99,7 +102,7 @@ async def commands_metrics(
     request: Request,
     hours: int = Query(default=24, ge=1, le=168, description="Ventana de tiempo en horas"),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     """
     Returns command counts by status and latency stats (avg, min, max, p50 approx)
@@ -109,9 +112,13 @@ async def commands_metrics(
     from datetime import timedelta
 
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    tid = current_user.tenant_id
 
     result = await db.execute(
-        select(AgentCommand).where(AgentCommand.issued_at >= since)
+        select(AgentCommand).where(
+            AgentCommand.tenant_id == tid,
+            AgentCommand.issued_at >= since,
+        )
     )
     commands = result.scalars().all()
 
@@ -167,7 +174,7 @@ async def commands_inflight(
     request: Request,
     limit: int = Query(default=100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     """
     Returns commands currently in flight (status = pending, delivered, executing).
@@ -175,10 +182,14 @@ async def commands_inflight(
     Each entry includes agent_id, command_type, status, issued_by, age_seconds.
     """
     now = datetime.now(timezone.utc)
+    tid = current_user.tenant_id
 
     result = await db.execute(
         select(AgentCommand)
-        .where(AgentCommand.status.in_(["pending", "delivered", "executing"]))
+        .where(
+            AgentCommand.tenant_id == tid,
+            AgentCommand.status.in_(["pending", "delivered", "executing"]),
+        )
         .order_by(AgentCommand.issued_at.desc())
         .limit(limit)
     )
@@ -215,7 +226,7 @@ async def neutralizations_metrics(
     request: Request,
     hours: int = Query(default=24, ge=1, le=168),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     """
     Returns neutralization action counts by status and type for the given window.
@@ -224,9 +235,13 @@ async def neutralizations_metrics(
     from datetime import timedelta
 
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    tid = current_user.tenant_id
 
     result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.created_at >= since)
+        select(NeutralizationAction).where(
+            NeutralizationAction.tenant_id == tid,
+            NeutralizationAction.created_at >= since,
+        )
     )
     actions = result.scalars().all()
 
@@ -279,7 +294,7 @@ async def cross_domain_dashboard(
     request: Request,
     hours: int = Query(default=24, ge=1, le=168, description="Ventana de tiempo en horas"),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     """
     Unified cross-domain metrics aggregating all ASC intelligence pillars:
@@ -302,9 +317,12 @@ async def cross_domain_dashboard(
 
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=hours)
+    tid = current_user.tenant_id
 
     # ── Fleet ──────────────────────────────────────────────────────────────────
-    agents = (await db.execute(select(Agent))).scalars().all()
+    agents = (await db.execute(
+        select(Agent).where(Agent.tenant_id == tid)
+    )).scalars().all()
     fleet_total = len(agents)
     fleet_active = sum(1 for a in agents if a.status == "active")
     fleet_at_risk = sum(1 for a in agents if a.threat_level in ("elevated", "critical"))
@@ -314,7 +332,10 @@ async def cross_domain_dashboard(
             fleet_online_5m += 1
 
     cmd_result = await db.execute(
-        select(AgentCommand).where(AgentCommand.issued_at >= since)
+        select(AgentCommand).where(
+            AgentCommand.tenant_id == tid,
+            AgentCommand.issued_at >= since,
+        )
     )
     recent_cmds = list(cmd_result.scalars().all())
     cmd_completed = sum(1 for c in recent_cmds if c.status == "completed")
@@ -323,13 +344,16 @@ async def cross_domain_dashboard(
     cmd_success_rate = round(cmd_completed / cmd_terminal * 100, 1) if cmd_terminal else None
 
     # ── Threat Hunting ────────────────────────────────────────────────────────
-    hunts = (await db.execute(select(Hunt))).scalars().all()
+    hunts = (await db.execute(
+        select(Hunt).where(Hunt.tenant_id == tid)
+    )).scalars().all()
     active_hunts = [h for h in hunts if h.status == "active"]
     critical_hunts = [h for h in active_hunts if h.priority == "critical"]
 
     # High-severity unconfirmed findings across all active hunts
     findings_result = await db.execute(
         select(HuntFinding).where(
+            HuntFinding.tenant_id == tid,
             HuntFinding.hunt_id.in_([h.id for h in active_hunts]),
             HuntFinding.severity.in_(["critical", "high"]),
             HuntFinding.is_false_positive.is_(False),
@@ -345,7 +369,10 @@ async def cross_domain_dashboard(
 
     # ── PANL ──────────────────────────────────────────────────────────────────
     panl_result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.created_at >= since)
+        select(NeutralizationAction).where(
+            NeutralizationAction.tenant_id == tid,
+            NeutralizationAction.created_at >= since,
+        )
     )
     panl_actions = list(panl_result.scalars().all())
     panl_by_status: dict[str, int] = {}
@@ -358,7 +385,9 @@ async def cross_domain_dashboard(
     panl_approval_rate = round(panl_approved / panl_decided * 100, 1) if panl_decided else None
 
     # ── Threat Intelligence ───────────────────────────────────────────────────
-    ti_result = await db.execute(select(ThreatIntelIndicator))
+    ti_result = await db.execute(
+        select(ThreatIntelIndicator).where(ThreatIntelIndicator.tenant_id == tid)
+    )
     ti_all = list(ti_result.scalars().all())
     ti_by_severity: dict[str, int] = {}
     ti_by_type: dict[str, int] = {}
@@ -371,7 +400,10 @@ async def cross_domain_dashboard(
 
     # ── PCDI ─────────────────────────────────────────────────────────────────
     pcdi_result = await db.execute(
-        select(PCDISignedReport).order_by(PCDISignedReport.signed_at.desc()).limit(100)
+        select(PCDISignedReport)
+        .where(PCDISignedReport.tenant_id == tid)
+        .order_by(PCDISignedReport.signed_at.desc())
+        .limit(100)
     )
     signed_reports = list(pcdi_result.scalars().all())
     pcdi_high_score = [r for r in signed_reports if r.adaptive_score and r.adaptive_score >= 80]
@@ -387,12 +419,15 @@ async def cross_domain_dashboard(
     ])
 
     # ── SOAR + PIDS (P26) ─────────────────────────────────────────────────────
-    soar_trigger_result = await db.execute(select(PlaybookTrigger))
+    soar_trigger_result = await db.execute(
+        select(PlaybookTrigger).where(PlaybookTrigger.tenant_id == tid)
+    )
     soar_triggers = list(soar_trigger_result.scalars().all())
     soar_enabled = sum(1 for t in soar_triggers if t.enabled)
 
     soar_fired_result = await db.execute(
         select(PlaybookTrigger).where(
+            PlaybookTrigger.tenant_id == tid,
             PlaybookTrigger.last_triggered_at.isnot(None),
             PlaybookTrigger.last_triggered_at >= since,
         )
@@ -400,7 +435,10 @@ async def cross_domain_dashboard(
     soar_triggers_fired_24h = len(list(soar_fired_result.scalars().all()))
 
     pids_result = await db.execute(
-        select(IdentityAction).where(IdentityAction.executed_at >= since)
+        select(IdentityAction).where(
+            IdentityAction.tenant_id == tid,
+            IdentityAction.executed_at >= since,
+        )
     )
     pids_recent = list(pids_result.scalars().all())
     pids_successful = sum(1 for a in pids_recent if a.success)
@@ -467,14 +505,14 @@ async def cross_domain_dashboard(
                 round(pids_successful / len(pids_recent) * 100, 1) if pids_recent else None
             ),
         },
-        "correlation": await _correlation_summary_inline(db),
-        "incidents": await _incident_summary_inline(db),
+        "correlation": await _correlation_summary_inline(db, tid),
+        "incidents": await _incident_summary_inline(db, tid),
     }
 
 
-async def _correlation_summary_inline(db: AsyncSession) -> dict:
+async def _correlation_summary_inline(db: AsyncSession, tenant_id: str) -> dict:
     from asc_api.services.correlation_service import get_correlation_summary
-    summary = await get_correlation_summary(db)
+    summary = await get_correlation_summary(db, tenant_id=tenant_id)
     return {
         "active_clusters": summary["active_clusters"],
         "campaigns_detected": summary["campaigns_detected"],
@@ -483,9 +521,9 @@ async def _correlation_summary_inline(db: AsyncSession) -> dict:
     }
 
 
-async def _incident_summary_inline(db: AsyncSession) -> dict:
+async def _incident_summary_inline(db: AsyncSession, tenant_id: str) -> dict:
     from asc_api.services.incident_service import get_incident_summary
-    summary = await get_incident_summary(db)
+    summary = await get_incident_summary(db, tenant_id=tenant_id)
     return {
         "total": summary["total"],
         "open": summary["open"],

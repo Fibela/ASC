@@ -1,4 +1,4 @@
-﻿"""
+"""
 P42 â€” Webhook Support  (Toque Premos aplicado)
 ================================================
 Endpoints for registering, managing, and testing outbound webhooks.
@@ -137,8 +137,11 @@ class WebhookTestResult(BaseModel):
 
 # â”€â”€ DB helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-async def _get_webhook_or_404(webhook_id: str, db: AsyncSession) -> Webhook:
-    result = await db.execute(select(Webhook).where(Webhook.id == webhook_id))
+async def _get_webhook_or_404(webhook_id: str, db: AsyncSession, tenant_id: str | None = None) -> Webhook:
+    query = select(Webhook).where(Webhook.id == webhook_id)
+    if tenant_id is not None:
+        query = query.where(Webhook.tenant_id == tenant_id)
+    result = await db.execute(query)
     wh = result.scalar_one_or_none()
     if not wh:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhook no encontrado")
@@ -146,8 +149,9 @@ async def _get_webhook_or_404(webhook_id: str, db: AsyncSession) -> Webhook:
 
 
 def _assert_owner_or_admin(wh: Webhook, user: User) -> None:
-    if user.role != "admin" and wh.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
+    if user.role != "admin" or wh.tenant_id != user.tenant_id:
+        if wh.user_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No autorizado")
 
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -252,7 +256,7 @@ async def get_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single webhook by ID. Secret is not included."""
-    wh = await _get_webhook_or_404(webhook_id, db)
+    wh = await _get_webhook_or_404(webhook_id, db, tenant_id=current_user.tenant_id)
     _assert_owner_or_admin(wh, current_user)
     return wh
 
@@ -265,7 +269,7 @@ async def update_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """Update webhook URL, events list, active status, or description."""
-    wh = await _get_webhook_or_404(webhook_id, db)
+    wh = await _get_webhook_or_404(webhook_id, db, tenant_id=current_user.tenant_id)
     _assert_owner_or_admin(wh, current_user)
 
     if payload.url is not None:
@@ -289,7 +293,7 @@ async def delete_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """Permanently delete a webhook. Emits Ledger Premos entry."""
-    wh = await _get_webhook_or_404(webhook_id, db)
+    wh = await _get_webhook_or_404(webhook_id, db, tenant_id=current_user.tenant_id)
     _assert_owner_or_admin(wh, current_user)
     webhook_url = wh.url
 
@@ -318,7 +322,7 @@ async def test_webhook(
     Returns delivery result (status code, latency, success flag).
     The secret is used to sign the payload but never returned.
     """
-    wh = await _get_webhook_or_404(webhook_id, db)
+    wh = await _get_webhook_or_404(webhook_id, db, tenant_id=current_user.tenant_id)
     _assert_owner_or_admin(wh, current_user)
 
     test_payload = {

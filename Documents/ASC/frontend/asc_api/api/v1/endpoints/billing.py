@@ -19,6 +19,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select, func
@@ -69,6 +70,174 @@ class SnapshotResponse(BaseModel):
 
 class WebhookAckResponse(BaseModel):
     received: bool
+
+
+class PlanFeatures(BaseModel):
+    max_users: int | None
+    max_api_keys_per_user: int | None
+    data_retention_days: int | None = None
+    siem_integration: bool
+    threat_hunting: bool
+    executive_reports: bool
+    soar_playbooks: bool
+    correlation_engine: bool = False
+    artifact_analysis: bool = True
+    honeypot: bool = False
+    custom_adapters: bool = False
+    audit_log: bool = True
+    support: str
+    uptime_sla: str | None = None
+
+
+class PlanInfo(BaseModel):
+    id: str
+    name: str
+    price_usd: int | None       # None = contact sales
+    price_usd_annual: int | None = None
+    billing_period: str
+    highlight: bool = False
+    cta: str = "Comenzar"
+    tagline: str = ""
+    features: PlanFeatures
+    features_list: list[str] = []
+
+
+class PlansResponse(BaseModel):
+    plans: list[PlanInfo]
+
+
+class SubscriptionResponse(BaseModel):
+    plan: str
+    stripe_customer_id: str | None
+    stripe_subscription_id: str | None
+    is_active: bool
+
+
+class CheckoutRequest(BaseModel):
+    plan: str  # "pro" | "enterprise"
+
+
+class CheckoutResponse(BaseModel):
+    checkout_url: str
+
+
+class PortalResponse(BaseModel):
+    portal_url: str
+
+
+_PLANS: list[dict] = [
+    {
+        "id": "free",
+        "name": "Free",
+        "price_usd": 0,
+        "price_usd_annual": 0,
+        "billing_period": "month",
+        "highlight": False,
+        "cta": "Comenzar gratis",
+        "tagline": "Para equipos que empiezan en ciberseguridad",
+        "features": {
+            "max_users": 5,
+            "max_api_keys_per_user": 3,
+            "data_retention_days": 30,
+            "siem_integration": False,
+            "threat_hunting": False,
+            "executive_reports": False,
+            "soar_playbooks": False,
+            "correlation_engine": False,
+            "artifact_analysis": True,
+            "honeypot": False,
+            "custom_adapters": False,
+            "audit_log": True,
+            "support": "community",
+            "uptime_sla": None,
+        },
+        "features_list": [
+            "Monitoreo de eventos en tiempo real",
+            "Detección básica de alertas",
+            "Análisis de artefactos (5/mes)",
+            "Auditoría de acciones",
+            "Panel SOC unificado",
+            "5 usuarios · 3 API keys por usuario",
+            "30 días de retención de datos",
+            "Soporte comunidad",
+        ],
+    },
+    {
+        "id": "pro",
+        "name": "Pro",
+        "price_usd": 299,
+        "price_usd_annual": 239,
+        "billing_period": "month",
+        "highlight": True,
+        "cta": "Empezar con Pro",
+        "tagline": "El stack SOC completo para equipos de seguridad activos",
+        "features": {
+            "max_users": 50,
+            "max_api_keys_per_user": 20,
+            "data_retention_days": 90,
+            "siem_integration": True,
+            "threat_hunting": True,
+            "executive_reports": True,
+            "soar_playbooks": True,
+            "correlation_engine": True,
+            "artifact_analysis": True,
+            "honeypot": True,
+            "custom_adapters": False,
+            "audit_log": True,
+            "support": "email (24 h SLA)",
+            "uptime_sla": "99.5%",
+        },
+        "features_list": [
+            "Todo lo de Free",
+            "SIEM: CrowdStrike · Palo Alto · Fortinet",
+            "Motor de correlación de amenazas",
+            "Threat Hunting avanzado",
+            "Playbooks SOAR con Human-in-the-Loop",
+            "Reportes ejecutivos en PDF",
+            "Honeypots + detección de intrusión",
+            "50 usuarios · 20 API keys por usuario",
+            "90 días de retención de datos",
+            "SLA 99.5% uptime · soporte email 24h",
+        ],
+    },
+    {
+        "id": "enterprise",
+        "name": "Enterprise",
+        "price_usd": None,
+        "price_usd_annual": None,
+        "billing_period": "month",
+        "highlight": False,
+        "cta": "Hablar con ventas",
+        "tagline": "Para organizaciones con requisitos de seguridad críticos",
+        "features": {
+            "max_users": None,
+            "max_api_keys_per_user": None,
+            "data_retention_days": 365,
+            "siem_integration": True,
+            "threat_hunting": True,
+            "executive_reports": True,
+            "soar_playbooks": True,
+            "correlation_engine": True,
+            "artifact_analysis": True,
+            "honeypot": True,
+            "custom_adapters": True,
+            "audit_log": True,
+            "support": "24/7 dedicated",
+            "uptime_sla": "99.9%",
+        },
+        "features_list": [
+            "Todo lo de Pro",
+            "Integraciones personalizadas (adaptadores custom)",
+            "Analista de seguridad dedicado",
+            "Soporte 24/7 — teléfono + Slack privado",
+            "Usuarios y API keys ilimitados",
+            "1 año de retención + archivo frío",
+            "SLA 99.9% uptime garantizado por contrato",
+            "Reportes de compliance (SOC 2, ISO 27001)",
+            "Opción de despliegue on-premise",
+        ],
+    },
+]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,6 +327,10 @@ def _verify_stripe_signature(payload_bytes: bytes, sig_header: str, secret: str)
         expected = parts["v1"]
     except (KeyError, IndexError, ValueError):
         return False
+
+    import time as _time  # noqa: PLC0415
+    if abs(_time.time() - int(timestamp)) > 300:
+        return False  # replay attack guard — Stripe requires ±5 min tolerance
 
     signed_payload = f"{timestamp}.".encode() + payload_bytes
     mac = hmac.new(secret.encode(), signed_payload, hashlib.sha256)
@@ -268,6 +441,141 @@ async def _provision_stripe_customer(
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+@router.get("/plans", response_model=PlansResponse)
+async def list_plans():
+    """Return available ASC subscription plans. No authentication required."""
+    return PlansResponse(plans=[PlanInfo(**p) for p in _PLANS])
+
+
+@router.get("/subscription", response_model=SubscriptionResponse)
+async def get_subscription(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the current tenant's active plan and Stripe subscription status."""
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant no encontrado")
+    return SubscriptionResponse(
+        plan=tenant.plan,
+        stripe_customer_id=tenant.stripe_customer_id,
+        stripe_subscription_id=tenant.stripe_subscription_id,
+        is_active=tenant.is_active,
+    )
+
+
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_checkout_session(
+    body: CheckoutRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a Stripe Checkout session for the requested plan.
+
+    Returns a redirect URL — the frontend should redirect the user there.
+    Stripe calls POST /billing/stripe/webhook on completion to provision the plan.
+    """
+    if not _settings.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe billing no está configurado")
+
+    price_id_map = {
+        "pro": _settings.STRIPE_PRICE_PRO,
+        "enterprise": _settings.STRIPE_PRICE_ENTERPRISE,
+    }
+    price_id = price_id_map.get(body.plan, "")
+    if not price_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plan '{body.plan}' no disponible para self-serve checkout. Contacta ventas.",
+        )
+
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+
+    payload: dict = {
+        "mode": "subscription",
+        "line_items[0][price]": price_id,
+        "line_items[0][quantity]": "1",
+        "success_url": _settings.STRIPE_SUCCESS_URL,
+        "cancel_url": _settings.STRIPE_CANCEL_URL,
+        "metadata[tenant_id]": str(current_user.tenant_id),
+        "metadata[user_id]": str(current_user.id),
+    }
+    # Pre-fill email / link to existing Stripe customer if available
+    if tenant and tenant.stripe_customer_id:
+        payload["customer"] = tenant.stripe_customer_id
+    else:
+        payload["customer_email"] = current_user.email
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.stripe.com/v1/checkout/sessions",
+                auth=(_settings.STRIPE_SECRET_KEY, ""),
+                data=payload,
+            )
+        if resp.status_code != 200:
+            log_security_action(
+                "stripe.checkout_error",
+                user_id=str(current_user.id),
+                extra={"status": resp.status_code, "body": resp.text[:500]},
+            )
+            raise HTTPException(status_code=502, detail="Error al crear sesión de pago con Stripe")
+        session = resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Stripe: {exc}")
+
+    log_security_action(
+        "stripe.checkout_created",
+        user_id=str(current_user.id),
+        extra={"plan": body.plan, "session_id": session.get("id", "")},
+    )
+    return CheckoutResponse(checkout_url=session["url"])
+
+
+@router.post("/portal", response_model=PortalResponse)
+async def create_portal_session(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a Stripe Customer Portal session for the current tenant.
+
+    The portal lets customers manage their subscription, update payment info, and cancel.
+    Requires the tenant to have a stripe_customer_id (i.e. they've paid at least once).
+    """
+    if not _settings.STRIPE_SECRET_KEY:
+        raise HTTPException(status_code=503, detail="Stripe billing no está configurado")
+
+    result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant or not tenant.stripe_customer_id:
+        raise HTTPException(
+            status_code=400,
+            detail="No existe una suscripción activa asociada a este tenant",
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                "https://api.stripe.com/v1/billing_portal/sessions",
+                auth=(_settings.STRIPE_SECRET_KEY, ""),
+                data={
+                    "customer": tenant.stripe_customer_id,
+                    "return_url": _settings.STRIPE_SUCCESS_URL,
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Error al abrir portal de Stripe")
+        portal = resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"No se pudo conectar con Stripe: {exc}")
+
+    return PortalResponse(portal_url=portal["url"])
+
+
 @router.get("/usage", response_model=UsageSummaryResponse)
 async def get_my_usage(
     current_user: User = Depends(get_current_user),
@@ -340,8 +648,6 @@ async def take_snapshot(
     Counts current active resources and upserts UsageRecord rows for the current
     billing period. Idempotent — safe to call multiple times per period.
     """
-    admin_result = await db.execute(select(User).where(User.id == _.__class__))  # type: ignore[attr-defined]
-    # Re-fetch admin from dependency via the passed user object
     admin_user: User = _
     tenant_id = admin_user.tenant_id
     if not tenant_id:
@@ -393,7 +699,14 @@ async def stripe_webhook(
     """
     payload_bytes = await request.body()
 
-    # Signature validation (skipped in dev when secret is empty)
+    # Require HMAC validation when Stripe is active (STRIPE_SECRET_KEY set).
+    # Skipped only in pure dev mode where neither key is configured.
+    stripe_active = bool(_settings.STRIPE_SECRET_KEY)
+    if stripe_active and not _settings.STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe webhook endpoint not configured (missing STRIPE_WEBHOOK_SECRET)",
+        )
     if _settings.STRIPE_WEBHOOK_SECRET:
         if not stripe_signature:
             raise HTTPException(
@@ -494,7 +807,7 @@ async def stripe_webhook(
                 else:
                     tenant.stripe_subscription_id = stripe_sub_id
                     if new_status == "active":
-                        tenant.plan = "pro"
+                        tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
                 await db.commit()
 
     return WebhookAckResponse(received=True)

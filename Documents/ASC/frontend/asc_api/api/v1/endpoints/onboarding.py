@@ -23,7 +23,7 @@ import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from asc_api.api.deps import get_current_user
 from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.tenant import Tenant
 from asc_api.models.user import User
@@ -55,19 +56,41 @@ def _make_verification_token() -> tuple[str, str, datetime]:
     return raw, hashed, expires
 
 
-def _send_verification_email(email: str, raw_token: str) -> None:
-    """
-    Stub email sender for P53. In production: replace with SES / SendGrid call.
-
-    The verification URL would be:
-        https://app.premoscorp.com/verify-email?token={raw_token}
-    """
-    # Avoid logging the raw token in audit records; just note it was sent.
+async def _send_verification_email(email: str, raw_token: str) -> None:
+    """Send email verification link via Resend if API key is configured; log only otherwise."""
+    verify_url = f"https://asc.premoscorp.com/verify-email?token={raw_token}"
     log_security_action(
         "email_verification_sent",
         user_id=None,
         extra={"email": email, "token_prefix": raw_token[:8] + "…"},
     )
+    api_key = _settings.RESEND_API_KEY
+    if not api_key:
+        return  # dev/test: verification link is in server logs only
+
+    try:
+        import httpx  # noqa: PLC0415 — optional dep, only imported when Resend is configured
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": _settings.RESEND_FROM_EMAIL,
+                    "to": [email],
+                    "subject": "Verifica tu email — ASC PremosCorp",
+                    "html": (
+                        f"<p>Haz clic en el siguiente enlace para verificar tu cuenta:</p>"
+                        f"<p><a href='{verify_url}'>{verify_url}</a></p>"
+                        f"<p>Este enlace expira en {_settings.EMAIL_VERIFICATION_EXPIRE_HOURS} horas.</p>"
+                    ),
+                },
+            )
+    except Exception:  # nosec B110 — email delivery failure is non-fatal; user can request resend
+        log_security_action(
+            "email_verification_send_failed",
+            user_id=None,
+            extra={"email": email},
+        )
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -117,7 +140,9 @@ class CompleteOnboardingResponse(BaseModel):
     response_model=RegisterResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit(_settings.RATE_LIMIT_REGISTER)
 async def register(
+    request: Request,
     payload: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ):
@@ -180,7 +205,7 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    _send_verification_email(payload.email, raw_token)
+    await _send_verification_email(payload.email, raw_token)
 
     log_security_action(
         "tenant.registered",

@@ -1,9 +1,9 @@
-﻿"""
+"""
 Alerts endpoint â€” P21-F2: rate limiting added.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, case
 from datetime import datetime, timezone
 
 from asc_api.db.session import get_db
@@ -36,7 +36,13 @@ async def list_alerts(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    q = select(Alert).order_by(desc(Alert.detected_at)).offset(offset).limit(limit)
+    q = (
+        select(Alert)
+        .where(Alert.tenant_id == current_user.tenant_id)
+        .order_by(desc(Alert.detected_at))
+        .offset(offset)
+        .limit(limit)
+    )
     if severity:
         q = q.where(Alert.severity == severity)
     if status:
@@ -53,11 +59,17 @@ async def alert_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    total = (await db.execute(select(func.count()).select_from(Alert))).scalar()
-    open_count = (await db.execute(select(func.count()).select_from(Alert).where(Alert.status == "open"))).scalar()
-    critical = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "critical"))).scalar()
-    high = (await db.execute(select(func.count()).select_from(Alert).where(Alert.severity == "high"))).scalar()
-    fp = (await db.execute(select(func.count()).select_from(Alert).where(Alert.false_positive == True))).scalar()
+    tid = current_user.tenant_id
+    row = (await db.execute(
+        select(
+            func.count().label("total"),
+            func.count(case((Alert.status == "open", 1))).label("open_count"),
+            func.count(case((Alert.severity == "critical", 1))).label("critical"),
+            func.count(case((Alert.severity == "high", 1))).label("high"),
+            func.count(case((Alert.false_positive == True, 1))).label("fp"),  # noqa: E712
+        ).where(Alert.tenant_id == tid)
+    )).one()
+    total, open_count, critical, high, fp = row
     fp_rate = round(fp / total, 4) if total else 0.0
 
     return {
@@ -78,7 +90,9 @@ async def get_alert(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    result = await db.execute(
+        select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id)
+    )
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -94,7 +108,9 @@ async def update_alert(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    result = await db.execute(
+        select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id)
+    )
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")

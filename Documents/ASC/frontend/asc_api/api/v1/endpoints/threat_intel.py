@@ -1,4 +1,4 @@
-﻿"""
+"""
 PremosCorp Threat Intelligence API â€” P21-F1
 
 Endpoints

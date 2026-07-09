@@ -152,55 +152,58 @@ async def get_incident_timeline(db: AsyncSession, incident_id: str) -> list[Inci
     return list(result.scalars().all())
 
 
-async def get_incident_summary(db: AsyncSession) -> dict[str, Any]:
+async def get_incident_summary(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """KPI dashboard stats: counts by status/severity, SLA breach count, avg MTTD/MTTR."""
     now = _utcnow()
 
+    def _scope(q):
+        return q.where(Incident.tenant_id == tenant_id) if tenant_id else q
+
     # Total count
-    total_r = await db.execute(select(func.count()).select_from(Incident))
+    total_r = await db.execute(_scope(select(func.count()).select_from(Incident)))
     total = total_r.scalar_one()
 
     # By status
     status_r = await db.execute(
-        select(Incident.status, func.count()).group_by(Incident.status)
+        _scope(select(Incident.status, func.count()).group_by(Incident.status))
     )
     by_status: dict[str, int] = {row[0]: row[1] for row in status_r.all()}
 
     # By severity
     sev_r = await db.execute(
-        select(Incident.severity, func.count()).group_by(Incident.severity)
+        _scope(select(Incident.severity, func.count()).group_by(Incident.severity))
     )
     by_severity: dict[str, int] = {row[0]: row[1] for row in sev_r.all()}
 
     # SLA breach count
     breach_r = await db.execute(
-        select(func.count()).select_from(Incident).where(Incident.sla_breach.is_(True))
+        _scope(select(func.count()).select_from(Incident).where(Incident.sla_breach.is_(True)))
     )
     sla_breach_count = breach_r.scalar_one()
 
     # Average MTTD (minutes) — incidents that have triaged_at
     mttd_r = await db.execute(
-        select(func.avg(Incident.mttd_minutes)).where(Incident.mttd_minutes.isnot(None))
+        _scope(select(func.avg(Incident.mttd_minutes)).where(Incident.mttd_minutes.isnot(None)))
     )
     avg_mttd = mttd_r.scalar_one()
 
     # Average MTTR (minutes) — closed incidents
     mttr_r = await db.execute(
-        select(func.avg(Incident.mttr_minutes)).where(Incident.mttr_minutes.isnot(None))
+        _scope(select(func.avg(Incident.mttr_minutes)).where(Incident.mttr_minutes.isnot(None)))
     )
     avg_mttr = mttr_r.scalar_one()
 
     # Average MTTC (minutes)
     mttc_r = await db.execute(
-        select(func.avg(Incident.mttc_minutes)).where(Incident.mttc_minutes.isnot(None))
+        _scope(select(func.avg(Incident.mttc_minutes)).where(Incident.mttc_minutes.isnot(None)))
     )
     avg_mttc = mttc_r.scalar_one()
 
     # Open campaigns (incidents with cluster links that are not closed/dismissed)
     open_r = await db.execute(
-        select(func.count()).select_from(Incident).where(
+        _scope(select(func.count()).select_from(Incident).where(
             Incident.status.not_in(["closed", "dismissed"])
-        )
+        ))
     )
     open_count = open_r.scalar_one()
 

@@ -45,6 +45,7 @@ async def issue_command(
     command_type: str,
     params: dict[str, Any],
     issued_by: str,
+    tenant_id: str | None = None,
 ) -> AgentCommand:
     """
     Create a signed AgentCommand and persist it.
@@ -70,6 +71,7 @@ async def issue_command(
 
     cmd = AgentCommand(
         id=cmd_id,
+        tenant_id=tenant_id or agent.tenant_id,
         agent_id=agent.id,
         command_type=command_type,
         params=params,

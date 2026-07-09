@@ -35,7 +35,8 @@ from datetime import datetime, timezone
 import logging
 import jwt as pyjwt
 from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from asc_api.core.rate_limit import limiter
 
 _log = logging.getLogger(__name__)
 from pydantic import BaseModel, Field
@@ -43,6 +44,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.config import get_settings
+_sso_settings = get_settings()
 from asc_api.core.security import create_access_token, get_password_hash
 from asc_api.db.session import get_db
 from asc_api.models.tenant import Tenant
@@ -267,7 +269,9 @@ async def _find_or_create_user(
     response_model=SSOResponse,
     summary="SSO Exchange — Supabase JWT → ASC JWT",
 )
+@limiter.limit(_sso_settings.RATE_LIMIT_LOGIN)
 async def supabase_sso(
+    request: Request,
     body: SSORequest,
     db: AsyncSession = Depends(get_db),
 ) -> SSOResponse:

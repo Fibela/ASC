@@ -9,6 +9,7 @@ class NeutralizationAction(Base):
     __tablename__ = "neutralization_actions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     alert_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     severity: Mapped[str] = mapped_column(String(20), default="medium")
