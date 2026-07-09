@@ -6174,3 +6174,74 @@ Construir el catálogo de productos de PremosCorp con principios de calidad de v
 | Commits | `95bf7d4` (master) | `8d66732` (CorporacionPremos) |
 | Push | ✅ origin/master | ✅ origin/CorporacionPremos |
 
+---
+
+## Session 93 — 2026-07-09 (Diagnóstico Deployment + Fixes Críticos)
+
+### Objetivo
+
+Post-mortem de la caída de `asc.premoscorp.com`. Diagnóstico completo, corrección de bugs bloqueantes y definición de arquitectura de re-despliegue.
+
+### Diagnóstico — Estado de Producción
+
+| Sistema | Estado | Causa |
+|---------|--------|-------|
+| `premoscorp.com` (sc-system) | ✅ LIVE | Vercel sc-system READY. 0 errores runtime en 24h |
+| `asc.premoscorp.com` | ❌ DOWN | Proyectos Vercel `asc-mono` + `backend` eliminados. DNS apunta a Vercel pero sin proyecto destino. Vercel sirve 404 genérico |
+| ASCPortal.jsx SSO | ❌ ERROR | `fetch(VITE_ASC_API_URL + "/api/v1/auth/supabase-sso")` falla → código `asc_unreachable` visible al usuario |
+| `POST /api/stalker/monitor-email` | ⚠ 503 | `HIBP_API_KEY` no configurado en Vercel sc-system production env vars. 1 incidente registrado a las 05:59:55 en dpl_66aW6zh8jr8aUUjvCkb7Ju4GCqEC |
+
+### Causa Raíz — ASC Caído
+
+1. **Proyectos Vercel eliminados**: `asc-mono` (prj_ZqNGLUkpH44cPOGvzllnwifhmsQz) y `backend` (prj_kKYcnnhuDVquG1gpTKkAIe3P77gP) no existen. Vercel API retorna 404 para ambos. Solo `sc-system` (prj_l2SKDeesPe9MF0rduoCDoH8FTS4t) sigue activo.
+2. **Arquitectura mono inviable**: el diseño original (Next.js + FastAPI en un mismo proyecto Vercel vía `api/index.py` + adaptador Mangum) nunca fue completado — `frontend/api/index.py` no existe. Además es incompatible con las dependencias pesadas del backend (YARA, python-magic) y `--workers 4` que no aplica en Lambda serverless.
+3. **Dockerfile CMD obsoleto**: `CMD ["uvicorn", "app.main:app", ...]` referenciaba el módulo fantasma `app/` eliminado en Session 7 (commit `e0a3567`).
+
+### Fixes Aplicados
+
+| # | Archivo | Fix | Commit |
+|---|---------|-----|--------|
+| S93-1 | `backend/Dockerfile` | `app.main:app` → `asc_api.main:app` en CMD. El módulo `app/` fue eliminado en S7 pero Dockerfile nunca se actualizó. | ver abajo |
+| S93-2 | `frontend/vercel.json` | Eliminado build Python mono (`api/index.py`, `@vercel/python`, rutas `/health` y `/api/*`). CSP actualizado: añadido `https://*.railway.app` para nueva arquitectura. Solo queda: framework nextjs + headers seguridad + regions. | ver abajo |
+
+### Decisión de Arquitectura — Re-despliegue
+
+**Elegido: Vercel (frontend) + Railway (backend)**
+
+| Componente | Plataforma | Razón |
+|------------|-----------|-------|
+| Next.js frontend | Vercel (nuevo proyecto) | Natural para Next.js, CI/CD desde GitHub, dominio custom `asc.premoscorp.com` |
+| FastAPI backend | Railway (Docker) | Proceso persistente con `--workers 4`, dependencias pesadas (YARA, python-magic), Dockerfile ya disponible y corregido |
+
+**Descartado: Vercel mono** — `api/index.py` no existe, 50MB Lambda ajustado, `--workers 4` incompatible con serverless.
+
+### Plan de Acción Pendiente (requiere acción manual)
+
+| # | Acción | Responsable |
+|---|--------|-------------|
+| P1 | Agregar `HIBP_API_KEY` en Vercel sc-system → Settings → Env Vars → Redeploy | Usuario |
+| P2 | Railway: nuevo proyecto → Deploy desde GitHub → `backend/` → configurar env vars | Usuario |
+| P3 | Vercel: nuevo proyecto → Import ASC → root `frontend/` → `NEXT_PUBLIC_API_URL`=Railway URL → deploy | Usuario |
+| P4 | Vercel sc-system: actualizar `VITE_ASC_API_URL`=Railway URL, `VITE_ASC_APP_URL`=https://asc.premoscorp.com → Redeploy | Usuario |
+| P5 | Vercel nuevo proyecto ASC: Settings → Domains → agregar `asc.premoscorp.com` | Usuario |
+
+### Variables de Entorno Railway (backend)
+
+| Variable | Fuente |
+|----------|--------|
+| `DATABASE_URL` | Supabase pooler: `postgresql+asyncpg://postgres.kqxwtayzqujlddviskwl:...@aws-1-us-east-1.pooler.supabase.com:6543/postgres` |
+| `SECRET_KEY` | `backend/.env` |
+| `SPECTER_ENROLLMENT_SECRET` | `backend/.env` |
+| `CORS_ORIGINS` | `https://asc.premoscorp.com,https://premoscorp.com` |
+| `RESEND_API_KEY` | `backend/.env` |
+| `SPECTER_STRICT_SIGNATURE_MODE` | `true` |
+
+### Resultado
+
+| Métrica | Valor |
+|---------|-------|
+| Issues identificados | 4 (1 crítico, 2 altos, 1 acción manual) |
+| Fixes en código | 2 (Dockerfile CMD, vercel.json) |
+| Pendiente de acción manual | 2 (HIBP_API_KEY, re-despliegue Railway+Vercel) |
+| Tests (sin cambios) | 4759 ASC / 4698 sc-system — sin regresiones |
+
