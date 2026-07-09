@@ -2465,3 +2465,66 @@ export async function verifyExecutiveReport(reportId: string): Promise<VerifyRep
 export async function deleteExecutiveReport(reportId: string): Promise<void> {
   await api.delete(`/reports/executive/${reportId}`)
 }
+
+// ── Billing / Plans ──────────────────────────────────────────────────────────
+
+export interface PlanFeatures {
+  max_users: number | null
+  max_api_keys_per_user: number | null
+  data_retention_days: number | null
+  siem_integration: boolean
+  threat_hunting: boolean
+  executive_reports: boolean
+  soar_playbooks: boolean
+  correlation_engine: boolean
+  artifact_analysis: boolean
+  honeypot: boolean
+  custom_adapters: boolean
+  audit_log: boolean
+  support: string
+  uptime_sla: string | null
+}
+
+export interface BillingPlan {
+  id: string
+  name: string
+  price_usd: number | null
+  price_usd_annual: number | null
+  billing_period: string
+  highlight: boolean
+  cta: string
+  tagline: string
+  features: PlanFeatures
+  features_list: string[]
+}
+
+export interface PlansResponse {
+  plans: BillingPlan[]
+}
+
+export async function getBillingPlans(): Promise<PlansResponse> {
+  const { data } = await api.get<PlansResponse>('/billing/plans')
+  return data
+}
+
+export interface SubscriptionStatus {
+  plan: string
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  is_active: boolean
+}
+
+export async function getBillingSubscription(): Promise<SubscriptionStatus> {
+  const { data } = await api.get<SubscriptionStatus>('/billing/subscription')
+  return data
+}
+
+export async function createCheckoutSession(plan: 'pro' | 'enterprise'): Promise<{ checkout_url: string }> {
+  const { data } = await api.post<{ checkout_url: string }>('/billing/checkout', { plan })
+  return data
+}
+
+export async function createPortalSession(): Promise<{ portal_url: string }> {
+  const { data } = await api.post<{ portal_url: string }>('/billing/portal')
+  return data
+}

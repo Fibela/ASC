@@ -8,7 +8,7 @@ import {
   Zap, BookOpen, ClipboardList, Globe, Crosshair, Radar, GitBranch,
   Bot, Flame, ShieldCheck, Network, Lock, ScrollText,
   BarChart3, FileText, Webhook, KeyRound, Gauge, Server,
-  Users, LogOut, User, ChevronLeft, ChevronRight,
+  Users, LogOut, User, ChevronLeft, ChevronRight, CreditCard,
 } from 'lucide-react'
 import { logout, getRole } from '@/lib/auth'
 
@@ -73,6 +73,7 @@ const NAV_GROUPS = [
       { href: '/api-keys',   label: 'API Keys',       icon: KeyRound },
       { href: '/rate-limits',label: 'Rate Limits',    icon: Gauge },
       { href: '/status',     label: 'Estado Sistema', icon: Server },
+      { href: '/pricing',    label: 'Planes & Precios', icon: CreditCard },
     ],
   },
   {

@@ -75,19 +75,31 @@ class WebhookAckResponse(BaseModel):
 class PlanFeatures(BaseModel):
     max_users: int | None
     max_api_keys_per_user: int | None
+    data_retention_days: int | None = None
     siem_integration: bool
     threat_hunting: bool
     executive_reports: bool
     soar_playbooks: bool
+    correlation_engine: bool = False
+    artifact_analysis: bool = True
+    honeypot: bool = False
+    custom_adapters: bool = False
+    audit_log: bool = True
     support: str
+    uptime_sla: str | None = None
 
 
 class PlanInfo(BaseModel):
     id: str
     name: str
-    price_usd: int | None  # None = contact sales
+    price_usd: int | None       # None = contact sales
+    price_usd_annual: int | None = None
     billing_period: str
+    highlight: bool = False
+    cta: str = "Comenzar"
+    tagline: str = ""
     features: PlanFeatures
+    features_list: list[str] = []
 
 
 class PlansResponse(BaseModel):
@@ -118,46 +130,112 @@ _PLANS: list[dict] = [
         "id": "free",
         "name": "Free",
         "price_usd": 0,
+        "price_usd_annual": 0,
         "billing_period": "month",
+        "highlight": False,
+        "cta": "Comenzar gratis",
+        "tagline": "Para equipos que empiezan en ciberseguridad",
         "features": {
             "max_users": 5,
             "max_api_keys_per_user": 3,
+            "data_retention_days": 30,
             "siem_integration": False,
             "threat_hunting": False,
             "executive_reports": False,
             "soar_playbooks": False,
+            "correlation_engine": False,
+            "artifact_analysis": True,
+            "honeypot": False,
+            "custom_adapters": False,
+            "audit_log": True,
             "support": "community",
+            "uptime_sla": None,
         },
+        "features_list": [
+            "Monitoreo de eventos en tiempo real",
+            "Detección básica de alertas",
+            "Análisis de artefactos (5/mes)",
+            "Auditoría de acciones",
+            "Panel SOC unificado",
+            "5 usuarios · 3 API keys por usuario",
+            "30 días de retención de datos",
+            "Soporte comunidad",
+        ],
     },
     {
         "id": "pro",
         "name": "Pro",
         "price_usd": 299,
+        "price_usd_annual": 239,
         "billing_period": "month",
+        "highlight": True,
+        "cta": "Empezar con Pro",
+        "tagline": "El stack SOC completo para equipos de seguridad activos",
         "features": {
             "max_users": 50,
             "max_api_keys_per_user": 20,
+            "data_retention_days": 90,
             "siem_integration": True,
             "threat_hunting": True,
             "executive_reports": True,
             "soar_playbooks": True,
+            "correlation_engine": True,
+            "artifact_analysis": True,
+            "honeypot": True,
+            "custom_adapters": False,
+            "audit_log": True,
             "support": "email (24 h SLA)",
+            "uptime_sla": "99.5%",
         },
+        "features_list": [
+            "Todo lo de Free",
+            "SIEM: CrowdStrike · Palo Alto · Fortinet",
+            "Motor de correlación de amenazas",
+            "Threat Hunting avanzado",
+            "Playbooks SOAR con Human-in-the-Loop",
+            "Reportes ejecutivos en PDF",
+            "Honeypots + detección de intrusión",
+            "50 usuarios · 20 API keys por usuario",
+            "90 días de retención de datos",
+            "SLA 99.5% uptime · soporte email 24h",
+        ],
     },
     {
         "id": "enterprise",
         "name": "Enterprise",
         "price_usd": None,
+        "price_usd_annual": None,
         "billing_period": "month",
+        "highlight": False,
+        "cta": "Hablar con ventas",
+        "tagline": "Para organizaciones con requisitos de seguridad críticos",
         "features": {
             "max_users": None,
             "max_api_keys_per_user": None,
+            "data_retention_days": 365,
             "siem_integration": True,
             "threat_hunting": True,
             "executive_reports": True,
             "soar_playbooks": True,
+            "correlation_engine": True,
+            "artifact_analysis": True,
+            "honeypot": True,
+            "custom_adapters": True,
+            "audit_log": True,
             "support": "24/7 dedicated",
+            "uptime_sla": "99.9%",
         },
+        "features_list": [
+            "Todo lo de Pro",
+            "Integraciones personalizadas (adaptadores custom)",
+            "Analista de seguridad dedicado",
+            "Soporte 24/7 — teléfono + Slack privado",
+            "Usuarios y API keys ilimitados",
+            "1 año de retención + archivo frío",
+            "SLA 99.9% uptime garantizado por contrato",
+            "Reportes de compliance (SOC 2, ISO 27001)",
+            "Opción de despliegue on-premise",
+        ],
     },
 ]
 
