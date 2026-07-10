@@ -15,7 +15,7 @@ Prometheus scrape config example:
       bearer_token: <METRICS_SCRAPE_TOKEN>
       metrics_path: /api/v1/observability/metrics
       static_configs:
-        - targets: ['asc-backend.onrender.com']
+        - targets: ['asc.premoscorp.com']
 """
 import time
 from datetime import datetime, timezone, timedelta
