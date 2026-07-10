@@ -1,6 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
 
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.12",
+      "maxDuration": 30,
+      "maxLambdaSize": "50mb"
+    }
+  },
+
   "rewrites": [
     { "source": "/health",     "destination": "/api/index" },
     { "source": "/api/:path*", "destination": "/api/index" }
