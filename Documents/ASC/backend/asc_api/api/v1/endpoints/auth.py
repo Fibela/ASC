@@ -92,17 +92,19 @@ def _token_response(user: User) -> dict:
 
 def _user_dict(user: User) -> dict:
     return {
-        "id":                   user.id,
-        "email":                user.email,
-        "full_name":            user.full_name,
-        "role":                 user.role,
-        "is_active":            user.is_active,
-        "is_locked":            user.is_locked,
-        "locked_until":         user.locked_until.isoformat() if user.locked_until else None,
+        "id":                    user.id,
+        "email":                 user.email,
+        "full_name":             user.full_name,
+        "role":                  user.role,
+        "is_active":             user.is_active,
+        "is_locked":             user.is_locked,
+        "locked_until":          user.locked_until.isoformat() if user.locked_until else None,
         "failed_login_attempts": user.failed_login_attempts,
-        "force_password_reset": user.force_password_reset,
-        "last_login":           user.last_login.isoformat() if user.last_login else None,
-        "created_at":           user.created_at.isoformat() if user.created_at else None,
+        "force_password_reset":  user.force_password_reset,
+        "last_login":            user.last_login.isoformat() if user.last_login else None,
+        "created_at":            user.created_at.isoformat() if user.created_at else None,
+        "onboarding_step":       getattr(user, "onboarding_step", "completed"),
+        "tenant_id":             user.tenant_id,
     }
 
 
@@ -234,9 +236,12 @@ async def create_user(
 @router.get("/users", summary="Admin: listar todos los usuarios")
 async def list_users(
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(select(User).order_by(User.created_at))
+    stmt = select(User).order_by(User.created_at)
+    if admin.tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == admin.tenant_id)
+    result = await db.execute(stmt)
     users = result.scalars().all()
     return [_user_dict(u) for u in users]
 
@@ -248,15 +253,33 @@ async def update_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(get_current_admin),
 ):
-    result = await db.execute(select(User).where(User.id == user_id))
+    stmt = select(User).where(User.id == user_id)
+    if admin.tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == admin.tenant_id)
+    result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
 
     if payload.role is not None:
         if payload.role not in VALID_ROLES:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Rol inválido: {payload.role}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Rol inválido: {payload.role}. Permitidos: admin, analyst, viewer",
+            )
+        if user.id == admin.id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No puedes cambiar tu propio rol.",
+            )
+        old_role = user.role
         user.role = payload.role
+        log_iam_event(
+            "role_changed",
+            performed_by=admin.email,
+            target_user=user.email,
+            detail=f"{old_role} → {payload.role}",
+        )
 
     if payload.full_name is not None:
         user.full_name = payload.full_name

@@ -251,7 +251,9 @@ async def _find_or_create_user(
         role="analyst",
         is_active=True,
         email_verified=True,
-        onboarding_step="completed",
+        # sso_welcome triggers the first-time wizard on the frontend.
+        # POST /onboarding/sso-complete advances to "completed" once the wizard is done.
+        onboarding_step="sso_welcome",
         supabase_uid=supabase_uid,
         tenant_id=tenant_id,
         created_at=now,

@@ -5,12 +5,12 @@ import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { AuthLoader } from '@/components/AuthLoader'
 import {
-  listAdminUsers, unlockAdminUser, AdminUser,
+  listAdminUsers, unlockAdminUser, updateAdminUser, AdminUser,
   listApiKeys, createApiKey, revokeApiKey, rotateApiKey, APIKeyResponse, APIKeyCreated,
 } from '@/lib/api'
 import {
   Users, Unlock, RefreshCw, ShieldAlert, CheckCircle2, XCircle, Clock, Lock,
-  Key, Plus, Trash2, RotateCcw, Copy, AlertTriangle,
+  Key, Plus, Trash2, RotateCcw, Copy, AlertTriangle, ChevronDown,
 } from 'lucide-react'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -50,6 +50,58 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
+const ROLE_OPTIONS = ['admin', 'analyst', 'viewer'] as const
+type Role = typeof ROLE_OPTIONS[number]
+
+function RoleSelect({
+  user,
+  currentUserId,
+  onRoleChange,
+  changing,
+}: {
+  user: AdminUser
+  currentUserId: string | null
+  onRoleChange: (user: AdminUser, newRole: string) => void
+  changing: string | null
+}) {
+  const isSelf = user.id === currentUserId
+  const cls: Record<string, string> = {
+    admin:   'bg-purple-400/10 text-purple-300 border-purple-700',
+    analyst: 'bg-blue-400/10 text-blue-300 border-blue-700',
+    viewer:  'bg-gray-700 text-gray-400 border-gray-600',
+  }
+  const base = cls[user.role] ?? cls.viewer
+  const isChanging = changing === user.id
+
+  if (isSelf) {
+    return (
+      <span className={`px-1.5 py-0.5 rounded text-xs border ${base}`} title="No puedes cambiar tu propio rol">
+        {user.role}
+      </span>
+    )
+  }
+
+  return (
+    <div className="relative inline-block">
+      <select
+        value={user.role}
+        onChange={e => {
+          const newRole = e.target.value
+          if (newRole !== user.role) onRoleChange(user, newRole)
+        }}
+        disabled={isChanging}
+        className={`appearance-none pl-1.5 pr-5 py-0.5 rounded text-xs border cursor-pointer transition-colors hover:opacity-80 disabled:opacity-40 ${base}`}
+        title="Cambiar rol"
+      >
+        {ROLE_OPTIONS.map(r => (
+          <option key={r} value={r} className="bg-navy-800 text-gray-200">{r}</option>
+        ))}
+      </select>
+      <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+    </div>
+  )
+}
+
 function LockedBadge({ user }: { user: AdminUser }) {
   if (!user.is_locked) {
     return <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle2 size={12} /> Activo</span>
@@ -69,9 +121,22 @@ function UsersTab({ showToast }: { showToast: (msg: string, ok: boolean) => void
   const [users, setUsers]     = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [unlocking, setUnlocking] = useState<string | null>(null)
+  const [elevating, setElevating] = useState<string | null>(null)
   const [error, setError]     = useState<string | null>(null)
   const [search, setSearch]   = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Derive current user id from the stored JWT so we can disable self-role-change
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('asc_token') ?? sessionStorage.getItem('asc_token') ?? ''
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        setCurrentUserId(payload.sub ?? null)
+      }
+    } catch { /* token not available or malformed — self-guard skipped */ }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -81,6 +146,18 @@ function UsersTab({ showToast }: { showToast: (msg: string, ok: boolean) => void
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  async function handleRoleChange(user: AdminUser, newRole: string) {
+    if (!confirm(`¿Cambiar rol de ${user.email} de "${user.role}" a "${newRole}"?`)) return
+    setElevating(user.id)
+    try {
+      const updated = await updateAdminUser(user.id, { role: newRole })
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: updated.role } : u))
+      showToast(`Rol de ${user.email} cambiado a ${newRole}`, true)
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : 'Error al cambiar rol', false)
+    } finally { setElevating(null) }
+  }
 
   async function handleUnlock(user: AdminUser) {
     setUnlocking(user.id)
@@ -180,7 +257,14 @@ function UsersTab({ showToast }: { showToast: (msg: string, ok: boolean) => void
                   className={`border-b border-navy-700/50 hover:bg-navy-700/30 transition-colors ${user.is_locked ? 'bg-red-950/10' : ''}`}>
                   <td className="px-4 py-2 text-gray-200 max-w-[180px] truncate" title={user.email}>{user.email}</td>
                   <td className="px-4 py-2 text-gray-400">{user.full_name ?? <span className="text-gray-600">—</span>}</td>
-                  <td className="px-4 py-2"><RoleBadge role={user.role} /></td>
+                  <td className="px-4 py-2">
+                    <RoleSelect
+                      user={user}
+                      currentUserId={currentUserId}
+                      onRoleChange={handleRoleChange}
+                      changing={elevating}
+                    />
+                  </td>
                   <td className="px-4 py-2"><LockedBadge user={user} /></td>
                   <td className="px-4 py-2 text-center">
                     <span className={`font-semibold ${user.failed_login_attempts >= 4 ? 'text-red-400' : user.failed_login_attempts >= 2 ? 'text-yellow-400' : 'text-gray-400'}`}>

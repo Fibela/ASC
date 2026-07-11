@@ -28,13 +28,28 @@ function SSOHandler() {
     // to premoscorp.com/portal/seguridad for transparent re-auth on expiry
     markSSOSession('premoscorp')
 
-    // Wire axios header so the first API call after redirect is authenticated
-    import('@/lib/api').then(({ api }) => {
+    async function finalize() {
+      // Wire axios header so the first API call after redirect is authenticated
+      const { api } = await import('@/lib/api')
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    })
 
-    // Replace removes the token from browser history (no back-nav exposure)
-    router.replace('/')
+      // Check onboarding step — new SSO users land on sso_welcome and need the wizard
+      try {
+        const { getMe } = await import('@/lib/auth')
+        const me = await getMe()
+        if (me?.onboarding_step === 'sso_welcome') {
+          router.replace('/onboarding')
+          return
+        }
+      } catch {
+        // getMe failed (malformed token, network) — continue to dashboard
+      }
+
+      // Replace removes the token from browser history (no back-nav exposure)
+      router.replace('/')
+    }
+
+    finalize()
   }, [router, params])
 
   return (

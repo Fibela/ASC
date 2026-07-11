@@ -1,20 +1,22 @@
 """
-P53 — Onboarding Flow (self-service tenant registration + email verification).
+P53 + FASE2.3 — Onboarding Flow.
 
 Endpoints:
   POST /onboarding/register          — create tenant + admin user, send verification email
   POST /onboarding/verify-email      — validate token, mark email_verified=True
   GET  /onboarding/status            — return current onboarding_step for the authed user
   POST /onboarding/complete          — advance step from pending_setup → completed
+  POST /onboarding/sso-complete      — SSO users: optionally rename tenant, advance sso_welcome → completed
 
 Onboarding wizard steps:
-  pending_email   → pending_setup → completed
+  Native:  pending_email → pending_setup → completed
+  SSO:     sso_welcome → completed  (via /onboarding/sso-complete)
 
 Security:
   - Raw verification token never stored in DB; only SHA-256(token) is persisted.
   - Token expires after EMAIL_VERIFICATION_EXPIRE_HOURS (default 24 h).
   - /verify-email is public (no auth) — user only has the token, not a JWT yet.
-  - /status and /complete require a valid JWT (authenticated user).
+  - /status, /complete, and /sso-complete require a valid JWT (authenticated user).
 """
 
 from __future__ import annotations
@@ -325,4 +327,78 @@ async def complete_onboarding(
     return CompleteOnboardingResponse(
         onboarding_step="completed",
         message="Onboarding completado exitosamente.",
+    )
+
+
+# ── FASE 2.3 — SSO Onboarding wizard completion ───────────────────────────────
+
+class SSOCompleteRequest(BaseModel):
+    tenant_name: str | None = Field(None, min_length=2, max_length=255)
+
+
+class SSOCompleteResponse(BaseModel):
+    onboarding_step: str
+    tenant_name: str | None
+    message: str
+
+
+@router.post("/sso-complete", response_model=SSOCompleteResponse)
+async def sso_complete_onboarding(
+    payload: SSOCompleteRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Advance an SSO-provisioned user from onboarding_step='sso_welcome' to 'completed'.
+
+    Optionally renames the auto-generated tenant ('{slug} (SSO)') to a human-readable name.
+    Safe to call on already-completed users (idempotent).
+
+    Called by the first-time wizard on the frontend after an SSO user
+    configures their workspace.
+    """
+    step = getattr(current_user, "onboarding_step", "completed")
+
+    tenant_name_out: str | None = None
+
+    # Update tenant name if provided (and user has a tenant)
+    if payload.tenant_name and current_user.tenant_id:
+        tenant_result = await db.execute(
+            select(Tenant).where(Tenant.id == current_user.tenant_id)
+        )
+        tenant = tenant_result.scalar_one_or_none()
+        if tenant:
+            tenant.name = payload.tenant_name
+            tenant_name_out = payload.tenant_name
+
+    if step == "completed":
+        await db.commit()
+        return SSOCompleteResponse(
+            onboarding_step="completed",
+            tenant_name=tenant_name_out,
+            message="Configuración guardada.",
+        )
+
+    if step not in ("sso_welcome", "pending_setup"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "invalid_onboarding_step",
+                "message": f"Este endpoint es solo para usuarios SSO (paso actual: {step}).",
+            },
+        )
+
+    current_user.onboarding_step = "completed"
+    await db.commit()
+
+    log_security_action(
+        "onboarding.sso_completed",
+        user_id=current_user.id,
+        extra={"tenant_id": current_user.tenant_id, "tenant_name": tenant_name_out},
+    )
+
+    return SSOCompleteResponse(
+        onboarding_step="completed",
+        tenant_name=tenant_name_out,
+        message="¡Bienvenido a ASC! Tu workspace está listo.",
     )

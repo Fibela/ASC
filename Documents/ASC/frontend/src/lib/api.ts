@@ -41,6 +41,21 @@ export async function updateAdminUser(
   return data
 }
 
+// --- Onboarding (P53 + FASE 2.3) ---
+
+export interface SSOCompleteResponse {
+  onboarding_step: string
+  tenant_name: string | null
+  message: string
+}
+
+export async function ssoCompleteOnboarding(
+  tenantName?: string
+): Promise<SSOCompleteResponse> {
+  const { data } = await api.post('/onboarding/sso-complete', { tenant_name: tenantName ?? null })
+  return data
+}
+
 // --- API Keys (P40) ---
 
 export interface APIKeyResponse {

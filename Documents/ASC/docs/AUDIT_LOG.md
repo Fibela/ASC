@@ -6368,3 +6368,84 @@ cd backend && alembic upgrade head
 | Alembic duplicado | Eliminado (frontend/migrations/ + frontend/alembic.ini) |
 | Commits | pendiente (FASE 1.8) |
 
+
+---
+
+## Sesión 95 — FASE 2: Role Elevation, SSO Onboarding, Integration Tests
+
+**Fecha:** 2026-07-11  
+**Rama:** master  
+**Módulos afectados:** auth.py, auth_sso.py, onboarding.py, lib/api.ts, admin/page.tsx, sso/page.tsx
+
+---
+
+### Cambios implementados
+
+| # | Tipo | Descripción |
+|---|------|-------------|
+| F2.1-BE | Fix + Feature | `PATCH /auth/users/{user_id}`: audit log para cambios de rol, aislamiento de tenant (`tenant_id` filter), guard anti-auto-degradación |
+| F2.1-TS | Tests | `test_role_elevation.py`: 18 tests — auth, validación, audit log, tenant isolation, roundtrip |
+| F2.2-FE | Feature | `admin/page.tsx`: `RoleSelect` dropdown inline — cambio de rol con confirm dialog |
+| F2.3-BE | Feature | `auth_sso.py`: nuevos usuarios SSO reciben `onboarding_step="sso_welcome"` (antes: "completed") |
+| F2.3-BE | Feature | `onboarding.py`: nuevo endpoint `POST /onboarding/sso-complete` — avanza wizard SSO → completed, permite renombrar tenant |
+| F2.3-BE | Fix | `auth.py` `_user_dict`: ahora expone `onboarding_step` y `tenant_id` en `/auth/me` y `/auth/users` |
+| F2.3-FE | Feature | `sso/page.tsx`: post-login llama `/auth/me` y redirige a `/onboarding` si `onboarding_step=="sso_welcome"` |
+| F2.3-FE | Feature | `src/app/onboarding/page.tsx`: wizard 3-step (welcome → configure → done), nombre del workspace, animación Premos |
+| F2.3-FE | Feature | `lib/api.ts`: función `ssoCompleteOnboarding()` |
+| F2.3-TS | Tests | `test_sso_onboarding.py`: 15 tests — provisioning, sso-complete, idempotencia, tenant rename, /auth/me fields |
+| F2.4-TS | Tests | `test_incident_endpoints_integration.py`: 20 tests integración real (sin AsyncMock) — auth, CRUD, transitions, links, summary |
+
+---
+
+### Seguridad — Cambios y auditoría
+
+| Vector | Antes | Ahora |
+|--------|-------|-------|
+| Cambio de rol | Sin audit log | `log_iam_event("role_changed", ...)` con `old_role → new_role` en detail |
+| Aislamiento de tenant | `list_users`/`update_user` sin filtro | Filtran por `admin.tenant_id` cuando no es None |
+| Auto-degradación | Permitido | Bloqueado con 422 ("No puedes cambiar tu propio rol") |
+| SSO nuevos usuarios | `onboarding_step="completed"` inmediato | `onboarding_step="sso_welcome"` → wizard obligatorio |
+| `/auth/me` campos | Sin `onboarding_step`, sin `tenant_id` | Expone ambos campos para decisiones de UI |
+
+---
+
+### Tests totales FASE 2
+
+| Archivo | Tests | Backend real DB |
+|---------|-------|----------------|
+| `test_role_elevation.py` | 18 | ✓ |
+| `test_sso_onboarding.py` | 15 | ✓ |
+| `test_incident_endpoints_integration.py` | 20 | ✓ |
+| **Subtotal FASE 2** | **53** | |
+| test_billing_catalog.py (FASE 1) | 52 | ✓ |
+| test_detection.py suites nuevas (FASE 1) | 10 | ✓ |
+| **Total acumulado** | **155 passing** | |
+
+---
+
+### Pendientes usuario (no bloqueantes)
+
+| ID | Tarea | Prioridad |
+|----|-------|-----------|
+| U1 | Rotar `RESEND_API_KEY` en Resend dashboard → actualizar en Vercel | ALTA |
+| U2 | Rotar password `DATABASE_URL` en Supabase → actualizar en Vercel | ALTA |
+| U3 | Rotar `SUPABASE_SERVICE_ROLE_KEY` si fue expuesto | MEDIA |
+| U5 | Migrar `test_p26.py` (PIDS, 80 tests AsyncMock) a real DB | BAJA |
+| U6 | Migrar `test_p27.py` (Correlation, 90 tests AsyncMock) a real DB | BAJA |
+
+---
+
+### Archivos modificados (sincronizados frontend/ ↔ backend/)
+
+```
+frontend/asc_api/api/v1/endpoints/auth.py        — fixes: audit log, tenant iso, self-demotion guard, _user_dict fields
+frontend/asc_api/api/v1/endpoints/auth_sso.py   — new SSO users get onboarding_step="sso_welcome"
+frontend/asc_api/api/v1/endpoints/onboarding.py — POST /onboarding/sso-complete (new)
+frontend/src/lib/api.ts                          — ssoCompleteOnboarding() (new)
+frontend/src/app/admin/page.tsx                  — RoleSelect dropdown + handlers
+frontend/src/app/sso/page.tsx                    — onboarding redirect check
+frontend/src/app/onboarding/page.tsx             — wizard SSO (new)
+backend/tests/test_role_elevation.py             — 18 tests (new)
+backend/tests/test_sso_onboarding.py             — 15 tests (new)
+backend/tests/test_incident_endpoints_integration.py — 20 tests (new)
+```
