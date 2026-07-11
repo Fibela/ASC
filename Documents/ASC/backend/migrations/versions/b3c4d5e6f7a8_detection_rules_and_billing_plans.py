@@ -12,7 +12,7 @@ These tables are append-only catalogs; existing rows are never deleted by
 application code — only deactivated via is_active=False so audit trails remain.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import sqlalchemy as sa
 from alembic import op
@@ -22,7 +22,10 @@ down_revision = "z6t89u7x1s14"
 branch_labels = None
 depends_on = None
 
-_NOW = datetime(2026, 7, 10, 0, 0, 0, tzinfo=timezone.utc)
+# Naive UTC — asyncpg bulk_insert requires naive datetimes when the sa.column()
+# type is sa.DateTime (without timezone=True).  The DB column is TIMESTAMPTZ so
+# PostgreSQL will store this correctly as UTC.
+_NOW = datetime(2026, 7, 10, 0, 0, 0)
 
 
 def upgrade() -> None:
