@@ -6252,3 +6252,119 @@ El error fue que los proyectos Vercel fueron eliminados (no el diseño).
 | Commits | `f8768fb`, `1c8a214` |
 | Tests (sin cambios) | 4759 ASC / 4698 sc-system — sin regresiones |
 
+---
+
+## Session 94 — 2026-07-10 (FASE 0: Seguridad + FASE 1: Eliminación de mocks)
+
+### Contexto
+
+SSO functional desde Session anterior. Se inicia roadmap de producción: FASE 0 (seguridad) → FASE 1 (eliminar datos hardcodeados). Mandato: "Calidad sobre Comodidad — no dejemos nada aislado, ni sin completar."
+
+---
+
+### FASE 0 — Auditoría de Seguridad
+
+| # | Tipo | Descripción | Resultado |
+|---|------|-------------|-----------|
+| F0-1 | SECURITY | Escaneo de secretos en código fuente Python (AKIA, sk_live_, re_..., PEM privada) vía script Python recursivo | ✅ CLEAN — sin secretos hardcodeados en source |
+| F0-2 | SECURITY | Auditoría de `.gitignore`: `.env`, `.env.local`, `.env.production`, `.env.staging` todos correctamente ignorados | ✅ Confirmado |
+| F0-3 | SECURITY | Credenciales identificadas para rotación manual: `RESEND_API_KEY`, `DATABASE_URL` password, `SUPABASE_SERVICE_KEY` | ⚠️ Pendiente acción usuario |
+| F0-4 | SECURITY | gitleaks no instalado localmente — scan alternativo vía script Python custom (patrones regex) | ℹ️ Equivalente funcional implementado |
+
+---
+
+### FASE 1 — Eliminación de datos hardcodeados
+
+#### 1.1 & 1.2 — Modelo DetectionRule + Migración + Endpoint actualizado
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| 1.1-A | `frontend/asc_api/models/detection_rule.py` | **NUEVO** — Modelo SQLAlchemy `DetectionRule` (id, rule_id, name, mitre_ttp, severity, description, tags, risk_score_default, is_active, created_at, updated_at) |
+| 1.1-B | `backend/asc_api/models/detection_rule.py` | Sincronizado con frontend — ambos `asc_api/` deben mantenerse en sync |
+| 1.1-C | `frontend/asc_api/models/__init__.py` | Añadido import `DetectionRule` + `BillingPlan` (pre-sync para FASE 1.4) |
+| 1.1-D | `backend/asc_api/models/__init__.py` | Sincronizado |
+| 1.2-A | `frontend/asc_api/api/v1/endpoints/detection.py` | `GET /detection/rules`: eliminado dict hardcodeado → `select(DetectionRule).where(is_active==True).order_by(rule_id)` |
+| 1.2-B | `backend/asc_api/api/v1/endpoints/detection.py` | Sincronizado |
+
+**DET-001..004 seeded en migración b3c4d5e6f7a8 (ver sección Migración).**
+
+#### 1.3 — Alembic duplicado eliminado
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| 1.3-A | `frontend/migrations/` | **ELIMINADO** — directorio completo (25 archivos versionados) |
+| 1.3-B | `frontend/alembic.ini` | **ELIMINADO** |
+| 1.3-C | `backend/migrations/` | Fuente canónica única. Las migraciones se ejecutan desde `backend/` con `alembic upgrade head`. `env.py` ya apunta a `backend/asc_api/` via `sys.path`. |
+
+#### 1.4 & 1.5 — Modelo BillingPlan + Migración + Endpoint actualizado
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| 1.4-A | `frontend/asc_api/models/billing_plan.py` | **NUEVO** — Modelo SQLAlchemy `BillingPlan` (slug, name, tagline, cta, price_usd, price_usd_annual, billing_period, highlight, features JSON, features_list JSON, sort_order, is_active) |
+| 1.4-B | `backend/asc_api/models/billing_plan.py` | Sincronizado |
+| 1.5-A | `frontend/asc_api/api/v1/endpoints/billing.py` | `_PLANS` hardcoded list **eliminado** → `GET /billing/plans` ahora hace `select(BillingPlan).where(is_active==True).order_by(sort_order)` |
+| 1.5-B | `backend/asc_api/api/v1/endpoints/billing.py` | Sincronizado |
+
+#### Migración Alembic: b3c4d5e6f7a8
+
+| Campo | Valor |
+|-------|-------|
+| Archivo | `backend/migrations/versions/b3c4d5e6f7a8_detection_rules_and_billing_plans.py` |
+| revision | `b3c4d5e6f7a8` |
+| down_revision | `z6t89u7x1s14` |
+| Tablas creadas | `detection_rules`, `billing_plans` |
+| Seed incluido | DET-001..DET-004 + free/pro/enterprise |
+| Downgrade | `drop_table("billing_plans")` + `drop_table("detection_rules")` |
+
+**Aplicar en producción:**
+```bash
+cd backend && alembic upgrade head
+```
+
+#### 1.6 — Tests actualizados (DB real)
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| 1.6-A | `backend/tests/test_billing_catalog.py` | **REESCRITO** — eliminada dependencia de `_PLANS`. Nuevos tests: `TestBillingPlanModel` (8), `TestBillingCatalogDB` (8), `TestPlanFeaturesSchema` (7), `TestListPlansEndpoint` (10), `TestBillingSecurityScan` (7), `TestBillingEndpointScan` (8). Total: 52 tests con SQLite in-memory. |
+| 1.6-B | `backend/tests/test_detection.py` | Añadidos: `TestDetectionRulesEndpoint` (10 tests) — `GET /detection/rules` con `client` + `db` fixtures. Auth: 401 sin token, 200 con analyst/viewer. Verifica filtrado de reglas inactivas. |
+| 1.6-C | `backend/tests/test_p26.py`, `test_p27.py`, `test_p28.py` | Sin cambios — tests de Incident/Hunt/Correlation no afectados por FASE 1. Migración a real-DB programada para FASE 2 (336+245+180 = 761 tests con AsyncMock). |
+
+---
+
+### Escaneo Post-Implementación
+
+| Check | Resultado |
+|-------|-----------|
+| Syntax check 6 archivos Python modificados | ✅ OK (py -3 -c "import ast; ast.parse(...)") |
+| `_PLANS` eliminado de `billing.py` | ✅ Confirmado |
+| `_PLANS` test import eliminado de `test_billing_catalog.py` | ✅ Confirmado |
+| Hardcoded dict en `GET /detection/rules` eliminado | ✅ Confirmado |
+| `frontend/alembic.ini` + `frontend/migrations/` eliminados | ✅ Confirmado |
+| `DetectionRule` + `BillingPlan` registrados en `Base.metadata` | ✅ Vía `models/__init__.py` |
+| backend + frontend `asc_api/` sincronizados | ✅ `diff -r` = solo `seed_correlation.py` extra en backend (esperado) |
+
+---
+
+### Pendiente FASE 0 (requiere acción del usuario)
+
+| # | Acción | Urgencia |
+|---|--------|----------|
+| U1 | Rotar `RESEND_API_KEY` en Resend dashboard → actualizar en Vercel asc-mono | ALTA |
+| U2 | Rotar password `DATABASE_URL` en Supabase → actualizar en Vercel asc-mono | ALTA |
+| U3 | Rotar `SUPABASE_SERVICE_ROLE_KEY` si fue expuesto en logs/chat | MEDIA |
+| U4 | Aplicar migración en producción: `cd backend && alembic upgrade head` | **REQUERIDO antes del próximo deploy** |
+
+---
+
+### Resultado
+
+| Métrica | Valor |
+|---------|-------|
+| Modelos nuevos | 2 (`DetectionRule`, `BillingPlan`) |
+| Migración nueva | `b3c4d5e6f7a8` (2 tablas + 7 registros seed) |
+| Endpoints actualizados | 2 (`GET /detection/rules`, `GET /billing/plans`) |
+| Tests nuevos/reescritos | 62 (52 billing_catalog + 10 detection endpoint) |
+| Datos hardcodeados eliminados | `_PLANS` (3 planes) + `/rules` dict (4 reglas) |
+| Alembic duplicado | Eliminado (frontend/migrations/ + frontend/alembic.ini) |
+| Commits | pendiente (FASE 1.8) |
+

@@ -3,8 +3,13 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from typing import Literal
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from asc_api.api.deps import get_current_user, get_analyst_or_admin
+from asc_api.db.session import get_db
 from asc_api.models.user import User
+from asc_api.models.detection_rule import DetectionRule
 from asc_api.services.detection import evaluate_event, evaluate_bulk, DetectionResult
 from asc_api.services.fingerprint import analyze_environmental_keying
 from asc_api.core.logging import get_logger
@@ -168,38 +173,26 @@ async def fingerprint_artifact(
     summary="Listar las reglas de detección activas",
     dependencies=[Depends(get_current_user)],
 )
-async def list_rules():
-    """Return metadata for all active detection rules."""
+async def list_rules(db: AsyncSession = Depends(get_db)):
+    """Return metadata for all active detection rules sourced from the DB."""
+    result = await db.execute(
+        select(DetectionRule)
+        .where(DetectionRule.is_active == True)  # noqa: E712
+        .order_by(DetectionRule.rule_id)
+    )
+    rules = result.scalars().all()
     return {
         "rules": [
             {
-                "rule_id":    "DET-001",
-                "name":       "Suspicious acord32.exe Execution",
-                "mitre_ttp":  "T1036.005",
-                "severity":   "critical/high",
-                "description": "acord32.exe ejecutado con parámetros ocultos (/s, /o, /q, /silent, /noui)",
-            },
-            {
-                "rule_id":    "DET-002",
-                "name":       "Windows Hook API Detected",
-                "mitre_ttp":  "T1056.001",
-                "severity":   "critical/medium",
-                "description": "Uso de SetWindowsHookExW/A o FindWindowW/A — keylogger o inyección UI",
-            },
-            {
-                "rule_id":    "DET-003",
-                "name":       "Registry Persistence Mechanism",
-                "mitre_ttp":  "T1547.001",
-                "severity":   "high",
-                "description": "Escritura/eliminación en claves Run del registro para persistencia",
-            },
-            {
-                "rule_id":    "DET-004",
-                "name":       "Deferred Network Traffic",
-                "mitre_ttp":  "T1071.001",
-                "severity":   "critical/high",
-                "description": "Conexión de red detectada >2h tras análisis inicial — beacon C2 diferido",
-            },
+                "rule_id":          r.rule_id,
+                "name":             r.name,
+                "mitre_ttp":        r.mitre_ttp,
+                "severity":         r.severity,
+                "description":      r.description,
+                "tags":             r.tags,
+                "risk_score":       r.risk_score_default,
+            }
+            for r in rules
         ],
         "fingerprint_checks": [
             "hostname_pattern", "domain_check", "registry_pattern",

@@ -1,11 +1,14 @@
 """
-Unit tests — Detection Engine (services/detection.py)
-
-Covers each rule individually + the master evaluate_event / evaluate_bulk
-functions. No DB required — pure service layer tests.
+Detection tests — covers:
+  - services/detection.py (pure unit, no DB)
+  - GET /detection/rules endpoint (DB-backed via conftest fixtures)
 """
-import pytest
+import uuid
 from datetime import datetime, timezone, timedelta
+
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.services.detection import (
     check_suspicious_process,
@@ -345,3 +348,112 @@ class TestEvaluateBulk:
         results = evaluate_bulk(events)
         rule_ids = {r.rule_id for r in results}
         assert rule_ids == {"DET-001", "DET-002"}
+
+
+# ─── GET /detection/rules — real DB endpoint tests ───────────────────────────
+
+from asc_api.models.detection_rule import DetectionRule
+
+
+def _make_rule(rule_id: str, **kwargs) -> DetectionRule:
+    now = datetime.now(timezone.utc)
+    defaults = {
+        "DET-001": dict(name="Suspicious acord32.exe Execution", mitre_ttp="T1036.005", severity="critical/high"),
+        "DET-002": dict(name="Windows Hook API Detected", mitre_ttp="T1056.001", severity="critical/medium"),
+        "DET-003": dict(name="Registry Persistence Mechanism", mitre_ttp="T1547.001", severity="high"),
+        "DET-004": dict(name="Deferred Network Traffic", mitre_ttp="T1071.001", severity="critical/high"),
+    }
+    d = defaults.get(rule_id, {}).copy()
+    d.update(kwargs)
+    return DetectionRule(
+        id=str(uuid.uuid4()),
+        rule_id=rule_id,
+        name=d.get("name", f"Rule {rule_id}"),
+        mitre_ttp=d.get("mitre_ttp", "T0000"),
+        severity=d.get("severity", "medium"),
+        description=d.get("description", f"Test description for {rule_id}"),
+        tags=d.get("tags", []),
+        risk_score_default=d.get("risk_score_default", 0.5),
+        is_active=d.get("is_active", True),
+        created_at=now,
+        updated_at=now,
+    )
+
+
+@pytest_asyncio.fixture
+async def seeded_rules(db: AsyncSession):
+    """Seed canonical DET-001..004 into the test DB."""
+    rules = [_make_rule(r) for r in ("DET-001", "DET-002", "DET-003", "DET-004")]
+    for r in rules:
+        db.add(r)
+    await db.commit()
+    return rules
+
+
+class TestDetectionRulesEndpoint:
+    @pytest.mark.asyncio
+    async def test_unauthenticated_returns_401(self, client, seeded_rules):
+        resp = await client.get("/api/v1/detection/rules")
+        assert resp.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_analyst_gets_200(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_returns_four_active_rules(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        data = resp.json()
+        assert "rules" in data
+        assert len(data["rules"]) == 4
+
+    @pytest.mark.asyncio
+    async def test_rules_ordered_by_rule_id(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        ids = [r["rule_id"] for r in resp.json()["rules"]]
+        assert ids == sorted(ids)
+
+    @pytest.mark.asyncio
+    async def test_rule_has_required_fields(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        rule = resp.json()["rules"][0]
+        for field in ("rule_id", "name", "mitre_ttp", "severity", "description", "tags", "risk_score"):
+            assert field in rule, f"Missing field: {field}"
+
+    @pytest.mark.asyncio
+    async def test_det001_mitre_ttp(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        det001 = next(r for r in resp.json()["rules"] if r["rule_id"] == "DET-001")
+        assert det001["mitre_ttp"] == "T1036.005"
+
+    @pytest.mark.asyncio
+    async def test_inactive_rule_excluded(self, client, db: AsyncSession, analyst_headers):
+        # Add active + inactive rules
+        active = _make_rule("DET-001", is_active=True)
+        inactive = _make_rule("DET-002", is_active=False)
+        db.add(active)
+        db.add(inactive)
+        await db.commit()
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        ids = [r["rule_id"] for r in resp.json()["rules"]]
+        assert "DET-001" in ids
+        assert "DET-002" not in ids
+
+    @pytest.mark.asyncio
+    async def test_empty_db_returns_empty_list(self, client, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        assert resp.status_code == 200
+        assert resp.json()["rules"] == []
+
+    @pytest.mark.asyncio
+    async def test_fingerprint_checks_present(self, client, seeded_rules, analyst_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=analyst_headers)
+        data = resp.json()
+        assert "fingerprint_checks" in data
+        assert len(data["fingerprint_checks"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_viewer_gets_200(self, client, seeded_rules, viewer_headers):
+        resp = await client.get("/api/v1/detection/rules", headers=viewer_headers)
+        assert resp.status_code == 200

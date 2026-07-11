@@ -33,6 +33,7 @@ from asc_api.core.security import get_password_hash
 from asc_api.db.session import get_db
 from asc_api.models.alert import Alert
 from asc_api.models.api_key import APIKey
+from asc_api.models.billing_plan import BillingPlan
 from asc_api.models.incident import Incident
 from asc_api.models.tenant import Tenant
 from asc_api.models.usage_record import UsageRecord
@@ -125,119 +126,6 @@ class PortalResponse(BaseModel):
     portal_url: str
 
 
-_PLANS: list[dict] = [
-    {
-        "id": "free",
-        "name": "Free",
-        "price_usd": 0,
-        "price_usd_annual": 0,
-        "billing_period": "month",
-        "highlight": False,
-        "cta": "Comenzar gratis",
-        "tagline": "Para equipos que empiezan en ciberseguridad",
-        "features": {
-            "max_users": 5,
-            "max_api_keys_per_user": 3,
-            "data_retention_days": 30,
-            "siem_integration": False,
-            "threat_hunting": False,
-            "executive_reports": False,
-            "soar_playbooks": False,
-            "correlation_engine": False,
-            "artifact_analysis": True,
-            "honeypot": False,
-            "custom_adapters": False,
-            "audit_log": True,
-            "support": "community",
-            "uptime_sla": None,
-        },
-        "features_list": [
-            "Monitoreo de eventos en tiempo real",
-            "Detección básica de alertas",
-            "Análisis de artefactos (5/mes)",
-            "Auditoría de acciones",
-            "Panel SOC unificado",
-            "5 usuarios · 3 API keys por usuario",
-            "30 días de retención de datos",
-            "Soporte comunidad",
-        ],
-    },
-    {
-        "id": "pro",
-        "name": "Pro",
-        "price_usd": 299,
-        "price_usd_annual": 239,
-        "billing_period": "month",
-        "highlight": True,
-        "cta": "Empezar con Pro",
-        "tagline": "El stack SOC completo para equipos de seguridad activos",
-        "features": {
-            "max_users": 50,
-            "max_api_keys_per_user": 20,
-            "data_retention_days": 90,
-            "siem_integration": True,
-            "threat_hunting": True,
-            "executive_reports": True,
-            "soar_playbooks": True,
-            "correlation_engine": True,
-            "artifact_analysis": True,
-            "honeypot": True,
-            "custom_adapters": False,
-            "audit_log": True,
-            "support": "email (24 h SLA)",
-            "uptime_sla": "99.5%",
-        },
-        "features_list": [
-            "Todo lo de Free",
-            "SIEM: CrowdStrike · Palo Alto · Fortinet",
-            "Motor de correlación de amenazas",
-            "Threat Hunting avanzado",
-            "Playbooks SOAR con Human-in-the-Loop",
-            "Reportes ejecutivos en PDF",
-            "Honeypots + detección de intrusión",
-            "50 usuarios · 20 API keys por usuario",
-            "90 días de retención de datos",
-            "SLA 99.5% uptime · soporte email 24h",
-        ],
-    },
-    {
-        "id": "enterprise",
-        "name": "Enterprise",
-        "price_usd": None,
-        "price_usd_annual": None,
-        "billing_period": "month",
-        "highlight": False,
-        "cta": "Hablar con ventas",
-        "tagline": "Para organizaciones con requisitos de seguridad críticos",
-        "features": {
-            "max_users": None,
-            "max_api_keys_per_user": None,
-            "data_retention_days": 365,
-            "siem_integration": True,
-            "threat_hunting": True,
-            "executive_reports": True,
-            "soar_playbooks": True,
-            "correlation_engine": True,
-            "artifact_analysis": True,
-            "honeypot": True,
-            "custom_adapters": True,
-            "audit_log": True,
-            "support": "24/7 dedicated",
-            "uptime_sla": "99.9%",
-        },
-        "features_list": [
-            "Todo lo de Pro",
-            "Integraciones personalizadas (adaptadores custom)",
-            "Analista de seguridad dedicado",
-            "Soporte 24/7 — teléfono + Slack privado",
-            "Usuarios y API keys ilimitados",
-            "1 año de retención + archivo frío",
-            "SLA 99.9% uptime garantizado por contrato",
-            "Reportes de compliance (SOC 2, ISO 27001)",
-            "Opción de despliegue on-premise",
-        ],
-    },
-]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -442,9 +330,31 @@ async def _provision_stripe_customer(
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/plans", response_model=PlansResponse)
-async def list_plans():
-    """Return available ASC subscription plans. No authentication required."""
-    return PlansResponse(plans=[PlanInfo(**p) for p in _PLANS])
+async def list_plans(db: AsyncSession = Depends(get_db)):
+    """Return available ASC subscription plans sourced from DB. No authentication required."""
+    result = await db.execute(
+        select(BillingPlan)
+        .where(BillingPlan.is_active == True)  # noqa: E712
+        .order_by(BillingPlan.sort_order)
+    )
+    plans = result.scalars().all()
+    return PlansResponse(
+        plans=[
+            PlanInfo(
+                id=p.slug,
+                name=p.name,
+                price_usd=p.price_usd,
+                price_usd_annual=p.price_usd_annual,
+                billing_period=p.billing_period,
+                highlight=p.highlight,
+                cta=p.cta or "Comenzar",
+                tagline=p.tagline or "",
+                features=PlanFeatures(**p.features),
+                features_list=p.features_list,
+            )
+            for p in plans
+        ]
+    )
 
 
 @router.get("/subscription", response_model=SubscriptionResponse)

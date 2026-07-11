@@ -23,6 +23,8 @@ from asc_api.models.tenant import Tenant
 from asc_api.models.usage_record import UsageRecord
 from asc_api.models.tenant_adapter_config import TenantAdapterConfig
 from asc_api.models.honeypot import HoneypotToken, HoneypotTokenAccess, HoneypotEvidenceReport
+from asc_api.models.detection_rule import DetectionRule
+from asc_api.models.billing_plan import BillingPlan
 
 __all__ = [
     "User", "Event", "IoC", "Alert", "SocMetric", "Artifact",
@@ -44,4 +46,6 @@ __all__ = [
     "UsageRecord",
     "TenantAdapterConfig",
     "HoneypotToken", "HoneypotTokenAccess", "HoneypotEvidenceReport",
+    "DetectionRule",
+    "BillingPlan",
 ]
