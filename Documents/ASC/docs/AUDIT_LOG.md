@@ -6663,3 +6663,89 @@ Eliminar los 29 fallos + errores pre-existentes del suite de tests causados por 
 - Validación de cross-reference consistency entre suites de test (test_p58↔p56, test_p59↔p57/p56, test_p60↔p57/p56)
 - Confirmación behavioral del endpoint test-adapter: `decrypt_credential("tok")` → `ValueError` → `{"status": "error", "reason": "credential_decrypt_failed"}`
 - Suite completa: 4930 passed, 14 skipped, 56 warnings — sin regresiones
+
+---
+
+## Session 99 — 2026-07-12 (Staging Deploy Operacional + CORS Fix + Documentación v5.0)
+
+### Objetivo
+Configurar secrets operacionales, ejecutar staging deploy completo, resolver errores E2E descubiertos en producción, y actualizar documentación al estado real del sistema.
+
+### Problemas identificados y resueltos
+
+| # | Problema | Causa raíz | Fix | Archivo |
+|---|----------|-----------|-----|---------|
+| F-1 | **Bandit 2 false positives** (B105, B106) impidiendo scan limpio | `"token": None` en dict y `token_type="bearer"` en OAuth2 field disparaban Bandit | `# nosec B105` y `# nosec B106` inline | `api/v1/endpoints/agents.py:344`, `auth_sso.py:311` |
+| F-2 | **`alembic upgrade head` — DuplicateColumnError** en `a7b90v8w2x25` | Migration stampeada antes de aplicarse vía SQL script directo; columna `tenant_id` ya existía | Reescrita `upgrade()` con `ADD COLUMN IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` | `migrations/versions/a7b90v8w2x25_artifact_tenant_isolation.py` |
+| F-3 | **`alembic upgrade head` — UndefinedObjectError** en `a8c01v9x3y26` | `batch_alter_table.__exit__` flushea TODOS los ops; el `try-except` alrededor de `batch_op.drop_constraint` ya había salido cuando se lanzó la excepción | Eliminado `batch_alter_table`; reescrito con `DROP CONSTRAINT IF EXISTS` raw SQL | `migrations/versions/a8c01v9x3y26_correlation_global_rules.py` |
+| F-4 | **`test_staging_runbook_has_env_vars_checklist` falló** | `STRIPE_SECRET_KEY` no incluido en staging runbook v2.0 | Añadido `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` a sección OPCIONALES | `docs/staging-deploy-runbook.md` |
+| F-5 | **`asc_unreachable` en producción** (frontend no llegaba al backend) | Sesión anterior (FASE 5) removió el rewrite `/api/:path*` → `/api/index` de `vercel.json`; `NEXT_PUBLIC_API_URL=""` (vacío = relativo) → Next.js no enrutaba `/api/v1/...` al serverless function | Restaurado rewrite; test renombrado a `test_vercel_json_no_external_rewrites_to_backend` (permite rewrites internos, prohíbe externos con `http://`) | `frontend/vercel.json`, `tests/test_p38_deployment.py` |
+| F-6 | **`test_env_example_has_all_required_keys` falló** | 6 vars nuevas de render.yaml v2.0 no estaban en `.env.example` | Añadidas: `RESEND_API_KEY`, `SPECTER_ENROLLMENT_SECRET`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `THEHIVE_API_KEY`, `WAZUH_PASSWORD` | `.env.example` |
+| F-7 | **CORS `www.premoscorp.com` → HTTP 400** (sin `Access-Control-Allow-Origin`) | `main.py` pasaba solo `settings.CORS_ORIGINS` a `CORSMiddleware`; `CORS_ORIGINS_EXTRA` se declaraba en config pero nunca se mergeaba en el middleware | `allow_origins=settings.CORS_ORIGINS + settings.CORS_ORIGINS_EXTRA` | `backend/asc_api/main.py:103` |
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `docs/ROADMAP.md` | v4.8 → v5.0; S97–S98 section; 4491→4930 tests; coverage 86.36%→85.37%; SaaS Gap P56 DONE |
+| `docs/testing-and-audit.md` | v5.3 → v5.4; suite table 7907→8346; S97/S98 sessions añadidas |
+| `docs/staging-deploy-runbook.md` | v1.0 → v2.0; 15→26 migraciones; head correcto; render.yaml v2.0; nota health paths Render vs Vercel |
+| `render.yaml` | v1.0 (23 vars) → v2.0 (88 vars): CORS_ORIGINS_EXTRA, RESEND, SPECTER, Supabase keys, SSO, VirusTotal, ABUSEIPDB, OTX, ELK, Wazuh, TheHive, PaloAlto, Fortinet, AD y más |
+| `.env.example` | +6 vars: RESEND_API_KEY, SPECTER_ENROLLMENT_SECRET, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY, THEHIVE_API_KEY, WAZUH_PASSWORD |
+| `backend/asc_api/main.py` | `allow_origins=settings.CORS_ORIGINS + settings.CORS_ORIGINS_EXTRA` (bug fix CORS F-7) |
+| `backend/asc_api/api/v1/endpoints/agents.py` | `# nosec B105` en línea 344 |
+| `backend/asc_api/api/v1/endpoints/auth_sso.py` | `# nosec B106` en línea 311 |
+| `backend/migrations/versions/a7b90v8w2x25_artifact_tenant_isolation.py` | `upgrade()` → raw SQL con `IF NOT EXISTS` guards |
+| `backend/migrations/versions/a8c01v9x3y26_correlation_global_rules.py` | `upgrade()` → raw SQL `DROP CONSTRAINT IF EXISTS` (sin `batch_alter_table`) |
+| `frontend/vercel.json` | Restaurado rewrite `/api/:path*` → `/api/index`; `rewrites` volvió al config |
+| `backend/tests/test_p38_deployment.py` | Test renombrado: `no_rewrites_to_backend` → `no_external_rewrites_to_backend`; añadido `test_cors_middleware_merges_extra_origins` |
+
+### Resultados E2E contra `https://asc.premoscorp.com`
+
+| Check | Resultado |
+|-------|-----------|
+| `/api/v1/metrics/public` HTTP 200 | ✅ |
+| `/api/v1/events` HTTP 401 (sin auth) | ✅ |
+| CORS `asc.premoscorp.com` → `Access-Control-Allow-Origin` presente | ✅ |
+| CORS `evil.com` → sin header CORS | ✅ |
+| CSP, HSTS, X-Frame-Options, X-Content-Type-Options | ✅ |
+| Backend UP: `{"status":"operational","uptime":true}` | ✅ |
+| CORS `www.premoscorp.com` → `Access-Control-Allow-Origin` | ✅ (post-fix F-7) |
+| `/api/v1/health/liveness` (path correcto en Vercel) | ✅ (`/api/v1/health/liveness`, no `/api/v1/health`) |
+
+### Scans de seguridad
+
+| Herramienta | Resultado |
+|-------------|-----------|
+| `bandit -r asc_api/ -ll` | 0 HIGH, 0 MEDIUM, 0 LOW (post-nosec) |
+| `pip-audit -r requirements.txt` | 0 CVEs conocidos |
+| Grep secretos hardcodeados | 0 resultados (solo falsos positivos nosec) |
+| `.env` en git | ✅ No trackeado |
+
+### Alembic — estado final DB
+
+| Métrica | Estado |
+|---------|--------|
+| Cabezas | 1 (`c9d12f0e5b67`) |
+| Migraciones totales | 26 |
+| `alembic upgrade head` | ✅ Idempotente (IF NOT EXISTS guards) |
+
+### Suite de tests — confirmación final
+
+| Métrica | Resultado |
+|---------|-----------|
+| Tests pasados | **4930** |
+| Tests fallidos | **0** |
+| Skipped | 14 |
+| Cobertura | **85.37%** (gate ≥ 85% ✅) |
+| Tiempo ejecución | 403.50s (6m43s) |
+
+### Pendientes para próxima sesión
+
+| # | Item | Prioridad |
+|---|------|-----------|
+| P-1 | `gh secret set CI_LEDGER_SECRET --repo Fibela/ASC` (instalar gh CLI primero) | Alta |
+| P-2 | `gh secret set RENDER_API_KEY --repo Fibela/ASC` (de Render Dashboard → Account → API Keys) | Alta |
+| P-3 | Crear servicio `asc-backend` en Render.com y configurar `RENDER_BACKEND_SERVICE_ID` | Alta |
+| P-4 | FASE 4 E2E completo: register, login, API Key, Webhook, alerta de prueba | Media |
+| P-5 | Verificar `/api/v1/health/liveness` en Vercel cuando cold-start completo | Baja |

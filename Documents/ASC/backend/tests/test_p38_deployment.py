@@ -275,6 +275,26 @@ class TestCORSProductionConfig:
         issues = _check_cors(["*"], production=False)
         assert len(issues) == 0, "Wildcard CORS is acceptable in development"
 
+    def test_cors_middleware_merges_extra_origins(self):
+        """CORSMiddleware allow_origins must include CORS_ORIGINS_EXTRA.
+        S99 fix: main.py was passing only settings.CORS_ORIGINS, dropping
+        CORS_ORIGINS_EXTRA entirely — causing HTTP 400 for www.premoscorp.com."""
+        import re
+        main_src = (_REPO_ROOT / "backend" / "asc_api" / "main.py").read_text(encoding="utf-8")
+        assert "CORS_ORIGINS_EXTRA" in main_src, (
+            "main.py must reference CORS_ORIGINS_EXTRA"
+        )
+        cors_block = re.search(
+            r"CORSMiddleware.*?allow_origins\s*=\s*(.*?),",
+            main_src,
+            re.DOTALL,
+        )
+        assert cors_block is not None, "CORSMiddleware not found in main.py"
+        allow_origins_expr = cors_block.group(1)
+        assert "CORS_ORIGINS_EXTRA" in allow_origins_expr, (
+            f"CORSMiddleware allow_origins must merge CORS_ORIGINS_EXTRA, got: {allow_origins_expr!r}"
+        )
+
 
 # ── Startup checks — production secrets validation ────────────────────────────
 

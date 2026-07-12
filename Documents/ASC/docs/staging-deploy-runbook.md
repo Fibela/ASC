@@ -168,16 +168,20 @@ curl -s "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys?limit=1
 
 ### Verificación post-deploy backend
 
+> **Nota sobre rutas de health**: En Render, FastAPI corre en la raíz — `/health` y
+> `/health/liveness` funcionan directamente. En Vercel, el rewrite `/api/:path*`
+> expone FastAPI bajo `/api/...`, por lo que la ruta liveness es `/api/v1/health/liveness`.
+
 ```bash
 BACKEND_URL="https://asc-backend.onrender.com"
 
 # Health check (puede tardar 30-60s en levantar el servicio free tier)
 curl -sf "$BACKEND_URL/health" | python -m json.tool
-# Esperado: {"status":"ok","version":"..."}
+# Esperado: {"status":"ok","app":"ASC PremosCorp","version":"..."}
 
-# Liveness check
+# Liveness check (Render directo)
 curl -sf "$BACKEND_URL/health/liveness"
-# Esperado: {"status":"alive"}
+# Esperado: {"status":"alive","ts":"..."}
 
 # CORS: origen legítimo debe pasar
 curl -H "Origin: https://asc.premoscorp.com" \
