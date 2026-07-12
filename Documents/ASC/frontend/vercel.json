@@ -27,5 +27,9 @@
     }
   ],
 
-  "regions": ["gru1", "iad1"]
+  "regions": ["gru1", "iad1"],
+
+  "rewrites": [
+    {"source": "/api/:path*", "destination": "/api/index"}
+  ]
 }

@@ -107,13 +107,18 @@ class TestInfrastructureFiles:
         assert "content-security-policy" in all_headers
         assert all_headers.get("x-frame-options") == "DENY"
 
-    def test_vercel_json_no_rewrites_to_backend(self, vercel_json):
-        """Rewrites should not be present — NEXT_PUBLIC_API_URL handles backend routing."""
+    def test_vercel_json_no_external_rewrites_to_backend(self, vercel_json):
+        """Rewrites must NOT proxy to external backends (Render, Railway, etc.).
+        Internal rewrites to /api/index (Vercel serverless function) are allowed —
+        they are used when NEXT_PUBLIC_API_URL is empty and the backend runs on Vercel.
+        External rewrites would bypass Vercel security headers and expose the backend URL."""
         rewrites = vercel_json.get("rewrites", [])
-        assert len(rewrites) == 0, (
-            "vercel.json should not use rewrites to the backend — "
-            "use NEXT_PUBLIC_API_URL env var instead"
-        )
+        for rewrite in rewrites:
+            dest = rewrite.get("destination", "")
+            assert not dest.startswith("http"), (
+                f"vercel.json rewrite destination must not be an external URL: {dest!r}. "
+                "Use NEXT_PUBLIC_API_URL env var to point to an external backend instead."
+            )
 
     def test_docker_compose_required_services(self, docker_compose):
         services = set(docker_compose.get("services", {}).keys())
