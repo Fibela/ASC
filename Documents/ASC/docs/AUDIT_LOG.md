@@ -6607,3 +6607,59 @@ Migración completa de test_p27.py (AsyncMock) a tests reales con SQLite in-memo
 - `run_correlation_sweep` segunda ejecución: `clusters_updated > 0`, `clusters_created == 0` (idempotencia)
 - `DELETE /correlation/rules` requiere rol admin (analista → 403)
 - Sweep endpoint cae a modo inline cuando Celery no disponible
+
+---
+
+## Session 98 — 2026-07-12 (FASE 5 — Resolución de Fallos Pre-existentes del Suite)
+
+### Objetivo
+Eliminar los 29 fallos + errores pre-existentes del suite de tests causados por 3 problemas independientes: `render.yaml` faltante, dos cabezas Alembic, y test_p58 con assertion obsoleta.
+
+### Problemas identificados y resueltos
+
+| # | Problema | Causa raíz | Fix |
+|---|----------|-----------|-----|
+| F-1 | `render.yaml` faltante | Archivo de blueprint de Render.com nunca creado | Creado en `ASC/render.yaml` con servicio `asc-backend` (runtime python, 23 env vars) |
+| F-2 | Dos cabezas Alembic (`a8c01v9x3y26`, `b3c4d5e6f7a8`) | `b3c4d5e6f7a8_detection_rules_and_billing_plans` branched desde `z6t89u7x1s14` sin merge al chain principal | Creada migración merge `c9d12f0e5b67` con `down_revision = ("a8c01v9x3y26", "b3c4d5e6f7a8")` |
+| F-3 | Conteo de migraciones 24 (esperado) vs 25 real → 26 tras merge | Tests hardcodeaban 24; nuevas migraciones (P58–P60) lo incrementaron | Actualizado de 24 → 26 en: test_p56, test_p57, test_p58, test_p59, test_p60, test_sec7 |
+| F-4 | `test_p58::test_stub_when_configured_and_enabled` aserta `status == "stub"` | FASE 3 eliminó comportamiento stub; endpoint ahora llama `decrypt_credential("tok")` → ValueError → status "error" | Assertion actualizada a `status == "error"`, `reason == "credential_decrypt_failed"` |
+| F-5 | `test_vercel_json_no_rewrites_to_backend` | `frontend/vercel.json` tenía rewrites `/api/:path*` → `/api/index` (arquitectura anterior bundled) | Removidas rewrites de `vercel.json` (arquitectura actual: frontend Vercel, backend Render, comunicación vía `NEXT_PUBLIC_API_URL`) |
+| F-6 | `deploy.yml` sin jobs `deploy-backend`, `deploy-frontend`, `deploy-gate` | Workflow solo tenía `ci-check` + `smoke-test` | Añadidos 3 jobs: `deploy-backend` (Render, needs ci-check, if RENDER_API_KEY), `deploy-frontend` (Vercel, if VERCEL_TOKEN), `deploy-gate` (health check final) |
+| F-7 | Cross-reference whitelists obsoletas en test_p59, test_p60, test_p58 | Checks de sanidad hardcodeaban rangos de conteo hasta 24 | Extendidos a incluir 25 y 26 en: test_p58 (línea 810, 817–823), test_p59 (líneas 778, 784–792, 816–823), test_p60 (líneas 800–805, 811–817) |
+
+### Archivos creados
+
+| Archivo | Descripción |
+|---------|-------------|
+| `render.yaml` | Blueprint Render.com: servicio `asc-backend`, Python runtime, 23 env vars (7 sync:false, 16 value) |
+| `backend/migrations/versions/c9d12f0e5b67_merge_detection_billing_heads.py` | Migración merge: `down_revision = ("a8c01v9x3y26", "b3c4d5e6f7a8")` → cabeza única `c9d12f0e5b67` |
+
+### Archivos modificados
+
+| Archivo | Cambio |
+|---------|--------|
+| `.github/workflows/deploy.yml` | Reemplazado `smoke-test` por `deploy-backend` + `deploy-frontend` + `deploy-gate` |
+| `frontend/vercel.json` | Removida clave `rewrites` (arquitectura Render+Vercel separados) |
+| `backend/tests/test_p56_deployment_readiness.py` | `_EXPECTED_HEAD` → `c9d12f0e5b67`, `_EXPECTED_COUNT` → 26 |
+| `backend/tests/test_p57_staging_goliove.py` | `_EXPECTED_MIGRATION_COUNT` → 26 |
+| `backend/tests/test_p58_adapter_registry.py` | `_TOTAL` → 26; stub assertion → error/credential_decrypt_failed; cross-refs extendidos |
+| `backend/tests/test_p59_sso_bridge.py` | `_EXPECTED_TOTAL_MIGRATIONS` → 26; cross-refs `_TOTAL`, `_EXPECTED_MIGRATION_COUNT`, `_EXPECTED_COUNT` extendidos |
+| `backend/tests/test_p60_stripe_provisioning.py` | `_EXPECTED_TOTAL_MIGRATIONS` → 26; cross-refs extendidos |
+| `backend/tests/test_sec7_correlation_tenant.py` | `== 24` → `== 26` |
+
+### Resultado final
+
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| Tests fallidos | 29 FAILed + 8 ERRORs | **0** |
+| Tests pasando | 4901 | **4930** |
+| Cobertura | 85%+ | **85.37%** |
+| Cabezas Alembic | 2 (`a8c01v9x3y26`, `b3c4d5e6f7a8`) | **1** (`c9d12f0e5b67`) |
+| Migraciones totales | 25 | **26** |
+
+### Enfoque de testing aplicado
+- Validación YAML estructural de render.yaml (service name, runtime, healthCheckPath, autoDeploy, sync:false sin value inline)
+- Verificación Alembic via `ScriptDirectory.get_heads()` y `walk_revisions()` (cadena sin gaps)
+- Validación de cross-reference consistency entre suites de test (test_p58↔p56, test_p59↔p57/p56, test_p60↔p57/p56)
+- Confirmación behavioral del endpoint test-adapter: `decrypt_credential("tok")` → `ValueError` → `{"status": "error", "reason": "credential_decrypt_failed"}`
+- Suite completa: 4930 passed, 14 skipped, 56 warnings — sin regresiones

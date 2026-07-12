@@ -662,8 +662,8 @@ class TestMigrationIntegrity:
 
     def test_total_migration_count_is_24(self):
         files = [f for f in _MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
-        assert len(files) == 24, (
-            f"Expected 24 migrations after P-16, found {len(files)}"
+        assert len(files) == 26, (
+            f"Expected 26 migrations (24 P-16 + b3c4d5e6f7a8 + c9d12f0e5b67 merge), found {len(files)}"
         )
 
     def test_no_duplicate_revision_ids(self):

@@ -1,0 +1,88 @@
+## ASC PremosCorp — Render.com Blueprint
+## Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: asc-backend
+    runtime: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn asc_api.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+
+      # ── Core ────────────────────────────────────────────────────────────────
+      - key: SECRET_KEY
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      - key: CORS_ORIGINS
+        value: '["https://app.premoscorp.com","https://premoscorp.com","https://asc.premoscorp.com"]'
+
+      - key: DEBUG
+        value: "false"
+
+      - key: EMAIL_VERIFICATION_EXPIRE_HOURS
+        value: "24"
+
+      # ── Stripe ──────────────────────────────────────────────────────────────
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      - key: STRIPE_PROVISIONING_PLAN
+        value: "pro"
+
+      - key: STRIPE_SEGURIDAD_PRODUCT_ID
+        value: ""
+
+      # ── SPECTER signing keys ─────────────────────────────────────────────────
+      - key: SPECTER_SIGNING_PRIVATE_KEY
+        sync: false
+
+      - key: SPECTER_SIGNING_PUBLIC_KEY
+        value: ""
+
+      # ── Observability ────────────────────────────────────────────────────────
+      - key: METRICS_SCRAPE_TOKEN
+        sync: false
+
+      # ── Supabase SSO ─────────────────────────────────────────────────────────
+      - key: SUPABASE_URL
+        value: ""
+
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+
+      # ── Adapter keys (set via Render Dashboard when adapter is configured) ───
+      - key: PALOALTO_HOST
+        value: ""
+
+      - key: PALOALTO_API_KEY
+        value: ""
+
+      - key: FORTINET_HOST
+        value: ""
+
+      - key: FORTINET_API_TOKEN
+        value: ""
+
+      - key: AD_SERVER_URL
+        value: ""
+
+      - key: AD_BIND_DN
+        value: ""
+
+      - key: AD_BIND_PASSWORD
+        value: ""
+
+      - key: ELASTICSEARCH_URL
+        value: ""
+
+      - key: ELASTICSEARCH_API_KEY
+        value: ""

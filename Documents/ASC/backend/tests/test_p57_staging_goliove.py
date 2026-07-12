@@ -41,7 +41,7 @@ _DOCS       = _REPO_ROOT / "docs"
 _WORKFLOWS  = _REPO_ROOT / ".github" / "workflows"
 
 _EXPECTED_MIGRATION_HEAD  = "w3q56t5v8p10"  # P61 honeypot tables (latest)
-_EXPECTED_MIGRATION_COUNT = 24  # P-16: correlation global rules uniqueness
+_EXPECTED_MIGRATION_COUNT = 26  # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge head
 _EXPECTED_MIN_ENDPOINTS   = 230
 _EXPECTED_MIN_TESTS       = 4000
 _COVERAGE_GATE            = 85.0

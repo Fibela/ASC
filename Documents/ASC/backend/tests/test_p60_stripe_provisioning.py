@@ -39,7 +39,7 @@ from asc_api.main import app
 _BACKEND = Path(__file__).parent.parent
 _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
 _P60_HEAD = "v2p45s4u7o09"
-_EXPECTED_TOTAL_MIGRATIONS = 24  # P-16: correlation global rules uniqueness
+_EXPECTED_TOTAL_MIGRATIONS = 26  # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge head
 
 _WEBHOOK_URL = "/api/v1/billing/stripe/webhook"
 _TEST_WEBHOOK_SECRET = "whsec_test_secret_for_unit_tests_only"
@@ -802,7 +802,9 @@ class TestRegressionGates:
                 "_EXPECTED_MIGRATION_COUNT = 20" in p57_src or
                 "_EXPECTED_MIGRATION_COUNT = 22" in p57_src or
                 "_EXPECTED_MIGRATION_COUNT = 23" in p57_src or
-                "_EXPECTED_MIGRATION_COUNT = 24" in p57_src)
+                "_EXPECTED_MIGRATION_COUNT = 24" in p57_src or
+                "_EXPECTED_MIGRATION_COUNT = 25" in p57_src or
+                "_EXPECTED_MIGRATION_COUNT = 26" in p57_src)
 
     def test_p56_migration_count_updated_to_18(self):
         p56_src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
@@ -814,4 +816,6 @@ class TestRegressionGates:
                 "_EXPECTED_COUNT = 20" in p56_src or
                 "_EXPECTED_COUNT = 22" in p56_src or
                 "_EXPECTED_COUNT = 23" in p56_src or
-                "_EXPECTED_COUNT = 24" in p56_src)
+                "_EXPECTED_COUNT = 24" in p56_src or
+                "_EXPECTED_COUNT = 25" in p56_src or
+                "_EXPECTED_COUNT = 26" in p56_src)

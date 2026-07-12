@@ -36,7 +36,7 @@ from asc_api.main import app
 _BACKEND = Path(__file__).parent.parent
 _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
 _P59_HEAD = "u1o34r3t6n08"
-_EXPECTED_TOTAL_MIGRATIONS = 24  # P-16: correlation global rules uniqueness
+_EXPECTED_TOTAL_MIGRATIONS = 26  # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge head
 
 _SSO_URL = "/api/v1/auth/supabase-sso"
 
@@ -775,7 +775,7 @@ class TestRegressionGates:
         p58_src = (Path(__file__).parent / "test_p58_adapter_registry.py").read_text(
             encoding="utf-8"
         )
-        assert "_TOTAL = 18" in p58_src or "_TOTAL = 17" in p58_src or "_TOTAL = 16" in p58_src or "_TOTAL = 19" in p58_src or "_TOTAL = 20" in p58_src or "_TOTAL = 22" in p58_src or "_TOTAL = 23" in p58_src or "_TOTAL = 24" in p58_src
+        assert "_TOTAL = 18" in p58_src or "_TOTAL = 17" in p58_src or "_TOTAL = 16" in p58_src or "_TOTAL = 19" in p58_src or "_TOTAL = 20" in p58_src or "_TOTAL = 22" in p58_src or "_TOTAL = 23" in p58_src or "_TOTAL = 24" in p58_src or "_TOTAL = 25" in p58_src or "_TOTAL = 26" in p58_src
 
     def test_p57_migration_count_still_updated(self):
         p57_src = (Path(__file__).parent / "test_p57_staging_goliove.py").read_text(
@@ -787,7 +787,9 @@ class TestRegressionGates:
                "_EXPECTED_MIGRATION_COUNT = 20" in p57_src or \
                "_EXPECTED_MIGRATION_COUNT = 22" in p57_src or \
                "_EXPECTED_MIGRATION_COUNT = 23" in p57_src or \
-               "_EXPECTED_MIGRATION_COUNT = 24" in p57_src
+               "_EXPECTED_MIGRATION_COUNT = 24" in p57_src or \
+               "_EXPECTED_MIGRATION_COUNT = 25" in p57_src or \
+               "_EXPECTED_MIGRATION_COUNT = 26" in p57_src
 
     def test_no_hardcoded_supabase_secret(self):
         """SUPABASE_JWT_SECRET must never be assigned a hardcoded non-empty literal value."""
@@ -820,4 +822,6 @@ class TestRegressionGates:
                 "_EXPECTED_COUNT = 20" in p56_src or
                 "_EXPECTED_COUNT = 22" in p56_src or
                 "_EXPECTED_COUNT = 23" in p56_src or
-                "_EXPECTED_COUNT = 24" in p56_src)
+                "_EXPECTED_COUNT = 24" in p56_src or
+                "_EXPECTED_COUNT = 25" in p56_src or
+                "_EXPECTED_COUNT = 26" in p56_src)

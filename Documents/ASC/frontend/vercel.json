@@ -9,11 +9,6 @@
     }
   },
 
-  "rewrites": [
-    { "source": "/health",     "destination": "/api/index" },
-    { "source": "/api/:path*", "destination": "/api/index" }
-  ],
-
   "headers": [
     {
       "source": "/(.*)",

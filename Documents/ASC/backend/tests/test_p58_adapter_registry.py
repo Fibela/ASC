@@ -636,7 +636,9 @@ class TestTestAdapter:
                                  headers={"Authorization": "Bearer fake"})
         app.dependency_overrides.pop(get_db, None)
         assert r.status_code == 200
-        assert r.json()["status"] == "stub"
+        # FASE 3 wired real connectivity: invalid Fernet token → decrypt error
+        assert r.json()["status"] == "error"
+        assert r.json()["reason"] == "credential_decrypt_failed"
 
     @pytest.mark.anyio
     async def test_skipped_when_disabled(self):
@@ -739,7 +741,7 @@ class TestSecurityInvariants:
 class TestMigrationAndStructure:
 
     _HEAD = "t0n23q2s5m07"
-    _TOTAL = 24  # P-16: correlation global rules uniqueness
+    _TOTAL = 26  # P-16 (24) + b3c4d5e6f7a8 + c9d12f0e5b67 merge head
 
     def test_migration_file_exists(self):
         files = list(_MIGRATIONS_DIR.glob(f"*{self._HEAD}*.py"))
@@ -807,7 +809,7 @@ class TestMigrationAndStructure:
         src = (Path(__file__).parent / "test_p56_deployment_readiness.py").read_text(
             encoding="utf-8"
         )
-        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src or "x4r67u6w9q11" in src or "y5s78t5v0r13" in src or "z6t89u7x1s14" in src or "a7b90v8w2x25" in src or "a8c01v9x3y26" in src)
+        assert ("t0n23q2s5m07" in src or "u1o34r3t6n08" in src or "v2p45s4u7o09" in src or "w3q56t5v8p10" in src or "x4r67u6w9q11" in src or "y5s78t5v0r13" in src or "z6t89u7x1s14" in src or "a7b90v8w2x25" in src or "a8c01v9x3y26" in src or "c9d12f0e5b67" in src)
 
     def test_p57_references_current_count(self):
         """test_p57 must reference migration count >= 16 after P58."""
@@ -820,4 +822,6 @@ class TestMigrationAndStructure:
                 "_EXPECTED_MIGRATION_COUNT = 20" in src or
                 "_EXPECTED_MIGRATION_COUNT = 22" in src or
                 "_EXPECTED_MIGRATION_COUNT = 23" in src or
-                "_EXPECTED_MIGRATION_COUNT = 24" in src)
+                "_EXPECTED_MIGRATION_COUNT = 24" in src or
+                "_EXPECTED_MIGRATION_COUNT = 25" in src or
+                "_EXPECTED_MIGRATION_COUNT = 26" in src)
