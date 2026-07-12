@@ -5,7 +5,7 @@ Endpoints:
   GET  /billing/usage                   — current tenant monthly usage summary
   GET  /billing/usage/{tenant_id}       — admin: usage for a specific tenant
   POST /billing/snapshot                — admin: trigger manual usage snapshot
-  POST /billing/stripe/webhook          — Stripe webhook receiver (sig-validated stub)
+  POST /billing/stripe/webhook          — Stripe webhook receiver (sig-validated)
 
 UsageRecord is a monthly snapshot (YYYY-MM) per tenant per resource_type.
 Re-running snapshot for the same period+resource is an upsert (ON CONFLICT DO UPDATE).
@@ -598,13 +598,14 @@ async def stripe_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Stripe webhook receiver (P55 stub).
+    Stripe webhook receiver.
 
     When STRIPE_WEBHOOK_SECRET is configured, validates the Stripe-Signature header
     using HMAC-SHA256 (mirrors stripe-python's construct_event logic).
     When the secret is empty (dev/test), signature validation is skipped.
 
-    Currently handles: customer.subscription.updated, customer.subscription.deleted.
+    Handles: checkout.session.completed, customer.subscription.created,
+    customer.subscription.updated, customer.subscription.deleted.
     All other event types are acknowledged (200) without action.
     """
     payload_bytes = await request.body()

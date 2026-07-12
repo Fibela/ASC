@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from asc_api.main import app
 from asc_api.models.ioc import IoC
 from asc_api.models.alert import Alert
+from asc_api.models.detection_rule import DetectionRule
 
 
 pytestmark = pytest.mark.asyncio
@@ -293,8 +294,31 @@ class TestAlertEndpointsExtra:
 
 # â”€â”€â”€ Detection Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+_DET_RULES = [
+    ("DET-001", "Suspicious acord32.exe Execution", "T1036.005", "critical/high", 0.88),
+    ("DET-002", "Windows Hook API Detected",         "T1056.001", "critical/medium", 0.80),
+    ("DET-003", "Registry Persistence Mechanism",    "T1547.001", "high",            0.75),
+    ("DET-004", "Deferred Network Traffic",          "T1071.001", "critical/high",   0.82),
+]
+
+
+@pytest_asyncio.fixture
+async def seeded_detection_rules(db: AsyncSession):
+    """Seed DET-001…DET-004 into the in-memory test DB (migration data not applied in tests)."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    for rule_id, name, ttp, severity, score in _DET_RULES:
+        db.add(DetectionRule(
+            id=str(uuid.uuid4()), rule_id=rule_id, name=name,
+            mitre_ttp=ttp, severity=severity, description=name,
+            tags=[], risk_score_default=score, is_active=True,
+            created_at=now, updated_at=now,
+        ))
+    await db.commit()
+
+
 class TestDetectionEndpoints:
-    async def test_list_rules_returns_4_rules(self, client, viewer_headers):
+    async def test_list_rules_returns_4_rules(self, client, viewer_headers, seeded_detection_rules):
         resp = await client.get("/api/v1/detection/rules", headers=viewer_headers)
         assert resp.status_code == 200
         body = resp.json()

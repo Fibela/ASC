@@ -601,7 +601,7 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
         using PIDS_SIGNING_PRIVATE_KEY / SPECTER_SIGNING_PRIVATE_KEY
       - Returns forensic_hash and signature in the response
 
-    In production, wire _send_report() to SMTP/SendGrid/Resend.
+    Email delivery via Resend (RESEND_API_KEY required); logs only when key absent.
     """
     import hashlib
     import json
@@ -689,18 +689,103 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
 
 async def _send_report(recipient_email: str, summary: dict, *, format: str) -> None:
     """
-    Stub delivery — logs the report payload.
-
-    Replace with SMTP / SendGrid / Resend in production:
-      import httpx
-      await httpx.AsyncClient().post(SENDGRID_URL, json={...})
+    Deliver a scheduled report via Resend when RESEND_API_KEY is set.
+    Falls back to log-only when the key is absent (dev / self-hosted).
+    Raises RuntimeError on Resend API failure so the caller can record it.
     """
+    from asc_api.core.config import get_settings  # noqa: PLC0415
+    _cfg = get_settings()
+    api_key = _cfg.RESEND_API_KEY
+
+    if not api_key:
+        log.info(
+            "scheduled_report_send_skipped",
+            reason="no_resend_api_key",
+            recipient=recipient_email,
+            hunt_id=summary.get("hunt_id"),
+            format=format,
+            total_findings=summary.get("total_findings"),
+        )
+        return
+
+    hunt_name = summary.get("hunt_name", "Unknown Hunt")
+    total     = summary.get("total_findings", 0)
+    confirmed = summary.get("confirmed", 0)
+    critical  = summary.get("critical_findings", 0)
+    high      = summary.get("high_findings", 0)
+    fp        = summary.get("false_positives", 0)
+    ia_count  = summary.get("identity_action_count", 0)
+    ia_ok     = summary.get("identity_actions_successful", 0)
+    gen_at    = summary.get("generated_at", "")
+
+    text_body = (
+        f"ASC PremosCorp — Scheduled Report\n\n"
+        f"Hunt:     {hunt_name}\n"
+        f"Status:   {summary.get('hunt_status', 'unknown')}\n"
+        f"Priority: {summary.get('hunt_priority', 'unknown')}\n"
+        f"Generated: {gen_at}\n\n"
+        f"Findings Summary\n"
+        f"  Total:            {total}\n"
+        f"  Confirmed:        {confirmed}\n"
+        f"  Critical:         {critical}\n"
+        f"  High:             {high}\n"
+        f"  False positives:  {fp}\n\n"
+        f"Identity Actions: {ia_count} ({ia_ok} successful)\n"
+        f"Report format: {format}\n"
+    )
+
+    html_body = (
+        "<div style='font-family:sans-serif;color:#1a1a2e;max-width:600px'>"
+        "<h2 style='color:#0d1b2a'>ASC PremosCorp — Scheduled Report</h2>"
+        f"<p><strong>Hunt:</strong> {hunt_name}</p>"
+        f"<p><strong>Status:</strong> {summary.get('hunt_status','unknown')} &nbsp;|&nbsp; "
+        f"<strong>Priority:</strong> {summary.get('hunt_priority','unknown')}</p>"
+        f"<p><strong>Generated:</strong> {gen_at}</p>"
+        "<h3>Findings Summary</h3>"
+        "<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse'>"
+        "<tr style='background:#f0f4f8'><th>Metric</th><th>Count</th></tr>"
+        f"<tr><td>Total</td><td>{total}</td></tr>"
+        f"<tr><td>Confirmed</td><td>{confirmed}</td></tr>"
+        f"<tr><td>Critical</td><td>{critical}</td></tr>"
+        f"<tr><td>High</td><td>{high}</td></tr>"
+        f"<tr><td>False Positives</td><td>{fp}</td></tr>"
+        "</table>"
+        f"<p><strong>Identity Actions:</strong> {ia_count} ({ia_ok} successful)</p>"
+        f"<p><em>Report format: {format}</em></p>"
+        "<hr style='border:none;border-top:1px solid #e0e0e0;margin:24px 0'>"
+        "<p style='color:#888;font-size:12px'>ASC PremosCorp · Calidad sobre Comodidad</p>"
+        "</div>"
+    )
+
+    import httpx  # noqa: PLC0415
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": _cfg.RESEND_FROM_EMAIL,
+                "to": [recipient_email],
+                "subject": f"[ASC] Hunt Report: {hunt_name} — {total} findings",
+                "text": text_body,
+                "html": html_body,
+            },
+        )
+
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(
+            f"Resend error {resp.status_code}: {resp.text[:200]}"
+        )
+
     log.info(
-        "scheduled_report_send",
+        "scheduled_report_sent",
         recipient=recipient_email,
         hunt_id=summary.get("hunt_id"),
         format=format,
-        total_findings=summary.get("total_findings"),
+        total_findings=total,
+        resend_id=resp.json().get("id"),
     )
 
 

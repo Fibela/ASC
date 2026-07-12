@@ -6449,3 +6449,93 @@ backend/tests/test_role_elevation.py             — 18 tests (new)
 backend/tests/test_sso_onboarding.py             — 15 tests (new)
 backend/tests/test_incident_endpoints_integration.py — 20 tests (new)
 ```
+
+---
+
+## Session 96 — 2026-07-11 (FASE 3: Funcional y Auténtico — Eliminación de Stubs)
+
+### Objetivo
+
+Sistema-wide audit y remediación: eliminar TODO stub, dato simulado, y comportamiento
+no funcional. Gatillo: "por qué seguimos usando Resend?" + "Vayamos paso por paso y
+hagamo que esto sea funcional y auténtico".
+
+---
+
+### Auditoría completa — hallazgos y resoluciones
+
+| Archivo | Hallazgo | Resolución |
+|---------|----------|------------|
+| `soar_service.py:690` | `_send_report()` logueaba pero no enviaba emails | ✅ **FIJADO** — wired to Resend API |
+| `adapter_registry.py:368` | test endpoint devolvía `"status": "stub"` | ✅ **FIJADO** — dispatches to real adapters |
+| `billing.py:601` | Docstring decía "P55 stub" pero código era completo | ✅ **CORREGIDO** — docstring actualizado |
+| `analyzer.py:679,696,702,721` | `return {}` en ramas de error | ✅ NO es stub — graceful fallback para VT/AbuseIPDB |
+| `startup_checks.py` | Mencionado como "placeholder" | ✅ NO es stub — implementación completa |
+| `honeypot.py` | "fake data" | ✅ INTENCIONAL — es un honeypot |
+| `billing_plan.py` | Comment "replaces hardcoded" | ✅ NO es stub — modelo completo |
+| `REDIS_URL` en config | Default `localhost:6379` | ✅ Vercel production tiene REDIS_URL real |
+| `test_p31_coverage_extra.py::test_list_rules_returns_4_rules` | Falla pre-existente (0 == 4) | ✅ **FIJADO** — fixture `seeded_detection_rules` |
+
+---
+
+### FASE 3.1 — `_send_report()` wired to Resend
+
+**Antes:** función que solo llamaba `log.info(...)`. Comentario explícito "Replace with SMTP / SendGrid / Resend in production".
+
+**Después:** 
+- Cuando `RESEND_API_KEY` está configurado → POST real a `https://api.resend.com/emails`
+- Email con `text_body` + `html_body` (tabla de findings, identity actions, metadata)
+- Subject: `[ASC] Hunt Report: {hunt_name} — {total} findings`
+- `From:` usa `RESEND_FROM_EMAIL` (ya configurado en Vercel)
+- Error de Resend → `RuntimeError` → capturado por `deliver_scheduled_report` → registrado en `last_error`
+- Cuando `RESEND_API_KEY` vacío → log `"scheduled_report_send_skipped"` (graceful, no crash)
+
+**Archivos:** `frontend/asc_api/services/soar_service.py` (+ sync backend/)
+
+---
+
+### FASE 3.2 — Adapter connectivity test — live checks
+
+**Antes:** `POST /adapter-registry/{tenant_id}/{type}/test` devolvía `{"status": "stub", "message": "...FASE 6..."}`.
+
+**Después:** endpoint real que:
+1. Decripta la credencial almacenada (Fernet/AES) con `decrypt_credential()`
+2. Dispatch por provider con `_live_connectivity_check()`:
+
+| Provider | Protocolo | Endpoint |
+|----------|-----------|----------|
+| `fortinet` | HTTPS REST | `GET /api/v2/monitor/sys/status` (Bearer token) |
+| `paloalto` | HTTPS XML API | `GET /api/?type=version&key=...` |
+| `active_directory` | LDAP/LDAPS (ldap3) | bind + base search |
+| `elasticsearch` | HTTPS REST | `GET /` (basic auth) |
+| `wazuh` | HTTPS REST | `GET /security/user/authenticate` |
+| `thehive` | HTTPS REST | `GET /api/status` (Bearer token) |
+| `specter` | HTTPS | `GET /api/v1/health` (X-Specter-Secret) |
+| `none` | — | `status: skipped` |
+
+Errores de red → `{"status": "error", "detail": "..."}` — nunca un 500.
+
+**Archivos:** `frontend/asc_api/api/v1/endpoints/adapter_registry.py` (+ sync backend/)
+
+---
+
+### Tests — FASE 3
+
+| Archivo | Tests | Estado |
+|---------|-------|--------|
+| `test_funcional_autentico.py` (nuevo) | 13 | ✅ Passing |
+| `test_p31_coverage_extra.py` (fix) | 12 (detection) | ✅ Passing |
+| **Suite completa** | **168+ passing** | |
+
+#### `TestSendReport` (4 tests)
+- `test_no_api_key_logs_only_no_http` — sin clave: httpx.AsyncClient nunca llamado
+- `test_with_api_key_posts_to_resend` — con clave: POST a resend.com/emails verificado
+- `test_resend_error_raises_runtime_error` — 422 Resend → RuntimeError
+- `test_email_subject_contains_hunt_name_and_findings` — subject + HTML table
+
+#### `TestAdapterRegistryTest` (9 tests)
+- Auth guards: 401 anon, 403 analyst
+- 422 invalid adapter type
+- status=skipped cuando disabled o provider=none
+- status=not_configured sin credential
+- Fortinet: ok (200 + serial), error (401), network exception

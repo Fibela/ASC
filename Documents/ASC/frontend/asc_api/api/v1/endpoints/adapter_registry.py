@@ -17,7 +17,7 @@ Endpoints:
   POST   /adapter-registry/{tenant_id}         — create adapter config
   PUT    /adapter-registry/{tenant_id}/{type}  — update adapter config
   DELETE /adapter-registry/{tenant_id}/{type}  — remove adapter config
-  POST   /adapter-registry/{tenant_id}/{type}/test — connectivity stub
+  POST   /adapter-registry/{tenant_id}/{type}/test — live connectivity test
 """
 
 from __future__ import annotations
@@ -337,10 +337,17 @@ async def test_tenant_adapter(
     current_user=Depends(get_current_admin),
 ) -> dict:
     """
-    Test connectivity for a configured adapter.
+    Test live connectivity for a configured adapter.
 
-    FASE 5: Returns a stub response (not yet wired to real adapters).
-    FASE 6: Will attempt a live connectivity check using the decrypted credential.
+    Decrypts the stored credential and dispatches to a provider-specific
+    connectivity check:
+      fortinet        → GET /api/v2/monitor/sys/status (Bearer token)
+      paloalto        → GET /api/?type=version (API key)
+      active_directory→ LDAP bind + base search (ldap3)
+      elasticsearch   → GET / (HTTP basic auth)
+      wazuh           → GET /security/user/authenticate (basic auth)
+      thehive         → GET /api/status (Bearer token)
+      specter         → GET /api/v1/health (enrollment secret)
     """
     if adapter_type not in ADAPTER_TYPES:
         raise HTTPException(
@@ -365,11 +372,174 @@ async def test_tenant_adapter(
             "provider": cfg.provider,
         }
 
-    # FASE 5 stub — FASE 6 will replace with real connectivity check
-    return {
-        "status": "stub",
-        "adapter_type": adapter_type,
+    from asc_api.core.adapter_crypto import decrypt_credential  # noqa: PLC0415
+    try:
+        credential = decrypt_credential(
+            cfg.credential_encrypted, _settings.SECRET_KEY
+        )
+    except Exception as exc:
+        return {
+            "status": "error",
+            "reason": "credential_decrypt_failed",
+            "detail": str(exc),
+            "adapter_type": adapter_type,
+            "provider": cfg.provider,
+        }
+
+    result = await _live_connectivity_check(cfg, credential)
+    return result
+
+
+async def _live_connectivity_check(cfg, credential: str) -> dict:
+    """Dispatch a real connectivity check based on provider."""
+    import httpx  # noqa: PLC0415
+
+    base = {
+        "adapter_type": cfg.adapter_type,
         "provider": cfg.provider,
         "host": cfg.host,
-        "message": "Connectivity test not yet wired to real adapter (FASE 6). Config is stored and encrypted.",
+    }
+    host = (cfg.host or "").rstrip("/")
+    settings_json = cfg.settings_json or {}
+    timeout = 10.0
+
+    # ── Fortinet FortiGate ────────────────────────────────────────────────────
+    if cfg.provider == "fortinet":
+        vdom = settings_json.get("vdom", "root")
+        try:
+            async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
+                r = await client.get(
+                    f"https://{host}/api/v2/monitor/sys/status",
+                    headers={"Authorization": f"Bearer {credential}"},
+                    params={"vdom": vdom},
+                )
+            if r.status_code == 200:
+                data = r.json().get("results", {})
+                return {**base, "status": "ok",
+                        "serial": data.get("Serial-Number"),
+                        "version": data.get("Version"),
+                        "hostname": data.get("Hostname")}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── Palo Alto Networks PAN-OS ────────────────────────────────────────────
+    if cfg.provider == "paloalto":
+        try:
+            async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
+                r = await client.get(
+                    f"https://{host}/api/",
+                    params={"type": "version", "key": credential},
+                )
+            if r.status_code == 200 and "success" in r.text:
+                return {**base, "status": "ok", "detail": "PAN-OS version command succeeded"}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── Active Directory / LDAP ──────────────────────────────────────────────
+    if cfg.provider == "active_directory":
+        import asyncio  # noqa: PLC0415
+        bind_dn  = settings_json.get("bind_dn", "")
+        base_dn  = settings_json.get("base_dn", "")
+        use_ssl  = settings_json.get("use_ssl", True)
+
+        def _ldap_check() -> dict:
+            try:
+                import ldap3  # noqa: PLC0415
+            except ImportError:
+                return {**base, "status": "error",
+                        "detail": "ldap3 not installed — run: pip install ldap3"}
+            try:
+                server = ldap3.Server(host, use_ssl=use_ssl, connect_timeout=timeout)
+                with ldap3.Connection(
+                    server, user=bind_dn, password=credential,
+                    auto_bind=True, read_only=True
+                ) as conn:
+                    conn.search(base_dn, "(objectClass=domain)",
+                                search_scope=ldap3.BASE, attributes=["distinguishedName"])
+                    return {**base, "status": "ok",
+                            "server": host, "ssl": use_ssl,
+                            "base_dn_found": bool(conn.entries)}
+            except Exception as exc:
+                return {**base, "status": "error", "detail": str(exc)}
+
+        return await asyncio.to_thread(_ldap_check)
+
+    # ── Elasticsearch ────────────────────────────────────────────────────────
+    if cfg.provider == "elasticsearch":
+        username = settings_json.get("username", "elastic")
+        try:
+            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501
+                r = await client.get(
+                    f"https://{host}/",
+                    auth=(username, credential),
+                )
+            if r.status_code == 200:
+                data = r.json()
+                return {**base, "status": "ok",
+                        "cluster_name": data.get("cluster_name"),
+                        "version": data.get("version", {}).get("number")}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── Wazuh ───────────────────────────────────────────────────────────────
+    if cfg.provider == "wazuh":
+        username = settings_json.get("username", "wazuh-wui")
+        try:
+            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501
+                r = await client.get(
+                    f"https://{host}:55000/security/user/authenticate",
+                    auth=(username, credential),
+                )
+            if r.status_code in (200, 401):
+                return {**base,
+                        "status": "ok" if r.status_code == 200 else "auth_failed",
+                        "http_status": r.status_code}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── TheHive ──────────────────────────────────────────────────────────────
+    if cfg.provider == "thehive":
+        try:
+            async with httpx.AsyncClient(timeout=timeout, verify=True) as client:
+                r = await client.get(
+                    f"https://{host}/api/status",
+                    headers={"Authorization": f"Bearer {credential}"},
+                )
+            if r.status_code == 200:
+                data = r.json()
+                return {**base, "status": "ok",
+                        "hive_version": data.get("versions", {}).get("TheHive")}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── SPECTER (ASC agent) ───────────────────────────────────────────────────
+    if cfg.provider == "specter":
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                r = await client.get(
+                    f"https://{host}/api/v1/health",
+                    headers={"X-Specter-Secret": credential},
+                )
+            if r.status_code == 200:
+                return {**base, "status": "ok"}
+            return {**base, "status": "error",
+                    "http_status": r.status_code, "detail": r.text[:200]}
+        except Exception as exc:
+            return {**base, "status": "error", "detail": str(exc)}
+
+    # ── Provider "none" or unknown ────────────────────────────────────────────
+    return {
+        **base,
+        "status": "skipped",
+        "reason": "no_connectivity_check_for_provider",
     }
