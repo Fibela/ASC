@@ -1,5 +1,5 @@
 # Testing, Seguridad y Auditoría — ASC PremosCorp
-> Versión 5.3 | Actualizado: 2026-06-16 | P64-DESIGN Phase 2 COMPLETO: 6 páginas secundarias redesignadas (iocs/incidents/playbooks/threat-hunting/reports/forensic) + 2 FIX CRÍTICOS (Sidebar faltante en incidents + threat-hunting) — Jest: 450/450 PASSED — ASC backend: 4491 tests (86.36% cov) / sc_system: 3416 tests — Dev server activo http://localhost:3000
+> Versión 5.4 | Actualizado: 2026-07-12 | S97-S98 COMPLETADAS: FASE 4 real-DB integration tests P26/P27 + Test Suite Hardening (29 fallos → 0, render.yaml, Alembic merge head) — ASC backend: 4930 tests (85.37% cov) / sc_system: 3416 tests — 0 FAILED — commit 79970d8
 
 ## Auditoría Pre-Producción — Go-Live Readiness (Session 75, 2026-06-15)
 
@@ -46,10 +46,9 @@
 
 | Suite | Tests | Skipped | Resultado | Cobertura |
 |-------|-------|---------|-----------|-----------|
-| ASC backend (main) | 4,316 | 16 | ✅ 0 failed | **86.36%** ≥ 85% gate |
-| ASC security tests | 175 | 0 | ✅ 0 failed | — |
+| ASC backend (main + security) | 4,930 | 14 | ✅ 0 failed | **85.37%** ≥ 85% gate |
 | sc_system Vitest (22 archivos) | 3,416 | 0 | ✅ 0 failed | — |
-| **TOTAL** | **7,907** | **16** | **✅ 0 FAILED** | |
+| **TOTAL** | **8,346** | **14** | **✅ 0 FAILED** | |
 
 ### Items de configuración pendientes (no código — operacional)
 
@@ -1616,7 +1615,7 @@ Rediseño estético completo del ASC frontend (Next.js 14) para alinear la ident
 - Archivos backend modificados: 0
 - Tests nuevos Jest (frontend): 61 (components.test.tsx) — sin nuevos en phase 2
 - Suite total Jest: 450/450 PASSED post-phase 2 (0 regresiones)
-- Suite ASC backend: 4,491 PASSED (86.36% cov)
+- Suite ASC backend: 4,491 PASSED (86.36% cov) → actualizado a 4,930 PASSED (85.37% cov) en S98
 - Suite sc_system: 3,416 PASSED
 - Bandit scan: N/A (0 cambios backend)
 - Design tokens definidos: 35+ (paleta, surfaces, threats, ink)
@@ -1629,3 +1628,46 @@ Rediseño estético completo del ASC frontend (Next.js 14) para alinear la ident
 | Secrets en páginas redesignadas | grep `sk-\|api_key\|secret\|password\|Bearer\|private_key` | ✅ 0 hardcoded — match único: `token` como state var HitL (legítimo) |
 | Navy/cyan remnants en threat-hunting | grep `navy\|text-cyan\|bg-cyan\|border-cyan` | ✅ 0 matches |
 | XSS / dangerouslySetInnerHTML | grep `dangerouslySetInnerHTML\|eval(` | ✅ 0 matches en archivos modificados |
+
+---
+
+## Sesiones 97–98 — FASE 4 Integration Tests + Test Suite Infrastructure Hardening (2026-07-12)
+
+### Suite final (commit 79970d8)
+
+| Suite | Tests | Skipped | Resultado | Cobertura |
+|-------|-------|---------|-----------|-----------|
+| ASC backend (main + security) | 4,930 | 14 | ✅ 0 failed | **85.37%** ≥ 85% gate |
+| sc_system Vitest (22 archivos) | 3,416 | 0 | ✅ 0 failed | — |
+| **TOTAL** | **8,346** | **14** | **✅ 0 FAILED** | |
+
+### Sesión 97 — Real-DB Integration Tests P26/P27
+
+- **P26 PIDS Identity SOAR:** tests de integración con SQLite in-memory, 0 AsyncMock para DB
+- **P27 Correlation Engine:** cross-domain fixtures reales, eliminación total de datos simulados
+- **Patrón adoptado:** `db` fixture SQLite in-memory por test · override ASGI vía `client` fixture · cero mocks en capa DB
+- **+439 tests** vs baseline S96 (4491 → 4930)
+- **Commit:** `55657bf`
+
+### Sesión 98 — Test Suite Infrastructure Hardening
+
+#### Fallos corregidos: 29 FAIL + 8 ERROR → 0
+
+| # | Fallo | Root Cause | Fix |
+|---|-------|------------|-----|
+| 1 | 6 test files buscaban `render.yaml` | Archivo nunca creado | `render.yaml` con 23 env vars, regla `sync:false` sin `value` |
+| 2 | Alembic two-head error | `b3c4d5e6f7a8` branched independiente | Merge migration `c9d12f0e5b67`, single head |
+| 3 | Conteo 24 vs 26 migraciones | Tests hardcoded 24 antes de +2 nuevas | Actualizado en 6 test files → 26 |
+| 4 | Whitelists cruzadas cap en 24 | test_p59/p60 chequeaban source de test_p57/p58 | 6 whitelists extendidas a 25 y 26 |
+| 5 | Aserción `status == "stub"` en test_p58 | FASE 3 ya wired live connectivity | Corregida: `status == "error"`, `reason == "credential_decrypt_failed"` |
+| 6 | `vercel.json` rewrites al backend | Arquitectura pre-Render | Eliminados rewrites; comunicación directa vía `NEXT_PUBLIC_API_URL` |
+| 7 | `deploy.yml` sin jobs requeridos | Solo `smoke-test` obsoleto | +`deploy-backend`, `deploy-frontend`, `deploy-gate` |
+
+#### Security scan S98
+
+| Check | Resultado |
+|-------|-----------|
+| Secrets hardcodeados en render.yaml | ✅ 0 — vars `sync:false` sin value inline |
+| Secrets en deploy.yml | ✅ 0 — solo referencias `${{ secrets.* }}` |
+| Alembic merge migration (upgrade/downgrade) | ✅ No-op: solo merge de heads, sin DDL |
+| Exposed keys en archivos modificados | ✅ 0 |

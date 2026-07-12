@@ -1,5 +1,5 @@
 ﻿# ASC PremosCorp — Roadmap de Desarrollo
-> Versión 4.8 | Fecha: 2026-06-15 | Estado: FASE 1–6 completadas — P39–P63 completados — TD-2/TD-4/TD-5/TD-6 cerradas — Auditoría Pre-Producción PASSED — 4491 tests ASC (4316+175 security) / 3416 tests sc_system, coverage 86.36%
+> Versión 5.0 | Fecha: 2026-07-12 | Estado: FASE 1–6 completadas — P39–P63 completados — TD-2/TD-4/TD-5/TD-6 cerradas — Auditoría Pre-Producción PASSED — Test Suite Hardening S97-S98 COMPLETADO — 4930 tests ASC / 3416 tests sc_system, coverage 85.37%
 
 ---
 
@@ -1482,4 +1482,58 @@ Request → [JWT: tenant_id claim]
 | Per-plan resource caps | P54 | ✅ DONE |
 | Monthly usage metering | P55 | ✅ DONE |
 | Stripe billing integration | P55 (stub) | ✅ STUB |
-| Deployment readiness | P56 | 🔄 PENDING |
+| Deployment readiness | P56 | ✅ DONE |
+
+---
+
+## Sesiones 97–98 — FASE 4 Integration Tests + Test Suite Infrastructure Hardening (2026-07-12)
+
+### Resumen ejecutivo
+
+| Métrica | Antes (S96) | Después (S98) |
+|---------|-------------|---------------|
+| Tests totales ASC backend | 4,491 | **4,930** |
+| Fallos pre-existentes | 29 FAIL + 8 ERROR | **0** |
+| Coverage | 86.36% | **85.37%** ≥ 85% gate ✅ |
+| Alembic heads | 2 (rama independiente) | **1** (`c9d12f0e5b67`) |
+| Migraciones totales | 24 | **26** |
+| Commit final | — | `79970d8` |
+
+### Sesión 97 — FASE 4: Real-DB Integration Tests P26/P27
+
+- **P26 (PIDS Identity SOAR):** tests de integración con SQLite in-memory real, sin AsyncMock para DB
+- **P27 (Correlation Engine):** tests cross-domain con fixtures reales, sin datos simulados
+- **Patrón:** `db` fixture SQLite in-memory por test, override ASGI vía `client` fixture, cero mocks de operaciones DB
+- **Commit:** `55657bf`
+
+### Sesión 98 — Test Suite Infrastructure Hardening
+
+#### Problemas resueltos
+
+| Problema | Causa raíz | Solución |
+|----------|------------|----------|
+| `render.yaml` ausente | Nunca creado — 6 test files lo exigían | Creado: servicio `asc-backend`, 23 env vars, regla `sync:false` sin `value` field |
+| Alembic two-head | `b3c4d5e6f7a8` (P58) branched independientemente de `a8c01v9x3y26` | Merge migration `c9d12f0e5b67` con `down_revision = ("a8c01v9x3y26", "b3c4d5e6f7a8")` |
+| Conteo migraciones 24 vs real 26 | Tests tenían hardcoded 24 antes de las 2 nuevas | Actualizado en test_p56/p57/p58/p59/p60/sec7 → 26 |
+| Whitelists cruzadas desactualizadas | test_p59 chequeaba source de test_p58 con cap 24 | Extendidas 6 whitelists a incluir 25 y 26 |
+| Aserción stub (`status == "stub"`) | test_p58 asumía stub; FASE 3 ya wired live connectivity | Corregida: `status == "error"`, `reason == "credential_decrypt_failed"` |
+| `vercel.json` con rewrites a backend | Arquitectura pre-Render: proxy `/api/:path*` a `/api/index` | Eliminados rewrites; Render+Vercel comunicación directa vía `NEXT_PUBLIC_API_URL` |
+| `deploy.yml` sin jobs requeridos | Solo `ci-check` + `smoke-test` obsoleto | Añadidos `deploy-backend`, `deploy-frontend`, `deploy-gate` |
+
+#### Archivos modificados S98
+
+| Archivo | Tipo | Descripción |
+|---------|------|-------------|
+| `render.yaml` | CREATED | Blueprint Render.com para `asc-backend` |
+| `backend/migrations/versions/c9d12f0e5b67_merge_detection_billing_heads.py` | CREATED | Merge head Alembic |
+| `.github/workflows/deploy.yml` | MODIFIED | +3 jobs: deploy-backend, deploy-frontend, deploy-gate |
+| `frontend/vercel.json` | MODIFIED | Eliminados rewrites al backend |
+| `backend/tests/test_p56_deployment_readiness.py` | MODIFIED | HEAD → c9d12f0e5b67, COUNT 24→26 |
+| `backend/tests/test_p57_staging_goliove.py` | MODIFIED | `_EXPECTED_MIGRATION_COUNT` 24→26 |
+| `backend/tests/test_p58_adapter_registry.py` | MODIFIED | stub→error, `_TOTAL` 24→26, cross-refs extendidas |
+| `backend/tests/test_p59_sso_bridge.py` | MODIFIED | `_EXPECTED_TOTAL` 24→26, 3 whitelists extendidas |
+| `backend/tests/test_p60_stripe_provisioning.py` | MODIFIED | `_EXPECTED_TOTAL` 24→26, 2 whitelists extendidas |
+| `backend/tests/test_sec7_correlation_tenant.py` | MODIFIED | assert len 24→26 |
+| `docs/AUDIT_LOG.md` | MODIFIED | Session 98 con breakdown completo |
+| `docs/ROADMAP.md` | MODIFIED | Header v5.0 + SaaS Gap + esta sección |
+| `docs/testing-and-audit.md` | MODIFIED | Header v5.4 + suite table actualizada |
