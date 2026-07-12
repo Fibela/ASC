@@ -6539,3 +6539,71 @@ Errores de red → `{"status": "error", "detail": "..."}` — nunca un 500.
 - status=skipped cuando disabled o provider=none
 - status=not_configured sin credential
 - Fortinet: ok (200 + serial), error (401), network exception
+
+---
+
+## Session 97 — 2026-07-11 (FASE 4 — Integración Real DB: PIDS + Correlation Engine)
+
+### FASE 4.1 — PIDS Integration Tests (P26)
+
+Migración completa de test_p26.py (AsyncMock) a tests reales con SQLite in-memory.
+
+| Archivo | Tests | Estado |
+|---------|-------|--------|
+| `test_p26_pids_integration.py` (nuevo) | 46 | ✅ 46/46 passing |
+
+#### Suites (test_p26_pids_integration.py)
+- `TestPIDSCreateActionDB` (6) — create_identity_action con DB real, firma Ed25519 parcheada
+- `TestPIDSVerifyDB` (8) — verificación hash SHA3-512 sobre acciones reales
+- `TestPIDSListDB` (6) — filtros de listado (action_type, status, hunt_id, limit)
+- `TestPIDSTimelineDB` (4) — orden cronológico real, resultado vacío
+- `TestPIDSSummaryDB` (6) — conteos reales: total_actions, success_rate_pct, actions_24h
+- `TestAdaptiveOrchestrationDB` (5) — evaluate_triggers_for_context con trigger reales, dedup parcheado
+- `TestScheduledReportForensicDB` (4) — deliver_scheduled_report con Resend parcheado
+- `TestPIDSRestEndpoints` (7) — REST completo via conftest client
+
+#### Correcciones detectadas durante FASE 4.1
+| Bug / Hallazgo | Root cause | Fix aplicado |
+|----------------|-----------|-------------|
+| `get_pids_summary()` keys incorrectas en test | Test usaba `total`/`successful`; servicio retorna `total_actions`/`successful_actions`/`success_rate_pct` | Corregido en test |
+| `GET /pids/actions` retorna dict, no lista | Endpoint retorna `{"count": N, "actions": [...]}` | Assertion corregida en test |
+| `verify` endpoint es POST no GET | `/pids/actions/{id}/verify` usa método POST | Cambiado a `client.post()` |
+| `GET /pids/timeline/{hunt_id}` retorna dict | Retorna `{"hunt_id": "...", "count": N, "timeline": [...]}` | Assertion corregida en test |
+
+---
+
+### FASE 4.2 — Correlation Engine Integration Tests (P27)
+
+Migración completa de test_p27.py (AsyncMock) a tests reales con SQLite in-memory.
+
+| Archivo | Tests | Estado |
+|---------|-------|--------|
+| `test_p27_correlation_integration.py` (nuevo) | 51 | ✅ 51/51 passing |
+
+#### Suites (test_p27_correlation_integration.py)
+- `TestCorrelationRulesCRUDDB` (8) — create/get/update/delete rules, dup-name guard, global-rule tenant guard
+- `TestUpsertClusterDB` (6) — nuevo cluster, señales incrementales, detección de campaña (3+ dominios), dedup por (signal_type, signal_id), confidence score, forensic hash SHA3-512
+- `TestClusterStatusUpdateDB` (4) — resolve, analyst_notes, assigned_to, cluster desconocido
+- `TestGetClusterSignalsDB` (3) — señales retornadas, orden por timestamp, lista vacía
+- `TestClusterGraphDB` (4) — nodos + edges, 404, campaign_name
+- `TestListClustersDB` (5) — listado, filtro status/campaign, limit/offset
+- `TestCorrelationSummaryDB` (6) — todas las claves, zeros, conteos active/campaign/critical/rules
+- `TestRunCorrelationSweepDB` (5) — stats dict completo, sin reglas = zeros, sweep con Events reales crea cluster, dedup entre runs, signals_added
+- `TestCorrelationRestEndpointsDB` (10) — 401 anon, CRUD rules (201/409/404/204), patch, delete admin/analyst, sweep inline
+
+#### Bug encontrado y corregido durante FASE 4.2
+
+| # | Archivo | Línea | Bug | Fix |
+|---|---------|-------|-----|-----|
+| B-1 | `correlation_service.py::run_correlation_sweep` | ~599 | `await log_security_action(db, "SYSTEM", "correlation_sweep_completed", ...)` — llamada incorrecta: 3 args posicionales, función solo acepta 1 (`action`), y no es async | `log_security_action("correlation_sweep_completed", user_id="SYSTEM", detail=...)` (sin await, keyword args) |
+
+**Impacto del bug B-1:** `run_correlation_sweep()` lanzaba `TypeError` al final de cada ejecución, después del `db.commit()`. El sweep completaba con éxito (clusters escritos) pero terminaba con excepción no controlada. En producción, el Celery task fallaría con `TypeError` aunque los datos estuvieran correctamente escritos.
+
+#### Invariantes validadas
+- `CorrelationRule` global (tenant_id=NULL) no puede ser modificada ni eliminada por usuario con tenant_id (→ PermissionError)
+- `_upsert_cluster` deduplica correctamente por `(signal_type, signal_id)` — señales repetidas no se cuentan doble
+- `is_campaign=True` exactamente cuando `distinct_signal_domains >= 3`
+- `forensic_hash` SHA3-512 de longitud 128 hex presente en cada cluster
+- `run_correlation_sweep` segunda ejecución: `clusters_updated > 0`, `clusters_created == 0` (idempotencia)
+- `DELETE /correlation/rules` requiere rol admin (analista → 403)
+- Sweep endpoint cae a modo inline cuando Celery no disponible

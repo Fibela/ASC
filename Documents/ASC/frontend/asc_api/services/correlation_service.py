@@ -596,8 +596,9 @@ async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) 
     await db.commit()
 
     log.info("correlation_sweep done: %s", stats)
-    await log_security_action(
-        db, "SYSTEM", "correlation_sweep_completed",
+    log_security_action(
+        "correlation_sweep_completed",
+        user_id="SYSTEM",
         detail=json.dumps(stats),
     )
 
