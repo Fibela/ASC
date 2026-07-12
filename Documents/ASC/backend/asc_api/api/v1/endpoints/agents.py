@@ -341,7 +341,7 @@ async def get_enrollment_token(
     if not settings.SPECTER_ENROLLMENT_SECRET:
         return {
             "configured": False,
-            "token": None,
+            "token": None,  # nosec B105 — dict key, not a credential
             "valid_for_seconds": None,
             "note": "SPECTER_ENROLLMENT_SECRET not configured â€” dev mode (open registration)",
         }

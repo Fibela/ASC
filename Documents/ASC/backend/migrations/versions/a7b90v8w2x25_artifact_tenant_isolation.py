@@ -29,9 +29,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("artifacts", sa.Column("tenant_id", sa.String(36), nullable=True))
-    op.create_index("ix_artifacts_tenant_id", "artifacts", ["tenant_id"])
-    op.create_index("ix_artifacts_submitted_by", "artifacts", ["submitted_by"])
+    # IF NOT EXISTS guards: column/indexes may already exist if schema was partially
+    # applied via SQL script before this migration was stamped in alembic_version.
+    conn = op.get_bind()
+    conn.execute(sa.text(
+        "ALTER TABLE artifacts ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(36)"
+    ))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_artifacts_tenant_id ON artifacts(tenant_id)"
+    ))
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_artifacts_submitted_by ON artifacts(submitted_by)"
+    ))
 
 
 def downgrade() -> None:

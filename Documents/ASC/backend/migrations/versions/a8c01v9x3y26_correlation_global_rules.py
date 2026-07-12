@@ -32,23 +32,22 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Drop the old global unique constraint on name
-    with op.batch_alter_table("correlation_rules") as batch_op:
-        try:
-            batch_op.drop_constraint("correlation_rules_name_key", type_="unique")
-        except Exception:
-            pass  # already dropped or named differently — safe to continue
-
+    # Use raw SQL with IF EXISTS — batch_alter_table flushes in __exit__ so
+    # a try-except around batch_op.drop_constraint does NOT catch the error.
+    conn = op.get_bind()
+    conn.execute(sa.text(
+        "ALTER TABLE correlation_rules DROP CONSTRAINT IF EXISTS correlation_rules_name_key"
+    ))
     # Partial unique index: global rules (NULL tenant) → name must be unique among globals
-    op.execute(
+    conn.execute(sa.text(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_cr_global_name "
         "ON correlation_rules(name) WHERE tenant_id IS NULL"
-    )
+    ))
     # Partial unique index: tenant rules → (name, tenant_id) unique within each tenant
-    op.execute(
+    conn.execute(sa.text(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_cr_tenant_name "
         "ON correlation_rules(name, tenant_id) WHERE tenant_id IS NOT NULL"
-    )
+    ))
 
 
 def downgrade() -> None:

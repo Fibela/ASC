@@ -308,7 +308,7 @@ async def supabase_sso(
 
     return SSOResponse(
         access_token=access_token,
-        token_type="bearer",
+        token_type="bearer",  # nosec B106 — OAuth2 standard token_type, not a credential
         tenant_id=user.tenant_id,
         user_id=user.id,
         email=user.email,
