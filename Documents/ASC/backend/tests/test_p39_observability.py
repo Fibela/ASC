@@ -491,10 +491,10 @@ class TestDeploymentArtifactsP39:
         assert env_file.exists()
         assert "METRICS_SCRAPE_TOKEN" in env_file.read_text(encoding="utf-8")
 
-    def test_render_yaml_has_metrics_scrape_token(self):
-        render_file = _REPO_ROOT / "render.yaml"
-        assert render_file.exists()
-        assert "METRICS_SCRAPE_TOKEN" in render_file.read_text(encoding="utf-8")
+    def test_env_example_has_metrics_scrape_token(self):
+        env_file = _REPO_ROOT / ".env.example"
+        assert env_file.exists()
+        assert "METRICS_SCRAPE_TOKEN" in env_file.read_text(encoding="utf-8")
 
     def test_settings_has_metrics_scrape_token_attr(self):
         assert hasattr(settings, "METRICS_SCRAPE_TOKEN")

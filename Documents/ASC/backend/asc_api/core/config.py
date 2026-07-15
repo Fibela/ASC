@@ -172,6 +172,10 @@ class Settings(BaseSettings):
     # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
     # Generate a token with: python -c "from asc_api.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"
     SPECTER_ENROLLMENT_SECRET: str = ""      # nosec B105 — empty means dev mode
+    # Vercel Cron Jobs — secret Vercel sends as "Authorization: Bearer <CRON_SECRET>"
+    # Generate: python -c "import secrets; print(secrets.token_hex(32))"
+    # Set in Vercel Dashboard (same value for all cron endpoints).
+    CRON_SECRET: str = ""                    # nosec B105 — empty = dev mode only
     # Strict signature mode: reject telemetry events whose Ed25519 signature is invalid.
     # In dev/test mode keep False; enable in production for zero-trust enforcement.
     SPECTER_STRICT_SIGNATURE_MODE: bool = False

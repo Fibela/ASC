@@ -31,7 +31,7 @@ Este Acuerdo aplica a los siguientes componentes del servicio ASC:
 | Componente | Descripción | Cobertura |
 |-----------|-------------|-----------|
 | **Portal ASC** (frontend) | Interfaz web en asc.premoscorp.com | 24/7/365 |
-| **API ASC** (backend) | API REST en asc-backend.onrender.com | 24/7/365 |
+| **API ASC** (backend) | API REST en asc.premoscorp.com/api (Vercel serverless) | 24/7/365 |
 | **Motor de Detección** | Procesamiento de alertas e IoCs en tiempo real | 24/7/365 |
 | **Base de Datos** (Supabase) | PostgreSQL — persistencia de datos | 24/7/365 |
 | **Notificaciones** | Alertas por correo, webhook, integración | 24/7/365 |
@@ -119,7 +119,7 @@ Los siguientes eventos **NO** cuentan como downtime para efectos de cálculo del
 a) Ventanas de mantenimiento programado notificadas
 b) Fuerza mayor: desastres naturales, cortes de energía masivos, eventos civiles
 c) Incidentes causados por acciones del propio cliente (configuraciones incorrectas, abuso de API)
-d) Interrupciones de proveedores de infraestructura terceros (Render, Supabase, Vercel) que excedan los SLAs de esos proveedores
+d) Interrupciones de proveedores de infraestructura terceros (Vercel, Supabase) que excedan los SLAs de esos proveedores
 e) Ataques DDoS contra la infraestructura del cliente que saturen canales compartidos
 f) Períodos en que el cliente no proporcionó acceso o información necesaria para la resolución
 g) Interrupciones del servicio de Internet del cliente

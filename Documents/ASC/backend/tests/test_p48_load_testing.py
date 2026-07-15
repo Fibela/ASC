@@ -186,11 +186,9 @@ class TestRapidSequentialRequests:
 class TestStagingReadiness:
     """Staging deploy readiness artifacts exist and are not missing config."""
 
-    def test_render_yaml_exists(self):
-        path = _REPO_ROOT.parent / "render.yaml"
-        if not path.exists():
-            path = _REPO_ROOT / "render.yaml"
-        assert path.exists(), "render.yaml not found"
+    def test_vercel_json_exists(self):
+        path = _REPO_ROOT.parent / "frontend" / "vercel.json"
+        assert path.exists(), "frontend/vercel.json not found"
 
     def test_env_example_exists(self):
         path = _REPO_ROOT.parent / ".env.example"

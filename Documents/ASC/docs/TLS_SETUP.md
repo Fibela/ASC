@@ -162,11 +162,9 @@ The `privkey.pem` must be backed up securely (password manager or Vault).
 
 ---
 
-## Fase 1 (Render) — No TLS Config Needed
+## Fase 1 (Vercel) — No TLS Config Needed
 
-Render provides TLS automatically for `.onrender.com` domains and custom domains.
-No nginx, no certbot, no manual cert management required in Fase 1.
-
-For the frontend on Vercel: TLS is also automatic.
+Vercel provides TLS automatically for `.vercel.app` domains and custom domains (e.g. `asc.premoscorp.com`).
+No nginx, no certbot, no manual cert management required.
 
 TLS manual setup is only needed for **Fase 2 (Docker Compose self-hosting)**.

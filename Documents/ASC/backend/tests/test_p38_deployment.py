@@ -32,13 +32,6 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 # ── Infrastructure file path fixtures ─────────────────────────────────────────
 
 @pytest.fixture(scope="module")
-def render_yaml():
-    p = _REPO_ROOT / "render.yaml"
-    assert p.exists(), "render.yaml missing — run P38-RENDER task"
-    return yaml.safe_load(p.read_text(encoding="utf-8"))
-
-
-@pytest.fixture(scope="module")
 def vercel_json():
     p = _REPO_ROOT / "frontend" / "vercel.json"
     assert p.exists(), "frontend/vercel.json missing — run P38-VERCEL task"
@@ -63,34 +56,6 @@ def deploy_workflow():
 
 class TestInfrastructureFiles:
     """Validate that all P38 deployment artifacts exist and are parseable."""
-
-    def test_render_yaml_exists_and_valid(self, render_yaml):
-        assert render_yaml is not None
-        assert "services" in render_yaml
-
-    def test_render_yaml_has_backend_service(self, render_yaml):
-        services = render_yaml["services"]
-        names = [s.get("name") for s in services]
-        assert "asc-backend" in names, f"asc-backend not in render.yaml services: {names}"
-
-    def test_render_yaml_backend_config(self, render_yaml):
-        backend = next(s for s in render_yaml["services"] if s.get("name") == "asc-backend")
-        assert backend.get("runtime") == "python"
-        assert backend.get("healthCheckPath") == "/health"
-        assert "buildCommand" in backend
-        assert "startCommand" in backend
-        assert "uvicorn" in backend["startCommand"]
-
-    def test_render_yaml_no_hardcoded_secrets(self, render_yaml):
-        """All sensitive env vars must be sync:false (set in Render Dashboard)."""
-        backend = next(s for s in render_yaml["services"] if s.get("name") == "asc-backend")
-        env_vars = backend.get("envVars", [])
-        sensitive_keys = {"SECRET_KEY", "DATABASE_URL"}
-        for ev in env_vars:
-            if ev.get("key") in sensitive_keys:
-                assert ev.get("sync") is False or ev.get("generateValue") is True, (
-                    f"{ev['key']} must be sync:false in render.yaml — never hardcode secrets"
-                )
 
     def test_vercel_json_exists_and_valid(self, vercel_json):
         assert vercel_json is not None
@@ -165,15 +130,15 @@ class TestInfrastructureFiles:
 
     def test_deploy_workflow_has_required_jobs(self, deploy_workflow):
         jobs = set(deploy_workflow.get("jobs", {}).keys())
-        required = {"ci-check", "deploy-backend", "deploy-frontend"}
+        required = {"ci-check", "deploy-frontend"}
         missing = required - jobs
         assert not missing, f"deploy.yml missing jobs: {missing}"
 
-    def test_deploy_workflow_backend_depends_on_ci(self, deploy_workflow):
-        """Backend deploy must wait for CI to pass."""
-        backend_job = deploy_workflow["jobs"].get("deploy-backend", {})
-        needs = backend_job.get("needs", [])
-        assert "ci-check" in needs, "deploy-backend must depend on ci-check"
+    def test_deploy_workflow_frontend_depends_on_ci(self, deploy_workflow):
+        """Frontend deploy must wait for CI to pass."""
+        frontend_job = deploy_workflow["jobs"].get("deploy-frontend", {})
+        needs = frontend_job.get("needs", [])
+        assert "ci-check" in needs, "deploy-frontend must depend on ci-check"
 
     def test_tls_setup_doc_exists(self):
         p = _REPO_ROOT / "docs" / "TLS_SETUP.md"
@@ -193,7 +158,7 @@ class TestInfrastructureFiles:
         )
 
     def test_env_example_has_all_required_keys(self):
-        """All keys in render.yaml envVars must exist in .env.example."""
+        """Critical backend vars must be documented in .env.example."""
         p = _REPO_ROOT / ".env.example"
         env_keys = set()
         for line in p.read_text(encoding="utf-8").splitlines():
@@ -201,17 +166,34 @@ class TestInfrastructureFiles:
             if line and not line.startswith("#") and "=" in line:
                 env_keys.add(line.split("=")[0].strip())
 
-        render_p = _REPO_ROOT / "render.yaml"
-        render_data = yaml.safe_load(render_p.read_text(encoding="utf-8"))
-        backend = next(s for s in render_data["services"] if s.get("name") == "asc-backend")
-        for ev in backend.get("envVars", []):
-            key = ev.get("key")
-            if ev.get("sync") is False:
-                # Required keys must be documented in .env.example
-                assert key in env_keys, (
-                    f"render.yaml env var {key!r} (sync:false) not found in .env.example — "
-                    "add documentation so operators know what to configure"
-                )
+        required = {
+            "SECRET_KEY", "DATABASE_URL", "DEBUG", "CORS_ORIGINS",
+            "SUPABASE_URL", "SUPABASE_JWT_SECRET", "SUPABASE_ANON_KEY",
+            "SUPABASE_SERVICE_KEY", "RESEND_API_KEY",
+            "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+            "SPECTER_ENROLLMENT_SECRET", "METRICS_SCRAPE_TOKEN",
+            "VIRUSTOTAL_API_KEY", "ELASTICSEARCH_URL",
+            "WAZUH_URL", "WAZUH_PASSWORD",
+            "THEHIVE_URL", "THEHIVE_API_KEY",
+            "PALOALTO_HOST", "PALOALTO_API_KEY",
+            "FORTINET_HOST", "FORTINET_API_TOKEN",
+            "AD_SERVER_URL", "AD_BIND_DN", "AD_BIND_PASSWORD",
+            "CRON_SECRET",
+        }
+        for key in required:
+            assert key in env_keys, (
+                f"Required backend env var {key!r} not found in .env.example — "
+                "add documentation so operators know what to configure"
+            )
+
+    def test_vercel_json_has_crons(self, vercel_json):
+        """vercel.json must declare background cron jobs."""
+        crons = vercel_json.get("crons", [])
+        assert len(crons) > 0, "vercel.json must have a crons array for background jobs"
+        paths = [c.get("path", "") for c in crons]
+        assert any("/cron/" in p for p in paths), (
+            f"No cron paths found under /api/v1/cron/: {paths}"
+        )
 
 
 # ── Root /health endpoint tests ────────────────────────────────────────────────

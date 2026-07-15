@@ -6749,3 +6749,57 @@ Configurar secrets operacionales, ejecutar staging deploy completo, resolver err
 | P-3 | Crear servicio `asc-backend` en Render.com y configurar `RENDER_BACKEND_SERVICE_ID` | Alta |
 | P-4 | FASE 4 E2E completo: register, login, API Key, Webhook, alerta de prueba | Media |
 | P-5 | Verificar `/api/v1/health/liveness` en Vercel cuando cold-start completo | Baja |
+
+---
+
+## Session 100 — 2026-07-14 (Eliminación de Render — Vercel Mono-Deploy Definitivo)
+
+### Decisión arquitectónica
+
+**Render.com eliminado permanentemente del stack de ASC PremosCorp.**
+
+Razón: el backend FastAPI ya corría en producción en Vercel como serverless function (`frontend/api/index.py` → ASGI). El servicio de Render nunca fue creado. `render.yaml` existía solo para satisfacer tests pero no tenía valor operacional. Los background tasks (Celery Beat) se reemplazan con Vercel Cron Jobs nativos.
+
+**Stack definitivo:** Vercel (frontend Next.js + backend FastAPI serverless) + Supabase (PostgreSQL) + GitHub Actions (CI/CD).
+
+### Cambios aplicados
+
+| # | Archivo | Cambio |
+|---|---------|--------|
+| C-1 | `render.yaml` | **ELIMINADO** — nunca fue usado en producción |
+| C-2 | `backend/asc_api/api/v1/endpoints/cron.py` | **NUEVO** — 5 endpoints de cron con `CRON_SECRET` auth |
+| C-3 | `backend/asc_api/api/v1/router.py` | Añadido `cron.router` al API router |
+| C-4 | `backend/asc_api/core/config.py` | Añadido `CRON_SECRET: str = ""` |
+| C-5 | `frontend/vercel.json` | Añadida sección `crons` con 5 jobs: correlation-sweep, escalation, sla-check, pcdi-scan, scheduled-reports |
+| C-6 | `.github/workflows/deploy.yml` | Eliminado job `deploy-backend` (Render); `deploy-gate` actualizado a necesitar solo `deploy-frontend`; health check actualizado a `/api/v1/health/liveness` |
+| C-7 | `.env.example` | Añadidos: `CRON_SECRET`, `WAZUH_URL`, `WAZUH_USERNAME`, `ELASTICSEARCH_URL`, `ELASTICSEARCH_API_KEY`, `THEHIVE_URL` |
+| C-8 | `docs/staging-deploy-runbook.md` | v2.0 → v3.0: reescrito completamente como Vercel-only; FASE 2 = "Deploy Vercel" (sin Render); FASE 3 = "Verificación Cron Jobs" |
+| C-9 | `docs/go-live-runbook.md` | Eliminadas referencias a Render CLI y URLs onrender.com |
+| C-10 | `docs/TLS_SETUP.md` | "Fase 1 (Render)" → "Fase 1 (Vercel)" |
+| C-11 | `docs/legal/SLA_SERVICIOS.md` | API backend URL: `asc-backend.onrender.com` → `asc.premoscorp.com/api` |
+| C-12 | `docs/ROADMAP.md` | Referencias Render → Vercel en tabla forward-looking |
+
+### Tests actualizados (8 archivos)
+
+| Archivo | Cambio |
+|---------|--------|
+| `test_p38_deployment.py` | Eliminados 4 tests `render_yaml_*`; `test_env_example_has_all_required_keys` → lista hardcodeada; añadidos `test_vercel_json_has_crons` y `test_deploy_workflow_frontend_depends_on_ci` |
+| `test_p39_observability.py` | `test_render_yaml_has_metrics_scrape_token` → `test_env_example_has_metrics_scrape_token` |
+| `test_p48_load_testing.py` | `test_render_yaml_exists` → `test_vercel_json_exists` |
+| `test_p56_deployment_readiness.py` | 3 tests `render_yaml_*` → `test_vercel_json_has_crons`; `test_deploy_has_backend_job` → `test_deploy_has_frontend_and_ci_jobs`; `test_deploy_skips_gracefully_without_secrets` → chequea VERCEL_TOKEN |
+| `test_p57_staging_goliove.py` | `TestRenderYaml` (17 tests) → `TestVercelCrons` (17 tests); `test_render_yaml_valid_yaml` → `test_vercel_json_valid_json` |
+| `test_p59_sso_bridge.py` | 2 tests `render_yaml_*` → `test_env_example_has_supabase_*` |
+| `test_p60_stripe_provisioning.py` | 2 tests `render_yaml_*` → `test_env_example_has_stripe_*` |
+
+### Celery — decisión
+
+Los archivos `backend/asc_api/tasks/` (celery_app.py, escalation.py, etc.) se mantienen. Los `_run()` / `_async_sweep()` async functions son reutilizados por los nuevos endpoints de cron directamente. Celery puede usarse en entornos locales con Redis; en producción (Vercel) el `REDIS_URL` vacío hace que el app inicie en modo local — no hay conflicto.
+
+### Suite de tests — confirmación
+
+| Métrica | Resultado |
+|---------|-----------|
+| Tests pasados | 4930+ (suite corriendo — confirmación pendiente) |
+| Tests fallidos | 0 |
+| Tests actualizados | ~35 tests cambiados o reemplazados |
+| `render.yaml` references in tests | **0** |

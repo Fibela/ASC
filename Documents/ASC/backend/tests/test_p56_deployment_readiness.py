@@ -59,7 +59,6 @@ _WORKFLOWS     = _PROJECT_ROOT / ".github" / "workflows"
 
 _DEPLOY_YML    = _WORKFLOWS / "deploy.yml"
 _CI_YML        = _WORKFLOWS / "ci.yml"
-_RENDER_YAML   = _PROJECT_ROOT / "render.yaml"
 _ENV_EXAMPLE   = _PROJECT_ROOT / ".env.example"
 _GITIGNORE     = _PROJECT_ROOT / ".gitignore"
 _NEXT_CFG      = _FRONTEND / "next.config.js"
@@ -179,7 +178,7 @@ class TestSecurityPreDeploy:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class TestInfrastructure:
-    """Docker and render.yaml configuration is production-ready."""
+    """Docker and Vercel configuration is production-ready."""
 
     def test_backend_dockerfile_exists(self):
         assert (_BACKEND / "Dockerfile").exists()
@@ -220,23 +219,14 @@ class TestInfrastructure:
         content = (_FRONTEND / "Dockerfile").read_text(encoding="utf-8")
         assert "HEALTHCHECK" in content, "Frontend Dockerfile must have HEALTHCHECK"
 
-    def test_render_yaml_exists(self):
-        assert _RENDER_YAML.exists(), "render.yaml missing — Render blueprint required"
-
-    def test_render_yaml_health_check_path(self):
-        """Render must poll /health — this endpoint has no auth."""
-        content = _RENDER_YAML.read_text(encoding="utf-8")
-        assert "healthCheckPath: /health" in content, \
-            "render.yaml healthCheckPath must be /health"
-
-    def test_render_yaml_secret_key_sync_false(self):
-        """SECRET_KEY must be sync:false in render.yaml — never auto-synced."""
-        content = _RENDER_YAML.read_text(encoding="utf-8")
-        assert "SECRET_KEY" in content
-        # After SECRET_KEY there should be sync: false (not a real value)
-        idx = content.index("SECRET_KEY")
-        nearby = content[idx:idx+100]
-        assert "sync: false" in nearby, "SECRET_KEY must have sync:false in render.yaml"
+    def test_vercel_json_has_crons(self):
+        """vercel.json must declare Vercel cron jobs for background tasks."""
+        import json
+        vj = _FRONTEND / "vercel.json"
+        assert vj.exists(), "frontend/vercel.json missing"
+        data = json.loads(vj.read_text(encoding="utf-8"))
+        crons = data.get("crons", [])
+        assert len(crons) > 0, "vercel.json must have crons for background tasks"
 
     def test_docker_compose_has_nginx(self):
         """docker-compose.yml must have nginx service as the only public port."""
@@ -345,8 +335,9 @@ class TestCICDWorkflows:
     def test_deploy_has_ci_check_job(self):
         assert "ci-check" in self.deploy_jobs, "deploy.yml must re-run CI before deploy"
 
-    def test_deploy_has_backend_job(self):
-        assert "deploy-backend" in self.deploy_jobs
+    def test_deploy_has_frontend_and_ci_jobs(self):
+        assert "deploy-frontend" in self.deploy_jobs
+        assert "ci-check" in self.deploy_jobs
 
     def test_deploy_has_frontend_job(self):
         assert "deploy-frontend" in self.deploy_jobs
@@ -354,17 +345,15 @@ class TestCICDWorkflows:
     def test_deploy_has_gate_job(self):
         assert "deploy-gate" in self.deploy_jobs
 
-    def test_deploy_backend_needs_ci_check(self):
-        needs = self.deploy_jobs["deploy-backend"].get("needs", [])
-        assert "ci-check" in needs, "deploy-backend must depend on ci-check"
+    def test_deploy_frontend_needs_ci_check(self):
+        needs = self.deploy_jobs["deploy-frontend"].get("needs", [])
+        assert "ci-check" in needs, "deploy-frontend must depend on ci-check"
 
     def test_deploy_skips_gracefully_without_secrets(self):
-        """Deploy jobs must skip (not fail) when secrets are not configured."""
+        """Deploy job must skip (not fail) when VERCEL_TOKEN is not configured."""
         deploy_content = _DEPLOY_YML.read_text(encoding="utf-8")
-        assert "RENDER_API_KEY" in deploy_content
         assert "VERCEL_TOKEN" in deploy_content
-        # The 'if:' condition should check that secrets are non-empty
-        assert "secrets.RENDER_API_KEY" in deploy_content
+        assert "secrets.VERCEL_TOKEN" in deploy_content
 
     def test_ci_has_coverage_gate(self):
         """CI must fail if coverage drops below 85%."""

@@ -173,108 +173,99 @@ class TestSecurityScans:
         assert issues == [], f"Strong key failed check: {issues}"
 
 
-# ── 2. Deploy Artifacts — render.yaml ─────────────────────────────────────────
+# ── 2. Deploy Artifacts — Vercel Crons ────────────────────────────────────────
 
-class TestRenderYaml:
-    """render.yaml completeness and security validation."""
+class TestVercelCrons:
+    """vercel.json cron jobs replace Celery Beat background tasks."""
 
     @pytest.fixture(autouse=True)
     def _load(self):
-        render_path = _REPO_ROOT / "render.yaml"
-        assert render_path.exists(), "render.yaml not found"
-        self.data = yaml.safe_load(render_path.read_text(encoding="utf-8"))
-        service = self.data["services"][0]
-        self.env_keys = {e["key"] for e in service.get("envVars", [])}
+        import json
+        vj = _REPO_ROOT / "frontend" / "vercel.json"
+        assert vj.exists(), "frontend/vercel.json not found"
+        self.data = json.loads(vj.read_text(encoding="utf-8"))
+        self.crons = self.data.get("crons", [])
+        self.cron_paths = {c["path"] for c in self.crons}
 
-    def test_service_type_web(self):
-        assert self.data["services"][0]["type"] == "web"
+    def test_crons_array_present(self):
+        assert len(self.crons) > 0, "vercel.json must have crons array"
 
-    def test_health_check_path(self):
-        assert self.data["services"][0]["healthCheckPath"] == "/health"
+    def test_correlation_sweep_cron(self):
+        assert "/api/v1/cron/correlation-sweep" in self.cron_paths
 
-    def test_auto_deploy_enabled(self):
-        assert self.data["services"][0]["autoDeploy"] is True
+    def test_escalation_cron(self):
+        assert "/api/v1/cron/escalation" in self.cron_paths
 
-    def test_secret_key_sync_false(self):
-        svc = self.data["services"][0]
-        sk = next(e for e in svc["envVars"] if e["key"] == "SECRET_KEY")
-        assert sk.get("sync") is False, "SECRET_KEY must be sync:false (never committed)"
+    def test_sla_check_cron(self):
+        assert "/api/v1/cron/sla-check" in self.cron_paths
 
-    def test_database_url_sync_false(self):
-        svc = self.data["services"][0]
-        db = next(e for e in svc["envVars"] if e["key"] == "DATABASE_URL")
-        assert db.get("sync") is False
+    def test_pcdi_scan_cron(self):
+        assert "/api/v1/cron/pcdi-scan" in self.cron_paths
 
-    def test_cors_origins_has_default_value(self):
-        # CORS_ORIGINS is not a secret (public domain names) — must have a
-        # hardcoded value in render.yaml so Render never injects an empty string
-        # that would crash pydantic-settings JSON parsing on startup.
-        svc = self.data["services"][0]
-        cors = next(e for e in svc["envVars"] if e["key"] == "CORS_ORIGINS")
-        assert cors.get("value"), "CORS_ORIGINS must have a non-empty value in render.yaml"
-        assert "premoscorp.com" in cors["value"], "CORS_ORIGINS must include premoscorp.com"
+    def test_scheduled_reports_cron(self):
+        assert "/api/v1/cron/scheduled-reports" in self.cron_paths
 
-    def test_stripe_secret_key_present(self):
-        assert "STRIPE_SECRET_KEY" in self.env_keys, (
-            "STRIPE_SECRET_KEY missing from render.yaml — added in P55"
+    def test_all_cron_paths_under_api_v1(self):
+        for c in self.crons:
+            assert c["path"].startswith("/api/v1/cron/"), (
+                f"Cron path must be under /api/v1/cron/: {c['path']!r}"
+            )
+
+    def test_all_crons_have_schedule(self):
+        for c in self.crons:
+            assert c.get("schedule"), f"Cron {c['path']!r} missing schedule"
+
+    def test_cron_endpoint_importable(self):
+        from asc_api.api.v1.endpoints.cron import router
+        assert router.prefix == "/cron"
+
+    def test_env_example_has_cron_secret(self):
+        env_ex = (_REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+        assert "CRON_SECRET" in env_ex, "CRON_SECRET must be documented in .env.example"
+
+    def test_env_example_has_required_backend_vars(self):
+        """Critical backend vars are documented in .env.example (no render.yaml needed)."""
+        env_ex = (_REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+        required = {
+            "SECRET_KEY", "DATABASE_URL", "CORS_ORIGINS",
+            "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+            "SUPABASE_URL", "SUPABASE_JWT_SECRET",
+            "RESEND_API_KEY", "METRICS_SCRAPE_TOKEN",
+            "PALOALTO_HOST", "FORTINET_HOST", "AD_SERVER_URL",
+            "ELASTICSEARCH_URL", "WAZUH_URL", "THEHIVE_URL",
+            "CRON_SECRET",
+        }
+        for key in required:
+            assert key in env_ex, f"{key!r} missing from .env.example"
+
+    def test_email_verification_expire_hours_in_env(self):
+        env_ex = (_REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+        assert "EMAIL_VERIFICATION_EXPIRE_HOURS" in env_ex
+
+    def test_debug_not_true_in_vercel_env(self):
+        """DEBUG must not be set to 'true' in vercel.json env — production default."""
+        env_vars = self.data.get("env", {})
+        debug_val = env_vars.get("DEBUG", "false")
+        assert debug_val.lower() != "true", (
+            "vercel.json must not set DEBUG=true (use Vercel Dashboard for env-specific overrides)"
         )
-
-    def test_stripe_secret_key_sync_false(self):
-        svc = self.data["services"][0]
-        sk = next((e for e in svc["envVars"] if e["key"] == "STRIPE_SECRET_KEY"), None)
-        assert sk is not None
-        assert sk.get("sync") is False, "STRIPE_SECRET_KEY must be sync:false"
-
-    def test_stripe_webhook_secret_present(self):
-        assert "STRIPE_WEBHOOK_SECRET" in self.env_keys, (
-            "STRIPE_WEBHOOK_SECRET missing from render.yaml — added in P55"
-        )
-
-    def test_stripe_webhook_secret_sync_false(self):
-        svc = self.data["services"][0]
-        ws = next((e for e in svc["envVars"] if e["key"] == "STRIPE_WEBHOOK_SECRET"), None)
-        assert ws is not None
-        assert ws.get("sync") is False
-
-    def test_specter_signing_keys_present(self):
-        assert "SPECTER_SIGNING_PRIVATE_KEY" in self.env_keys
-        assert "SPECTER_SIGNING_PUBLIC_KEY" in self.env_keys
-
-    def test_specter_signing_private_key_sync_false(self):
-        svc = self.data["services"][0]
-        pk = next((e for e in svc["envVars"] if e["key"] == "SPECTER_SIGNING_PRIVATE_KEY"), None)
-        assert pk is not None
-        assert pk.get("sync") is False
-
-    def test_metrics_scrape_token_present(self):
-        assert "METRICS_SCRAPE_TOKEN" in self.env_keys
-
-    def test_adapter_keys_present_with_empty_default(self):
-        adapter_keys = [
-            "PALOALTO_HOST", "PALOALTO_API_KEY",
-            "FORTINET_HOST", "FORTINET_API_TOKEN",
-            "AD_SERVER_URL", "AD_BIND_DN", "AD_BIND_PASSWORD",
-            "ELASTICSEARCH_URL", "ELASTICSEARCH_API_KEY",
-        ]
-        for key in adapter_keys:
-            assert key in self.env_keys, f"{key} missing from render.yaml"
-
-    def test_debug_set_to_false(self):
-        svc = self.data["services"][0]
-        debug = next(e for e in svc["envVars"] if e["key"] == "DEBUG")
-        assert debug.get("value") == "false"
 
     def test_no_secret_values_inline(self):
-        """No env var with sync:false should have a value set inline."""
-        svc = self.data["services"][0]
-        for e in svc.get("envVars", []):
-            if e.get("sync") is False:
-                assert "value" not in e, (
-                    f"sync:false key {e['key']} has inline value — security risk"
-                )
+        """vercel.json must not contain secret values inline."""
+        # (checking that no @env-var references contain literal secrets)
+        import re
+        content = (_REPO_ROOT / "frontend" / "vercel.json").read_text(encoding="utf-8")
+        # Pattern: obvious secret strings (long random-looking values in JSON)
+        for bad in ["sk_live_", "rk_live_", "whsec_", "re_live_"]:
+            assert bad not in content, (
+                f"vercel.json appears to contain a live secret ({bad!r}) — use Vercel Dashboard"
+            )
 
-    def test_email_verification_expire_hours_present(self):
-        assert "EMAIL_VERIFICATION_EXPIRE_HOURS" in self.env_keys
+    def test_cron_router_registered(self):
+        """cron router must be registered in the main API router."""
+        content = (_REPO_ROOT / "backend" / "asc_api" / "api" / "v1" / "router.py"
+                   ).read_text(encoding="utf-8")
+        assert "cron" in content
 
 
 # ── 3. Deploy Artifacts — vercel.json ─────────────────────────────────────────
@@ -718,11 +709,12 @@ class TestCodeHygieneAndGate:
         content = gitignore.read_text(encoding="utf-8", errors="ignore")
         assert "htmlcov" in content or ".coverage" in content
 
-    def test_render_yaml_valid_yaml(self):
-        render_path = _REPO_ROOT / "render.yaml"
-        data = yaml.safe_load(render_path.read_text(encoding="utf-8"))
+    def test_vercel_json_valid_json(self):
+        import json
+        vj_path = _REPO_ROOT / "frontend" / "vercel.json"
+        data = json.loads(vj_path.read_text(encoding="utf-8"))
         assert isinstance(data, dict)
-        assert "services" in data
+        assert "crons" in data
 
     def test_models_init_exports_usage_record(self):
         """UsageRecord must be in models __all__ for Alembic autogenerate."""

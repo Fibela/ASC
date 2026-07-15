@@ -671,26 +671,13 @@ class TestSecurityInvariants:
 
 class TestConfigCompleteness:
 
-    def test_render_yaml_has_supabase_url(self):
-        render = (_BACKEND.parent / "render.yaml").read_text(encoding="utf-8")
-        assert "SUPABASE_URL" in render
+    def test_env_example_has_supabase_url(self):
+        env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")
+        assert "SUPABASE_URL" in env_ex
 
-    def test_render_yaml_supabase_jwt_secret_is_sync_false(self):
-        render = (_BACKEND.parent / "render.yaml").read_text(encoding="utf-8")
-        lines = render.splitlines()
-        in_supabase_block = False
-        for line in lines:
-            if "SUPABASE_JWT_SECRET" in line:
-                in_supabase_block = True
-            if in_supabase_block and "sync: false" in line:
-                break
-        else:
-            # Check direct adjacency
-            for i, line in enumerate(lines):
-                if "SUPABASE_JWT_SECRET" in line:
-                    nearby = "\n".join(lines[max(0, i-1):i+3])
-                    assert "sync: false" in nearby, "SUPABASE_JWT_SECRET must have sync: false"
-                    break
+    def test_env_example_has_supabase_jwt_secret(self):
+        env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")
+        assert "SUPABASE_JWT_SECRET" in env_ex
 
     def test_env_example_has_supabase_vars(self):
         env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")

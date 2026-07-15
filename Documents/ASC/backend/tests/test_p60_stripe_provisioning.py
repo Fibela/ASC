@@ -713,13 +713,13 @@ class TestConfigCompleteness:
         s = Settings()
         assert hasattr(s, "STRIPE_SEGURIDAD_PRODUCT_ID")
 
-    def test_render_yaml_has_stripe_provisioning_plan(self):
-        render = (_BACKEND.parent / "render.yaml").read_text(encoding="utf-8")
-        assert "STRIPE_PROVISIONING_PLAN" in render
+    def test_env_example_has_stripe_provisioning_plan(self):
+        env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")
+        assert "STRIPE_PROVISIONING_PLAN" in env_ex
 
-    def test_render_yaml_has_stripe_seguridad_product_id(self):
-        render = (_BACKEND.parent / "render.yaml").read_text(encoding="utf-8")
-        assert "STRIPE_SEGURIDAD_PRODUCT_ID" in render
+    def test_env_example_has_stripe_seguridad_product_id(self):
+        env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")
+        assert "STRIPE_SEGURIDAD_PRODUCT_ID" in env_ex
 
     def test_env_example_has_stripe_provisioning_plan(self):
         env_ex = (_BACKEND.parent / ".env.example").read_text(encoding="utf-8")

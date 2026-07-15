@@ -37,15 +37,16 @@ de aceptación del staging-deploy-runbook.md.
 # Solo si el branch main = staging validado
 git checkout main
 git pull origin main
-git push origin main  # auto-deploy vía GitHub Actions → Render → Vercel
+git push origin main  # auto-deploy vía GitHub Actions → Vercel (mono-deploy)
 
-# Monitorear logs de Render en tiempo real
-render logs asc-backend --tail
+# Monitorear deploy en Vercel Dashboard → asc-mono → Deployments
+# o vía CLI:
+vercel logs --follow
 
-# Señales de startup exitoso (en logs):
+# Señales de startup exitoso (en logs de Vercel):
 # INFO: "startup_checks_passed" production=True
-# INFO: "Application startup complete."
-# INFO: Uvicorn running on http://0.0.0.0:PORT
+# INFO: "notification_bus_ready" mode=local
+# INFO: First request to /api/v1/health/liveness → 200
 ```
 
 ---
@@ -73,18 +74,21 @@ Completar cada revisión y marcar ✅ / ❌:
 ## Checks de monitoreo (ejecutar en cada revisión)
 
 ```bash
-PROD_URL="https://asc-backend.onrender.com"  # cambiar a dominio producción
+PROD_URL="https://asc.premoscorp.com"
 TOKEN="<analyst_jwt>"
 
-# 1. Health check básico
-curl -sf "$PROD_URL/health" | python -m json.tool
-# Verde: status=ok | Rojo: 5xx o timeout
+# 1. Health check básico (Vercel serverless — FastAPI bajo /api/v1/...)
+curl -sf "$PROD_URL/api/v1/health/liveness" | python -m json.tool
+# Verde: {"status":"alive"} | Rojo: 5xx o timeout
 
-# 2. System metrics
+# 2. Readiness (DB conectado)
+curl -sf "$PROD_URL/api/v1/health/readiness" | python -m json.tool
+# Verde: {"status":"ready"} | Degradado: {"status":"degraded"}
+
+# 3. System metrics (requiere JWT)
 curl -sf -H "Authorization: Bearer $TOKEN" \
-  "$PROD_URL/health/system" | python -m json.tool
-# Verde: cpu < 80%, memory_rss_mb < 512
-# Rojo: cpu > 90% sostenido o memory leak (crecimiento lineal)
+  "$PROD_URL/api/v1/health/system" | python -m json.tool
+# Verde: version, uptime, process info
 
 # 3. Summary SOC
 curl -sf -H "Authorization: Bearer $TOKEN" \
@@ -136,13 +140,13 @@ render logs asc-backend --tail 100 | grep -c "ERROR\|CRITICAL\|500"
 ### P1 — Servicio caído
 
 ```bash
-# 1. Verificar estado Render
-render services list
+# 1. Verificar estado Vercel
+vercel ls --prod
 
-# 2. Si el servicio está down, restart
-render restart asc-backend
+# 2. Si el deploy falló, hacer rollback
+# Vercel Dashboard → asc-mono → Deployments → deployment anterior → Promote to Production
 
-# 3. Si el restart no ayuda, revisar logs de crash
+# 3. Si el problema es de código, revisar Function logs en Vercel Dashboard
 render logs asc-backend --since 1h
 
 # 4. Rollback si el crash es post-deploy
@@ -228,5 +232,5 @@ Al cumplir todos los criterios: **PRODUCCIÓN CONFIRMADA** — actualizar ROADMA
 | Rol | Responsabilidad | Tiempo respuesta |
 |-----|-----------------|-----------------|
 | Backend Lead | DB, API, migraciones | < 15 min P1 |
-| DevOps / SRE | Infra, Render, Vercel | < 15 min P1 |
+| DevOps / SRE | Infra, Vercel, Supabase | < 15 min P1 |
 | Security Engineer | Auth bypass, data leak | < 30 min P1 |
