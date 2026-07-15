@@ -6799,7 +6799,22 @@ Los archivos `backend/asc_api/tasks/` (celery_app.py, escalation.py, etc.) se ma
 
 | Métrica | Resultado |
 |---------|-----------|
-| Tests pasados | 4930+ (suite corriendo — confirmación pendiente) |
-| Tests fallidos | 0 |
+| Tests pasados | **4922 passed, 14 skipped** |
+| Tests fallidos | **0** |
+| Coverage | **85.05%** (≥ 85% gate ✅) |
 | Tests actualizados | ~35 tests cambiados o reemplazados |
 | `render.yaml` references in tests | **0** |
+
+### Documentación — segunda pasada (S100 commit 2)
+
+Archivos actualizados después de confirmar suite verde:
+
+| Archivo | Cambio |
+|---------|--------|
+| `docs/deployment-guide.md` | **Reescrito completo** — eliminada sección "2. Render — FastAPI Backend", arquitectura actualizada a Vercel mono-deploy, tabla de secrets sin RENDER_API_KEY/SERVICE_ID, P56 checklist actualizado |
+| `frontend/.env.example` | Comentario producción: `https://asc-api.onrender.com` → vacío (mismo dominio Vercel) |
+| `docs/go-live-runbook.md` | Eliminados comandos `render logs` y `render rollback`; reemplazados con `vercel logs` |
+| `docs/testing-and-audit.md` | Tabla operacional: "Añadir en Render env vars" → "Vercel Dashboard" |
+| `docs/ROADMAP.md` | Pendiente staging: "Render/Vercel" → "Vercel"; tabla forward-looking actualizada |
+| `docs/legal/AVISO_PRIVACIDAD.md` | Proveedores cloud: "(AWS, GCP, Vercel, Render)" → "(Vercel, Supabase)" |
+| `docs/legal/GDPR_CHECKLIST.md` | Subencargados: eliminado "Render Inc."; sección transferencias EE.UU. y coordinación actualizados |

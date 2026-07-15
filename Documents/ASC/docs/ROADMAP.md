@@ -391,7 +391,7 @@ pytest backend/tests/security/test_rbac.py -v
 - [x] CORS wildcard rechazado en production mode (startup_checks.py)
 - [x] SECRET_KEY < 32 chars lanza RuntimeError("Startup aborted") en producciÃ³n
 - [x] Full test suite: 3078 passed, 14 skipped, 0 failed â€” coverage 85.08%
-- [ ] Deploy en staging real sin errores durante 48h (requiere secrets de Render/Vercel configurados)
+- [ ] Deploy en staging real sin errores durante 48h (requiere secrets de Vercel configurados)
 - [x] Monitoreo activo con alertas configuradas (Prometheus endpoint + psutil â€” P39)
 - [ ] Go-live con ventana de observaciÃ³n de 72h
 
@@ -815,7 +815,7 @@ Entregables:
 | 2 | `SUPABASE_JWT_SECRET` | Vercel Dashboard + GitHub Secret | Requerido para SSO Bridge (P59) |
 | 3 | `CI_LEDGER_SECRET` | GitHub Secret | Requerido para Premos CI/CD Ledger forense (TD-6) |
 | 4 | `VITE_ASC_API_URL` + `VITE_ASC_APP_URL` | Vercel env | URLs de producción de ASC para FASE 6 |
-| 5 | Staging 48h | Operacional | Validar render.yaml + Vercel sin errores durante 48h |
+| 5 | Staging 48h | Operacional | Validar Vercel cron jobs + mono-deploy sin errores durante 48h |
 | 6 | Go-live 72h | Operacional | Observación con umbrales P1/P2/P3 según `go-live-runbook.md` |
 
 ---

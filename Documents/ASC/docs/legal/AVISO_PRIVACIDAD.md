@@ -97,7 +97,7 @@ PremosCorp podrá transferir datos personales en los siguientes supuestos:
 | Destinatario | Finalidad | Consentimiento requerido |
 |--------------|-----------|--------------------------|
 | Autoridades competentes (SAT, INAI, judiciales) | Cumplimiento de obligaciones legales | No (Art. 37 LFPDPPP) |
-| Proveedores de infraestructura cloud (AWS, GCP, Vercel, Render) | Hospedaje de la plataforma ASC | No (encargados del tratamiento) |
+| Proveedores de infraestructura cloud (Vercel, Supabase) | Hospedaje de la plataforma ASC | No (encargados del tratamiento) |
 | Proveedores de facturación electrónica | Emisión de CFDI | No (encargados del tratamiento) |
 | Auditores externos de seguridad | Auditorías de cumplimiento | No (encargados del tratamiento) |
 | Socios comerciales para prestación conjunta de servicios | Servicio específico | **Sí** |

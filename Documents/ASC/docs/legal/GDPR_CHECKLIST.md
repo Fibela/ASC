@@ -79,7 +79,7 @@ Medidas de seguridad: [cifrado / acceso restringido / anonimización / etc.]
 - [ ] Canal designado: dpo@premoscorp.com / privacidad@premoscorp.com
 - [ ] Proceso de verificación de identidad antes de entregar datos (sin ser excesivo)
 - [ ] Registro de todas las solicitudes recibidas y su resolución
-- [ ] Coordinación con subencargados (Supabase, Vercel, Render) para cumplir en plazo
+- [ ] Coordinación con subencargados (Supabase, Vercel) para cumplir en plazo
 - [ ] Proceso de extensión de 60 días adicionales para casos complejos (con notificación)
 
 ---
@@ -92,7 +92,7 @@ Para cualquier transferencia de datos a países fuera del EEE:
 |---|-------------|----------|--------|
 | 4.1 | Identificados todos los destinos fuera del EEE donde se transfieren datos | — | ☐ |
 | 4.2 | **México**: La Comisión Europea ha adoptado decisión de adecuación (verificar vigencia) | Decisión de adecuación | ☐ |
-| 4.3 | **EE.UU. (Render/Vercel)**: DPF (Data Privacy Framework) o SCCs implementadas | SCCs o DPF | ☐ |
+| 4.3 | **EE.UU. (Vercel)**: DPF (Data Privacy Framework) o SCCs implementadas | SCCs o DPF | ☐ |
 | 4.4 | **AWS/GCP**: SCCs firmadas con proveedor cloud | SCCs | ☐ |
 | 4.5 | **Supabase**: Verificar adecuación o SCCs para región de datos | SCCs | ☐ |
 | 4.6 | Las SCCs son las versiones actualizadas (Decisión de la Comisión 2021/914) | SCCs 2021 | ☐ |
@@ -137,8 +137,7 @@ Un DPA debe incluir obligatoriamente:
 | Subencargado | Ubicación | Función | Mecanismo |
 |-------------|-----------|---------|----------|
 | Supabase Inc. | EE.UU. / UE (Frankfurt) | Base de datos PostgreSQL | SCCs |
-| Vercel Inc. | EE.UU. | Hosting frontend ASC | SCCs / DPF |
-| Render Inc. | EE.UU. | Hosting backend FastAPI | SCCs |
+| Vercel Inc. | EE.UU. | Hosting frontend + backend ASC (mono-deploy) | SCCs / DPF |
 | Resend Inc. | EE.UU. | Envío de notificaciones por correo | SCCs |
 
 ---

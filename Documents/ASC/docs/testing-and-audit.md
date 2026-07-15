@@ -54,8 +54,8 @@
 
 | # | Item | Impacto si falta | Acción requerida |
 |---|------|-----------------|-----------------|
-| 1 | `CORS_ORIGINS_EXTRA=https://www.premoscorp.com` | CORS error si usuarios acceden via www | Añadir en Render env vars |
-| 2 | `SUPABASE_JWT_SECRET` | SSO Bridge retorna 503 (P59 desactivado) | Añadir en GitHub Secrets + Render |
+| 1 | `CORS_ORIGINS_EXTRA=https://www.premoscorp.com` | CORS error si usuarios acceden via www | Añadir en Vercel Dashboard env vars |
+| 2 | `SUPABASE_JWT_SECRET` | SSO Bridge retorna 503 (P59 desactivado) | Añadir en GitHub Secrets + Vercel Dashboard |
 | 3 | `CI_LEDGER_SECRET` | Ledger CI/CD firma como "unsigned" | Añadir en GitHub Secrets |
 | 4 | `VITE_ASC_API_URL` + `VITE_ASC_APP_URL` | FASE 6 widgets/portales no cargan | Añadir en Vercel env (production) |
 | 5 | Deploy staging 48h | Riesgo migraciones en DB real | Ejecutar staging-deploy-runbook.md |

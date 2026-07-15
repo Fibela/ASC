@@ -103,9 +103,10 @@ time curl -sf -H "Authorization: Bearer $TOKEN" \
 time curl -sf -H "Authorization: Bearer $TOKEN" \
   "$PROD_URL/api/v1/events/" -o /dev/null
 
-# 5. Error rate en logs (últimas 100 líneas)
-render logs asc-backend --tail 100 | grep -c "ERROR\|CRITICAL\|500"
+# 5. Error rate en logs (últimas líneas — Vercel Function logs)
+vercel logs --since 1h 2>&1 | grep -c "ERROR\|CRITICAL\|500" || true
 # Verde: 0 | Amarillo: 1-5 | Rojo: >5
+# También: Vercel Dashboard → asc-mono → Functions → seleccionar /api/index
 ```
 
 ---
@@ -146,13 +147,11 @@ vercel ls --prod
 # 2. Si el deploy falló, hacer rollback
 # Vercel Dashboard → asc-mono → Deployments → deployment anterior → Promote to Production
 
-# 3. Si el problema es de código, revisar Function logs en Vercel Dashboard
-render logs asc-backend --since 1h
+# 3. Si el problema es de código, revisar Function logs
+vercel logs --since 1h
+# También: Vercel Dashboard → asc-mono → Functions → /api/index
 
-# 4. Rollback si el crash es post-deploy
-render rollback asc-backend
-
-# 5. Notificar al equipo (Slack #asc-incidents)
+# 4. Notificar al equipo (Slack #asc-incidents)
 ```
 
 ### P2 — DB connection pool exhausted
