@@ -361,15 +361,25 @@ class SprecterBridgeResult:
         dispatch_mode: DispatchMode = DispatchMode.SIMULATION,
         commands_issued: list[str] | None = None,
         agents_targeted: list[str] | None = None,
+        simulated: bool | None = None,
     ) -> None:
         self.success = success
         self.message = message
         self.dispatch_mode = dispatch_mode
+        # Honestidad (S103): simulated=True cuando nada real ocurrió. Si no se
+        # indica, se deriva del modo de despacho (SIMULATION => simulado).
+        self.simulated = (
+            simulated if simulated is not None
+            else (dispatch_mode == DispatchMode.SIMULATION)
+        )
+        self.status = "executed" if success else ("simulated" if self.simulated else "failed")
         self.commands_issued: list[str] = commands_issued or []
         self.agents_targeted: list[str] = agents_targeted or []
         self.details: dict[str, Any] = {
             **(details or {}),
             "dispatch_mode":   dispatch_mode,
+            "simulated":       self.simulated,
+            "status":          self.status,
             "commands_issued": self.commands_issued,
             "agents_targeted": self.agents_targeted,
         }

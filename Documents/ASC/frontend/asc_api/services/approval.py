@@ -610,9 +610,15 @@ async def _execute_immediately(
         log.error("specter_bridge_exception", error=str(bridge_exc), action_id=action.id)
         result = await execute_action(action.action_type, action.params)
 
-    action.status = "completed" if result.success else "failed"
+    # Honestidad (S103): tri-estado. Una simulación NO es "completed" ni "failed".
+    if result.success:
+        action.status = "completed"
+    elif getattr(result, "simulated", False):
+        action.status = "simulated"
+    else:
+        action.status = "failed"
     action.result = result.details
-    action.error_message = None if result.success else result.message
+    action.error_message = result.message if action.status == "failed" else None
     action.executed_at = _now()
 
     # PANL: mark reversible actions available for dynamic rollback
@@ -650,12 +656,12 @@ async def _execute_immediately(
             f"dispatch_mode={result.details.get('dispatch_mode', 'unknown')} "
             f"success={result.success} rollback_available={action.rollback_available}"
         ),
-        status="ok" if result.success else "error",
+        status="ok" if result.success else ("simulated" if action.status == "simulated" else "error"),
     )
 
     asyncio.ensure_future(
         notification_bus.publish(
-            "action_completed" if result.success else "action_failed",
+            "action_completed" if result.success else ("action_simulated" if action.status == "simulated" else "action_failed"),
             {
                 "action_id":          action.id,
                 "action_type":        action.action_type,

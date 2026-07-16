@@ -6926,3 +6926,39 @@ Invertir el orden rompe endpoints de tenant hasta que la migración corra. Es el
 ### Pendiente (Fase 2 S103)
 
 Panel de streaming en la UI de alertas (consume el SSE), selección/edición de perfil en onboarding y admin, y la prueba de integración real contra la API de Anthropic (marker, con key).
+
+---
+
+## Session 103 — 2026-07-16 (Funciones completas/funcionales — ① Neutralizador honesto)
+
+### Contexto
+
+Inicio de la campaña "todas las funciones completas y funcionales", de lo más crítico a lo menos. Auditoría previa (sweep verificado) confirmó que el sistema está mucho más completo de lo que sugiere "completar todo": adaptadores reales (httpx/LDAP), búsquedas externas (VirusTotal/AbuseIPDB) con degradación honesta, endpoints que responden 503 cuando el adaptador no está configurado (no fingen). La incompletitud está concentrada, no dispersa.
+
+**Gap crítico #1 (verificado):** el neutralizador reportaba éxito sin actuar. `isolate_endpoint`, `kill_process`, `quarantine_file`, `remove_persistence` y los fallbacks de `block_ip`/`block_domain`/`disable_account` devolvían **`success=True`** con etiqueta `[SIMULATION]`. En `approval._execute_immediately`, `status = "completed" if result.success else "failed"` → la acción quedaba "completed", se marcaba rollback disponible y se creaba entrada forense de un no-evento. Para un producto de seguridad, "aislé el equipo" cuando no pasó nada es el bug más peligroso.
+
+### Cambio — tri-estado honesto (executed / simulated / failed)
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `services/neutralizer.py` | `NeutralizationResult` gana `simulated: bool` y `status`. Helper `_sim()`: toda simulación → **`success=False, simulated=True, status="simulated"`**, con `requires` (specter_agent / firewall_adapter / identity_adapter). Adaptador real que falla → `status="failed"` (antes se enmascaraba como simulación exitosa). Mensajes: "NOT executed — requires …". |
+| `services/specter_bridge.py` | `SprecterBridgeResult` gana `simulated` (derivado de `dispatch_mode==SIMULATION` si no se indica) y `status`; viajan en `details`. |
+| `services/approval.py` | `_execute_immediately`: tri-estado — `completed` si success, `simulated` si simulado, `failed` si no. `error_message` solo en fallo real. Evento SSE `action_simulated`. Rollback y entrada forense YA NO se generan para simulaciones (guardados por `if result.success`, ahora False). |
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_neutralizer_honesty.py` (**NUEVO**, 9 tests) | 9 passed — tri-estado, simulaciones no mienten, adaptador real ejecuta, excepción = failed, bridge deriva simulated |
+| `test_ops_dashboard.py` | 7 tests actualizados de la conducta vieja (simulación=success) a la honesta; **38 passed** |
+| `test_approval_workflow.py` | 1 test actualizado (mock con `simulated=False` para fallo real); **50 passed** |
+| Regresión (neutralize, bridge, rollback, iam, agents, e2e_lifecycle, approval, ops) | **238 passed, 0 failed** |
+| Gate de integridad asc_api | verde (espejo 137 archivos) |
+
+### Nota de honestidad (la regla que causó esto)
+
+Los tests `TestNeutralizerSimOnly`/`TestNeutralizerFallback` **codificaban el bug**: afirmaban `success is True` para simulaciones. Es el patrón "los tests validan la doc, no el sistema". Ahora afirman la realidad: una simulación reporta `success=False, simulated=True`.
+
+### Alcance y pendiente
+
+Alcance elegido por Alexander: **honestidad primero** (solo código, sin infra). La ejecución REAL de acciones agent-only (isolate/kill/quarantine/remove) sigue requiriendo un agente SPECTER vivo; block/disable requieren credenciales de firewall/AD — infra que Alexander conectará (gap #2). La UI de Neutralización debería leer `status`/`simulated` para mostrar "simulado — requiere agente" en vez de un falso éxito (queda para la fase UI). Gap #3: correo log-only sin RESEND_API_KEY.

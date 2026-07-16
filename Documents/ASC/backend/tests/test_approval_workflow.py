@@ -212,6 +212,7 @@ class TestApproveAction:
         db = _db(action)
         mock_result = MagicMock()
         mock_result.success = False
+        mock_result.simulated = False   # fallo REAL (no simulación) — S103 tri-estado
         mock_result.message = "EDR timeout"
         mock_result.details = {}
 

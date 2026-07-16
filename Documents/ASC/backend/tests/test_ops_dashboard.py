@@ -538,7 +538,9 @@ class TestNeutralizerFallback:
     async def test_block_ip_falls_back_to_simulation_when_no_adapter(self):
         with patch("asc_api.adapters.get_firewall_adapter", return_value=None):
             result = await neutralizer.block_ip("10.0.0.1")
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
@@ -548,8 +550,10 @@ class TestNeutralizerFallback:
         mock_fw.block_ip = AsyncMock(side_effect=RuntimeError("adapter timeout"))
         with patch("asc_api.adapters.get_firewall_adapter", return_value=mock_fw):
             result = await neutralizer.block_ip("10.0.0.2")
-        assert result.success is True
-        assert "[SIMULATION]" in result.message
+        assert result.success is False          # intento REAL que falló, no simulación (S103)
+        assert result.simulated is False
+        assert result.status == "failed"
+        assert "FAILED" in result.message
 
     @pytest.mark.asyncio
     async def test_block_domain_uses_real_adapter(self):
@@ -573,7 +577,9 @@ class TestNeutralizerFallback:
     async def test_disable_account_fallback_simulation(self):
         with patch("asc_api.adapters.get_identity_adapter", return_value=None):
             result = await neutralizer.disable_account("bad.actor", domain="CORP")
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
@@ -586,27 +592,35 @@ class TestNeutralizerSimOnly:
     @pytest.mark.asyncio
     async def test_isolate_endpoint_always_simulation(self):
         result = await neutralizer.isolate_endpoint("host-1")
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
     @pytest.mark.asyncio
     async def test_kill_process_always_simulation(self):
         result = await neutralizer.kill_process("host-1", "malware.exe", pid=1234)
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
     @pytest.mark.asyncio
     async def test_quarantine_file_always_simulation(self):
         result = await neutralizer.quarantine_file("host-1", "C:\\evil.exe")
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
 
     @pytest.mark.asyncio
     async def test_remove_persistence_always_simulation(self):
         result = await neutralizer.remove_persistence("host-1", "registry", "HKCU\\Run\\malware")
-        assert result.success is True
+        assert result.success is False          # honestidad S103: una simulación no miente
+        assert result.simulated is True
+        assert result.status == "simulated"
         assert "[SIMULATION]" in result.message
         assert result.details.get("simulation") is True
