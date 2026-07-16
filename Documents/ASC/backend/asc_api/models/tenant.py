@@ -29,6 +29,8 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     plan: Mapped[str] = mapped_column(String(50), default="free")  # free | pro | enterprise
+    # S102 — audiencia del explainer adaptativo: hogar | pyme | enterprise
+    profile: Mapped[str] = mapped_column(String(20), default="pyme", server_default="pyme")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -48,7 +50,4 @@ class Tenant(Base):
 
     # ── P60 Stripe Checkout Auto-Provisioning ─────────────────────────────────
     # Checkout session ID used for idempotency (cs_XXXXXXXXXXXXXXXXXX).
-    # Prevents duplicate provisioning if Stripe fires the event more than once.
-    stripe_checkout_session_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, unique=True
-    )
+    # Prevents duplicate provisio

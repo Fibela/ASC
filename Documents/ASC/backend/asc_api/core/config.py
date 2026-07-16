@@ -168,6 +168,14 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = ""           # nosec B105 — sk_live_… or sk_test_…
     STRIPE_WEBHOOK_SECRET: str = ""       # nosec B105 — whsec_…
 
+    # ── S102 Explicación adaptativa (Anthropic claude-fable-5) ────────────────
+    # El explainer EXPLICA y RECOMIENDA; nunca decide ni ejecuta acciones.
+    # Empty = módulo deshabilitado (el endpoint responde 503, sin simulaciones).
+    ANTHROPIC_API_KEY: str = ""           # nosec B105 — sk-ant-…, solo en Vercel env
+    ANTHROPIC_MODEL: str = "claude-fable-5"
+    EXPLAINER_MAX_TOKENS: int = 1024
+    EXPLAINER_TIMEOUT_SECONDS: int = 25   # < maxDuration 30s del Lambda
+
     # ── SPECTER Security Hardening (P14) ──────────────────────────────────────
     # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
     # Generate a token with: python -c "from asc_api.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"

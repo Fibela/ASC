@@ -5,6 +5,7 @@ from asc_api.api.v1.endpoints import (
     notifications, iam, forensic, ops_dashboard, threat_intel, threat_hunting, pcdi,
     soar, pids, correlation, incidents, executive_reports, observability, api_keys,
     webhooks, tenants, onboarding, billing, adapter_registry, auth_sso, cron,
+    explain,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -44,3 +45,4 @@ api_router.include_router(billing.router)
 api_router.include_router(adapter_registry.router)
 api_router.include_router(auth_sso.router)
 api_router.include_router(cron.router)
+api_router.include_router(explain.router)  # S102 — alertas/{id}/explain (SSE)

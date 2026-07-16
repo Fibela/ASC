@@ -6868,3 +6868,61 @@ Verificación del repo contra la documentación (comandos reales, no lectura de 
 3. Verificar en dashboard Vercel: proyecto activo (asc-mono), Root Directory, si "include files outside root" está habilitado (condiciona el prebuild sync), y si el proyecto `backend` residual sigue vivo.
 4. Limpiar project-ref de Supabase de este archivo (línea ~6236) o rotar credenciales del pooler si el repo cambia de visibilidad.
 5. `deployment-guide.md`: heads muertos + comandos docker residuales (tercera pasada, contra código verificado).
+
+---
+
+## Session 102 — 2026-07-15 (Módulo de explicación adaptativa — Fase 1: backend)
+
+### Contexto
+
+Primer entregable de innovación tras el saneamiento. Vertical backend completo del explainer: traduce cada alerta según el perfil del tenant (hogar/pyme/enterprise) usando claude-fable-5 server-side. **El módulo EXPLICA y RECOMIENDA; nunca decide ni ejecuta** — guardrail verificado en código y en test.
+
+### Verificación previa (pasada de errores)
+
+| Check | Resultado |
+|-------|-----------|
+| Runtime errors prod (24h) | **0** (get_runtime_errors) |
+| Crons en prod | 4× **403** (registrados y protegidos — sin CRON_SECRET aún) |
+| Gate de integridad asc_api | verde (espejo íntegro) |
+| Working tree | limpio sobre 72ca560 |
+
+### Cambios
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `migrations/versions/f309a0115906_add_tenant_profile_s102.py` | **NUEVO** — añade `tenants.profile` (hogar/pyme/enterprise), server_default='pyme', CHECK constraint de dominio. ID hex real (uuid4) sobre head `c9d12f0e5b67`. Nuevo head único: **f309a0115906** (verificado con `alembic heads`) |
+| `asc_api/models/tenant.py` | campo `profile` |
+| `asc_api/core/config.py` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL=claude-fable-5`, `EXPLAINER_MAX_TOKENS`, `EXPLAINER_TIMEOUT_SECONDS=25` (< maxDuration 30s) |
+| `asc_api/services/explainer.py` | **NUEVO** — system prompt por perfil con guardrail común; `build_alert_context` omite campos vacíos (no inventa datos); streaming SSE vía httpx (sin añadir SDK, Lambda liviano); `ExplainerDisabled` si falta la key |
+| `asc_api/api/v1/endpoints/explain.py` | **NUEVO** — `POST /api/v1/alerts/{id}/explain` SSE; auth + aislamiento de tenant; perfil desde el tenant en DB; 503 sin key; errores se reportan (event: error), no se simulan |
+| `asc_api/api/v1/router.py` | registra `explain.router` |
+| `.env.example` | `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` documentados (solo Vercel env, nunca repo) |
+| `tests/test_s102_explainer.py` | **NUEVO** — 9 tests: servicio puro (guardrail, normalización de perfil, omisión de vacíos) + endpoint (401, 404 cross-tenant, 503 sin key, stream OK con cliente simulado y perfil tomado del tenant) |
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s102_explainer.py` | **9 passed** |
+| Regresión: alerts + tenant mgmt + multitenancy | **157 passed** (el campo `profile` no rompe nada) |
+| Gate de integridad asc_api | **2 passed** (espejo 137 archivos) |
+
+### Distinción de mocks (regla del proyecto, explícita)
+
+En PRODUCTO: cero mocks; la explicación usa datos reales de la alerta (Supabase). En TESTS UNITARIOS: el cliente Anthropic (servicio externo, red) se simula — práctica correcta, no dependemos de red ni gastamos tokens. La lógica propia se prueba de verdad.
+
+### ⚠ ORDEN DE DESPLIEGUE (crítico — additive column referenciada por el ORM)
+
+El modelo `Tenant` ahora incluye `profile`. Endpoints que cargan tenants harían `SELECT` de esa columna. Por tanto:
+
+1. **PRIMERO** correr la migración en Supabase (SQL Editor):
+   `cd backend && alembic upgrade head --sql > s102.sql` → ejecutar en Supabase.
+   Con `server_default='pyme'` es retrocompatible: el código viejo funciona con la columna ya presente.
+2. **DESPUÉS** push (auto-deploy Vercel del código nuevo).
+3. Setear `ANTHROPIC_API_KEY` en Vercel env (sin ella, `/explain` responde 503 — seguro).
+
+Invertir el orden rompe endpoints de tenant hasta que la migración corra. Es el mismo tipo de trampa de ordenamiento del historial — por eso va documentado y ordenado.
+
+### Pendiente (Fase 2 S103)
+
+Panel de streaming en la UI de alertas (consume el SSE), selección/edición de perfil en onboarding y admin, y la prueba de integración real contra la API de Anthropic (marker, con key).
