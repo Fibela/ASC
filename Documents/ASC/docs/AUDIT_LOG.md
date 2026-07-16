@@ -6818,3 +6818,53 @@ Archivos actualizados después de confirmar suite verde:
 | `docs/ROADMAP.md` | Pendiente staging: "Render/Vercel" → "Vercel"; tabla forward-looking actualizada |
 | `docs/legal/AVISO_PRIVACIDAD.md` | Proveedores cloud: "(AWS, GCP, Vercel, Render)" → "(Vercel, Supabase)" |
 | `docs/legal/GDPR_CHECKLIST.md` | Subencargados: eliminado "Render Inc."; sección transferencias EE.UU. y coordinación actualizados |
+
+---
+
+## Session 101 — 2026-07-15 (Verificación independiente + Fuente única asc_api)
+
+### Contexto
+
+Verificación del repo contra la documentación (comandos reales, no lectura de READMEs), auditoría de secretos, y corrección estructural de la divergencia `asc_api`. Sin push: los hallazgos de esta sesión demuestran que el push de S99/S100 tal cual habría publicado bugs.
+
+### Hallazgos verificados (evidencia = salida de comandos)
+
+| # | Hallazgo | Evidencia |
+|---|----------|-----------|
+| 1 | Alembic tiene **1 solo head**: `c9d12f0e5b67` (mergepoint), 26 revisiones | `python3 -m alembic heads` |
+| 2 | `backend/app/` no existe; el paquete real es `backend/asc_api/`. Quedan **385 refs** a `backend/app` en docs | `ls`, `grep -c` |
+| 3 | **S99 (fix CORS) se aplicó a la copia equivocada**: `backend/asc_api/main.py:103` tiene `CORS_ORIGINS + CORS_ORIGINS_EXTRA`; `frontend/asc_api/main.py:103` (la que sirve Vercel asc-mono) NO. El fix nunca habría llegado a producción | `grep -n allow_origins` en ambas copias |
+| 4 | **S100 (crons) mismo patrón**: `cron.py` + registro en router solo en `backend/asc_api`. Los 5 crons de `frontend/vercel.json` → rutas 404 al pushear | `diff` de routers |
+| 5 | No existe build step ni script que sincronice las dos copias | `package.json` (build = `next build`), `scripts/` |
+| 6 | **CI nunca ha corrido**: los 5 workflows viven en `Documents/ASC/.github/workflows/` pero GitHub solo lee `.github/` en el root del repo (que solo contiene `Documents` y `LEEME`). El "CI gate" de deploy.yml jamás se ejecutó | `git ls-tree HEAD` root local y origin |
+| 7 | 47 archivos "modificados" sin commit eran **100% line-endings CRLF/LF**, cero contenido | `git diff --ignore-cr-at-eol --stat` = vacío |
+| 8 | Secretos: árbol trackeado limpio (`_secret_scan.py`: CLEAN; escaneo independiente: sin llaves; historia git sin `.env` reales). `backend/.env.local` (git-ignored) contiene token OIDC Vercel del proyecto `backend` (residual). `AUDIT_LOG.md` línea ~6236 expone project-ref real de Supabase (sin password; repo privado; pendiente limpiar) | `git check-ignore`, `git log --diff-filter=A`, decodificación de payloads JWT |
+| 9 | Neutralizer ya no es placeholder puro: block_ip/block_domain/disable_account usan adaptadores reales (paloalto 451 líneas, fortinet 407, active_directory 513, httpx/LDAP); isolate_endpoint/kill_process/quarantine_file/remove_persistence siguen siendo simulación **que devuelve success=True**. CrowdStrike no existe | lectura de `neutralizer.py`, `wc -l adapters/` |
+| 10 | `deployment-guide.md` sigue citando heads muertos (`l2f36i4k7e59` ×2, `p6j79m8o1i93`) y `docker compose exec backend alembic upgrade head` pese a la "reescritura completa" de S100 | `grep` |
+
+### Cambios de esta sesión
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `scripts/sync-asc-api.mjs` | **NUEVO** — herramienta canónica de sync `backend/asc_api` → `frontend/asc_api` (espejo generado, nunca editar a mano). Modo `--check` para gates |
+| `backend/tests/test_asc_api_sync.py` | **NUEVO** — gate de integridad: falla si las copias divergen byte a byte |
+| `frontend/scripts/prebuild-sync.cjs` | **NUEVO** — shim `prebuild` para Vercel; no-op tolerante si el monorepo no es visible |
+| `frontend/package.json` | `"prebuild": "node scripts/prebuild-sync.cjs"` |
+| `.github/workflows/deploy.yml` | Step "Gate de integridad asc_api" antes de tests (efectivo cuando se corrija la ubicación de `.github/`) |
+| `.gitattributes` (root del repo) | **NUEVO** — normalización eol=lf para código, crlf para .ps1, binarios marcados |
+| `docs/postmortem-s101-divergencia-y-gates.md` | **NUEVO** — postmortem de las 3 fallas estructurales + reglas anti-repetición |
+| `docs/specter-flow.md` | **NUEVO** — flujo ASC↔SPECTER completo verificado contra código (refs archivo:línea); pipeline de telemetría sin mocks confirmado; deudas: simulaciones con success=True, acciones agent-only sin agente desplegado |
+| `docs/specter-flow-live.html` | **NUEVO** — diagrama de flujo animado autocontenido (presentaciones/proyector); fiel al flujo verificado, incluye espera real del poll y fallback [SIMULATION] visible |
+| `docs/deployment-guide.md` | **Tercera pasada (S101)**: heads muertos `l2f36i4k7e59`/`p6j79m8o1i93` → `c9d12f0e5b67` verificado; sección Fase 2 Docker completa retirada (fuera de alcance, idea comercial registrada); checklist y comandos Docker eliminados; conteo mágico "4930+ passed" reemplazado por criterio de gate; contradicción de puertos 5432/6543 anotada como pendiente de verificación en Vercel env. 404→332 líneas |
+
+### Regla nueva (obligatoria)
+
+**`backend/asc_api` es la única fuente. `frontend/asc_api` es un espejo generado.** Todo cambio al API se hace en `backend/asc_api` y se propaga con `node scripts/sync-asc-api.mjs`. El test `test_asc_api_sync.py` rompe la suite si se viola.
+
+### Pendientes que esta sesión deja explícitos
+
+1. Destrabar `.git/index.lock` (proceso Windows lo retiene) → `git restore .` → `git add --renormalize .` → correr sync → commit. **Sin esto, S99/S100 no deben pushearse.**
+2. Decidir reubicación del contenido del repo (`Documents/ASC/*` → root) o workflows-wrapper en el root real, para que CI exista por primera vez. Afecta Root Directory en Vercel.
+3. Verificar en dashboard Vercel: proyecto activo (asc-mono), Root Directory, si "include files outside root" está habilitado (condiciona el prebuild sync), y si el proyecto `backend` residual sigue vivo.
+4. Limpiar project-ref de Supabase de este archivo (línea ~6236) o rotar credenciales del pooler si el repo cambia de visibilidad.
+5. `deployment-guide.md`: heads muertos + comandos docker residuales (tercera pasada, contra código verificado).

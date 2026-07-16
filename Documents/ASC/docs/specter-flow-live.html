@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPECTER — Flujo vivo · ASC PremosCorp</title>
+<style>
+  :root {
+    --bg: #060a12;
+    --panel: #0b1220;
+    --line: #1c2a42;
+    --txt: #d7e3f4;
+    --dim: #6b7f9c;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --violet: #a78bfa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      linear-gradient(rgba(34,211,238,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,211,238,.03) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+  header {
+    display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;
+    padding: 22px 32px 10px;
+  }
+  header h1 { font-size: 22px; letter-spacing:.14em; font-weight:600; }
+  header h1 b { color: var(--cyan); font-weight:700; }
+  header .sub { color: var(--dim); font-size: 13px; }
+  .controls {
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding: 6px 32px 14px;
+  }
+  .btn {
+    background: linear-gradient(180deg,#12203a,#0b1526);
+    border: 1px solid var(--line); color: var(--txt);
+    padding: 8px 18px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; letter-spacing:.05em; transition: all .2s;
+  }
+  .btn:hover { border-color: var(--cyan); color: var(--cyan); }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .lvl { display:flex; gap:6px; align-items:center; margin-left:8px; }
+  .lvl span.lbl { color: var(--dim); font-size:12px; margin-right:4px; }
+  .lvl button {
+    background:#0b1526; border:1px solid var(--line); color:var(--dim);
+    padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px;
+  }
+  .lvl button.on-normal { border-color: var(--green); color: var(--green); }
+  .lvl button.on-elevated { border-color: var(--amber); color: var(--amber); }
+  .lvl button.on-critical { border-color: var(--red); color: var(--red); }
+  #log {
+    position: fixed; right: 18px; bottom: 18px; width: 380px; max-height: 34vh;
+    overflow-y: auto; background: rgba(6,10,18,.92); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 14px; font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px; line-height: 1.75; backdrop-filter: blur(4px); z-index: 50;
+  }
+  #log .t { color: var(--dim); margin-right:6px; }
+  #log .ok { color: var(--green); } #log .warn { color: var(--amber); }
+  #log .bad { color: var(--red); } #log .info { color: var(--cyan); }
+  svg { display:block; width: 100%; height: auto; }
+  .node rect {
+    fill: var(--panel); stroke: var(--line); stroke-width: 1.4; rx: 12;
+    transition: stroke .25s, filter .25s;
+  }
+  .node.hot rect { stroke: var(--cyan); filter: drop-shadow(0 0 10px rgba(34,211,238,.45)); }
+  .node.alert rect { stroke: var(--red); filter: drop-shadow(0 0 12px rgba(248,113,113,.55)); }
+  .node.okflash rect { stroke: var(--green); filter: drop-shadow(0 0 10px rgba(52,211,153,.5)); }
+  .node text.title { fill: var(--txt); font-size: 14px; font-weight: 600; letter-spacing:.04em; }
+  .node text.sub { fill: var(--dim); font-size: 10.5px; }
+  .zone-label { fill: var(--dim); font-size: 11px; letter-spacing:.28em; font-weight:600; }
+  .zone-box { fill: none; stroke: var(--line); stroke-dasharray: 5 6; rx: 16; opacity:.7; }
+  .wire { stroke: var(--line); stroke-width: 1.6; fill: none; }
+  .gate { transition: all .25s; }
+  .gate circle { fill:#0b1526; stroke: var(--line); stroke-width:1.4; }
+  .gate text { fill: var(--dim); font-size: 9.5px; text-anchor: middle; }
+  .gate.pass circle { stroke: var(--green); fill: rgba(52,211,153,.12); }
+  .gate.pass text { fill: var(--green); }
+  .gate.deny circle { stroke: var(--red); fill: rgba(248,113,113,.14); }
+  .gate.deny text { fill: var(--red); }
+  .badge { fill: rgba(34,211,238,.1); stroke: rgba(34,211,238,.4); rx: 6; }
+  .badge-t { fill: var(--cyan); font-size: 10px; }
+  .pulse-ring { fill: none; stroke: var(--green); opacity: 0; }
+  .pkt { r: 5; }
+  .pkt.telemetry { fill: var(--cyan); filter: drop-shadow(0 0 6px var(--cyan)); }
+  .pkt.command { fill: var(--violet); filter: drop-shadow(0 0 6px var(--violet)); }
+  .pkt.result { fill: var(--green); filter: drop-shadow(0 0 6px var(--green)); }
+  .pkt.threatp { fill: var(--red); filter: drop-shadow(0 0 7px var(--red)); }
+  .sig { fill: var(--amber); font-size: 9px; }
+  footer {
+    padding: 10px 32px 26px; color: var(--dim); font-size: 11.5px; line-height:1.8; max-width: 980px;
+  }
+  footer b { color: var(--txt); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><b>SPECTER</b> × ASC — FLUJO VIVO</h1>
+  <span class="sub">Agente poll-based de PremosCorp · cada movimiento de este diagrama existe en el código (docs/specter-flow.md)</span>
+</header>
+
+<div class="controls">
+  <button class="btn danger" id="attackBtn">⚡ Simular ataque</button>
+  <button class="btn" id="pauseBtn">⏸ Pausar</button>
+  <div class="lvl">
+    <span class="lbl">NIVEL DE AMENAZA (ritmo de poll):</span>
+    <button data-lvl="normal">NORMAL · 30s</button>
+    <button data-lvl="elevated">ELEVADO · 5s</button>
+    <button data-lvl="critical">CRÍTICO · 1s</button>
+  </div>
+</div>
+
+<svg id="stage" viewBox="0 0 1560 760" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ZONAS -->
+  <rect class="zone-box" x="24"  y="60"  width="420" height="640"/>
+  <text class="zone-label" x="44" y="92">ENDPOINT DEL CLIENTE</text>
+  <rect class="zone-box" x="500" y="60"  width="600" height="640"/>
+  <text class="zone-label" x="520" y="92">ASC CLOUD · VERCEL + SUPABASE</text>
+  <rect class="zone-box" x="1156" y="60" width="380" height="640"/>
+  <text class="zone-label" x="1176" y="92">DECISIÓN · MOTOR + ANALISTA</text>
+
+  <!-- ENDPOINT: nodos -->
+  <g class="node" id="n-collect">
+    <rect x="60" y="120" width="180" height="64"/>
+    <text class="title" x="76" y="147">Colectores</text>
+    <text class="sub" x="76" y="166">network.py · processes.py</text>
+  </g>
+  <g class="node" id="n-sign">
+    <rect x="60" y="220" width="180" height="64"/>
+    <text class="title" x="76" y="247">Firma Ed25519</text>
+    <text class="sub" x="76" y="266">identity.py · clave privada local</text>
+  </g>
+  <g class="node" id="n-comm">
+    <rect x="60" y="320" width="180" height="64"/>
+    <text class="title" x="76" y="347">Communicator</text>
+    <text class="sub" x="76" y="366">HTTPS saliente · batch</text>
+  </g>
+  <g class="node" id="n-validate">
+    <rect x="60" y="480" width="180" height="64"/>
+    <text class="title" x="76" y="507">Validación local</text>
+    <text class="sub" x="76" y="526">frescura · anti-inyección</text>
+  </g>
+  <g class="node" id="n-exec">
+    <rect x="60" y="580" width="180" height="64"/>
+    <text class="title" x="76" y="607">Ejecutores</text>
+    <text class="sub" x="76" y="626">block_ip · isolate · kill_process</text>
+  </g>
+
+  <!-- badge: sin puertos entrantes -->
+  <rect class="badge" x="262" y="140" width="150" height="24"/>
+  <text class="badge-t" x="274" y="156">0 puertos entrantes</text>
+  <!-- poll pulse anchor -->
+  <circle id="pollAnchor" cx="337" cy="352" r="4" fill="var(--green)"/>
+  <circle class="pulse-ring" id="pulse1" cx="337" cy="352" r="6"/>
+  <text class="sub" id="pollLabel" x="290" y="392" fill="var(--dim)" font-size="10.5">poll cada 30s</text>
+
+  <!-- ASC: gates -->
+  <g class="gate" id="g-rate"><circle cx="565" cy="230" r="26"/><text x="565" y="226">rate</text><text x="565" y="238">limit</text></g>
+  <g class="gate" id="g-replay"><circle cx="640" cy="230" r="26"/><text x="640" y="226">anti</text><text x="640" y="238">replay</text></g>
+  <g class="gate" id="g-sig"><circle cx="715" cy="230" r="26"/><text x="715" y="226">verify</text><text x="715" y="238">Ed25519</text></g>
+  <g class="gate" id="g-novel"><circle cx="790" cy="230" r="26"/><text x="790" y="226">novelty</text><text x="790" y="238">500 ev</text></g>
+
+  <g class="node" id="n-db">
+    <rect x="860" y="196" width="200" height="66"/>
+    <text class="title" x="876" y="223">Supabase</text>
+    <text class="sub" x="876" y="242">AgentEvent · signature_valid · RLS</text>
+  </g>
+  <g class="node" id="n-corr">
+    <rect x="700" y="330" width="220" height="66"/>
+    <text class="title" x="716" y="357">Correlación</text>
+    <text class="sub" x="716" y="376">reglas + IOC match · sweep 15min</text>
+  </g>
+  <g class="node" id="n-alert">
+    <rect x="700" y="440" width="220" height="66"/>
+    <text class="title" x="716" y="467">⚠ ALERTA</text>
+    <text class="sub" x="716" y="486">severidad · evidencia firmada</text>
+  </g>
+  <g class="node" id="n-queue">
+    <rect x="560" y="560" width="220" height="66"/>
+    <text class="title" x="576" y="587">Cola de comandos</text>
+    <text class="sub" x="576" y="606">el agente la recoge por poll</text>
+  </g>
+  <!-- honeypot badge -->
+  <rect class="badge" x="960" y="120" width="128" height="24"/>
+  <text class="badge-t" x="972" y="136">🍯 honeypots API</text>
+
+  <!-- DECISIÓN -->
+  <g class="node" id="n-approval">
+    <rect x="1200" y="300" width="290" height="86"/>
+    <text class="title" x="1216" y="330">Aprobación</text>
+    <text class="sub" x="1216" y="350">motor determinista o analista humano</text>
+    <text class="sub" x="1216" y="368">la IA nunca decide ni ejecuta</text>
+  </g>
+  <g class="node" id="n-bridge">
+    <rect x="1200" y="440" width="290" height="86"/>
+    <text class="title" x="1216" y="470">SPECTER Bridge</text>
+    <text class="sub" x="1216" y="490">agente vivo → comando real</text>
+    <text class="sub" x="1216" y="508">sin agente → adapter o [SIMULATION]</text>
+  </g>
+
+  <!-- WIRES -->
+  <path class="wire" d="M150 184 L150 220"/>
+  <path class="wire" d="M150 284 L150 320"/>
+  <path class="wire" id="w-tel" d="M240 352 C 400 352, 430 230, 539 230"/>
+  <path class="wire" d="M816 230 L860 230"/>
+  <path class="wire" d="M930 262 C 930 300, 880 320, 830 330"/>
+  <path class="wire" d="M810 396 L810 440"/>
+  <path class="wire" id="w-alert" d="M920 473 C 1050 473, 1080 343, 1200 343"/>
+  <path class="wire" d="M1345 386 L1345 440"/>
+  <path class="wire" id="w-cmd-q" d="M1200 483 C 1000 483, 900 593, 780 593"/>
+  <path class="wire" id="w-poll" d="M560 593 C 420 593, 380 512, 240 512"/>
+  <path class="wire" d="M150 544 L150 580"/>
+  <path class="wire" id="w-result" d="M240 612 C 560 700, 900 660, 1345 526"/>
+</svg>
+
+<div id="log"><div><span class="t">--:--:--</span><span class="info">SPECTER listo. Telemetría en curso. Pulsa «Simular ataque».</span></div></div>
+
+<footer>
+  <b>Qué está viendo:</b> el agente SPECTER nunca abre puertos — todo lo inicia él hacia ASC (poll-based). Cada evento sale <b>firmado con Ed25519</b>;
+  ASC lo somete a cuatro compuertas (rate limit → anti-replay → verificación de firma → detección de novedad) antes de tocar la base.
+  La correlación convierte telemetría en alertas; la decisión es del <b>motor determinista o del analista</b> — nunca de una IA —
+  y el comando de respuesta viaja de vuelta solo cuando el agente lo recoge en su siguiente poll, lo valida criptográficamente y lo ejecuta.
+  <b>Honestidad del diagrama:</b> si no hay agente vivo en el objetivo, ASC lo dice — el fallback queda etiquetado [SIMULATION], jamás disfrazado de acción real.
+</footer>
+
+<script>
+(() => {
+  const svg = document.getElementById('stage');
+  const logEl = document.getElementById('log');
+  let paused = false;
+  let threat = 'normal';
+  const POLL_MS = { normal: 6000, elevated: 2500, critical: 1000 };   // representación visual del 30s/5s/1s real
+  const POLL_TXT = { normal: 'poll cada 30s', elevated: 'poll cada 5s', critical: 'poll cada 1s' };
+
+  const now = () => new Date().toTimeString().slice(0,8);
+  function log(msg, cls='info') {
+    const d = document.createElement('div');
+    d.innerHTML = `<span class="t">${now()}</span><span class="${cls}">${msg}</span>`;
+    logEl.appendChild(d);
+    while (logEl.children.length > 60) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function flash(id, cls='hot', ms=700) {
+    const n = document.getElementById(id);
+    if (!n) return;
+    n.classList.add(cls);
+    setTimeout(() => n.classList.remove(cls), ms);
+  }
+
+  function gate(id, ok=true, ms=800) {
+    const g = document.getElementById(id);
+    g.classList.add(ok ? 'pass' : 'deny');
+    setTimeout(() => g.classList.remove('pass','deny'), ms);
+  }
+
+  // mueve un paquete a lo largo de un path
+  function travel(pathId, pktClass, dur, reverse=false) {
+    return new Promise(res => {
+      const path = document.getElementById(pathId);
+      const len = path.getTotalLength();
+      const pkt = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      pkt.setAttribute('class', `pkt ${pktClass}`);
+      svg.appendChild(pkt);
+      const t0 = performance.now();
+      function step(t) {
+        if (paused) { requestAnimationFrame(step); return; }
+        const k = Math.min((t - t0) / dur, 1);
+        const p = path.getPointAtLength(reverse ? len * (1-k) : len * k);
+        pkt.setAttribute('cx', p.x); pkt.setAttribute('cy', p.y);
+        if (k < 1) requestAnimationFrame(step);
+        else { pkt.remove(); res(); }
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  // ── Telemetría continua ──────────────────────────────────────────
+  async function telemetryOnce(threatPkt=false) {
+    flash('n-collect'); await wait(220);
+    flash('n-sign');
+    await wait(180);
+    flash('n-comm');
+    await travel('w-tel', threatPkt ? 'threatp' : 'telemetry', 1400);
+    gate('g-rate');   await wait(150);
+    gate('g-replay'); await wait(150);
+    gate('g-sig');    await wait(150);
+    gate('g-novel', true); await wait(120);
+    flash('n-db', threatPkt ? 'alert' : 'okflash');
+    if (!threatPkt) log('batch de telemetría verificado (firma ✓, replay ✓) → Supabase', 'ok');
+  }
+
+  // ── Poll del agente (latido) ─────────────────────────────────────
+  const pulse = document.getElementById('pulse1');
+  function heartbeat() {
+    if (!paused) {
+      pulse.animate(
+        [{opacity:.9, r:6}, {opacity:0, r:26}],
+        {duration:900, easing:'ease-out'}
+      );
+    }
+    setTimeout(heartbeat, POLL_MS[threat]);
+  }
+
+  // ── Secuencia de ataque completa ─────────────────────────────────
+  let attacking = false;
+  async function attack() {
+    if (attacking) return;
+    attacking = true;
+    const btn = document.getElementById('attackBtn');
+    btn.disabled = true; btn.style.opacity = .5;
+
+    log('proceso sospechoso detectado en endpoint (collector: processes.py)', 'warn');
+    await telemetryOnce(true);
+    log('evento anómalo persistido — event_type nunca visto (novelty)', 'warn');
+
+    flash('n-corr', 'hot', 1100);
+    log('correlación: regla + IOC match sobre evidencia firmada', 'info');
+    await wait(900);
+
+    flash('n-alert', 'alert', 1600);
+    log('⚠ ALERTA generada — severidad CRÍTICA', 'bad');
+    setThreat('critical');
+    await travel('w-alert', 'threatp', 1200);
+
+    flash('n-approval', 'hot', 1300);
+    log('aprobación: política evaluada por motor determinista / analista', 'info');
+    await wait(1000);
+
+    flash('n-bridge', 'hot', 1000);
+    log('bridge: agente vivo localizado → kill_process + block_ip', 'info');
+    await travel('w-cmd-q', 'command', 1200);
+    flash('n-queue', 'hot', 900);
+    log('comando en cola — esperando siguiente poll del agente…', 'info');
+
+    await wait(POLL_MS[threat]);           // el comando espera al poll: así funciona de verdad
+    await travel('w-poll', 'command', 1000);
+    flash('n-validate', 'hot', 800);
+    log('agente valida comando: frescura ✓ · estructura ✓ · inyección ✓', 'ok');
+    await wait(600);
+
+    flash('n-exec', 'okflash', 1100);
+    log('ejecutado en endpoint: proceso terminado, IP bloqueada', 'ok');
+    await travel('w-result', 'result', 1600);
+    log('resultado firmado reportado → timeline + command-history', 'ok');
+
+    await wait(1200);
+    setThreat('elevated');
+    log('amenaza contenida — poll desciende a ELEVADO', 'info');
+    setTimeout(() => setThreat('normal'), 8000);
+
+    btn.disabled = false; btn.style.opacity = 1;
+    attacking = false;
+  }
+
+  // ── Threat level ─────────────────────────────────────────────────
+  function setThreat(lvl) {
+    threat = lvl;
+    document.getElementById('pollLabel').textContent = POLL_TXT[lvl];
+    document.querySelectorAll('.lvl button').forEach(b => {
+      b.className = (b.dataset.lvl === lvl) ? `on-${lvl}` : '';
+    });
+  }
+  document.querySelectorAll('.lvl button').forEach(b =>
+    b.addEventListener('click', () => { setThreat(b.dataset.lvl); log(`nivel de amenaza fijado: ${b.dataset.lvl.toUpperCase()}`, 'warn'); })
+  );
+
+  document.getElementById('attackBtn').addEventListener('click', attack);
+  document.getElementById('pauseBtn').addEventListener('click', e => {
+    paused = !paused;
+    e.target.textContent = paused ? '▶ Reanudar' : '⏸ Pausar';
+  });
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  // loop de telemetría de fondo
+  async function bgLoop() {
+    for (;;) {
+      if (!paused && !attacking) await telemetryOnce(false);
+      await wait(POLL_MS[threat] + 1500);
+    }
+  }
+
+  setThreat('normal');
+  heartbeat();
+  bgLoop();
+})();
+</script>
+</body>
+</html>

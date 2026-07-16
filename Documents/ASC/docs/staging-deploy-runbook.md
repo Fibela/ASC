@@ -20,6 +20,20 @@ Ejecutar en orden estricto.
 El frontend hace llamadas a `/api/v1/...` (ruta relativa). Vercel reescribe `/api/:path*` → `api/index.py`
 que importa la app FastAPI como ASGI serverless.
 
+**REGLA — fuente única del API (Session 101):** `backend/asc_api` es la única fuente de verdad.
+`frontend/asc_api` (lo que Vercel sirve realmente) es un **espejo generado — nunca se edita a mano**.
+Editar solo la copia backend fue la causa de dos bugs reales: el fix CORS de S99 y los endpoints de
+cron de S100 nunca llegaron a la copia desplegada.
+
+```bash
+node scripts/sync-asc-api.mjs           # propagar cambios backend → frontend
+node scripts/sync-asc-api.mjs --check   # verificar integridad (exit 1 si diverge)
+pytest backend/tests/test_asc_api_sync.py   # mismo gate, dentro de la suite
+```
+
+El `prebuild` de `frontend/package.json` re-ejecuta el sync en cada build donde el monorepo sea
+visible. Todo cambio al API se hace en `backend/asc_api` y se propaga con el sync **antes** de commitear.
+
 ---
 
 ## Pre-requisitos

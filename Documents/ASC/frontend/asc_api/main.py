@@ -100,7 +100,7 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS + settings.CORS_ORIGINS_EXTRA,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

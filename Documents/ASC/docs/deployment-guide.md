@@ -71,10 +71,10 @@ alembic upgrade head --sql > supabase_migrations.sql
 python gen_migration_sql.py   # script que reemplaza NULLs con UUIDs reales
 
 # Luego en Supabase Dashboard → SQL Editor → pegar y ejecutar supabase_migrations.sql
-# La cabeza esperada: l2f36i4k7e59
+# La cabeza esperada: c9d12f0e5b67 (verificada 2026-07-15 con `python3 -m alembic heads` — S101)
 
 # 6. Verificar desde Supabase SQL Editor:
-# SELECT version FROM alembic_version;  -- debe retornar: l2f36i4k7e59
+# SELECT version FROM alembic_version;  -- debe retornar: c9d12f0e5b67
 
 # 7. Smoke test de conectividad (asyncpg directo):
 python -c "
@@ -181,85 +181,22 @@ REDIS_URL=                          # vacío — Celery en modo no-op
 
 ---
 
-## Fase 2 — Docker Compose Auto-Hosting (Comercialización)
+## Fase 2 — Auto-hosting (FUERA DE ALCANCE — S101)
 
-### Cuándo migrar
+**El stack Docker Compose / nginx / certbot / Celery / Redis / VPS está fuera del alcance
+del proyecto** (decisión registrada en las instrucciones del proyecto y en
+`postmortem-s101-divergencia-y-gates.md`). La única arquitectura soportada es
+Vercel + Supabase + SPECTER (Fase 1 de esta guía).
 
-Migrar cuando se cumpla **cualquiera** de estas condiciones:
-- ASC genera ingresos suficientes para cubrir el servidor (~$20-50/mes VPS)
-- El team crece a más de 3 analistas simultáneos
-- Se requieren logs de auditoría > 7 días (límite Supabase free)
-- Se necesitan las tareas Celery con Redis real (broker distribuido)
-- Requisitos de residencia de datos (datos no pueden salir de Colombia/DC específico)
+La idea comercial de auto-hosting para clientes con requisitos de residencia de datos
+queda registrada aquí como posibilidad futura, pero **no tiene stack definido ni
+documentación válida hoy**. Si se retoma, se diseña desde cero contra el código actual —
+no se resucita lo que estaba en esta sección (era de una arquitectura que ya no existe;
+recuperable en git si hace falta consultarla: `git log -- docs/deployment-guide.md`).
 
-### Setup Docker Compose
-
-```bash
-# 1. Requisitos mínimos del servidor:
-#    VPS: 2 vCPU, 4 GB RAM, 40 GB SSD (ej: DigitalOcean Droplet $24/mes)
-#    OS: Ubuntu 22.04 LTS
-#    Software: Docker 24+, Docker Compose V2
-
-# 2. Clonar repo en el servidor
-git clone [repo] /opt/asc
-cd /opt/asc
-
-# 3. Configurar .env con los valores de Fase 2
-cp .env.example .env
-# Editar DATABASE_URL para que apunte al postgres del compose:
-# DATABASE_URL=postgresql+asyncpg://asc_user:PASS@postgres:5432/asc_db
-
-# 4. Generar certificado TLS
-bash scripts/gen_selfsigned_cert.sh asc.premoscorp.com
-# En producción real → Let's Encrypt:
-# docker run --rm -v ./infra/nginx/certs:/etc/letsencrypt certbot/certbot \
-#   certonly --webroot --webroot-path /var/www/html \
-#   -d asc.premoscorp.com --agree-tos -m admin@premoscorp.com
-
-# 5. Levantar stack completo
-docker compose -f docker-compose.yml up -d --build
-
-# 6. Aplicar migraciones (primera vez o tras upgrade)
-docker compose exec backend alembic upgrade head
-
-# 7. Verificar que todos los servicios estén healthy
-docker compose ps
-# Expected: postgres (healthy), redis (healthy), backend (healthy),
-#           frontend (healthy), nginx (healthy)
-```
-
-### Stack Fase 2
-
-```
-Internet (80/443)
-  │
-  ▼
-nginx (TLS termination, rate limiting, CSP)
-  ├─► FastAPI backend (uvicorn, 4 workers)
-  │       ├─► PostgreSQL 16 (local, persistent volume)
-  │       └─► Redis 7 (local, password-protected)
-  │
-  ├─► Next.js frontend (standalone build)
-  │
-  └─► Celery Worker + Celery Beat (tareas periódicas activas)
-          └─► Redis broker
-```
-
-### Migración Supabase → PostgreSQL Docker
-
-```bash
-# Exportar datos de Supabase
-pg_dump "postgresql://postgres.XXX:PASS@db.XXX.supabase.co:5432/postgres" \
-  --no-owner --no-acl -Fc -f asc_backup.dump
-
-# Importar en PostgreSQL Docker
-docker compose exec -T postgres pg_restore \
-  -U asc_user -d asc_db --no-owner --clean < asc_backup.dump
-
-# Verificar integridad
-docker compose exec postgres psql -U asc_user asc_db \
-  -c "SELECT count(*) FROM users; SELECT count(*) FROM alerts;"
-```
+Los archivos `docker-compose.yml`, `docker-compose.override.yml` y `backend/Dockerfile`
+que aún existen en el repo son residuo de esa arquitectura — pendientes de eliminación
+en una tanda propia post-push.
 
 ---
 
@@ -277,15 +214,8 @@ docker compose exec postgres psql -U asc_user asc_db \
 - [ ] CORS_ORIGINS contiene solo el dominio de producción (no `*`)
 - [ ] `SPECTER_SIGNING_PRIVATE_KEY` generado y configurado en Vercel Dashboard
 
-### Fase 2 — Docker
-
-- [ ] Todos los secrets generados (no placeholders)
-- [ ] `.env` con permisos `600` en el servidor
-- [ ] TLS certificado válido (Let's Encrypt o corporativo)
-- [ ] PostgreSQL y Redis sin exposición de puertos al host (solo red interna)
-- [ ] `SPECTER_ENROLLMENT_SECRET` configurado (tokens de enrollment rotados)
-- [ ] Firewall del servidor: solo puertos 80/443 públicos
-- [ ] Backups automáticos configurados (volumen `postgres_data`)
+> Nota S101: el checklist de Fase 2 (Docker) fue retirado junto con la fase — fuera de alcance.
+> `SPECTER_ENROLLMENT_SECRET` sigue vigente y pertenece al checklist de Fase 1 (Vercel Dashboard).
 
 ---
 
@@ -308,14 +238,6 @@ vercel logs --since 1h
 cd backend
 python -m pytest tests/ -q --tb=short
 
-# ── Fase 2 Docker ────────────────────────────────────────────────────────────
-
-docker compose ps                                    # estado de servicios
-docker compose logs -f backend                       # logs del backend
-docker compose exec backend alembic upgrade head     # migraciones
-docker compose exec backend alembic current          # revisión activa
-docker compose exec postgres psql -U asc_user asc_db # psql directo
-docker compose restart celery-worker                 # reiniciar workers
 ```
 
 ---
@@ -338,9 +260,14 @@ Ir a `https://github.com/Fibela/ASC/settings/secrets/actions` y crear:
 
 1. Crear proyecto en https://supabase.com (sin tarjeta de crédito)
 2. Project Settings → Database → Connection String → modo **Session** (puerto 5432)
+   > ⚠ Contradicción 5432/6543 (S101): esta guía usa **Session :5432** para trabajo manual
+   > (migraciones, psql). El runbook de staging registra el pooler **transaction :6543** para
+   > el runtime de la app. El valor real que usa producción vive en `DATABASE_URL` del
+   > Vercel Dashboard y **no ha sido verificado en esta sesión** — confirmarlo ahí antes de
+   > citar cualquiera de los dos como "el puerto de producción".
 3. Generar SQL de migraciones: `cd backend && alembic upgrade head --sql > supabase_migrations.sql`
 4. Supabase Dashboard → SQL Editor → New query → pegar y ejecutar `supabase_migrations.sql`
-5. Verificar: `SELECT version FROM alembic_version;` — debe retornar `p6j79m8o1i93`
+5. Verificar: `SELECT version FROM alembic_version;` — debe retornar `c9d12f0e5b67` (head único verificado en S101)
 6. Auth → Disable "Enable email confirmations" (ASC usa su propio JWT, no Supabase Auth)
 
 ### Paso 3 — Vercel (Frontend + Backend)
@@ -400,5 +327,6 @@ cd backend && python -m pytest tests/test_p56_deployment_readiness.py -v
 
 # Suite completa con coverage
 python -m pytest tests/ --cov=asc_api --cov-fail-under=85
-# → 4930+ passed, coverage ≥ 85%
+# Criterio: exit 0 con gate de coverage ≥ 85%. No cites conteos de tests en docs —
+# el número cambia con cada sesión y los conteos históricos del corpus no eran confiables (S101).
 ```

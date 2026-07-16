@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/prebuild-sync.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

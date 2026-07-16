@@ -1,0 +1,39 @@
+# Normalización de line-endings — evita los diffs fantasma CRLF/LF
+# (2026-07-15: 47 archivos "modificados" que eran 100% line-endings).
+* text=auto
+
+# Código y config: siempre LF en el repo y en el checkout.
+*.py    text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.toml  text eol=lf
+*.ini   text eol=lf
+*.sql   text eol=lf
+*.sh    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.env.example text eol=lf
+
+# Scripts de Windows: CRLF.
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+
+# Binarios: nunca tocar.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.zip   binary
