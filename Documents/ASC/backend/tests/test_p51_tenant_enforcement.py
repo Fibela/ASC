@@ -210,8 +210,10 @@ class TestTenantMiddleware:
         assert captured[0] == "tenant-premoscorp"
 
     @pytest.mark.asyncio
-    async def test_x_tenant_id_header_takes_precedence(self):
-        """X-Tenant-ID header overrides the JWT tenant claim."""
+    async def test_x_tenant_id_header_is_ignored_security(self):
+        """SECURITY (S103.2): el header X-Tenant-ID NO debe sobrescribir el claim
+        firmado del JWT. Un header de confianza permitía IDOR cross-tenant
+        (un admin del tenant A leyendo datos del tenant B con un header)."""
         captured: list[str | None] = []
 
         from starlette.applications import Starlette
@@ -241,7 +243,7 @@ class TestTenantMiddleware:
             )
 
         assert r.status_code == 200
-        assert captured[0] == "override-tenant"
+        assert captured[0] == "jwt-tenant"   # header IGNORADO, gana el claim del JWT
 
     @pytest.mark.asyncio
     async def test_invalid_jwt_falls_back_to_none(self):

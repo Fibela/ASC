@@ -50,4 +50,7 @@ class Tenant(Base):
 
     # ── P60 Stripe Checkout Auto-Provisioning ─────────────────────────────────
     # Checkout session ID used for idempotency (cs_XXXXXXXXXXXXXXXXXX).
-    # Prevents duplicate provisio
+    # Prevents duplicate provisioning if Stripe fires the event more than once.
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True
+    )

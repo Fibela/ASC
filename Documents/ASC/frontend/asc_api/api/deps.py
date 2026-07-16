@@ -93,6 +93,13 @@ async def _resolve_user(
             detail="email_verification_required",
         )
 
+    # SECURITY (S103.2): liga el contexto de tenant al tenant del usuario
+    # AUTENTICADO. Sobrescribe cualquier valor que el middleware haya extraído
+    # (incluido un header X-Tenant-ID), de modo que apply_tenant_filter() nunca
+    # pueda ser dirigido a otro tenant por un header no confiable. Es la misma
+    # garantía que ya aplica la ruta de API-key.
+    set_tenant_id(user.tenant_id)
+
     return user
 
 

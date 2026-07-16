@@ -660,11 +660,26 @@ class TestMigrationIntegrity:
             "downgrade() must restore correlation_rules_name_key unique constraint"
         )
 
-    def test_total_migration_count_is_24(self):
+    def test_migration_chain_converges_to_single_head(self):
+        """Integridad real de migraciones: la cadena converge en UN solo head.
+        Reemplaza el conteo mágico hardcodeado (S103.2) — los conteos se editaban
+        a mano y no medían integridad; un solo head sí es el invariante."""
+        import re as _re
         files = [f for f in _MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
-        assert len(files) == 26, (
-            f"Expected 26 migrations (24 P-16 + b3c4d5e6f7a8 + c9d12f0e5b67 merge), found {len(files)}"
-        )
+        revisions: set[str] = set()
+        parents: set[str] = set()
+        for f in files:
+            txt = f.read_text(encoding="utf-8")
+            rm = _re.search(r'^revision(?:\s*:[^=]+)?\s*=\s*["\']([^"\']+)["\']', txt, _re.M)
+            if rm:
+                revisions.add(rm.group(1))
+            dm = _re.search(r'^down_revision(?:\s*:[^=]+)?\s*=\s*(.+)$', txt, _re.M)
+            if dm:
+                for pid in _re.findall(r'["\']([^"\']+)["\']', dm.group(1)):
+                    parents.add(pid)
+        heads = revisions - parents
+        assert len(heads) == 1, f"integridad: esperaba 1 head, hay {len(heads)}: {sorted(heads)}"
+        assert len(files) >= 26, f"conteo de migraciones cayó inesperadamente: {len(files)}"
 
     def test_no_duplicate_revision_ids(self):
         revisions: list[str] = []

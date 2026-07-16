@@ -42,11 +42,15 @@ class TenantMiddleware(BaseHTTPMiddleware):
             payload = decode_token_payload(token)
             tenant_id = payload.get("tenant_id") or None
 
-        # 2. X-Tenant-ID header overrides JWT (admin/internal use only)
-        header_tid = request.headers.get("X-Tenant-ID", "").strip()
-        if header_tid:
-            tenant_id = header_tid
-
+        # SECURITY (S103.2): el tenant del contexto se deriva SOLO del claim
+        # firmado del JWT. El header X-Tenant-ID (entrada no autenticada, previa
+        # al gate de auth) ya NO puede sobrescribir el tenant — antes permitía a
+        # un admin del tenant A leer datos del tenant B con un simple header
+        # (IDOR cross-tenant, OWASP A01). deps._resolve_user además re-liga el
+        # contexto al tenant del usuario autenticado como defensa en profundidad.
+        # Si en el futuro se requiere impersonación cross-tenant para tooling
+        # interno, debe implementarse como dependencia explícita con chequeo de
+        # rol y auditoría — nunca como un header de confianza.
         set_tenant_id(tenant_id)
         try:
             return await call_next(request)

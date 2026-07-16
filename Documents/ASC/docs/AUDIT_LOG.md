@@ -6962,3 +6962,40 @@ Los tests `TestNeutralizerSimOnly`/`TestNeutralizerFallback` **codificaban el bu
 ### Alcance y pendiente
 
 Alcance elegido por Alexander: **honestidad primero** (solo código, sin infra). La ejecución REAL de acciones agent-only (isolate/kill/quarantine/remove) sigue requiriendo un agente SPECTER vivo; block/disable requieren credenciales de firewall/AD — infra que Alexander conectará (gap #2). La UI de Neutralización debería leer `status`/`simulated` para mostrar "simulado — requiere agente" en vez de un falso éxito (queda para la fase UI). Gap #3: correo log-only sin RESEND_API_KEY.
+
+---
+
+## Session 103.2 — 2026-07-16 (SEGURIDAD CRÍTICA: IDOR cross-tenant vía header)
+
+### Hallazgo (verificado en código, no en doc)
+
+**Vulnerabilidad: Broken Access Control / IDOR cross-tenant (OWASP A01).** Severidad: **crítica** para un producto multi-tenant.
+
+`core/tenant_middleware.py` resolvía el tenant del contexto así:
+1. claim `tenant_id` del JWT firmado, y luego
+2. **`# X-Tenant-ID header overrides JWT`** — el header, entrada NO autenticada y previa al gate de auth, sobrescribía el claim firmado.
+
+`db/tenant_filter.apply_tenant_filter()` (usado en `api_keys.py` y `webhooks.py`) scopea las queries por ese ContextVar. La ruta JWT en `deps._resolve_user` **no** re-ligaba el contexto (solo lo hacía la ruta de API-key). Cadena de exploit confirmada: un **admin del tenant A** que envía `X-Tenant-ID: <tenant-B>` con su propio JWT válido leía **todos los webhooks/API-keys del tenant B** (el list de webhooks para admin scopea solo por tenant). Un header y se caía el aislamiento multi-tenant.
+
+Un test **codificaba la vulnerabilidad**: `test_p51 :: test_x_tenant_id_header_takes_precedence` afirmaba `captured == "override-tenant"`. Mismo patrón que el neutralizador: el test validaba conducta rota.
+
+### Fix (defensa en profundidad)
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `core/tenant_middleware.py` | Eliminado el override por header `X-Tenant-ID`. El tenant se deriva SOLO del claim firmado del JWT. Impersonación cross-tenant, si se requiere para tooling interno, deberá ser dependencia explícita con chequeo de rol + auditoría — nunca un header de confianza. |
+| `api/deps.py` (`_resolve_user`) | Re-liga el ContextVar al `user.tenant_id` del usuario **autenticado** tras validarlo, sobrescribiendo cualquier valor del middleware. Misma garantía que ya tenía la ruta de API-key. |
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_tenant_isolation_idor.py` (**NUEVO**, 2 tests) | Prueba E2E contra la app real: admin de A + `X-Tenant-ID: B` NO ve webhooks de B; control positivo (A sí ve los suyos). **Exploit cerrado.** |
+| `test_p51` (vuln-test reescrito) | Ahora afirma que el header es IGNORADO (gana el JWT) |
+| `test_sec7` (conteo mágico) | `test_total_migration_count_is_24` (afirmaba `==26`, roto por la migración legítima de S102) reemplazado por invariante real: **la cadena converge en UN solo head** (no un número editado a mano) |
+| Regresión auth/tenant/api-keys/webhooks/security | **510 passed, 0 failed** |
+| Escaneo de secretos | CLEAN | Gate espejo | verde (137) |
+
+### Nota
+
+Este bug NO estaba en el radar de la doc; se encontró bajando al siguiente escalón crítico (auth + aislamiento de tenant) con verificación real. Refuerza la regla del proyecto: verificar el código, no confiar en READMEs ni en "auditorías PASSED". La contradicción reportada "JWT propio pero SUPABASE_JWT_SECRET obligatoria" quedó desmentida: `SUPABASE_JWT_SECRET` es opcional (default vacío), solo para el bridge SSO; el JWT propio usa `SECRET_KEY`. El `/auth/register` "con dos formas de respuesta" tampoco existe: es bootstrap-only (primer usuario = admin, luego 403).
