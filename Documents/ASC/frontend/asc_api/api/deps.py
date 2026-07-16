@@ -13,7 +13,7 @@ from asc_api.core.tenant_context import set_tenant_id
 from asc_api.db.session import get_db
 from asc_api.models.user import User
 from asc_api.models.api_key import APIKey
-from asc_api.core.security import verify_token, decode_token_payload
+from asc_api.core.security import verify_token, decode_token_payload, is_token_before_epoch
 from asc_api.core.jwt_blacklist import jwt_blacklist
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -98,6 +98,16 @@ async def _resolve_user(
     # (incluido un header X-Tenant-ID), de modo que apply_tenant_filter() nunca
     # pueda ser dirigido a otro tenant por un header no confiable. Es la misma
     # garantía que ya aplica la ruta de API-key.
+    # SECURITY (S103.3): invalidación de sesión por epoch. Si el usuario cambió
+    # su contraseña (o se forzó logout-all), cualquier token emitido antes queda
+    # inválido — cierra el hueco de "cambié la contraseña pero el token robado
+    # seguía sirviendo".
+    if is_token_before_epoch(payload, getattr(user, "tokens_valid_after", None)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesión invalidada. Inicia sesión nuevamente.",
+        )
+
     set_tenant_id(user.tenant_id)
 
     return user

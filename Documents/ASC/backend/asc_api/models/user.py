@@ -29,6 +29,11 @@ class User(Base):
 
     # Admin-initiated password reset flag — blocks all endpoints except change-password
     force_password_reset: Mapped[bool] = mapped_column(Boolean, default=False)
+    # S103.3 — epoch de sesión: tokens emitidos antes de este instante quedan
+    # inválidos (cambio de contraseña / logout-all). NULL = sin corte.
+    tokens_valid_after: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # ── P16.3 per-analyst Ed25519 signing keys ────────────────────────────────
 

@@ -769,8 +769,9 @@ class TestMigrationAndStructure:
 
     def test_total_migration_count(self):
         files = [f for f in _MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
-        assert len(files) == self._TOTAL, (
-            f"Expected {self._TOTAL} migrations, got {len(files)}"
+        # Piso, no conteo exacto (S103.3) — ver nota en test_p56.
+        assert len(files) >= self._TOTAL, (
+            f"Expected at least {self._TOTAL} migrations, got {len(files)}"
         )
 
     def test_router_has_adapter_registry(self):

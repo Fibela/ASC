@@ -53,6 +53,7 @@ def create_access_token(
         "sub": str(subject),
         "type": "access",
         "jti": jti,
+        "iat": int(datetime.now(timezone.utc).timestamp()),
     }
     if tenant_id is not None:
         payload["tenant_id"] = tenant_id
@@ -63,10 +64,26 @@ def create_refresh_token(subject: str | Any) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_EXPIRE_DAYS)
     jti = str(uuid.uuid4())
     return jwt.encode(
-        {"exp": expire, "sub": str(subject), "type": "refresh", "jti": jti},
+        {"exp": expire, "sub": str(subject), "type": "refresh", "jti": jti,
+         "iat": int(datetime.now(timezone.utc).timestamp())},
         settings.SECRET_KEY,
         algorithm=ALGORITHM,
     )
+
+
+def is_token_before_epoch(payload: dict, tokens_valid_after) -> bool:
+    """
+    True si el token fue emitido ANTES del epoch de sesión del usuario
+    (tokens_valid_after). Invalida TODAS las sesiones de golpe al cambiar la
+    contraseña o forzar logout-all. Tokens sin 'iat' (previos a S103.3) se
+    consideran inválidos una vez que existe un epoch.
+    """
+    if tokens_valid_after is None:
+        return False
+    iat = payload.get("iat")
+    if iat is None:
+        return True
+    return int(iat) < int(tokens_valid_after.timestamp())
 
 
 def verify_token(token: str, token_type: Literal["access", "refresh"] = "access") -> str:  # nosec B107

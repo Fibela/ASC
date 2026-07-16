@@ -506,8 +506,9 @@ class TestMigrationChain:
 
     def test_migration_count(self):
         count = len(self.migration_files)
-        assert count == _EXPECTED_MIGRATION_COUNT, (
-            f"Expected {_EXPECTED_MIGRATION_COUNT} migrations, found {count}"
+        # Piso, no conteo exacto (S103.3) — ver nota en test_p56.
+        assert count >= _EXPECTED_MIGRATION_COUNT, (
+            f"Expected at least {_EXPECTED_MIGRATION_COUNT} migrations, found {count}"
         )
 
     def test_head_migration_exists(self):

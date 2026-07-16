@@ -6999,3 +6999,41 @@ Un test **codificaba la vulnerabilidad**: `test_p51 :: test_x_tenant_id_header_t
 ### Nota
 
 Este bug NO estaba en el radar de la doc; se encontró bajando al siguiente escalón crítico (auth + aislamiento de tenant) con verificación real. Refuerza la regla del proyecto: verificar el código, no confiar en READMEs ni en "auditorías PASSED". La contradicción reportada "JWT propio pero SUPABASE_JWT_SECRET obligatoria" quedó desmentida: `SUPABASE_JWT_SECRET` es opcional (default vacío), solo para el bridge SSO; el JWT propio usa `SECRET_KEY`. El `/auth/register` "con dos formas de respuesta" tampoco existe: es bootstrap-only (primer usuario = admin, luego 403).
+
+---
+
+## Session 103.3 — 2026-07-16 (Sesión: invalidación por epoch + endurecimiento auth)
+
+### Hallazgo (verificado en código)
+
+**Cambiar la contraseña NO invalidaba las sesiones existentes.** `change_password` y `logout` revocaban SOLO el access token actual (por jti); los **refresh tokens sobrevivían**. Un atacante con un refresh token robado seguía emitiendo access tokens nuevos después de que la víctima cambiara su contraseña — que es justo la respuesta estándar ante un compromiso. Severidad: alta (gestión de sesión rota). Raíz: los tokens no llevaban `iat` y no existía un mecanismo para invalidar todas las sesiones de un usuario a la vez.
+
+Confirmado además que refresh (rotación + blacklist + `token_type`), logout (blacklist del access) y PATCH /users (aísla por tenant, valida rol, previene auto-cambio de rol) están correctos en lo demás.
+
+### Fix — epoch de sesión (`users.tokens_valid_after`)
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `models/user.py` | Nueva columna `tokens_valid_after` (nullable). Marca el corte: tokens emitidos antes quedan inválidos. |
+| `migrations/…f9edec8a6897_add_tokens_valid_after_s103.py` | **NUEVO** — head único sobre f309a0115906. `migrations_s103_tokens_valid_after.sql` idempotente para Supabase. |
+| `core/security.py` | `iat` (issued-at) añadido a access y refresh tokens; helper `is_token_before_epoch()`. |
+| `api/deps.py` (`_resolve_user`) | Rechaza (401) cualquier access token con `iat` anterior al epoch del usuario. |
+| `api/v1/endpoints/auth.py` | `refresh` rechaza refresh tokens previos al epoch; `change_password` fija `tokens_valid_after = now()` → corta TODAS las sesiones (access + refresh, todo dispositivo). |
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_session_epoch.py` (**NUEVO**, 9) | Helper (None/sin-iat/antes/después), tokens llevan iat, enforcement E2E (access y refresh previos al epoch rechazados; sin epoch funciona), y **change_password invalida un token previo** (E2E) |
+| Regresión auth/security/roles/SSO/sesión | verde (auth+role+epoch: 59; security+sso+idor: 262) |
+| Migración: p56/p57/p58/sec7/p59 + epoch | **427 passed, 2 skipped** |
+| Escaneo de secretos | CLEAN · Gate espejo | verde (137) |
+
+### Deuda de tests saneada (patrón conteo mágico)
+
+La migración legítima de S103.3 rompió **cinco** tests que hardcodeaban el número de migraciones (`== 26`) o el head — el patrón "conteos 24→26 editados a mano" que la auditoría original marcó. Corregidos a invariantes reales: **un solo head** (sec7, p59) y **piso `>=`** en vez de conteo exacto (p56, p57, p58); `_EXPECTED_HEAD` de p56 actualizado al head real f9edec8a6897. Un piso detecta borrados (la regresión real) sin romper al crecer.
+
+### Pendiente / infra (Alexander)
+
+- **Orden de despliegue**: correr `migrations_s103_tokens_valid_after.sql` en Supabase ANTES del push (columna leída por el ORM).
+- Deuda menor conocida: `logout` solo revoca el access token de esa sesión (no el refresh) — aceptable para logout de una sesión; el epoch cubre el logout-all vía cambio de contraseña. Un endpoint "cerrar todas las sesiones" sería el complemento natural (setear tokens_valid_after=now sin cambiar contraseña).

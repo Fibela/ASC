@@ -9,7 +9,7 @@ from asc_api.models.user import User
 from asc_api.core.security import (
     verify_password, get_password_hash, validate_password_strength,
     create_access_token, create_refresh_token, verify_token,
-    decode_token_payload, REFRESH_EXPIRE_DAYS,
+    decode_token_payload, REFRESH_EXPIRE_DAYS, is_token_before_epoch,
 )
 from asc_api.core.signing import (
     generate_analyst_keypair, encrypt_analyst_private_key,
@@ -321,6 +321,14 @@ async def refresh(request: Request, payload: RefreshRequest, db: AsyncSession = 
             detail=f"Cuenta bloqueada hasta {user.locked_until.isoformat()}",
         )
 
+    # SECURITY (S103.3): refresh tokens emitidos antes del epoch (cambio de
+    # contraseña / logout-all) quedan invalidados.
+    if is_token_before_epoch(ref_payload, getattr(user, "tokens_valid_after", None)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token invalidado. Inicia sesión nuevamente.",
+        )
+
     # Revoke the old refresh token (rotation)
     if ref_jti:
         from datetime import datetime as _dt
@@ -413,6 +421,9 @@ async def change_password(
     # Update password and clear reset flag
     current_user.hashed_password = get_password_hash(payload.new_password)
     current_user.force_password_reset = False
+    # SECURITY (S103.3): corta TODAS las sesiones previas (access + refresh, de
+    # cualquier dispositivo). Un token robado deja de servir tras el cambio.
+    current_user.tokens_valid_after = datetime.now(timezone.utc)
     await db.commit()
 
     # Revoke current access token — force fresh login with new credentials

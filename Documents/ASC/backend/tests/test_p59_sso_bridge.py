@@ -721,10 +721,27 @@ class TestMigrationArtifact:
         assert "def downgrade" in content
         assert "drop_column" in content
 
-    def test_total_migration_count(self):
+    def test_migration_chain_converges_to_single_head(self):
+        """Integridad real: la cadena de migraciones converge en UN solo head.
+        Reemplaza el conteo mágico hardcodeado (S103.3) — el número se editaba a
+        mano y rompía con cada migración legítima; un solo head sí es invariante."""
+        import re as _re
         files = [f for f in _MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
-        assert len(files) == _EXPECTED_TOTAL_MIGRATIONS, (
-            f"Expected {_EXPECTED_TOTAL_MIGRATIONS} migrations, got {len(files)}"
+        revisions: set[str] = set()
+        parents: set[str] = set()
+        for f in files:
+            txt = f.read_text(encoding="utf-8")
+            rm = _re.search(r'^revision(?:\s*:[^=]+)?\s*=\s*["\']([^"\']+)["\']', txt, _re.M)
+            if rm:
+                revisions.add(rm.group(1))
+            dm = _re.search(r'^down_revision(?:\s*:[^=]+)?\s*=\s*(.+)$', txt, _re.M)
+            if dm:
+                for pid in _re.findall(r'["\']([^"\']+)["\']', dm.group(1)):
+                    parents.add(pid)
+        heads = revisions - parents
+        assert len(heads) == 1, f"esperaba 1 head, hay {len(heads)}: {sorted(heads)}"
+        assert len(files) >= _EXPECTED_TOTAL_MIGRATIONS, (
+            f"conteo de migraciones cayó por debajo del piso: {len(files)}"
         )
 
 

@@ -249,7 +249,7 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "c9d12f0e5b67"   # merge: a8c01v9x3y26 + b3c4d5e6f7a8 → single head
+    _EXPECTED_HEAD  = "f9edec8a6897"   # S103.3 head real (actualizar al añadir migraciones)
     _EXPECTED_COUNT = 26               # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge
 
     def test_migrations_directory_exists(self):
@@ -281,8 +281,12 @@ class TestDatabaseMigrations:
 
     def test_migration_count(self):
         files = [f for f in self._MIGRATIONS_DIR.glob("*.py") if f.name not in ("__init__.py",)]
-        assert len(files) == self._EXPECTED_COUNT, (
-            f"Expected {self._EXPECTED_COUNT} migrations, found {len(files)}"
+        # Piso, no conteo exacto (S103.3): las migraciones solo crecen; un `==`
+        # rompía con cada migración legítima (patrón de conteo mágico). Un piso
+        # detecta borrados (la regresión real); las adiciones las cubren las
+        # pruebas de un-solo-head y de IDs de revisión únicos.
+        assert len(files) >= self._EXPECTED_COUNT, (
+            f"Expected at least {self._EXPECTED_COUNT} migrations, found {len(files)}"
         )
 
     def test_alembic_ini_exists(self):
@@ -307,8 +311,10 @@ class TestDatabaseMigrations:
         cfg = Config(str(_BACKEND / "alembic.ini"))
         scripts = ScriptDirectory.from_config(cfg)
         revisions = list(scripts.walk_revisions())
-        assert len(revisions) == self._EXPECTED_COUNT, (
-            f"Chain walk returned {len(revisions)} revisions, expected {self._EXPECTED_COUNT}"
+        # Piso (S103.3): walk_revisions ya falla si la cadena tiene huecos; el
+        # conteo exacto era conteo mágico. Piso = detecta borrados.
+        assert len(revisions) >= self._EXPECTED_COUNT, (
+            f"Chain walk returned {len(revisions)} revisions, expected at least {self._EXPECTED_COUNT}"
         )
 
 
