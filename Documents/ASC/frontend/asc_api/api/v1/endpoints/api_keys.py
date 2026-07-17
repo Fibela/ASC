@@ -131,7 +131,11 @@ class RateLimitStatus(BaseModel):
 # â”€â”€ Helpers (DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async def _get_key_or_404(key_id: str, db: AsyncSession) -> APIKey:
-    result = await db.execute(select(APIKey).where(APIKey.id == key_id))
+    _stmt = select(APIKey).where(APIKey.id == key_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): choke point de get/update/delete/revoke por id
+    if _tid is not None:
+        _stmt = _stmt.where(APIKey.tenant_id == _tid)
+    result = await db.execute(_stmt)
     key = result.scalar_one_or_none()
     if not key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key no encontrada")

@@ -28,6 +28,7 @@ from sqlalchemy import and_, asc, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.identity_action import IdentityAction
 
 log = get_logger("asc.pids")
@@ -191,9 +192,11 @@ async def verify_identity_action(db: AsyncSession, action_id: str) -> dict:
     A hash_match=True with signature_ok=None means the hash is intact but
     no public key is available for signature verification.
     """
-    result = await db.execute(
-        select(IdentityAction).where(IdentityAction.id == action_id)
-    )
+    _stmt = select(IdentityAction).where(IdentityAction.id == action_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(IdentityAction.tenant_id == _tid)
+    result = await db.execute(_stmt)
     action = result.scalar_one_or_none()
     if action is None:
         return {"verified": False, "error": "IdentityAction not found", "action_id": action_id}
@@ -221,9 +224,11 @@ async def verify_identity_action(db: AsyncSession, action_id: str) -> dict:
 
 
 async def get_identity_action(db: AsyncSession, action_id: str) -> dict | None:
-    result = await db.execute(
-        select(IdentityAction).where(IdentityAction.id == action_id)
-    )
+    _stmt = select(IdentityAction).where(IdentityAction.id == action_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(IdentityAction.tenant_id == _tid)
+    result = await db.execute(_stmt)
     action = result.scalar_one_or_none()
     return _action_to_dict(action) if action else None
 

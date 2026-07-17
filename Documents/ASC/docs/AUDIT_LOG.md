@@ -7136,3 +7136,47 @@ Dos estrategias por motivo: SOAR con tenant explícito (3 funcs simples); incide
 ### Nota
 
 Tercer IDOR de la misma familia (S103.2 webhooks/api-keys, S103.6 SOAR/incidentes). Patrón sistémico: "operación por-id sin scope de tenant". **Recomendación:** un barrido dedicado de TODOS los `where(Model.id == id)` en endpoints por-id para cerrar cualquier otro (detection rules, hunts, playbook runs, forensic, threat intel) antes del go-live multi-tenant.
+
+---
+
+## Session 103.7 — 2026-07-17 (Barrido sistemático IDOR por-id — cierre de la familia)
+
+### Método
+
+Tras 3 IDOR de la misma familia (S103.2, S103.6), barrido dedicado en vez de ir módulo por módulo. Analizador AST: por cada función en `services/` y `api/v1/endpoints/`, detecta si consulta un modelo tenant-scoped por `Model.id ==` **sin** ninguna señal de tenant (tenant_id / get_tenant_id / apply_tenant_filter / current_user.tenant_id) en la misma función. Resultado: **26 sospechosos**, triados contra sus endpoints.
+
+### Triaje (26 sospechosos)
+
+**Vulnerables — CORREGIDOS (por-id user-facing sin scope):**
+
+| Recurso | Función | Fix |
+|---------|---------|-----|
+| Hunt | `hunt_service.get_hunt` (choke point de 5 mutaciones) + `delete_query` | ContextVar |
+| IdentityAction (PIDS) | `pids_service.get_identity_action` + `verify_identity_action` | ContextVar |
+| ScheduledReport (SOAR) | `get/delete/toggle/deliver_scheduled_report` + `test_trigger` | ContextVar |
+| APIKey | `api_keys._get_key_or_404` (choke point de get/update/delete/revoke) | ContextVar |
+| IoC | `iocs.deactivate_ioc` (query inline) | current_user.tenant_id |
+| Alert/Event/IoC | `adapters.elk_push_alert` / `elk_push_event` / `thehive_create_case` / `thehive_add_observable` | ContextVar — **cargaban el recurso por id y lo empujaban a sistemas externos (ELK/TheHive) → exfiltración cross-tenant** |
+
+**Seguros — verificados (no requieren cambio):**
+- `neutralize` (get_action/get_action_commands): los endpoints scopean directo por `NeutralizationAction.tenant_id == current_user.tenant_id`.
+- `correlation.get_rule`: el endpoint pasa `tenant_id=current_user.tenant_id` al servicio.
+- `agents._get_agent_by_header`: es la auth del AGENTE (X-Specter-ID), el agente es el principal — no es IDOR de usuario (auth débil de agente = tema aparte).
+- Internos tras gate scopeado / jobs de sistema (approval._get_or_raise, soar_incident_bridge, pcdi/thehive/query_executor, agent_commander.record_command_result): alcanzados sólo tras una carga ya scopeada o desde cron (ContextVar None = sin filtro = correcto para jobs).
+
+### Patrón de fix
+
+Uniforme y retrocompatible: choke points y queries por-id scopean con `get_tenant_id()` (ContextVar ligado al usuario autenticado en `_resolve_user`, S103.2). `None` (super-admin / single-tenant / cron) = sin filtro. Tests directos con ContextVar None siguen pasando.
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_idor_sweep.py` (**NUEVO**, 5 E2E) | Hunt (choke ContextVar), APIKey (choke helper), IoC (inline) — A no alcanza recursos de B; controles positivos. **Familia cerrada.** |
+| Regresión api_keys/pids/hunts/soar (426) | **426 passed** |
+| Adapters HTTP (24 fallos) | Pre-existentes y **ambientales** (proxy SOCKS `socks5h://localhost:1080` del sandbox rompe la creación del cliente httpx; 0 fallos no-HTTP). Pasan en CI sin proxy. |
+| Gate espejo | verde (137) | Secretos | CLEAN |
+
+### Cierre
+
+Cuatro sesiones cerraron la familia IDOR por-id: S103.2 (webhooks/api-keys list vía ContextVar+middleware), S103.6 (SOAR triggers + incidentes), S103.7 (hunts, PIDS, scheduled reports, IoC, adapters). El barrido AST no dejó más `Model.id ==` tenant-scoped sin scope en rutas user-facing. **Recomendación go-live:** re-correr el analizador AST en cada PR que toque endpoints (candidato a test de CI).

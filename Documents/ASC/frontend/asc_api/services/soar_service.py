@@ -35,6 +35,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.audit import log_security_action
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.core.logging import get_logger
 from asc_api.models.soar import PlaybookTrigger
 
@@ -449,7 +450,11 @@ async def toggle_trigger(db: AsyncSession, trigger_id: str, *, enabled: bool, up
 
 async def test_trigger(trigger_id: str, context: dict, db: AsyncSession) -> dict:
     """Dry-run evaluation of a single trigger against a provided context (no firing)."""
-    result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id))
+    _stmt = select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): dry-run también aísla
+    if _tid is not None:
+        _stmt = _stmt.where(PlaybookTrigger.tenant_id == _tid)
+    result = await db.execute(_stmt)
     t = result.scalar_one_or_none()
     if not t:
         return {"error": "Trigger not found", "trigger_id": trigger_id}
@@ -560,7 +565,11 @@ async def list_scheduled_reports(
 async def get_scheduled_report(db: AsyncSession, report_id: str) -> dict | None:
     from asc_api.models.soar import ScheduledReport
 
-    result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
+    _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7)
+    if _tid is not None:
+        _stmt = _stmt.where(ScheduledReport.tenant_id == _tid)
+    result = await db.execute(_stmt)
     r = result.scalar_one_or_none()
     return _report_to_dict(r) if r else None
 
@@ -568,7 +577,11 @@ async def get_scheduled_report(db: AsyncSession, report_id: str) -> dict | None:
 async def delete_scheduled_report(db: AsyncSession, report_id: str, *, deleted_by: str) -> bool:
     from asc_api.models.soar import ScheduledReport
 
-    result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
+    _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7)
+    if _tid is not None:
+        _stmt = _stmt.where(ScheduledReport.tenant_id == _tid)
+    result = await db.execute(_stmt)
     r = result.scalar_one_or_none()
     if not r:
         return False
@@ -591,7 +604,11 @@ async def toggle_scheduled_report(
 ) -> dict | None:
     from asc_api.models.soar import ScheduledReport
 
-    result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
+    _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7)
+    if _tid is not None:
+        _stmt = _stmt.where(ScheduledReport.tenant_id == _tid)
+    result = await db.execute(_stmt)
     r = result.scalar_one_or_none()
     if not r:
         return None
@@ -618,7 +635,11 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
     from asc_api.models.hunt import Hunt, HuntFinding
     from asc_api.services.pids_service import get_identity_timeline, _sign_hash
 
-    result = await db.execute(select(ScheduledReport).where(ScheduledReport.id == report_id))
+    _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7)
+    if _tid is not None:
+        _stmt = _stmt.where(ScheduledReport.tenant_id == _tid)
+    result = await db.execute(_stmt)
     r = result.scalar_one_or_none()
     if not r:
         return {"error": "ScheduledReport not found", "report_id": report_id}

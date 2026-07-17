@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import uuid
 
 from asc_api.db.session import get_db
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.ioc import IoC
 from asc_api.models.user import User
 from asc_api.api.deps import get_current_user, get_analyst_or_admin, get_current_admin
@@ -119,7 +120,10 @@ async def deactivate_ioc(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(IoC).where(IoC.id == ioc_id))
+    _stmt = select(IoC).where(IoC.id == ioc_id)
+    if current_user.tenant_id is not None:  # SECURITY (S103.7): aislamiento cross-tenant
+        _stmt = _stmt.where(IoC.tenant_id == current_user.tenant_id)
+    result = await db.execute(_stmt)
     ioc = result.scalar_one_or_none()
     if not ioc:
         raise HTTPException(status_code=404, detail="IoC not found")

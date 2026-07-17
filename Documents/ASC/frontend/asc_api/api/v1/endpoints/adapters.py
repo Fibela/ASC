@@ -31,6 +31,7 @@ from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel
 
 from asc_api.db.session import get_db
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.alert import Alert
 from asc_api.models.event import Event
 from asc_api.models.ioc   import IoC
@@ -211,7 +212,11 @@ async def elk_push_alert(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    _stmt = select(Alert).where(Alert.id == alert_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(Alert.tenant_id == _tid)
+    result = await db.execute(_stmt)
     alert  = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -231,7 +236,11 @@ async def elk_push_event(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(Event).where(Event.id == event_id))
+    _stmt = select(Event).where(Event.id == event_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(Event.tenant_id == _tid)
+    result = await db.execute(_stmt)
     event  = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -299,7 +308,11 @@ async def thehive_create_case(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(Alert).where(Alert.id == body.alert_id))
+    _stmt = select(Alert).where(Alert.id == body.alert_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(Alert.tenant_id == _tid)
+    result = await db.execute(_stmt)
     alert  = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -323,7 +336,11 @@ async def thehive_add_observable(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(select(IoC).where(IoC.id == ioc_id))
+    _stmt = select(IoC).where(IoC.id == ioc_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7): aislamiento cross-tenant
+    if _tid is not None:
+        _stmt = _stmt.where(IoC.tenant_id == _tid)
+    result = await db.execute(_stmt)
     ioc    = result.scalar_one_or_none()
     if not ioc:
         raise HTTPException(status_code=404, detail="IoC not found")

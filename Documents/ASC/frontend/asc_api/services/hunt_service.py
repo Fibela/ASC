@@ -14,6 +14,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.hunt import Hunt, HuntFinding, HuntQuery
 
 log = get_logger("asc.hunt")
@@ -193,7 +194,13 @@ async def list_hunts(
 
 
 async def get_hunt(db: AsyncSession, hunt_id: str) -> Hunt | None:
-    result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
+    # SECURITY (S103.7): aislamiento cross-tenant. Choke point: las 5 mutaciones
+    # de hunt cargan por aquí. ContextVar ligado al usuario autenticado (S103.2).
+    stmt = select(Hunt).where(Hunt.id == hunt_id)
+    _tid = get_tenant_id()
+    if _tid is not None:
+        stmt = stmt.where(Hunt.tenant_id == _tid)
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -444,7 +451,11 @@ async def list_queries(db: AsyncSession, hunt_id: str) -> list[HuntQuery]:
 
 
 async def delete_query(db: AsyncSession, query_id: str) -> bool:
-    result = await db.execute(select(HuntQuery).where(HuntQuery.id == query_id))
+    _stmt = select(HuntQuery).where(HuntQuery.id == query_id)
+    _tid = get_tenant_id()  # SECURITY (S103.7)
+    if _tid is not None:
+        _stmt = _stmt.where(HuntQuery.tenant_id == _tid)
+    result = await db.execute(_stmt)
     q = result.scalar_one_or_none()
     if q is None:
         return False
