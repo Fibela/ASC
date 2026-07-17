@@ -323,6 +323,18 @@ class TestEnrollmentOnRegister:
 
 @pytest.mark.asyncio
 class TestRateLimitOnEvents:
+
+    @pytest.fixture(autouse=True)
+    def _permissive_signatures(self):
+        # Rate-limit tests envían eventos sin firma; deben ser deterministas
+        # independientemente de SPECTER_STRICT_SIGNATURE_MODE (que puede venir
+        # de .env local). Forzamos modo permisivo — la firma se prueba aparte
+        # en test_s103_event_ingest_hardening.py.
+        from asc_api.services import agent_commander as _AC
+        _orig = _AC.settings.SPECTER_STRICT_SIGNATURE_MODE
+        _AC.settings.SPECTER_STRICT_SIGNATURE_MODE = False
+        yield
+        _AC.settings.SPECTER_STRICT_SIGNATURE_MODE = _orig
     async def test_events_within_limit_accepted(
         self, client: AsyncClient, agent: Agent, agent_headers: dict
     ):

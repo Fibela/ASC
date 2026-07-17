@@ -96,7 +96,9 @@ async def ingest_events(
     Verify and store a batch of telemetry events from a SPECTER agent.
 
     Returns (accepted_count, rejected_count).
-    Rejected = invalid signature or replay (ts out of window).
+    Rejected = replay (ts fuera de ventana, siempre) o firma inválida
+    (SOLO cuando SPECTER_STRICT_SIGNATURE_MODE=True). En modo permisivo los
+    eventos con firma inválida se almacenan con signature_valid=False.
     Anomaly detection: marks event as anomaly if event_type not seen
     in the last 500 events for this agent (simple novelty detection).
     """
@@ -124,6 +126,15 @@ async def ingest_events(
 
         # Signature verification
         valid = verify_agent_event(agent.public_key, raw, sig)
+
+        # SECURITY (S103.5): en modo estricto, rechazar eventos con firma Ed25519
+        # inválida. Antes se almacenaban con signature_valid=False y se contaban
+        # como aceptados, dejando INERTE el control criptográfico (permitía inyectar
+        # telemetría spoofeada conociendo solo el ID del agente). El docstring ya
+        # prometía este rechazo; ahora el código lo cumple.
+        if not valid and settings.SPECTER_STRICT_SIGNATURE_MODE:
+            rejected += 1
+            continue
 
         event_type = raw.get("event_type", "unknown")
         is_anomaly = event_type not in known_types

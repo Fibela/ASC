@@ -7067,3 +7067,30 @@ Alexander implementó invalidación de sesión por epoch en paralelo. Verificado
 ### Estado de commits
 
 4 commits locales sin push sobre origin (72ca560): `960d1c8` (S102), `05a83a0` (S103.1 neutralizador), `3fa9991` (S103.2 IDOR — repara truncación de tenant.py), `fd36bab` (S103.3 epoch, de Alexander). El push debe llegar al menos hasta `3fa9991` (960d1c8 aislado rompe P60 por la columna stripe truncada).
+
+---
+
+## Session 103.5 — 2026-07-17 (Ingesta SPECTER: control de firma inerte + deuda de tenant)
+
+### Hallazgo CRÍTICO — la verificación de firma Ed25519 no se hacía cumplir
+
+`services/agent_commander.ingest_events()` almacenaba eventos con firma inválida (`signature_valid=False`) y los contaba como **aceptados**; `SPECTER_STRICT_SIGNATURE_MODE` —documentado como "reject telemetry events whose Ed25519 signature is invalid"— **nunca se consultaba**. El propio docstring prometía "Rejected = invalid signature or replay" pero el código solo rechazaba replay. Combinado con `_get_agent_by_header`, que autentica al agente **solo por el header `X-Specter-ID`** (sin secreto ni prueba de posesión), un atacante que conociera el ID de un agente podía **inyectar telemetría spoofeada** que fluye a correlación→alertas. La firma era el control que lo frenaría, y estaba inerte. `verify_agent_event` sí es Ed25519 real (no stub) — el problema era que su resultado no gateaba la aceptación.
+
+**Fix:** en modo estricto, `ingest_events` ahora RECHAZA eventos con firma inválida (rejected++, no se almacena). Modo permisivo (default) se mantiene para onboarding/rotación de llaves. `backend/.env` local ya tenía `SPECTER_STRICT_SIGNATURE_MODE=true` (el entorno quería enforcement; era inerte). **Operacional: setear `SPECTER_STRICT_SIGNATURE_MODE=true` en el env de Vercel producción** para activar el enforcement en prod (default False = permisivo).
+
+### Deuda verificada (NO crítica, diferida) — AgentEvent sin tenant_id
+
+`AgentEvent` no tiene columna `tenant_id` (sí la tienen Agent y AgentCommand). El acceso a eventos es **transitivamente seguro**: el único read (`GET /agents/{id}/timeline`, agents.py:753) carga el agente con `_get_agent_or_404(tenant_id=current_user.tenant_id)` antes de leer sus eventos, así que no hay fuga cross-tenant. Añadir `tenant_id` a AgentEvent (columna + migración + `tenant_id=agent.tenant_id` en la ingesta) es defensa en profundidad para poder scopear queries directamente; se difiere a una tanda de migración propia (no urgente porque no es explotable hoy).
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_event_ingest_hardening.py` (**NUEVO**, 4 tests) | Firma válida aceptada; inválida almacenada en permisivo; inválida **RECHAZADA** en estricto; estricto sigue aceptando válidas. Firmadas con Ed25519 real. |
+| `test_specter_security.py::TestRateLimitOnEvents` | Añadido fixture `_permissive_signatures` — los tests de rate-limit envían eventos sin firma y ahora son deterministas sin importar el modo (antes dependían de `.env`). 56 passed. |
+| Regresión agents/specter/correlator/p26/p27 | **321 passed, 7 skipped** |
+| Gate espejo | verde | Secretos | CLEAN |
+
+### Nota de método
+
+El fallo de `test_events_within_limit_accepted` reveló que `backend/.env` (git-ignored, invisible a CI) fijaba strict=true; antes del fix el modo era inerte y el test pasaba por accidente. El test se volvió determinista forzando modo permisivo (la firma se prueba aparte). Verificado contra el código, no contra la doc.
