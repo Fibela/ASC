@@ -403,14 +403,20 @@ async def list_triggers(
     return [_trigger_to_dict(t) for t in result.scalars().all()]
 
 
-async def get_trigger(db: AsyncSession, trigger_id: str) -> dict | None:
-    result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id))
+async def get_trigger(db: AsyncSession, trigger_id: str, tenant_id: str | None = None) -> dict | None:
+    stmt = select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id)
+    if tenant_id is not None:  # SECURITY (S103.6): aislamiento cross-tenant
+        stmt = stmt.where(PlaybookTrigger.tenant_id == tenant_id)
+    result = await db.execute(stmt)
     t = result.scalar_one_or_none()
     return _trigger_to_dict(t) if t else None
 
 
-async def delete_trigger(db: AsyncSession, trigger_id: str, *, deleted_by: str) -> bool:
-    result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id))
+async def delete_trigger(db: AsyncSession, trigger_id: str, *, deleted_by: str, tenant_id: str | None = None) -> bool:
+    stmt = select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id)
+    if tenant_id is not None:  # SECURITY (S103.6)
+        stmt = stmt.where(PlaybookTrigger.tenant_id == tenant_id)
+    result = await db.execute(stmt)
     t = result.scalar_one_or_none()
     if not t:
         return False
@@ -428,8 +434,11 @@ async def delete_trigger(db: AsyncSession, trigger_id: str, *, deleted_by: str) 
     return True
 
 
-async def toggle_trigger(db: AsyncSession, trigger_id: str, *, enabled: bool, updated_by: str) -> dict | None:
-    result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id))
+async def toggle_trigger(db: AsyncSession, trigger_id: str, *, enabled: bool, updated_by: str, tenant_id: str | None = None) -> dict | None:
+    stmt = select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id)
+    if tenant_id is not None:  # SECURITY (S103.6)
+        stmt = stmt.where(PlaybookTrigger.tenant_id == tenant_id)
+    result = await db.execute(stmt)
     t = result.scalar_one_or_none()
     if not t:
         return None

@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.audit import log_security_action
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.incident import (
     DEFAULT_SLA_MINUTES,
     NIST_PHASE,
@@ -101,9 +102,15 @@ def _add_timeline(
 
 
 async def get_incident(db: AsyncSession, incident_id: str) -> Incident | None:
-    result = await db.execute(
-        select(Incident).where(Incident.id == incident_id)
-    )
+    # SECURITY (S103.6): aislamiento cross-tenant. El ContextVar queda ligado al
+    # tenant del usuario autenticado en deps._resolve_user (S103.2), así que este
+    # único choke point protege el read directo Y las 7 mutaciones que cargan por
+    # aquí. None (super-admin / single-tenant) = sin filtro, patrón del codebase.
+    stmt = select(Incident).where(Incident.id == incident_id)
+    _tid = get_tenant_id()
+    if _tid is not None:
+        stmt = stmt.where(Incident.tenant_id == _tid)
+    result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -119,6 +126,9 @@ async def list_incidents(
     offset: int = 0,
 ) -> list[Incident]:
     q = select(Incident).order_by(Incident.created_at.desc())
+    _tid = get_tenant_id()  # SECURITY (S103.6): el listado también se aísla por tenant
+    if _tid is not None:
+        q = q.where(Incident.tenant_id == _tid)
     if status:
         q = q.where(Incident.status == status)
     if severity:

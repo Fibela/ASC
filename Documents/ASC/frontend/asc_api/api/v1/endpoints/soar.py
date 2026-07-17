@@ -152,7 +152,7 @@ async def get_trigger(
     current_user: User = Depends(get_analyst_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    t = await soar_service.get_trigger(db, trigger_id)
+    t = await soar_service.get_trigger(db, trigger_id, tenant_id=current_user.tenant_id)
     if not t:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trigger not found")
     return t
@@ -166,7 +166,7 @@ async def delete_trigger(
     current_user: User = Depends(get_analyst_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    deleted = await soar_service.delete_trigger(db, trigger_id, deleted_by=current_user.email)
+    deleted = await soar_service.delete_trigger(db, trigger_id, deleted_by=current_user.email, tenant_id=current_user.tenant_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trigger not found")
 
@@ -181,7 +181,8 @@ async def toggle_trigger(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     result = await soar_service.toggle_trigger(
-        db, trigger_id, enabled=body.enabled, updated_by=current_user.email
+        db, trigger_id, enabled=body.enabled, updated_by=current_user.email,
+        tenant_id=current_user.tenant_id,
     )
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trigger not found")

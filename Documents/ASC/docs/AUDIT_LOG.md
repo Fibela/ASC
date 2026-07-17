@@ -7094,3 +7094,45 @@ Alexander implementó invalidación de sesión por epoch en paralelo. Verificado
 ### Nota de método
 
 El fallo de `test_events_within_limit_accepted` reveló que `backend/.env` (git-ignored, invisible a CI) fijaba strict=true; antes del fix el modo era inerte y el test pasaba por accidente. El test se volvió determinista forzando modo permisivo (la firma se prueba aparte). Verificado contra el código, no contra la doc.
+
+---
+
+## Session 103.6 — 2026-07-17 (SOAR/playbooks/incidentes: IDOR cross-tenant sistémico)
+
+### Auditoría — lo bueno primero
+
+SOAR y playbooks **ejecutan de verdad**: `playbook._execute_step` llama al neutralizer real (isolate/block_ip/block_domain/remove_persistence) y propaga `success = nr.success`. Como S103.1 volvió honesto al neutralizer, un paso de playbook que corre una acción simulada ahora reporta el estado real, no éxito falso — la honestidad fluye transitivamente. Cero stubs/mocks en 2457 líneas de SOAR/incident/playbook.
+
+### Hallazgo CRÍTICO — IDOR cross-tenant (OWASP A01), misma familia que S103.2
+
+Operaciones por-id sin filtro de tenant (mientras `list`/`summary` sí scopeaban — inconsistencia reveladora):
+
+| Superficie | Antes | Impacto |
+|-----------|-------|---------|
+| SOAR `get_trigger` / `delete_trigger` / `toggle_trigger` | `where(PlaybookTrigger.id==id)` sin tenant; endpoints no pasaban tenant | Analista/admin de A leía/borraba/desactivaba los triggers de automatización de B |
+| Incidentes `get_incident` | `where(Incident.id==id)` sin tenant | A leía el incidente de B; y como **las 7 mutaciones** (transition_status, assign, link, add_note, close, dismiss, update_mitre) cargan vía `get_incident`, todas heredaban el IDOR |
+| Incidentes `list_incidents` | `select(Incident)` sin filtro de tenant | GET /incidents listaba incidentes de TODOS los tenants |
+
+Estos endpoints NO usan `apply_tenant_filter` (query directa por id), así que el fix de S103.2 no los cubría.
+
+### Fix
+
+| Artefacto | Cambio |
+|-----------|--------|
+| `services/soar_service.py` | `get_trigger`/`delete_trigger`/`toggle_trigger` reciben `tenant_id` y scopean (`if tenant_id is not None`) |
+| `api/v1/endpoints/soar.py` | los 3 endpoints pasan `tenant_id=current_user.tenant_id` |
+| `services/incident_service.py` | `get_incident` y `list_incidents` scopean por `get_tenant_id()` (ContextVar ligado al usuario autenticado en `_resolve_user`, S103.2). Un único choke point: `get_incident` protege el read directo Y las 7 mutaciones. `None` (super-admin/single-tenant) = sin filtro (patrón del codebase, retrocompatible con tests de contexto None) |
+
+Dos estrategias por motivo: SOAR con tenant explícito (3 funcs simples); incidentes vía ContextVar (evita threadear por 7 firmas variables y usa el patrón establecido `apply_tenant_filter`).
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_s103_soar_incident_idor.py` (**NUEVO**, 8 E2E) | A no lee/borra/desactiva trigger de B; A no lee/lista/muta incidente de B; controles positivos (dueño sí accede). **Exploits cerrados.** |
+| Regresión p28/incident-integration/soar_service/p25 | **280 passed, 0 failed** (retrocompatible: tests directos con ContextVar None = sin filtro) |
+| Gate espejo | verde (137) | Secretos | CLEAN |
+
+### Nota
+
+Tercer IDOR de la misma familia (S103.2 webhooks/api-keys, S103.6 SOAR/incidentes). Patrón sistémico: "operación por-id sin scope de tenant". **Recomendación:** un barrido dedicado de TODOS los `where(Model.id == id)` en endpoints por-id para cerrar cualquier otro (detection rules, hunts, playbook runs, forensic, threat intel) antes del go-live multi-tenant.
