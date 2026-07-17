@@ -7037,3 +7037,33 @@ La migración legítima de S103.3 rompió **cinco** tests que hardcodeaban el n�
 
 - **Orden de despliegue**: correr `migrations_s103_tokens_valid_after.sql` en Supabase ANTES del push (columna leída por el ORM).
 - Deuda menor conocida: `logout` solo revoca el access token de esa sesión (no el refresh) — aceptable para logout de una sesión; el epoch cubre el logout-all vía cambio de contraseña. Un endpoint "cerrar todas las sesiones" sería el complemento natural (setear tokens_valid_after=now sin cambiar contraseña).
+
+---
+
+## Session 103.4 — 2026-07-16 (Auditoría auth: refresh / blacklist / logout / admin — SIN bugs)
+
+### Resultado
+
+Auditoría verificada de la superficie de autenticación. **No se encontraron vulnerabilidades ni endpoints incompletos.** La superficie está bien construida (a diferencia de tenant isolation en S103.2). Registrado para establecer confianza verificada, no supuesta.
+
+| Área | Verificado |
+|------|-----------|
+| `/refresh` | Chequea blacklist, verifica firma refresh, chequea lock, chequea epoch, **rota** (revoca el jti viejo con reason=token_rotation). Reuso detectado vía blacklist. |
+| Blacklist (`jwt_blacklist`) | **DB-backed** (`RevokedToken`) — persiste entre invocaciones Lambda (correcto en serverless). L1 in-memory es solo caché rápido; `is_revoked` SIEMPRE cae a DB si no está en L1 (sin falso-negativo). |
+| `/logout` | Blacklistea el jti del access token actual. |
+| Invalidación por epoch | `change-password` bumpea `tokens_valid_after`; honrado en access (`_resolve_user` deps.py) y refresh. Cierra "cambié contraseña pero el token robado seguía sirviendo". |
+| `PATCH /users/{id}` | Admin-only; filtra por `admin.tenant_id` (cross-tenant bloqueado salvo super-admin bootstrap con tenant_id=None); valida rol contra VALID_ROLES; bloquea cambio de rol propio; el rol se lee de DB en cada request → democión inmediata. Sin escalada. |
+| `is_locked` | Es `@property` computada de `locked_until` — correctamente NO requiere columna/migración. |
+
+### Contradicciones de doc desmentidas (verificadas)
+
+- "JWT propio pero SUPABASE_JWT_SECRET obligatoria" → FALSO. `SUPABASE_JWT_SECRET` default vacío, solo para el bridge SSO; el JWT propio usa `SECRET_KEY`.
+- "/auth/register con dos formas de respuesta" → FALSO. Es bootstrap-only: primer usuario = admin, luego 403.
+
+### Verificación del trabajo paralelo de Alexander (commit `fd36bab`, S103.3)
+
+Alexander implementó invalidación de sesión por epoch en paralelo. Verificado que integra limpio sobre mi S103.2 (historia LINEAL, sin divergencia): head Alembic único `f9edec8a6897` encadenado sobre `f309a0115906`; espejo `frontend/asc_api` sincronizado (gate verde, 137 archivos, el epoch check llegó a la copia desplegada); blobs sin truncación (AST OK); 9 tests propios (`test_s103_session_epoch.py`) verdes. Suite auth combinada (su epoch + mis fixes IDOR/neutralizador): **89 passed**.
+
+### Estado de commits
+
+4 commits locales sin push sobre origin (72ca560): `960d1c8` (S102), `05a83a0` (S103.1 neutralizador), `3fa9991` (S103.2 IDOR — repara truncación de tenant.py), `fd36bab` (S103.3 epoch, de Alexander). El push debe llegar al menos hasta `3fa9991` (960d1c8 aislado rompe P60 por la columna stripe truncada).
