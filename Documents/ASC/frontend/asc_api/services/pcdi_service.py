@@ -30,6 +30,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.hunt import Hunt, HuntFinding
 from asc_api.models.neutralization import NeutralizationAction
 from asc_api.models.pcdi import PCDISignedReport
@@ -92,9 +93,11 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
         return {"error": "Finding not found", "finding_id": finding_id}
 
     # Load parent hunt
-    hunt_result = await db.execute(
-        select(Hunt).where(Hunt.id == finding.hunt_id)
-    )
+    _hstmt = select(Hunt).where(Hunt.id == finding.hunt_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): aislamiento cross-tenant
+    if _tid is not None:
+        _hstmt = _hstmt.where(Hunt.tenant_id == _tid)
+    hunt_result = await db.execute(_hstmt)
     hunt = hunt_result.scalar_one_or_none()
 
     score = _SEV_BASE.get(finding.severity, 20)
@@ -230,7 +233,11 @@ async def correlate_hunt_with_panl(db: AsyncSession, hunt_id: str) -> dict:
     Matches on indicator_value, affected_host, or affected_user vs
     NeutralizationAction.target. Returns a correlation map with match confidence.
     """
-    hunt_result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
+    _hstmt = select(Hunt).where(Hunt.id == hunt_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): aislamiento cross-tenant
+    if _tid is not None:
+        _hstmt = _hstmt.where(Hunt.tenant_id == _tid)
+    hunt_result = await db.execute(_hstmt)
     hunt = hunt_result.scalar_one_or_none()
     if hunt is None:
         return {"error": "Hunt not found", "hunt_id": hunt_id}
@@ -368,7 +375,11 @@ async def sign_hunt_report(
     The canonical_data includes the full report_data plus PCDI metadata.
     Returns the stored PCDISignedReport serialized as a dict.
     """
-    hunt_result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
+    _hstmt = select(Hunt).where(Hunt.id == hunt_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): aislamiento cross-tenant
+    if _tid is not None:
+        _hstmt = _hstmt.where(Hunt.tenant_id == _tid)
+    hunt_result = await db.execute(_hstmt)
     hunt = hunt_result.scalar_one_or_none()
 
     canonical: dict[str, Any] = {
@@ -535,7 +546,11 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
     """
     from asc_api.models.hunt import HuntQuery
 
-    hunt_result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
+    _hstmt = select(Hunt).where(Hunt.id == hunt_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): aislamiento cross-tenant
+    if _tid is not None:
+        _hstmt = _hstmt.where(Hunt.tenant_id == _tid)
+    hunt_result = await db.execute(_hstmt)
     hunt = hunt_result.scalar_one_or_none()
     if hunt is None:
         return {"error": "Hunt not found", "hunt_id": hunt_id}

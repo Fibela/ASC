@@ -82,11 +82,23 @@ async def readiness(db: AsyncSession = Depends(get_db)):
         except Exception as exc:
             redis_ok, redis_msg = False, type(exc).__name__
 
-    all_ok = db_ok and redis_ok
+    # Deriva de esquema (S103.8): modelos ORM vs columnas reales de la DB.
+    # Cierra el modo de fallo del incidente I-3 (columna faltante + SELECT 1 verde).
+    schema_missing: list[str] = []
+    if db_ok:
+        try:
+            from asc_api.core.schema_check import missing_model_columns
+            schema_missing = await missing_model_columns(db)
+        except Exception as exc:  # el chequeo nunca debe tumbar readiness
+            schema_missing = [f"check_error:{type(exc).__name__}"]
+    schema_ok = not schema_missing
+
+    all_ok = db_ok and redis_ok and schema_ok
     return {
         "status": "ready" if all_ok else "degraded",
         "checks": {
             "database": {"ok": db_ok, "detail": db_msg},
+            "schema": {"ok": schema_ok, "missing": schema_missing[:20]},
             "redis": {"ok": redis_ok, "detail": redis_msg},
         },
         "ts": datetime.now(timezone.utc).isoformat(),

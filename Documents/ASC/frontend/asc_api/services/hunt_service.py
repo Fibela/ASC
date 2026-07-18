@@ -536,7 +536,11 @@ async def create_hunt_from_alert(
     """
     from asc_api.models.alert import Alert
 
-    result = await db.execute(select(Alert).where(Alert.id == alert_id))
+    _astmt = select(Alert).where(Alert.id == alert_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): no crear hunt desde alerta de otro tenant
+    if _tid is not None:
+        _astmt = _astmt.where(Alert.tenant_id == _tid)
+    result = await db.execute(_astmt)
     alert = result.scalar_one_or_none()
     if alert is None:
         return None

@@ -7180,3 +7180,59 @@ Uniforme y retrocompatible: choke points y queries por-id scopean con `get_tenan
 ### Cierre
 
 Cuatro sesiones cerraron la familia IDOR por-id: S103.2 (webhooks/api-keys list vía ContextVar+middleware), S103.6 (SOAR triggers + incidentes), S103.7 (hunts, PIDS, scheduled reports, IoC, adapters). El barrido AST no dejó más `Model.id ==` tenant-scoped sin scope en rutas user-facing. **Recomendación go-live:** re-correr el analizador AST en cada PR que toque endpoints (candidato a test de CI).
+
+---
+
+## INCIDENTE I-3 — 2026-07-17 (asc_unreachable tras push de S102–S103.7)
+
+### Qué pasó
+
+Push de 8 commits (72ca560→d6463e5) → auto-deploy Vercel READY. Portal caído: `asc_unreachable`. Diagnóstico (Vercel runtime errors): **50 excepciones `asyncpg.UndefinedColumnError: column users.tokens_valid_after does not exist`** en `/api/index`, todas desde `deps._resolve_user` (el SELECT de User incluye la columna mapeada). Causa raíz: la migración `f9edec8a6897` (users.tokens_valid_after, de S103.3) se corrió en Supabase **después** del push, no antes. El modelo referenciaba la columna; la DB no la tenía → toda query de usuario 500 → backend caído.
+
+### Resolución (sin cambio de código, sin re-deploy)
+
+`ALTER TABLE users ADD COLUMN IF NOT EXISTS tokens_valid_after TIMESTAMPTZ NULL` + avance de `alembic_version` en Supabase. Recuperación inmediata: logs sin la excepción desde 23:06 (post-SQL), `/health/readiness` → `database: ok`, commit desplegado d6463e5, 0 errores/fatales.
+
+### Descarte de hipótesis
+
+"Repo no integrado con Supabase" → **descartado con evidencia**: el mismo SQL Editor que corrigió el error es la DB de producción (readiness reporta database ok tras aplicarlo). La integración es correcta; el fallo fue de ORDEN de despliegue, no de integración.
+
+### Causa sistémica y prevención
+
+Tercera vez que el orden de migración muerde (profile, tokens_valid_after, truncación stripe relacionada). Las migraciones se aplican MANUALMENTE en Supabase (asyncpg+pooler no corre alembic online), así que el orden "migración ANTES del deploy" depende de disciplina humana. **Salvaguardas propuestas (para la tanda de CI):**
+1. **Gate de esquema post-deploy en deploy.yml**: además de liveness, chequear `/health/readiness` (toca DB) y un chequeo de que las columnas de los modelos existen; fallar el gate si no coinciden.
+2. **Chequeo de startup**: comparar columnas mapeadas vs information_schema al arrancar; loguear DIVERGENCIA clara en vez de 500 opaco por request.
+3. Regla de release: correr `migrations_*.sql` en Supabase y verificar `alembic_version` ANTES de `git push`. Documentada; automatizar.
+
+---
+
+## Session 103.8 — 2026-07-18 (Salvaguardas: guardia AST anti-IDOR + chequeo de esquema)
+
+Tres salvaguardas para que la familia IDOR y el incidente I-3 no reaparezcan.
+
+### 1. Guardia AST anti-IDOR como test de CI (`test_idor_guard.py`)
+
+Analizador AST: escanea `services/` y `endpoints/`; si una función consulta un modelo tenant-scoped por `Model.id ==` SIN señal de tenant en la misma función, es IDOR candidato. Falla el CI ante cualquier violación fuera del `ALLOWLIST` (6 casos VERIFICADOS seguros, cada uno con su razón: auth de agente, internos post-scope, crons). `test_allowlist_has_no_stale_entries` evita que el allowlist envejezca.
+
+**El test cazó un IDOR real que el barrido manual S103.7 había dejado pasar:** `thehive_service.export_hunt_to_thehive` cargaba un Hunt por id sin scope y lo exportaba a TheHive (exfiltración cross-tenant a sistema externo). Corregido. También se corrigieron, encontrados al construir el allowlist: `pcdi_service` (4 Hunt loads: compute_adaptive_score, correlate_hunt_with_panl, sign_hunt_report, build_forensic_timeline) y `hunt_service.create_hunt_from_alert` (Alert load). Todos scopeados por `get_tenant_id()`.
+
+### 2. Chequeo de deriva de esquema (`core/schema_check.py` + readiness)
+
+Raíz del incidente I-3: `/health/readiness` solo hacía `SELECT 1`, que pasa aunque falte una columna de modelo → reportaba `database: ok` con el app caído. `missing_model_columns(db)` compara las columnas de `Base.metadata` contra `information_schema.columns` y devuelve las faltantes. Cableado en readiness (`checks.schema.{ok,missing}`), habría cazado I-3. Solo Postgres (prod); en SQLite de test se omite (devuelve []).
+
+### 3. Gate de readiness post-deploy (`deploy.yml`)
+
+El deploy-gate ahora, tras liveness, valida `/health/readiness == ready` (que incluye la deriva de esquema). Un deploy con columna faltante fallaría el gate en vez de tumbar el portal. **Caveat (S101):** el `.github/` está anidado bajo `Documents/ASC/`, no en el root del repo, así que GitHub Actions aún NO ejecuta estos workflows — este gate es correcto pero inerte hasta reubicar `.github/` al root (pendiente registrado). El chequeo de readiness sí es efectivo de inmediato como smoke test manual o monitor externo.
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `test_idor_guard.py` (**NUEVO**, 2) | Sin violaciones nuevas + allowlist sin entradas obsoletas |
+| `test_s103_schema_check.py` (**NUEVO**, 2) | Helper omite SQLite limpio; readiness expone bloque `schema` ok |
+| Regresión pcdi/hunts/pids/health (327) | **327 passed** |
+| Gate espejo | verde (138) | Secretos | CLEAN |
+
+### Nota de método
+
+El guardia AST se validó cazando un IDOR real (export a TheHive) el mismo día que se escribió — evidencia de que el barrido manual, por riguroso, deja huecos; la automatización es la que cierra la familia de forma durable. Recomendación go-live: reubicar `.github/` al root para que ci-check + deploy-gate + este guardia corran de verdad en cada PR.

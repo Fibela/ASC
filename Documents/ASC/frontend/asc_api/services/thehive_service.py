@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.adapters.thehive import TheHiveAdapter, _IOC_TYPE_MAP
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.core.audit import log_security_action
 from asc_api.core.logging import get_logger
 from asc_api.models.hunt import Hunt, HuntFinding
@@ -149,7 +150,11 @@ async def export_hunt_to_thehive(
         }
 
     # Load hunt
-    hunt_result = await db.execute(select(Hunt).where(Hunt.id == hunt_id))
+    _hstmt = select(Hunt).where(Hunt.id == hunt_id)
+    _tid = get_tenant_id()  # SECURITY (S103.8): no exportar hunt de otro tenant a TheHive
+    if _tid is not None:
+        _hstmt = _hstmt.where(Hunt.tenant_id == _tid)
+    hunt_result = await db.execute(_hstmt)
     hunt = hunt_result.scalar_one_or_none()
     if not hunt:
         return {"success": False, "error": f"Hunt {hunt_id} not found", "hunt_id": hunt_id}

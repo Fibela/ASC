@@ -100,3 +100,14 @@ jobs:
             exit 1
           fi
           echo "ASC PremosCorp is live"
+
+      - name: Readiness + deriva de esquema (previene incidente I-3)
+        run: |
+          BODY=$(curl -sf https://asc.premoscorp.com/api/v1/health/readiness || echo '{}')
+          echo "$BODY"
+          echo "$BODY" | grep -q '"status":"ready"' || {
+            echo "Readiness NO ready — DB o deriva de esquema (columna de modelo faltante)."
+            echo "Correr las migraciones pendientes en Supabase. Ver INCIDENTE I-3 en AUDIT_LOG."
+            exit 1
+          }
+          echo "Readiness OK — esquema alineado con los modelos"
