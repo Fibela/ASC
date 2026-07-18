@@ -1,0 +1,95 @@
+name: ASC CI
+
+# Workflows en el ROOT REAL del repo (C:\Users\Alexx\ASC). El contenido del
+# proyecto vive bajo Documents/ASC/ (git init en subcarpeta, hallazgo S101), por
+# eso todas las rutas llevan ese prefijo. NO afecta a Vercel (su Root Directory
+# es independiente de .github).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: asc-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    name: Guardas rápidas (integridad · IDOR · secretos · esquema)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Gate de integridad asc_api (fuente única backend/asc_api)
+        run: node Documents/ASC/scripts/sync-asc-api.mjs --check
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libmagic1 build-essential libpq-dev
+
+      - name: Dependencias Python
+        working-directory: Documents/ASC/backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Escaneo de secretos
+        working-directory: Documents/ASC
+        run: python3 _secret_scan.py
+
+      - name: Guardas deterministas (IDOR + fuente única + esquema)
+        working-directory: Documents/ASC/backend
+        env:
+          SECRET_KEY: ci-only-not-a-real-secret-key-change-in-prod
+          DEBUG: "true"
+        run: |
+          pytest tests/test_idor_guard.py \
+                 tests/test_asc_api_sync.py \
+                 tests/test_s103_schema_check.py \
+                 --tb=short -q
+
+  backend-tests:
+    name: Suite backend + coverage (asc_api ≥85%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libmagic1 build-essential libpq-dev
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Dependencias Python
+        working-directory: Documents/ASC/backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Tests con gate de coverage
+        working-directory: Documents/ASC/backend
+        env:
+          SECRET_KEY: ci-only-not-a-real-secret-key-change-in-prod
+          DEBUG: "true"
+        run: |
+          pytest tests/ \
+            --tb=short \
+            --cov=asc_api \
+            --cov-fail-under=85 \
+            -q

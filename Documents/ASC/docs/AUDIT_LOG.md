@@ -7242,3 +7242,41 @@ El guardia AST se validó cazando un IDOR real (export a TheHive) el mismo día 
 Corrección de alcance: el commit 2ad846d cableó la deriva de esquema SOLO en `/health/readiness`, no en el arranque. El pedido original era loguear la divergencia AL ARRANCAR (visibilidad en logs de deploy en vez de 500 opaco por request). Completado: `main.py` lifespan, tras `run_startup_checks`, corre `missing_model_columns` y loguea `schema_drift_detected` (con las columnas faltantes y hint a I-3) o `schema_check_passed`. No aborta el arranque (liveness sigue arriba; readiness reporta la deriva; el deploy-gate la caza). `AsyncSessionLocal` + try/except: si la DB no resuelve al boot, `schema_check_skipped` sin tumbar el startup. Test `TestStartupWiring` garantiza que el cableado no se pierda. Import de la app verificado OK.
 
 **Los tres pedidos quedan COMPLETOS:** (a) analizador AST como test de CI ✓ (cazó un IDOR real), (b) gate de readiness post-deploy ✓ (inerte hasta reubicar .github — caveat), (c) startup check ✓ (al arranque + readiness). Pendiente estructural para activarlos en CI: mover `.github/` al root del repo.
+
+---
+
+## Session 104 — 2026-07-18 (Activar CI: workflows correctos en el root del repo)
+
+### Hallazgo — los workflows estaban rotos, no solo mal ubicados
+
+Auditados los 5 workflows en `Documents/ASC/.github/workflows/` (que GitHub NUNCA ejecutó — `.github` anidado, hallazgo S101):
+- `ci.yml`: referencia `backend/app/` (módulo fantasma borrado en S7; el real es `backend/asc_api/`) en ruff, y `--cov=app` (0% → falla el gate 85%). Incluye un job **docker-build** (fuera de alcance). Activarlo tal cual = CI rojo permanente.
+- Todos asumen root = `Documents/ASC` (`working-directory: backend`, `./backend/`).
+- `deploy.yml` sí tenía `--cov=asc_api` correcto — fue el template.
+
+Por eso "activar CI" fue reconstruir, no mover: no se arrastran los 5 rotos.
+
+### Cambio — workflows nuevos y correctos en el ROOT REAL del repo
+
+`.github/workflows/` en `C:\Users\Alexx\ASC` (root real; contenido del proyecto bajo `Documents/ASC/`, por eso las rutas llevan ese prefijo). **NO afecta a Vercel** (su Root Directory `Documents/ASC/frontend` es independiente de `.github`).
+
+- `ci.yml` — on push/PR a master. Job `guards` (integridad fuente única + escaneo de secretos + guardas deterministas: IDOR/sync/esquema) + job `backend-tests` (suite completa `--cov=asc_api --cov-fail-under=85`).
+- `deploy-smoke.yml` — on push master: espera el deploy de Vercel y valida `/health/readiness == ready` (incluye deriva de esquema). Cierra la recurrencia del incidente I-3: una columna faltante FALLA el smoke en vez de tumbar el portal.
+
+### Verificación (lo que se pudo, con evidencia)
+
+| Check | Resultado |
+|-------|-----------|
+| YAML de ambos workflows | válido (yaml.safe_load) |
+| Rutas referenciadas existen | 5/5 OK (scripts, requirements, _secret_scan, tests) |
+| Colección de tests en entorno CI (py3.12) | **4946 tests colectan limpio** sin errores de import |
+| `test_ci.py` error de colección | SOLO en sandbox (py3.10 sin `tomllib`); en CI (py3.12) colecta — artefacto de entorno, no de código |
+| Guardas deterministas (idor/sync/esquema) | verdes localmente |
+| Gate espejo | verde (138) |
+
+**Honestidad:** el job `backend-tests` corre la suite completa con gate de coverage 85%. La colección es limpia en CI y la suite corre en entorno más limpio que el sandbox (sin proxy SOCKS ni backend/.env), pero el % exacto de coverage NO se pudo medir desde el sandbox (timeout con ~5000 tests). Su primera corrida en GitHub Actions es la verificación real. El job `guards` sí es verde garantizado.
+
+### Pendientes registrados
+
+- Los 5 workflows anidados en `Documents/ASC/.github/` quedan DORMIDOS (superseded por los del root). Follow-up: portar los escaneos de seguridad valiosos (trivy/codeql/bandit/gitleaks de p49/p50/security-audit) a workflows correctos en el root, o eliminar el directorio anidado (residuo).
+- `ci.yml` anidado tiene refs a `backend/app` — no se corrige (se elimina en el follow-up de limpieza).

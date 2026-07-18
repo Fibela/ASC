@@ -1,0 +1,36 @@
+name: ASC Deploy Smoke (post-push a producción)
+
+# Tras cada push a master, Vercel auto-despliega. Este smoke espera y valida
+# /health/readiness (que incluye la deriva de esquema, S103.8) — así una columna
+# de modelo faltante FALLA el smoke en vez de tumbar el portal (raíz del incidente
+# I-3). No despliega nada; solo verifica lo que Vercel ya desplegó.
+
+on:
+  push:
+    branches: [master, main]
+
+jobs:
+  readiness-smoke:
+    name: Readiness + deriva de esquema en producción
+    runs-on: ubuntu-latest
+    steps:
+      - name: Esperar propagación del deploy de Vercel
+        run: sleep 60
+
+      - name: Liveness
+        run: |
+          CODE=$(curl -sf -o /dev/null -w "%{http_code}" \
+            https://asc.premoscorp.com/api/v1/health/liveness || echo "000")
+          echo "liveness HTTP $CODE"
+          [ "$CODE" = "200" ] || { echo "Liveness falló — revisar deploy en Vercel"; exit 1; }
+
+      - name: Readiness (DB + esquema alineado con los modelos)
+        run: |
+          BODY=$(curl -sf https://asc.premoscorp.com/api/v1/health/readiness || echo '{}')
+          echo "$BODY"
+          echo "$BODY" | grep -q '"status":"ready"' || {
+            echo "Readiness NO ready — DB o deriva de esquema (columna de modelo faltante)."
+            echo "Correr las migraciones pendientes en Supabase. Ver INCIDENTE I-3 en AUDIT_LOG."
+            exit 1
+          }
+          echo "Readiness OK — producción sana, esquema alineado"
