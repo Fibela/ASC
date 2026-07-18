@@ -31,3 +31,13 @@ class TestReadinessWiring:
         assert body["checks"]["schema"]["ok"] is True
         assert body["checks"]["schema"]["missing"] == []
         assert body["checks"]["database"]["ok"] is True
+
+
+class TestStartupWiring:
+    def test_lifespan_runs_schema_check(self):
+        # Garantiza que el chequeo de deriva se ejecuta al ARRANCAR (no solo en
+        # readiness). Si alguien lo quita del lifespan, este test lo caza.
+        from pathlib import Path
+        main_src = (Path(__file__).resolve().parents[1] / "asc_api" / "main.py").read_text(encoding="utf-8")
+        assert "missing_model_columns" in main_src, "el startup schema check no está cableado en el lifespan"
+        assert "schema_drift_detected" in main_src, "falta el log claro de deriva al arrancar"

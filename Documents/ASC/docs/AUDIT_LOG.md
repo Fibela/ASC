@@ -7236,3 +7236,9 @@ El deploy-gate ahora, tras liveness, valida `/health/readiness == ready` (que in
 ### Nota de método
 
 El guardia AST se validó cazando un IDOR real (export a TheHive) el mismo día que se escribió — evidencia de que el barrido manual, por riguroso, deja huecos; la automatización es la que cierra la familia de forma durable. Recomendación go-live: reubicar `.github/` al root para que ci-check + deploy-gate + este guardia corran de verdad en cada PR.
+
+### S103.8c — Startup schema check completado (honestidad)
+
+Corrección de alcance: el commit 2ad846d cableó la deriva de esquema SOLO en `/health/readiness`, no en el arranque. El pedido original era loguear la divergencia AL ARRANCAR (visibilidad en logs de deploy en vez de 500 opaco por request). Completado: `main.py` lifespan, tras `run_startup_checks`, corre `missing_model_columns` y loguea `schema_drift_detected` (con las columnas faltantes y hint a I-3) o `schema_check_passed`. No aborta el arranque (liveness sigue arriba; readiness reporta la deriva; el deploy-gate la caza). `AsyncSessionLocal` + try/except: si la DB no resuelve al boot, `schema_check_skipped` sin tumbar el startup. Test `TestStartupWiring` garantiza que el cableado no se pierda. Import de la app verificado OK.
+
+**Los tres pedidos quedan COMPLETOS:** (a) analizador AST como test de CI ✓ (cazó un IDOR real), (b) gate de readiness post-deploy ✓ (inerte hasta reubicar .github — caveat), (c) startup check ✓ (al arranque + readiness). Pendiente estructural para activarlos en CI: mover `.github/` al root del repo.

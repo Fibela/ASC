@@ -37,6 +37,27 @@ async def lifespan(app: FastAPI):
     # Validate configuration before accepting traffic
     run_startup_checks(settings)
 
+    # S103.8 — Chequeo de deriva de esquema al ARRANCAR: si un modelo referencia
+    # una columna que la DB no tiene (migración pendiente), lo logueamos CLARO en
+    # los logs de deploy en vez de tirar un 500 opaco por cada request (raíz del
+    # incidente I-3). No aborta el arranque: liveness sigue arriba y readiness
+    # reporta la deriva; el deploy-gate la caza. Nunca tumba el startup por sí mismo.
+    try:
+        from asc_api.core.schema_check import missing_model_columns
+        from asc_api.db.session import AsyncSessionLocal
+        async with AsyncSessionLocal() as _schema_db:
+            _drift = await missing_model_columns(_schema_db)
+        if _drift:
+            log.error(
+                "schema_drift_detected",
+                missing_columns=_drift[:30],
+                hint="Correr migraciones pendientes en Supabase (ver INCIDENTE I-3 en AUDIT_LOG).",
+            )
+        else:
+            log.info("schema_check_passed")
+    except Exception as _schema_exc:  # nunca abortar el arranque por el chequeo
+        log.warning("schema_check_skipped", reason=type(_schema_exc).__name__)
+
     # Schema creation is managed by Alembic migrations (run once via `alembic upgrade head`).
     # On Vercel serverless, create_all on every cold start wastes a connection and adds
     # latency. The tables already exist in production — skip create_all entirely.
