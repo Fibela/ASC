@@ -312,7 +312,10 @@ class TestTriggerPB004:
 
         isolate_steps = [s for s in run.steps_log if s.get("action") == "ISOLATE_ENDPOINT"]
         assert len(isolate_steps) == 1
-        assert isolate_steps[0].get("success") is True
+        # S103.1: isolate sin agente SPECTER vivo es simulación honesta —
+        # success=False, simulated=True (antes reportaba éxito falso).
+        assert isolate_steps[0].get("success") is False
+        assert isolate_steps[0]["neutralizer_details"]["simulated"] is True
 
 
 # â”€â”€â”€ HitL Approval Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

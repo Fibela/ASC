@@ -1138,6 +1138,8 @@ class TestSecurityScan:
         frontend = pathlib.Path(__file__).parent.parent.parent / "frontend"
         if not frontend.exists():
             pytest.skip("Frontend directory not found")
+        if not (frontend / "node_modules").exists():
+            pytest.skip("frontend/node_modules ausente — el typecheck corre en el job de frontend con npm ci")
         npx = shutil.which("npx")
         if not npx:
             pytest.skip("npx not found")

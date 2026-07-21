@@ -7280,3 +7280,29 @@ Por eso "activar CI" fue reconstruir, no mover: no se arrastran los 5 rotos.
 
 - Los 5 workflows anidados en `Documents/ASC/.github/` quedan DORMIDOS (superseded por los del root). Follow-up: portar los escaneos de seguridad valiosos (trivy/codeql/bandit/gitleaks de p49/p50/security-audit) a workflows correctos en el root, o eliminar el directorio anidado (residuo).
 - `ci.yml` anidado tiene refs a `backend/app` — no se corrige (se elimina en el follow-up de limpieza).
+
+---
+
+## Session 104.1 — 2026-07-19 (1ª corrida de CI: 5 fallos reales corregidos)
+
+La 1ª corrida real de GitHub Actions (commit 1027496) hizo su trabajo: cazó 5 problemas, casi todos tests obsoletos (el patrón que veníamos encontrando). Diagnosticados con el log real, no adivinados.
+
+| Job / Test | Causa (verificada) | Fix |
+|-----------|--------------------|-----|
+| `guards` (coverage 37%<85%) | `pytest.ini` tiene `--cov-fail-under=85` en addopts → aplica a la corrida de 3 archivos del job guards | `--no-cov` en el pytest de guards (el gate real vive en backend-tests) |
+| `test_p24::test_typescript_errors_resolved` | corre `npx tsc --noEmit` pero el job Python no instala `frontend/node_modules` → tsc no encuentra módulos | skip si `frontend/node_modules` ausente (el typecheck es del job frontend) |
+| `test_p60::test_total_migration_count_is_18` | **conteo mágico** (esperaba 26, hay 28 por profile+tokens_valid_after) — el anti-patrón "24→26 editado a mano" del audit original | reemplazado por invariante real: **un solo head** de Alembic (nunca rompe al añadir migraciones) |
+| `test_playbooks::test_pb004` | asumía `success=True` de un isolate simulado — **ripple de S103.1** (neutralizador honesto) que se escapó | asserta la conducta honesta: `success=False`, `neutralizer_details.simulated=True` |
+| `test_s102_explainer::test_stream_ok` | 503 en CI: parcheaba `get_settings()` pero el endpoint lee su `settings` de módulo (distinto si otro test hizo cache_clear) | parchea `explain.settings.ANTHROPIC_API_KEY` directo (inmune a orden/cache) |
+
+### Verificación local (evidencia)
+
+| Check | Resultado |
+|-------|-----------|
+| guards trío CON addopts + `--no-cov` (simula CI) | **7 passed**, sin fallo de coverage |
+| test_p60 single-head + test_playbooks pb004 | **2 passed** |
+| test_s102_explainer completo | **9 passed** |
+| test_p24 tsc | skip sin node_modules (corre y pasa con ellos) |
+| Gate espejo | verde (138) |
+
+**Nota:** el `backend-tests` (4969 passed) solo falló por esos 4 tests, no por coverage — el gate 85% se cumple. Arreglados los 4 + guards, ambos jobs deberían quedar verdes en la próxima corrida. La 1ª corrida de CI ya pagó su valor: cazó 2 tests que codificaban conducta vieja (conteo mágico + éxito falso de simulación) que ni el barrido manual ni yo habíamos tocado.

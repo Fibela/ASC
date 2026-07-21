@@ -58,7 +58,7 @@ jobs:
           pytest tests/test_idor_guard.py \
                  tests/test_asc_api_sync.py \
                  tests/test_s103_schema_check.py \
-                 --tb=short -q
+                 --no-cov --tb=short -q
 
   backend-tests:
     name: Suite backend + coverage (asc_api ≥85%)

@@ -110,7 +110,7 @@ class TestExplainEndpoint:
     @pytest.mark.asyncio
     async def test_stream_ok_usa_perfil_del_tenant(self, client, db, monkeypatch):
         _, user, alert = await _mk_tenant_user_alert(db, profile="hogar")
-        monkeypatch.setattr(get_settings(), "ANTHROPIC_API_KEY", "sk-ant-test", raising=False)
+        monkeypatch.setattr("asc_api.api.v1.endpoints.explain.settings.ANTHROPIC_API_KEY", "sk-ant-test")
 
         captured = {}
 
