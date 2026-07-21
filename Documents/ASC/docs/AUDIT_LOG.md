@@ -7306,3 +7306,60 @@ La 1ª corrida real de GitHub Actions (commit 1027496) hizo su trabajo: cazó 5 
 | Gate espejo | verde (138) |
 
 **Nota:** el `backend-tests` (4969 passed) solo falló por esos 4 tests, no por coverage — el gate 85% se cumple. Arreglados los 4 + guards, ambos jobs deberían quedar verdes en la próxima corrida. La 1ª corrida de CI ya pagó su valor: cazó 2 tests que codificaban conducta vieja (conteo mágico + éxito falso de simulación) que ni el barrido manual ni yo habíamos tocado.
+
+---
+
+## Sesión 104.2 — 2ª corrida de CI: fallo de cobertura (85%), cubierto honestamente
+
+**Corrección de una afirmación previa (regla: gana la evidencia).** En S104.1 escribí
+"el gate 85% se cumple". **Falso.** Era una inferencia, no una medición: con 4 tests
+fallando antes, la suite abortaba y el número real de cobertura nunca se calculó sobre
+la corrida completa. Corregidos esos 4, la 2ª corrida sí midió todo y dio:
+
+```
+TOTAL 12223 1856  → 10367 cubiertas
+FAIL Required test coverage of 85% not reached. Total coverage: 84.82%
+4972 passed, 17 skipped
+```
+
+**0 tests fallando** — el único rojo era la cobertura, corta por **0.18%** (≈23 líneas).
+
+### Causa raíz
+El código nuevo de S102/S103 (explainer, schema_check, scoping, firma estricta) llegó
+con poca o nula cobertura. El peor hueco era **mi propio** módulo S102:
+
+| Módulo | Antes | Líneas sin cubrir |
+|--------|-------|-------------------|
+| `services/explainer.py` | **50%** (29/58) | todo `stream_explanation` (parser SSE 139-173) + `_payload` |
+
+El test previo `test_stream_ok` parcheaba `stream_explanation` **entero**, así que el
+parser SSE real que sí se despliega nunca se ejecutaba en una prueba.
+
+### Decisión: cubrir, no bajar el umbral
+Bajar `--cov-fail-under` a 84 sería exactamente el anti-patrón del audit original
+(maquillar números). Se añadieron **tests reales** que ejercitan el código desplegado
+con un cliente `httpx` falso (cero red, cero tokens — la simulación correcta es el
+servicio externo, no la lógica propia):
+
+- `stream_explanation`: parseo de deltas SSE + tolerancia a ruido (`event:`, `[DONE]`,
+  JSON inválido, eventos no-delta) + rama de status ≠ 200 → `HTTPStatusError`.
+- `_payload`: estructura, `stream=True`, system-prompt por perfil.
+- `build_alert_context`: serialización JSON de listas/dicts (no repr de Python).
+- 3 ramas de error del endpoint (`upstream` / `timeout` / genérico): emiten
+  `event: error` y **no filtran** el mensaje crudo de la excepción.
+
+### Verificación (evidencia)
+| Check | Resultado |
+|-------|-----------|
+| `test_s102_explainer.py` completo | **16 passed** (antes 9) |
+| `explainer.py` (cobertura aislada) | **50% → 100%** (+29 líneas) |
+| `explain.py` endpoint (aislado) | 57% → 75% (+ramas de error) |
+
+**Piso de cobertura global (aritmética sobre la verdad del CI):**
+`(10367 + 29) / 12223 = 85.05%` — cruza el 85% solo con el servicio. El delta es
+determinista (tests unitarios sin red/DB), así que el CI dará ≥85.05%.
+
+**Limitación honesta:** la suite completa (4972 tests, ~8 min) NO se pudo correr en
+el sandbox local (tope de 45 s por comando, sin persistencia de proceso entre llamadas).
+El número definitivo lo confirma la 3ª corrida de CI; el piso 85.05% es aritmética
+sobre el número real que el propio CI reportó.
