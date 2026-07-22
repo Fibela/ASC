@@ -3,9 +3,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { getAlerts, updateAlert, createHuntFromAlert, AlertItem } from '@/lib/api'
 import { SeverityBadge } from '@/components/dashboard/SeverityBadge'
+import { ExplainPanel } from '@/components/dashboard/ExplainPanel'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { useSSENotifications } from '@/lib/useSSENotifications'
-import { ShieldAlert, RefreshCw, Crosshair, AlertCircle, Wifi, WifiOff, X } from 'lucide-react'
+import { ShieldAlert, RefreshCw, Crosshair, AlertCircle, Wifi, WifiOff, X, Sparkles } from 'lucide-react'
 
 const STATUSES = ['open', 'investigating', 'contained', 'resolved', 'false_positive']
 const SEVERITIES = ['critical', 'high', 'medium', 'low']
@@ -28,6 +29,7 @@ export default function AlertsPage() {
   const [huntMsg, setHuntMsg]     = useState('')
   const [huntErr, setHuntErr]     = useState(false)
   const [huntingId, setHuntingId] = useState('')
+  const [explainTarget, setExplainTarget] = useState<{ id: string; title: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -247,6 +249,14 @@ export default function AlertsPage() {
                             <AlertCircle size={11} /> FP
                           </button>
                           <button
+                            onClick={() => setExplainTarget({ id: a.id, title: a.title })}
+                            className="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
+                            title="Explicación adaptativa con IA"
+                            style={{ color: '#E85D04' }}
+                          >
+                            <Sparkles size={11} /> Explicar
+                          </button>
+                          <button
                             onClick={() => startHunt(a.id)}
                             disabled={huntingId === a.id}
                             className="btn-ghost text-xs py-1 px-2 flex items-center gap-1 disabled:opacity-40"
@@ -265,6 +275,14 @@ export default function AlertsPage() {
             </div>
           )}
         </div>
+
+        {explainTarget && (
+          <ExplainPanel
+            alertId={explainTarget.id}
+            alertTitle={explainTarget.title}
+            onClose={() => setExplainTarget(null)}
+          />
+        )}
       </main>
     </div>
   )

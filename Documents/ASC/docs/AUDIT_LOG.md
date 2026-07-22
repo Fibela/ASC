@@ -7678,3 +7678,31 @@ badge helper). Suite de observabilidad 262 passed.
 falla en el sandbox (Python 3.10) — NO se tocó ningún adaptador en la sesión; probable
 diferencia de versión de httpx sandbox vs CI (3.12), mismo patrón que `tomllib`/`tsc`. CI será
 el árbitro; revisar aparte si CI (3.12) lo reporta rojo.
+
+---
+
+## Sesión 109 — Explainer en vivo (panel UI) · ventaja competitiva
+
+**Recon:** el backend S102 ya existía (100% cubierto en S104.2); **NO existía UI**. El patrón
+SSE del frontend (`useSSENotifications`) usa EventSource (GET) — no sirve para el explain (POST
++ JWT). Se construyó un consumidor SSE por `fetch`.
+
+**Construido (frontend):**
+- `src/lib/explainStream.ts` — `parseSSEChunk` (parser puro) + `streamExplanation` (fetch POST,
+  **JWT en HEADER** no en URL; maneja 503 honesto). Parser probado en runtime (4 casos) +
+  `src/__tests__/explain-stream.test.ts` (jest, para CI).
+- `src/components/dashboard/ExplainPanel.tsx` — modal con streaming en vivo, badge de perfil,
+  nota del guardrail. Typechecked (tsc aislado limpio, tipos explícitos en callbacks).
+- `src/app/alerts/page.tsx` — botón "Explicar" por alerta + modal.
+
+**Auditoría de seguridad:** cero referencias a `ANTHROPIC_API_KEY` en `frontend/src` (solo
+comentarios). La key vive solo en el backend; el frontend consume texto ya generado con el JWT
+del usuario en el header. Más seguro que el notifications SSE (que pone el token en la URL —
+flag S107 abierto).
+
+**Límite de entorno:** jest no corre en el sandbox (`next/jest` intenta descargar SWC, red
+bloqueada — mismo patrón `tomllib`/`tsc`). Verificado con transpile+node del parser y typecheck
+aislado del componente. CI (con red) corre el jest completo.
+
+**Activación (fundador):** poner `ANTHROPIC_API_KEY` en Vercel + redeploy. Sin key = 503 honesto,
+no crash. Ver `docs/EXPLAINER.md`.
