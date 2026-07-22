@@ -7565,3 +7565,33 @@ empecé a redactar sin verificarlos → creé 2 duplicados inferiores (`AVISO_DE
 que ya viven en `CONTRATO_SERVICIOS.md`/`GDPR_CHECKLIST.md`, versiones en inglés, y publicar.
 
 **Nada de esto es asesoría legal.** Son borradores para que un abogado los valide.
+
+---
+
+## Sesión 108-Ops — Operación/monitoreo (fundador-solo)
+
+**Frente P0 del reporte alfa 2.0.1.** Regla: verificar qué existe antes de construir.
+
+**Recon (verificado):**
+- **Existe más de lo esperado:** endpoints `health/{liveness,readiness,system,adapters}`,
+  `observability/{metrics(Prometheus),summary}`, `metrics` (SOC), logging estructurado
+  (structlog JSON en prod), **página de status real** (frontend `/status`, no mock —
+  consume readiness+system+observability), y `deploy-smoke` post-deploy.
+- **Auditoría de exposición:** el endpoint Prometheus `/observability/metrics` **falla-cerrado**
+  (sin `METRICS_SCRAPE_TOKEN` exige JWT analyst+; nunca abierto). Sin fugas. Detalle menor: el
+  scrape token se compara con `==` en vez de `compare_digest` (hardening de tiempo constante).
+
+**Gaps reales (fundador-solo):**
+1. **Monitoreo continuo ausente** — `deploy-smoke` solo corre en push; si prod cae entre
+   despliegues, no salta alerta. GAP CRÍTICO.
+2. **Sin error tracking** (Sentry) — errores solo en logs efímeros de Vercel.
+3. **`/status` exige login** — no sirve como status público para clientes.
+4. **Sin runbook operativo.**
+
+**Entregable:** `docs/OPERACIONES.md` — runbook aterrizado en lo verificado: endpoints de
+salud, chequeo rápido, rollback en Vercel (instant rollback a último READY), recuperación de
+deriva de esquema (I-3), respuesta a incidentes de plataforma, y los pendientes para
+"operación vendible" (monitor externo, Sentry, status público, respaldos/SLA).
+
+**Siguiente:** cerrar el gap de monitoreo continuo — monitor externo (recomendado) y/o tarea
+programada de salud como stopgap.

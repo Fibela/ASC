@@ -1,0 +1,86 @@
+# Runbook de Operaciones — ASC (PremosCorp)
+
+> Operación honesta para un equipo pequeño (hoy, fundador-solo). No hay SOC 24/7. Este runbook
+> define cómo vigilar, diagnosticar y recuperar la plataforma ASC. **Versión:** 0.1 · [FECHA]
+
+## 1. Arquitectura operativa (lo que hay que vigilar)
+
+- **Frontend + backend:** Vercel (proyecto `asc-mono`, Next.js + FastAPI serverless).
+- **Datos:** Supabase (PostgreSQL).
+- **Fuente de eventos:** agentes SPECTER (poll-based).
+- **Correo:** Resend. **Pagos:** Stripe. **Explicación adaptativa:** Anthropic.
+
+## 2. Endpoints de salud (verificados)
+
+| Endpoint | Auth | Qué dice |
+|----------|------|----------|
+| `GET /api/v1/health/liveness` | ninguna | el proceso responde |
+| `GET /api/v1/health/readiness` | ninguna | **DB + esquema (deriva) + Redis**; `status: ready` si todo OK |
+| `GET /api/v1/health/system` | JWT | versión, uptime, CPU/mem |
+| `GET /api/v1/health/adapters` | analyst+ | sonda en vivo de adaptadores configurados |
+| `GET /api/v1/observability/metrics` | analyst+ JWT **o** `METRICS_SCRAPE_TOKEN` | métricas Prometheus |
+| `GET /api/v1/observability/summary` | analyst+ | snapshot JSON para la página de status |
+
+**Chequeo rápido de salud (una línea):**
+```bash
+curl -s https://asc.premoscorp.com/api/v1/health/readiness | jq
+# Esperado: {"status":"ready","checks":{"database":{"ok":true},"schema":{"ok":true,"missing":[]},...}}
+```
+Si `schema.ok` es `false` con columnas en `missing` → hay una **migración pendiente**
+(correrla en Supabase ANTES de que el deploy la necesite; ver incidente I-3).
+
+## 3. Monitoreo continuo — EL GAP CRÍTICO
+
+**Hoy nadie vigila prod entre despliegues.** El `deploy-smoke` solo corre en cada push. Si
+ASC se cae de madrugada, no salta ninguna alerta. Prioridades para cerrarlo:
+
+1. **Monitor externo de uptime (recomendado, producción):** dar de alta un chequeo cada 1–5
+   min sobre `/api/v1/health/readiness` en un servicio externo (UptimeRobot / Better Uptime /
+   monitoreo nativo de Vercel), con alerta a correo/Telegram. Es independiente de la
+   plataforma, así que detecta caídas totales. **Acción pendiente del fundador.**
+2. **Stopgap inmediato:** tarea programada (Cowork) que sondea readiness y avisa si no está
+   `ready`. Cubre el hueco mientras se configura el monitor externo (ver §7).
+3. **Prometheus/Grafana (opcional):** el endpoint `/observability/metrics` ya existe; se puede
+   scrapear con `METRICS_SCRAPE_TOKEN` desde un Grafana Cloud gratuito para dashboards+alertas.
+
+## 4. Error tracking — GAP
+
+No hay Sentry/Datadog: los errores solo viven en los logs de Vercel (efímeros, sin alerta de
+picos). El backend usa `structlog` (JSON en prod), lo cual ayuda, pero no sustituye un
+agregador. **Recomendado:** integrar Sentry (SDK + `SENTRY_DSN` en Vercel) para captura y
+alerta de excepciones. *(roadmap)*
+
+## 5. Recuperación / rollback
+
+- **Rollback de deploy (Vercel):** cada deploy de producción es candidato a rollback
+  (`isRollbackCandidate`). Desde el dashboard de Vercel → Deployments → "Instant Rollback" al
+  último deploy `READY` bueno. Recuperación en segundos, sin tocar la DB.
+- **Deriva de esquema (I-3):** si readiness reporta `schema_drift`, correr el SQL de migración
+  pendiente en Supabase; readiness vuelve a `ready` sin re-deploy.
+- **DB (Supabase):** verificar estado en el panel de Supabase; restaurar desde respaldo si
+  aplica. [Definir política de respaldos y RTO/RPO.]
+
+## 6. Respuesta a incidentes de la plataforma (no del cliente)
+
+1. **Detectar:** alerta del monitor o reporte. 2. **Confirmar:** `curl` a readiness + revisar
+   deploy en Vercel. 3. **Contener:** rollback si un deploy reciente lo causó. 4. **Corregir:**
+   fix + push (CI verde) o SQL de migración. 5. **Verificar:** readiness `ready` + smoke.
+   6. **Registrar:** anotar en `docs/AUDIT_LOG.md` (como I-3).
+
+## 7. Tarea programada de salud (stopgap) — ver §3
+
+Configurada vía Cowork: sondea `readiness` en intervalo definido y avisa al fundador si el
+estado ≠ `ready` o el HTTP ≠ 200. **No reemplaza** un monitor externo (depende de Cowork
+activo), pero cubre el hueco de inmediato.
+
+## 8. Pendientes para "operación vendible"
+
+- [ ] Monitor externo de uptime con alerta (P0 real).
+- [ ] Error tracking (Sentry).
+- [ ] Página de **status PÚBLICA** (hoy `/status` exige login; un cliente no puede verla si
+      está caído). Exponer una variante pública con liveness+readiness (sin datos sensibles).
+- [ ] Política de respaldos, RTO/RPO y SLA formal.
+- [ ] Hardening menor: `METRICS_SCRAPE_TOKEN` comparado con `compare_digest` (tiempo constante).
+
+---
+*PremosCorp — "Cree en tu ambición." La honestidad operativa también es producto.*
