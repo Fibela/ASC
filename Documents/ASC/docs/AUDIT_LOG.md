@@ -7504,3 +7504,30 @@ El endpoint genérico `/events/ingest[/bulk]` crea `Event`/`Alert` **sin `tenant
 (quedan globales/NULL). Mismo patrón latente que cerramos en S105 para reportes; hoy inocuo
 (un tenant) pero a scopear cuando toque. Documentado, no corregido en esta sesión para no
 ampliar alcance.
+
+### S106.5 — PILOTO END-TO-END CERRADO (evidencia viva en producción)
+
+**2026-07-22** — Alexander ejecutó el agente/simulador SPECTER reales contra producción
+(`asc.premoscorp.com`). Evidencia del backend:
+
+```
+Agent ID: 76bd0fbd-2958-4480-bbbe-2c0a42e22625
+Respuesta: {'accepted': 3, 'rejected': 0, 'alerts_created': 2}
+```
+
+3 eventos firmados Ed25519 aceptados → **2 alertas creadas** (correlación 'Brute Force
+Authentication' + anomalía). Confirma EN PRODUCCIÓN el puente S106.1: la telemetría de
+SPECTER genera detección. Ya no es solo test — es el loop real funcionando. **P0 "piloto
+end-to-end" del reporte alfa 2.0.1: DEMOSTRADO.**
+
+**Hallazgos surgidos durante el piloto (backlog S107):**
+1. **JWT en la URL** — `/api/v1/notifications/stream?token=<JWT>` expone el access token en
+   la URL (logs/proxies/historial). Patrón común de SSE (EventSource no permite headers)
+   pero a mitigar: token efímero de un solo uso o cookie httpOnly.
+2. **Fricción de onboarding del agente** — enrolar exige token admin-only sin UI, obtenido a
+   mano (o generado desde el secreto). Para vender: botón "Generar token de agente" en el
+   portal. Se añadió `asc-agent/gen_enrollment_token.py` como puente temporal.
+3. **Agente sin `tenant_id` al enrolar** (ya anotado) — el cliente no envía tenant_id y el
+   token es tenant-agnóstico → agentes globales. A resolver para multi-tenant.
+4. **Sesión del portal caduca rápido** — SSE `notifications/stream` daba 401 y `/auth` daba
+   "Not authenticated" con sesión vencida; revisar TTL del access token / refresh flow.
