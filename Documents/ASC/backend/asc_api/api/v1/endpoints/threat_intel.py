@@ -97,9 +97,9 @@ class BulkImportRequest(BaseModel):
 async def get_stats(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    return await ti_svc.get_stats(db)
+    return await ti_svc.get_stats(db, tenant_id=current_user.tenant_id)
 
 
 # â”€â”€ List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -114,10 +114,11 @@ async def list_indicators(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     rows, total = await ti_svc.list_indicators(
         db,
+        tenant_id=current_user.tenant_id,
         indicator_type=indicator_type,
         severity=severity,
         active_only=active_only,
@@ -151,6 +152,7 @@ async def create_indicator(
             confidence=body.confidence,
             source=body.source,
             created_by=current_user.email,
+            tenant_id=current_user.tenant_id,
             threat_actor=body.threat_actor,
             malware_family=body.malware_family,
             campaign=body.campaign,
@@ -175,7 +177,7 @@ async def bulk_import(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    result = await ti_svc.bulk_import(db, body.indicators, created_by=current_user.email)
+    result = await ti_svc.bulk_import(db, body.indicators, created_by=current_user.email, tenant_id=current_user.tenant_id)
     return result
 
 
@@ -187,9 +189,9 @@ async def enrich_single(
     request: Request,
     body: EnrichRequest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    matches = await ti_svc.enrich(db, body.value, body.indicator_type)
+    matches = await ti_svc.enrich(db, body.value, body.indicator_type, tenant_id=current_user.tenant_id)
     return {
         "value": body.value,
         "indicator_type": body.indicator_type,
@@ -206,10 +208,10 @@ async def enrich_bulk(
     request: Request,
     body: BulkEnrichRequest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     items = [{"value": v.value, "indicator_type": v.indicator_type} for v in body.values]
-    results = await ti_svc.enrich_bulk(db, items)
+    results = await ti_svc.enrich_bulk(db, items, tenant_id=current_user.tenant_id)
     return {
         "results": results,
         "total_values": len(items),
@@ -225,9 +227,9 @@ async def get_indicator(
     request: Request,
     indicator_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    ind = await ti_svc.get_indicator(db, indicator_id)
+    ind = await ti_svc.get_indicator(db, indicator_id, tenant_id=current_user.tenant_id)
     if not ind:
         raise HTTPException(status_code=404, detail="Indicator not found")
     return ti_svc._indicator_to_dict(ind)
@@ -242,12 +244,12 @@ async def update_indicator(
     indicator_id: str,
     body: IndicatorUpdate,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     updates = body.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update")
-    ind = await ti_svc.update_indicator(db, indicator_id, updates)
+    ind = await ti_svc.update_indicator(db, indicator_id, updates, tenant_id=current_user.tenant_id)
     if not ind:
         raise HTTPException(status_code=404, detail="Indicator not found")
     return ti_svc._indicator_to_dict(ind)
@@ -261,9 +263,9 @@ async def delete_indicator(
     request: Request,
     indicator_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
-    ok = await ti_svc.delete_indicator(db, indicator_id)
+    ok = await ti_svc.delete_indicator(db, indicator_id, tenant_id=current_user.tenant_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Indicator not found")
     return {"message": "Indicator deactivated", "indicator_id": indicator_id}

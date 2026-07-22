@@ -7363,3 +7363,56 @@ determinista (tests unitarios sin red/DB), así que el CI dará ≥85.05%.
 el sandbox local (tope de 45 s por comando, sin persistencia de proceso entre llamadas).
 El número definitivo lo confirma la 3ª corrida de CI; el piso 85.05% es aritmética
 sobre el número real que el propio CI reportó.
+
+---
+
+## Sesión 105 — Barrido de módulos: Threat Intel, Detección, Correlación, Forense, Reporting, Billing
+
+**Método:** verificación sobre código (no READMEs). Comandos: grep de banderas rojas
+(TODO/stub/NotImplemented/asyncio.sleep/mock/secretos), queries por-ID, presencia de
+`tenant_id`, lectura de handlers y modelos.
+
+### Resultado del barrido
+
+| Módulo | Veredicto | Evidencia |
+|--------|-----------|-----------|
+| Forense | **OK** | ambos handlers hacen `tenant_check` (`NeutralizationAction.tenant_id == current_user.tenant_id`) antes de devolver |
+| Correlación | **OK** | `get_rule`/`get_cluster` usan patrón de 2 niveles `or_(tenant_id IS NULL, == mío)` |
+| Detección | **OK** | sin queries por-ID cross-tenant |
+| Billing | **OK** | firma Stripe HMAC-SHA256, tolerancia ±5min (anti-replay), `compare_digest`, falla-cerrado (503 sin secreto); secretos desde settings, sin hardcode |
+| Threat Intel | **HALLAZGO** | reads sin `apply_tenant_filter`, `create` no seteaba `tenant_id` → fuga cruzada latente |
+| Reportes ejecutivos | **HALLAZGO** | `ExecutiveReport` sin columna `tenant_id`; generación agrega KPIs de todos los tenants; list/get sin filtro |
+
+Ninguno tenía stubs, mocks, `asyncio.sleep` falso, TODO ni secretos hardcode.
+
+### Hallazgo meta (crítico): el guardia AST anti-IDOR estaba CIEGO
+
+`tests/test_idor_guard.py` listaba `"ThreatIndicator"` en `TENANT_MODELS`, pero la clase
+real es **`ThreatIntelIndicator`**. El regex `\w+\.id ==` nunca hacía match → **toda la
+familia IDOR de Threat Intel pasó invisible** y el CI verde daba falsa confianza.
+Corregido en S105.1. (El guardia también ignoraba `ExecutiveReport`/`CorrelationCluster`;
+se añadirán al scopear cada módulo.)
+
+### S105.1 — Threat Intel: aislamiento de 2 capas (sin migración)
+
+**Decisión de diseño (Alexander, 2026-07-21):** modelo de 2 capas ahora; la
+estratificación en 3 capas (global/shared-ISAC/private) queda documentada como roadmap
+(`docs/roadmap/threat-intel-3-capas.md`) para cuando entre el 2.º tenant. Razón: la
+columna `tenant_id` YA EXISTE → el fix es puro código, **cero migración**, cero riesgo de
+repetir el orden migración/deploy del incidente I-3.
+
+- CAPA 0 GLOBAL (`tenant_id IS NULL`) visible a todos; CAPA 2 PRIVADA (`tenant_id==mío`)
+  solo el dueño.
+- `_visible(tenant_id)` en las 9 lecturas (get/list/enrich/stats); `_own_scope` en la
+  idempotencia de `bulk_import`; `create`/`bulk_import` setean `tenant_id` del que escribe.
+- Endpoints pasan `current_user.tenant_id` (se cambió `_` anónimo por `current_user`).
+- Mutaciones (`update`/`delete`) van por el `get` scopeado → no tocan lo ajeno.
+
+**Testing robusto:** `tests/test_s105_ti_isolation.py` (8 tests) prueba la frontera real:
+privado invisible cross-tenant e IDOR por-ID cerrado, global visible a todos, list/enrich/
+stats scopeados, mutaciones ajenas rechazadas, `bulk_import` sin colisión entre tenants.
+Regresión: `test_p21.py` 51/51 verdes (retrocompatible: usuarios sin `tenant_id` operan en
+la capa global). Guardia AST 2/2 verde con TI ya scopeado. Espejo `asc_api` íntegro (138).
+
+**Pendiente en esta sesión:** S105.2 reportes ejecutivos por-tenant (sí requiere migración:
+una columna `tenant_id`).
