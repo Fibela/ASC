@@ -1,37 +1,30 @@
 """
-Explainer — traducción adaptativa de alertas con claude-fable-5 (S102).
+Explainer — traducción adaptativa de alertas (S102/S110).
 
 Contrato innegociable (meta del proyecto):
   El módulo EXPLICA y RECOMIENDA. NUNCA decide ni ejecuta. La acción la toma
   el motor determinista o el usuario. Este servicio no llama a specter_bridge,
   ni a neutralizer, ni a ningún adaptador — solo produce texto.
 
-Diseño:
-  - Server-side: la ANTHROPIC_API_KEY vive solo en el env de Vercel, nunca
-    viaja al frontend ni aparece en el repo.
-  - Streaming SSE token a token vía httpx (sin añadir el SDK de Anthropic:
-    httpx ya es dependencia y mantiene el Lambda liviano).
+Diseño (S110 — motor 100% PropremosCorp, sin LLM externo):
+  - La explicación la genera `local_explainer` de forma DETERMINISTA a partir de
+    los datos reales de la alerta. Tu telemetría de seguridad NUNCA sale a un
+    tercero (ventaja de privacidad) y no hay riesgo de alucinación.
   - El perfil del tenant (hogar/pyme/enterprise) selecciona el registro y el
-    nivel técnico de la explicación. Los datos de la alerta son reales
-    (Supabase); aquí no se inventa nada — si un campo falta, se omite.
+    nivel técnico. Si un campo falta, se omite — aquí no se inventa nada.
+  - `build_alert_context` / `_PROFILE_SYSTEM` se conservan como utilidades de
+    contexto y registro (reutilizables por una capa premium futura).
 """
 from __future__ import annotations
 
 import json
 
-import httpx
 
 from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
 
 log = get_logger("asc.explainer")
 
-_ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-_ANTHROPIC_VERSION = "2023-06-01"
-
-
-class ExplainerDisabled(RuntimeError):
-    """ANTHROPIC_API_KEY no configurada — el endpoint responde 503."""
 
 
 # ── Guardrail común a todos los perfiles ──────────────────────────────────────
@@ -103,71 +96,19 @@ def build_alert_context(alert: dict) -> str:
     return "\n".join(lines) if lines else "(alerta sin campos legibles)"
 
 
-def _payload(profile: str, alert_context: str) -> dict:
-    settings = get_settings()
-    return {
-        "model": settings.ANTHROPIC_MODEL,
-        "max_tokens": settings.EXPLAINER_MAX_TOKENS,
-        "system": _PROFILE_SYSTEM[profile],
-        "stream": True,
-        "messages": [
-            {
-                "role": "user",
-                "content": (
-                    "Explica esta alerta de seguridad para el perfil indicado. "
-                    "Estructura: (1) Qué ocurrió, (2) Por qué importa, "
-                    "(3) Qué se recomienda considerar. No ejecutes nada.\n\n"
-                    f"--- ALERTA ---\n{alert_context}"
-                ),
-            }
-        ],
-    }
-
-
-async def stream_explanation(alert: dict, profile: str | None):
+async def stream_local(alert: dict, profile: str | None):
     """
-    Async generator de fragmentos de texto (str) de la explicación.
-
-    Lanza ExplainerDisabled si no hay API key. Propaga httpx errors para que
-    el endpoint los mapee (502/504). No captura excepciones en silencio:
-    un fallo real debe verse, no simularse.
+    Genera la explicación con el MOTOR PROPIO de PremosCorp (S110) — determinista,
+    sin LLM externo. La telemetría nunca sale a un tercero; cero alucinación.
+    Async generator de fragmentos de texto (str). EXPLICA y RECOMIENDA; nunca decide
+    ni ejecuta, nunca inventa datos ausentes.
     """
-    settings = get_settings()
-    if not settings.ANTHROPIC_API_KEY:
-        raise ExplainerDisabled("ANTHROPIC_API_KEY no configurada")
+    from asc_api.services.local_explainer import stream_local_explanation
+    log.info("explainer_start", profile=_normalize_profile(profile), alert_id=alert.get("id"), engine="local")
+    async for piece in stream_local_explanation(alert, profile):
+        yield piece
+    log.info("explainer_done", profile=_normalize_profile(profile), alert_id=alert.get("id"), engine="local")
 
-    prof = _normalize_profile(profile)
-    ctx = build_alert_context(alert)
-    headers = {
-        "x-api-key": settings.ANTHROPIC_API_KEY,
-        "anthropic-version": _ANTHROPIC_VERSION,
-        "content-type": "application/json",
-    }
 
-    log.info("explainer_start", profile=prof, alert_id=alert.get("id"))
-    timeout = httpx.Timeout(settings.EXPLAINER_TIMEOUT_SECONDS, connect=5.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        async with client.stream(
-            "POST", _ANTHROPIC_URL, headers=headers, json=_payload(prof, ctx)
-        ) as resp:
-            if resp.status_code != 200:
-                body = (await resp.aread()).decode("utf-8", "replace")[:400]
-                log.error("explainer_api_error", status=resp.status_code, body=body)
-                raise httpx.HTTPStatusError(
-                    f"Anthropic {resp.status_code}", request=resp.request, response=resp
-                )
-            async for line in resp.aiter_lines():
-                if not line.startswith("data:"):
-                    continue
-                data = line[5:].strip()
-                if not data or data == "[DONE]":
-                    continue
-                try:
-                    evt = json.loads(data)
-                except json.JSONDecodeError:
-                    continue
-                if evt.get("type") == "content_block_delta":
-                    piece = evt.get("delta", {}).get("text", "")
-                    if piece:
-                        yield piece
-    log.info("explainer_done", profile=prof, alert_id=alert.get("id"))
+# Alias de compatibilidad: el endpoint importa stream_explanation.
+stream_explanation = stream_local

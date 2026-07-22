@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -27,10 +26,7 @@ from asc_api.db.session import get_db
 from asc_api.models.alert import Alert
 from asc_api.models.tenant import Tenant
 from asc_api.models.user import User
-from asc_api.services.explainer import (
-    ExplainerDisabled,
-    stream_explanation,
-)
+from asc_api.services.explainer import stream_explanation
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 settings = get_settings()
@@ -67,13 +63,6 @@ async def explain_alert(
         )
         profile = t.scalar_one_or_none() or "pyme"
 
-    # ── Falla temprana y honesta si el módulo no está configurado ──
-    if not settings.ANTHROPIC_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Explainer no configurado (falta ANTHROPIC_API_KEY en el entorno).",
-        )
-
     alert_data = {
         "id": alert.id,
         "title": alert.title,
@@ -93,14 +82,6 @@ async def explain_alert(
             async for piece in stream_explanation(alert_data, profile):
                 yield _sse("delta", {"text": piece})
             yield _sse("done", {"alert_id": alert.id})
-        except ExplainerDisabled:
-            yield _sse("error", {"detail": "Explainer no configurado."})
-        except httpx.HTTPStatusError as exc:
-            log.error("explain_upstream_error", alert_id=alert.id, status=exc.response.status_code)
-            yield _sse("error", {"detail": "Servicio de explicación no disponible (upstream)."})
-        except httpx.TimeoutException:
-            log.error("explain_timeout", alert_id=alert.id)
-            yield _sse("error", {"detail": "La explicación excedió el tiempo límite."})
         except Exception as exc:  # noqa: BLE001 — se reporta, no se simula
             log.error("explain_unexpected", alert_id=alert.id, error=str(exc))
             yield _sse("error", {"detail": "Error inesperado generando la explicación."})

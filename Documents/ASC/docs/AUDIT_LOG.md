@@ -7706,3 +7706,30 @@ aislado del componente. CI (con red) corre el jest completo.
 
 **Activación (fundador):** poner `ANTHROPIC_API_KEY` en Vercel + redeploy. Sin key = 503 honesto,
 no crash. Ver `docs/EXPLAINER.md`.
+
+---
+
+## Sesión 110 — Explainer PROPIO (reemplazo total de Anthropic)
+
+**Decisión (Alexander, 2026-07-22):** tras verificar que el explainer funcionaba end-to-end
+pero se bloqueaba por falta de créditos de Anthropic (400 "credit balance too low"), se decidió
+**reemplazar Anthropic por un motor determinista propio** — privacidad como venta, cero costo,
+cero dependencia, cero alucinación.
+
+**Construido:**
+- `services/local_explainer.py` — motor determinista: KB MITRE ATT&CK (6 técnicas + genérico),
+  mapa de acciones→lenguaje, generación de 3 secciones por perfil desde datos reales, streaming
+  palabra a palabra. Guardrail intacto: omite campos ausentes, nunca afirma haber ejecutado.
+- `services/explainer.py` — `stream_explanation` ahora delega al motor propio; **eliminados**
+  httpx, `_payload`, `ExplainerDisabled`, constantes `_ANTHROPIC_*`. Conservados
+  `build_alert_context`/`_PROFILE_SYSTEM`/`_normalize_profile` como utilidades.
+- `endpoints/explain.py` — **eliminado el 503** (no hay key) y los handlers httpx (no hay
+  llamada externa). El explainer siempre responde.
+- Frontend: comentarios/mensajes actualizados (0 refs a ANTHROPIC en `src`).
+
+**Testing robusto:** `test_s110_local_explainer.py` (8) + `test_s102_explainer.py` reescrito (10,
+incl. endpoint REAL sin mock). 18/18 verde. Espejo íntegro (141). Sin referencias muertas a lo
+eliminado. Settings `ANTHROPIC_*` quedan inertes en config (seguras, opcional limpiarlas).
+
+**Resultado:** la ventaja competitiva (explicación adaptativa) ahora es 100% PremosCorp, privada
+y gratuita — a diferencia de antes, no depende de un tercero ni de créditos.

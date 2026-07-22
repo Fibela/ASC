@@ -1,6 +1,6 @@
 // Explainer en vivo (S102/S109) — consumidor SSE por fetch (POST + JWT en HEADER,
-// no en la URL: más seguro que EventSource). La ANTHROPIC_API_KEY vive SOLO en el
-// backend; el frontend nunca la ve — solo consume el stream ya renderizado.
+// no en la URL: más seguro que EventSource). El motor de explicación corre en el
+// backend (S110: propio, determinista, sin LLM externo); el frontend solo consume texto.
 import { env } from './env'
 import { getAccessToken } from './auth'
 
@@ -54,7 +54,7 @@ export async function streamExplanation(
     { method: 'POST', headers: { Authorization: `Bearer ${token ?? ''}` }, signal },
   )
   if (resp.status === 503) {
-    cb.onError?.('El explainer no está configurado (falta ANTHROPIC_API_KEY en el servidor).')
+    cb.onError?.('El servicio de explicación no está disponible en este momento.')
     return
   }
   if (!resp.ok || !resp.body) {

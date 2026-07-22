@@ -1,6 +1,6 @@
 'use client'
 // Panel de explicación adaptativa (S102/S109) — consume el SSE del backend y muestra
-// el texto en vivo, token a token. La ANTHROPIC_API_KEY vive SOLO en el servidor.
+// el texto en vivo. El motor corre en el servidor (S110: propio, sin LLM externo).
 import { useEffect, useState } from 'react'
 import { streamExplanation } from '@/lib/explainStream'
 import { X, Sparkles } from 'lucide-react'
