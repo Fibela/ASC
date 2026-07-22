@@ -134,3 +134,26 @@ y recupera contacto con ASC, reporta el hueco vía la telemetría FIRMADA existe
 Es RETROSPECTIVO (da radio de impacto tras el hecho: "¿fue ASC o la red del cliente?"); la
 alerta EN VIVO la da el watchdog (Capa 2). Se expone en `GET /health/platform/detail` (analyst+)
 bajo `distributed`. Los eventos `specter.*` se EXCLUYEN del bridge de alertas (no ensucian).
+
+---
+
+## S108.3 — Página de estado PÚBLICA + prueba de alarma + hardening
+
+**Página de estado pública** (sin login): `GET /api/v1/health/status` → HTML autocontenido con
+la paleta PremosCorp. Lee readiness (API + DB) + platform (monitoreo) y muestra Operativo/
+Degradado/Caído. Resiliente (backend-rendered, no depende del frontend). No filtra nombres de
+job (anti-inteligencia). *(Nice-URL opcional: rewrite `/estado` → este endpoint en vercel.json.)*
+
+**Prueba de la alarma (¿suena?):** el watchdog acepta `?test=1` → envía un correo de alerta de
+PRUEBA por Resend SIN tocar el estado real ni pinguear ASC. Para verificar que el canal llega:
+1. Re-desplegar la función (trae el modo prueba): Dashboard → Edge Functions → `asc-watchdog`
+   → actualizar con el nuevo `index.ts`.
+2. Invocar una vez:
+   `https://<PROJECT_REF>.supabase.co/functions/v1/asc-watchdog?test=1` (con Bearer anon), o
+   desde SQL: `select net.http_post(url:='...asc-watchdog?test=1', headers:=...);`
+3. Revisar la bandeja de `WATCHDOG_ALERT_EMAIL`. Si llega → la alarma suena. Si no →
+   verificar que el remitente (`WATCHDOG_ALERT_FROM`/`watchdog@premoscorp.com`) sea de un
+   **dominio verificado en Resend** (causa #1 de que no salga el correo).
+
+**Hardening:** el token de scrape de métricas (`/observability/metrics`) ahora se compara con
+`hmac.compare_digest` (tiempo constante).

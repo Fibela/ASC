@@ -272,3 +272,88 @@ async def platform_health_detail(
         "distributed": distributed,   # Capa 3: red SPECTER como monitor distribuido
         "ts": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Página de estado PÚBLICA (S108.3 — sin auth) ──────────────────────────────
+#
+# Un cliente debe poder ver "¿ASC está arriba?" SIN loguearse (justo cuando está
+# caído no podría entrar). Página HTML autocontenida que lee readiness + platform.
+
+def _status_badge(state: str) -> tuple[str, str]:
+    return {
+        "operational": ("Operativo", "#3ECF8E"),
+        "degraded":    ("Degradado", "#F2860A"),
+        "down":        ("Caído",     "#8B1E1E"),
+        "unknown":     ("Sin datos", "#9CA3AF"),
+    }.get(state, ("Sin datos", "#9CA3AF"))
+
+
+@router.get("/status", summary="Página de estado PÚBLICA (HTML, sin auth)")
+async def public_status_page(db: AsyncSession = Depends(get_db)):
+    from fastapi.responses import HTMLResponse
+
+    # API: si respondemos, está arriba.
+    api_ok = True
+    # DB: ping simple.
+    try:
+        await db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception:
+        db_ok = False
+    # Monitoreo: frescura de latidos.
+    try:
+        jobs = await _load_platform_jobs(db)
+    except Exception:
+        jobs = None
+    mon_state = _overall_platform_status(jobs)
+
+    # Estado global = lo peor de los componentes.
+    if not db_ok:
+        overall = "down"
+    elif mon_state in ("degraded", "unknown") or not api_ok:
+        overall = "degraded" if api_ok and db_ok else "down"
+    else:
+        overall = "operational"
+
+    o_label, o_color = _status_badge(overall)
+    comps = [
+        ("API", "operational" if api_ok else "down"),
+        ("Base de datos", "operational" if db_ok else "down"),
+        ("Monitoreo", mon_state),
+    ]
+    rows = ""
+    for name, st in comps:
+        lbl, col = _status_badge(st)
+        rows += (
+            f'<div class="row"><span>{name}</span>'
+            f'<span class="pill" style="color:{col};border-color:{col}">{lbl}</span></div>'
+        )
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    html = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
+<title>Estado — ASC PremosCorp</title>
+<style>
+  body{{background:#0A0A0A;color:#EAEAEA;font-family:Inter,system-ui,sans-serif;margin:0;padding:48px 16px}}
+  .card{{max-width:560px;margin:0 auto;background:#111;border:1px solid #222;border-radius:16px;padding:32px}}
+  .brand{{color:#E85D04;font-weight:800;letter-spacing:.5px}}
+  h1{{font-size:22px;margin:8px 0 4px}}
+  .sub{{color:#9CA3AF;font-size:13px;margin-bottom:24px}}
+  .banner{{display:flex;align-items:center;gap:12px;background:#0d0d0d;border:1px solid {o_color};
+           border-radius:12px;padding:16px 20px;margin-bottom:24px}}
+  .dot{{width:12px;height:12px;border-radius:50%;background:{o_color}}}
+  .banner b{{color:{o_color};font-size:18px}}
+  .row{{display:flex;justify-content:space-between;align-items:center;padding:12px 4px;border-top:1px solid #1c1c1c}}
+  .pill{{border:1px solid;border-radius:999px;padding:3px 12px;font-size:12px}}
+  .foot{{color:#6b7280;font-size:12px;margin-top:24px;text-align:center}}
+</style></head><body>
+<div class="card">
+  <div class="brand">PremosCorp · ASC</div>
+  <h1>Estado del servicio</h1>
+  <div class="sub">Analizador de Seguridad Cibernética</div>
+  <div class="banner"><span class="dot"></span><b>{o_label}</b></div>
+  {rows}
+  <div class="foot">Actualizado: {now} · se refresca cada 60 s</div>
+</div></body></html>"""
+    return HTMLResponse(content=html)

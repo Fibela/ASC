@@ -29,6 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin
 from asc_api.core.config import get_settings
+import hmac
+
 from asc_api.core.metrics_registry import (
     AGENTS_GAUGE,
     ALERTS_GAUGE,
@@ -61,7 +63,7 @@ def _check_scrape_token(request: Request) -> bool:
         return False
     auth = request.headers.get("Authorization", "")
     if auth.startswith("Bearer "):
-        return auth[7:] == scrape_token
+        return hmac.compare_digest(auth[7:], scrape_token)
     return False
 
 

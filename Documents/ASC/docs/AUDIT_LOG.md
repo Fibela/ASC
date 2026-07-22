@@ -7661,3 +7661,20 @@ Cadena completa verificada: pg_cron → pg_net → Edge Function (Supabase/AWS) 
 `/health/readiness` de ASC → escritura en DB. **Capa 2 viva e independiente de Vercel.**
 Pendiente: push de los commits locales para que `/health/platform` (el lector) exista en
 prod y muestre `operational`; luego los 5 crons de Vercel poblarán sus latidos.
+
+### S108.3 — Cierre de operación: status público + prueba de alarma + hardening
+
+- **`GET /health/status`** — página de estado PÚBLICA (HTML, sin auth), resiliente
+  (backend-rendered), paleta PremosCorp, no filtra job_ids. Cierra el hueco "un cliente no
+  puede ver si ASC está arriba cuando está caído".
+- **Watchdog `?test=1`** — modo de prueba de la alarma: envía correo de alerta de PRUEBA sin
+  tocar el estado real. Permite verificar que el canal Resend realmente entrega.
+- **Hardening** — `observability/metrics` scrape token con `hmac.compare_digest`.
+
+**Testing:** `tests/test_s108_public_status.py` (3: HTML público sin auth, no filtra job_ids,
+badge helper). Suite de observabilidad 262 passed.
+
+**FLAG (ajeno a este frente):** `test_adapters.py::TestTheHiveHTTP::test_create_observable_success`
+falla en el sandbox (Python 3.10) — NO se tocó ningún adaptador en la sesión; probable
+diferencia de versión de httpx sandbox vs CI (3.12), mismo patrón que `tomllib`/`tsc`. CI será
+el árbitro; revisar aparte si CI (3.12) lo reporta rojo.

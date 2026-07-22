@@ -7,9 +7,11 @@
 //   2. escribe el latido 'watchdog-supabase' en platform_heartbeats.
 //   3. si NO está 'ready', alerta por Resend.
 //
-// Secrets requeridos (supabase secrets set ...):
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY,
-//   WATCHDOG_ALERT_EMAIL, (opcional) WATCHDOG_ALERT_FROM
+// PRUEBA DE ALARMA: invocar con ?test=1 envía un correo de alerta de PRUEBA sin tocar
+//   el estado real ni pinguear ASC — sirve para verificar que el canal Resend funciona.
+//
+// Secrets: RESEND_API_KEY, WATCHDOG_ALERT_EMAIL, (opcional) WATCHDOG_ALERT_FROM.
+// SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY se inyectan automáticamente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const READINESS_URL = "https://asc.premoscorp.com/api/v1/health/readiness";
@@ -19,7 +21,44 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const ALERT_TO = Deno.env.get("WATCHDOG_ALERT_EMAIL") ?? "";
 const ALERT_FROM = Deno.env.get("WATCHDOG_ALERT_FROM") ?? "watchdog@premoscorp.com";
 
-Deno.serve(async () => {
+async function sendAlert(status: string, detail: string | null): Promise<boolean> {
+  if (!RESEND_API_KEY || !ALERT_TO) return false;
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: ALERT_FROM,
+        to: [ALERT_TO],
+        subject: `ASC watchdog: ${status.toUpperCase()}`,
+        text:
+          `Watchdog externo (Supabase/AWS).\n\nEstado: ${status}\nDetalle: ${detail}\n` +
+          `URL: ${READINESS_URL}\nHora (UTC): ${new Date().toISOString()}\n\n` +
+          `Si es real: revisa Vercel (rollback al ultimo READY) y Supabase. Ver docs/OPERACIONES.md.`,
+      }),
+    });
+    return r.ok;
+  } catch (_e) {
+    return false;
+  }
+}
+
+Deno.serve(async (req) => {
+  // Modo prueba: ?test=1 → verifica el canal de alerta sin tocar el estado real.
+  const url = new URL(req.url);
+  if (url.searchParams.get("test") === "1") {
+    const sent = await sendAlert(
+      "prueba",
+      "PRUEBA MANUAL de la alarma — ASC NO esta caido. Confirma que el correo llega.",
+    );
+    return new Response(JSON.stringify({ test: true, alert_sent: sent }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   let status = "ok";
   let detail: string | null = null;
 
@@ -58,28 +97,8 @@ Deno.serve(async () => {
   }
 
   // 3) Alerta si NO está OK
-  if (status !== "ok" && RESEND_API_KEY && ALERT_TO) {
-    try {
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: ALERT_FROM,
-          to: [ALERT_TO],
-          subject: `ASC watchdog: produccion ${status.toUpperCase()}`,
-          text:
-            `El watchdog externo (Supabase/AWS) detecto que ASC no esta 'ready'.\n\n` +
-            `Estado: ${status}\nDetalle: ${detail}\nURL: ${READINESS_URL}\n` +
-            `Hora (UTC): ${new Date().toISOString()}\n\n` +
-            `Revisa Vercel (rollback al ultimo READY) y Supabase. Ver docs/OPERACIONES.md.`,
-        }),
-      });
-    } catch (_e) {
-      // la alerta es best-effort; el latido en DB ya deja el rastro
-    }
+  if (status !== "ok") {
+    await sendAlert(status, detail);
   }
 
   return new Response(JSON.stringify({ status, detail }), {
