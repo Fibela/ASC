@@ -7630,3 +7630,23 @@ operational/degraded por frescura, público no filtra por-job, detalle requiere 
 
 **Despliegue (fundador):** correr el SQL de la tabla, desplegar la Edge Function + secrets,
 programar con pg_cron. Ver `docs/OPERACIONES.md` §S108.1.
+
+### S108.2 — Capa 3: red SPECTER como monitor distribuido (IMPLEMENTADO)
+
+Cada agente = punto de observación desde red independiente. Diseño limpio que **reusa la
+telemetría firmada existente** (`event_type='specter.connectivity_gap'`) → **sin migración
+ni endpoint nuevo**.
+
+- **Agente** (`asc-agent/specter/communicator.py`): rastrea reachability (respondió = red OK,
+  4xx incluido; sin respuesta = outage). Al recuperar contacto tras un hueco, arma un reporte
+  de gap (`unreachable_from/to`, `ticks`) que `agent._tick` antepone al siguiente lote firmado.
+- **Backend** (`services/reachability.py`): `assess_distributed_reachability` agrega gaps de la
+  ventana; clasifica none/localized/global (agentes distintos + redes/tenants distintos).
+  Cableado en `GET /health/platform/detail` bajo `distributed`.
+- **Anti-malfunción:** los eventos meta `specter.*` se EXCLUYEN del bridge de alertas S106
+  (si no, un `connectivity_gap` novel dispararía una anomalía falsa). Verificado por test.
+
+**Testing:** `tests/test_s108_layer3_reachability.py` (4: none/localized/global + exclusión del
+bridge) + `asc-agent/tests/test_s108_connectivity.py` (3: sin hueco, hueco+recuperación, 4xx no
+cuenta como offline). Regresión bridge S106 5/5 (la exclusión no rompió detección). Espejo
+íntegro (140). Guardia 2/2.

@@ -123,6 +123,14 @@ latido `watchdog-supabase`, y **alerta por Resend** si no está `ready`.
 4. **Verificar:** `curl https://asc.premoscorp.com/api/v1/health/platform` → tras unos minutos,
    `status: operational` con el latido `watchdog-supabase` fresco.
 
-### Capa 3 — Red SPECTER (roadmap)
-Cada agente en un cliente es un punto de observación desde otra red; múltiples agentes
-reportando falla = caída global confirmada. Pendiente.
+### Capa 3 — Red SPECTER como monitor distribuido (IMPLEMENTADO)
+Cada agente es un punto de observación desde una red independiente. Cuando un agente pierde
+y recupera contacto con ASC, reporta el hueco vía la telemetría FIRMADA existente
+(`event_type='specter.connectivity_gap'`) — **sin migración ni infra nueva**. El backend
+(`services/reachability.py`) agrega los reportes de la ventana reciente:
+- **0 agentes → none**; **1 agente → localized** (problema de red de ese cliente);
+- **≥2 agentes/redes → global** (probable caída de ASC).
+
+Es RETROSPECTIVO (da radio de impacto tras el hecho: "¿fue ASC o la red del cliente?"); la
+alerta EN VIVO la da el watchdog (Capa 2). Se expone en `GET /health/platform/detail` (analyst+)
+bajo `distributed`. Los eventos `specter.*` se EXCLUYEN del bridge de alertas (no ensucian).

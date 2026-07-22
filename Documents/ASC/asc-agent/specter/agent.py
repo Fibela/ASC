@@ -120,6 +120,11 @@ class SprecterAgent:
     def _tick(self) -> None:
         # 1. Collect events
         events: list[dict] = []
+        # S108.2 — si se recuperó contacto tras un hueco, reportar el gap primero
+        gap = self._comm.pop_pending_gap()
+        if gap:
+            events.append(gap)
+            print(f"[SPECTER] Reportando gap de conectividad ({gap.get('ticks')} ticks sin contacto)")
         events.extend(self._procs.collect())
         events.extend(self._net.collect())
 

@@ -195,6 +195,13 @@ async def detect_from_agent_events(
     if not accepted_events:
         return []
 
+    # S108.2 — los eventos meta 'specter.*' (p.ej. connectivity_gap) son telemetría
+    # operativa, NO de seguridad: se excluyen de la generación de alertas para no
+    # ensuciar con anomalías. Siguen almacenados como AgentEvent (los lee la Capa 3).
+    accepted_events = [e for e in accepted_events if not str(e.get("event_type", "")).startswith("specter.")]
+    if not accepted_events:
+        return []
+
     # Import local para evitar ciclo (correlator no debe importar commander).
     from asc_api.models.alert import Alert
     from asc_api.services.correlator import evaluate_correlation_rules, normalize_event

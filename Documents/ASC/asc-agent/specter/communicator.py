@@ -35,6 +35,10 @@ class SprecterComm:
         self._backend_pub_key: str = ""
         self._poll_interval: int = 30
         self._threat_level: str = "normal"
+        # S108.2 — seguimiento de conectividad (Capa 3, monitor distribuido)
+        self._offline_since = None
+        self._offline_ticks: int = 0
+        self._pending_gap: dict[str, Any] | None = None
 
     # ── Registration ───────────────────────────────────────────────────────────
 
@@ -81,9 +85,15 @@ class SprecterComm:
             signed.append(payload)
 
         try:
-            return self._post(f"/api/v1/agents/{self._agent_id}/events",
-                              {"events": signed})
+            result = self._post(f"/api/v1/agents/{self._agent_id}/events",
+                                {"events": signed})
+            self._mark_reachable(True)
+            return result
+        except httpx.HTTPStatusError as exc:
+            self._mark_reachable(True)   # respondió (error de app) → la red funciona
+            return {"error": str(exc)}
         except Exception as exc:
+            self._mark_reachable(False)  # sin respuesta → outage de red/backend
             return {"error": str(exc)}
 
     # ── Command polling ────────────────────────────────────────────────────────
@@ -108,13 +118,16 @@ class SprecterComm:
                     verified.append(cmd)
                 else:
                     print(f"[SPECTER] WARNING: command {cmd.get('id')} has invalid signature — discarded")
+            self._mark_reachable(True)
             return verified
         except httpx.HTTPStatusError as exc:
+            self._mark_reachable(True)   # respondió → red OK
             if exc.response.status_code == 404:
                 print("[SPECTER] Agent not found — re-registering…")
                 self.register()
             return []
         except Exception as exc:
+            self._mark_reachable(False)  # sin respuesta → outage
             print(f"[SPECTER] Poll error: {exc}")
             return []
 
@@ -139,6 +152,35 @@ class SprecterComm:
             )
         except Exception as exc:
             print(f"[SPECTER] Failed to report result: {exc}")
+
+    # ── Connectivity tracking (S108.2 — red SPECTER como monitor distribuido) ────
+
+    def _mark_reachable(self, ok: bool) -> None:
+        """Registra si el backend respondió. Al recuperar contacto tras un hueco,
+        deja un reporte de gap pendiente para enviarlo como telemetría firmada."""
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        if ok:
+            if self._offline_since is not None:
+                self._pending_gap = {
+                    "event_type":       "specter.connectivity_gap",
+                    "severity":         "info",
+                    "unreachable_from": self._offline_since.isoformat(),
+                    "unreachable_to":   now.isoformat(),
+                    "ticks":            self._offline_ticks,
+                    "ts":               now.timestamp(),
+                }
+                self._offline_since = None
+                self._offline_ticks = 0
+        else:
+            if self._offline_since is None:
+                self._offline_since = now
+            self._offline_ticks += 1
+
+    def pop_pending_gap(self) -> dict[str, Any] | None:
+        """Devuelve (y limpia) el reporte de gap pendiente, si lo hay."""
+        gap, self._pending_gap = self._pending_gap, None
+        return gap
 
     # ── HTTP helpers ───────────────────────────────────────────────────────────
 

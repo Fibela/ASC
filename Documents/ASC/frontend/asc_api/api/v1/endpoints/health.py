@@ -260,9 +260,15 @@ async def platform_health_detail(
     _: User = Depends(get_analyst_or_admin),
 ):
     """Con auth: detalle por-job (nombres, edad, fallos, umbral)."""
+    from asc_api.services.reachability import assess_distributed_reachability
     jobs = await _load_platform_jobs(db)
+    try:
+        distributed = await assess_distributed_reachability(db)
+    except Exception:
+        distributed = {"classification": "unknown"}
     return {
         "status": _overall_platform_status(jobs),
         "jobs": jobs or [],
+        "distributed": distributed,   # Capa 3: red SPECTER como monitor distribuido
         "ts": datetime.now(timezone.utc).isoformat(),
     }
