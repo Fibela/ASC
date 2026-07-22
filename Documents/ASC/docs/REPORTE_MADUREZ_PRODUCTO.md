@@ -1,10 +1,36 @@
 <!-- TRAZABILIDAD -->
-> **Versión:** ASC alfa 2.0.1 — snapshot de madurez de producto
-> **Fecha de corte:** 2026-07-21
+> **Versión:** ASC alfa 2.0.2 — snapshot de madurez de producto (actualizado)
+> **Fecha de corte:** 2026-07-22
 > **Lema:** *Cree en tu ambición.* — PremosCorp
 > **Estado:** piloto/beta vendible con clientes seleccionados; P0 legales+piloto pendientes.
 > **Trazabilidad:** este documento congela el estado verificado tras S105. Cualquier avance
 > de los frentes (legal, piloto, operación) referencia esta línea base 2.0.1.
+
+---
+
+## Avances desde alfa 2.0.1 (2026-07-22)
+
+**P0 "piloto end-to-end" → CERRADO y verificado en producción.** Un agente SPECTER real se
+enroló, firmó telemetría y disparó 2 alertas reales en el portal ("Brute Force Authentication"
++ anomalía). Se cerró el eslabón entrante que estaba ROTO (la telemetría no generaba
+detección). Verificado por triple vía: tests firmados, respuesta del backend, y la UI. Ver
+`docs/HITOS.md` (Hito 1).
+
+**P1 "operación/monitoreo" → mayormente cerrado.** Monitoreo propio de 3 capas (sin vendors),
+verificado en vivo:
+- Capa 1: heartbeats + `GET /health/platform` (público) → `operational`.
+- Capa 2: watchdog externo en Supabase/AWS (independiente de Vercel), pinguea readiness cada
+  2 min + alerta Resend. **Verificado en producción** (status_code 200 + latido en DB).
+- Capa 3: red SPECTER como monitor distribuido (global vs local), en código + tests.
+- Runbook `docs/OPERACIONES.md`. En el camino se cazaron: 2º head de Alembic colgante,
+  endpoint lector inconcluso, scaffolding sin commitear.
+
+**P0 "legal/confianza" → borradores creados, pendiente abogado.** Actualizada la ley MX a la
+LFPDPPP 2025; DPA (GDPR Art. 28) y página de Seguridad nuevos. Ver `docs/legal/`.
+
+**Pendiente en operación (para "operación vendible"):** página de estado PÚBLICA (hoy `/status`
+exige login), verificar que la ALERTA de caída de verdad llega (probar el "sí suena la alarma"),
+error tracking (Sentry), y política de respaldos/SLA.
 
 ---
 
