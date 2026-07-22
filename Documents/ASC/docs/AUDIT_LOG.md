@@ -7416,3 +7416,39 @@ la capa global). Guardia AST 2/2 verde con TI ya scopeado. Espejo `asc_api` ínt
 
 **Pendiente en esta sesión:** S105.2 reportes ejecutivos por-tenant (sí requiere migración:
 una columna `tenant_id`).
+
+### S105.2 — Reportes ejecutivos + PDF/HTML por-tenant (CON migración)
+
+**Decisión (Alexander, 2026-07-21):** reportes uno-por-tenant. Sí requiere migración —
+`ExecutiveReport` no tenía columna `tenant_id`.
+
+**Hallazgo ampliado:** además de los reportes ejecutivos, `_build_report_data` (endpoints
+`reports.py`, PDF/HTML) agregaba `Alert` + `Event` de TODOS los tenants sin filtro → misma
+fuga. Scopeado también.
+
+**Cambios:**
+- Modelo `ExecutiveReport`: nueva columna `tenant_id VARCHAR(36) NULL` + índice.
+- Migración `e37196d70ecb` encadenada al head real `f9edec8a6897` (verificado: la merge
+  `c9d12f0e5b67` ya unió detection+billing; cadena de head único intacta, 29 archivos).
+  **ID hex real** (evita el anti-patrón de revisiones a mano de la auditoría original).
+  SQL idempotente en `backend/migrations_s105_executive_tenant.sql`.
+- Servicio `reporting_service.py`: helper `_tenant_clause` (None→IS NULL) en las 4 funciones
+  de KPI (incidentes/campañas/hunts/SOAR — 20 `.where` scopeados) y en las 5 lecturas
+  (`get`/`verify`/`list`/`summary` incluida la query `latest`). `generate_report` setea
+  `tenant_id` y lo ATA en el `canonical_data` firmado (SHA3-512 + Ed25519).
+- Endpoints `executive_reports.py` (6 handlers) y `reports.py` (PDF+HTML): pasan
+  `current_user.tenant_id` (se cambió `_` anónimo por `current_user`).
+- Guardia AST: `ExecutiveReport` añadido a `TENANT_MODELS` (antes ni lo vigilaba).
+
+**Bug cazado por mis propios tests:** la query `latest` de `get_reporting_summary` se me
+había escapado sin scope (fugaría el último reporte ajeno). El test lo detectó → corregido.
+
+**Testing robusto:** `tests/test_s105_reports_isolation.py` (5 tests) — KPIs no mezclan
+tenants, `get`/`list`/`summary` scopeados, `_build_report_data` filtra alertas por tenant.
+Regresión: `test_p29` 112/112 (se completó el doble de usuario con `tenant_id=None`),
+`test_p23` 52/52. Guardia 2/2. Espejo íntegro (138).
+
+**⚠️ ORDEN DE DESPLIEGUE (lección I-3):** correr `migrations_s105_executive_tenant.sql` en
+Supabase SQL Editor ANTES de desplegar el código S105.2. Si el código llega antes, el
+startup schema-check reporta `schema_drift_detected` (columna `tenant_id` inexistente) y
+readiness queda degradado hasta correr el SQL.

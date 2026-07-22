@@ -22,7 +22,7 @@ TENANT_MODELS = {
     "Agent", "AgentEvent", "Alert", "APIKey", "Artifact", "CorrelationRule",
     "Hunt", "HuntQuery", "IdentityAction", "Incident", "IoC",
     "NeutralizationAction", "PlaybookTrigger", "ScheduledReport",
-    "TenantAdapterConfig", "ThreatIntelIndicator", "Webhook", "Event",
+    "TenantAdapterConfig", "ThreatIntelIndicator", "Webhook", "Event", "ExecutiveReport",
 }
 TENANT_SIGNALS = (
     "tenant_id", "get_tenant_id", "apply_tenant_filter",

@@ -109,9 +109,9 @@ def _report_full(r: any) -> dict:
 async def report_summary(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    return await reporting_service.get_reporting_summary(db)
+    return await reporting_service.get_reporting_summary(db, tenant_id=current_user.tenant_id)
 
 
 @router.get("", summary="Listar reportes ejecutivos (filtrable, paginado)")
@@ -122,7 +122,7 @@ async def list_reports(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     if report_type and report_type not in REPORT_TYPES:
         raise HTTPException(
@@ -130,7 +130,7 @@ async def list_reports(
             detail=f"report_type must be one of {sorted(REPORT_TYPES)}",
         )
     reports = await reporting_service.list_reports(
-        db, report_type=report_type, limit=limit, offset=offset
+        db, tenant_id=current_user.tenant_id, report_type=report_type, limit=limit, offset=offset
     )
     return {
         "items": [_report_summary(r) for r in reports],
@@ -160,6 +160,7 @@ async def generate_report(
             period_start=body.period_start,
             period_end=body.period_end,
             generated_by=current_user.email,
+            tenant_id=current_user.tenant_id,
             title=body.title,
         )
     except ValueError as exc:
@@ -179,9 +180,9 @@ async def get_report(
     request: Request,
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    report = await reporting_service.get_report(db, report_id)
+    report = await reporting_service.get_report(db, report_id, tenant_id=current_user.tenant_id)
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
     return _report_full(report)
@@ -193,10 +194,10 @@ async def verify_report(
     request: Request,
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     try:
-        return await reporting_service.verify_report(db, report_id)
+        return await reporting_service.verify_report(db, report_id, tenant_id=current_user.tenant_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
@@ -211,9 +212,9 @@ async def delete_report(
     request: Request,
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ):
-    report = await reporting_service.get_report(db, report_id)
+    report = await reporting_service.get_report(db, report_id, tenant_id=current_user.tenant_id)
     if report is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
     await db.delete(report)

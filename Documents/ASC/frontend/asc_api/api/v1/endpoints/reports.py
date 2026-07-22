@@ -15,17 +15,24 @@ from asc_api.models.event import Event
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 
-async def _build_report_data(db: AsyncSession, hours: int, analyst: str = "System") -> dict:
+def _tc(model, tenant_id):
+    """S105.2 — scope de tenant (None -> IS NULL, reporte global legacy)."""
+    return model.tenant_id.is_(None) if tenant_id is None else model.tenant_id == tenant_id
+
+
+async def _build_report_data(
+    db: AsyncSession, hours: int, analyst: str = "System", tenant_id: str | None = None
+) -> dict:
     since = datetime.now(timezone.utc) - timedelta(hours=hours)
 
     alerts_result = await db.execute(
-        select(Alert).where(Alert.detected_at >= since).order_by(desc(Alert.detected_at))
+        select(Alert).where(_tc(Alert, tenant_id), Alert.detected_at >= since).order_by(desc(Alert.detected_at))
     )
     alerts = alerts_result.scalars().all()
 
     # Real event count for the period
     events_result = await db.execute(
-        select(func.count()).select_from(Event).where(Event.timestamp >= since)
+        select(func.count()).select_from(Event).where(_tc(Event, tenant_id), Event.timestamp >= since)
     )
     total_events = events_result.scalar_one() or 0
 
@@ -89,7 +96,7 @@ async def download_pdf(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    data = await _build_report_data(db, hours, analyst)
+    data = await _build_report_data(db, hours, analyst, tenant_id=current_user.tenant_id)
     pdf_bytes = generate_pdf_report(data)
     if not pdf_bytes:
         from fastapi import HTTPException
@@ -109,5 +116,5 @@ async def view_html(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    data = await _build_report_data(db, hours, analyst)
+    data = await _build_report_data(db, hours, analyst, tenant_id=current_user.tenant_id)
     return generate_html_report(data)

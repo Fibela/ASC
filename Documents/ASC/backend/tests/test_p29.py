@@ -1172,6 +1172,7 @@ def _make_endpoint_app():
 
 def _mock_analyst_user(role="analyst"):
     return SimpleNamespace(email=f"{role}@premos.com", role=role, id="u1",
+                           tenant_id=None,
                            is_active=True, is_locked=False, force_password_reset=False)
 
 

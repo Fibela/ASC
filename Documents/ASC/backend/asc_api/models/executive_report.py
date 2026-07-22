@@ -63,6 +63,8 @@ class ExecutiveReport(Base):
     )
 
     # Report metadata
+    # S105.2 — aislamiento multi-tenant. NULL = reporte global (modo single-tenant).
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     report_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     period: Mapped[str] = mapped_column(String(20), nullable=False, default="custom")
     title: Mapped[str] = mapped_column(String(512), nullable=False)

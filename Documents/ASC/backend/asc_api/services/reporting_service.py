@@ -50,6 +50,11 @@ _s = get_settings()
 
 # ── PIIL signing helpers ───────────────────────────────────────────────────────
 
+def _tenant_clause(model, tenant_id: str | None):
+    """S105.2 — scope de tenant. None -> IS NULL (reporte global legacy)."""
+    return model.tenant_id.is_(None) if tenant_id is None else model.tenant_id == tenant_id
+
+
 def _sha3_512_hex(data: dict) -> str:
     payload = json.dumps(data, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha3_512(payload).hexdigest()
@@ -117,29 +122,28 @@ def verify_report_signature(report: ExecutiveReport) -> bool:
 # ── KPI aggregation helpers ───────────────────────────────────────────────────
 
 async def _incident_kpis(
-    db: AsyncSession, start: datetime, end: datetime
+    db: AsyncSession, start: datetime, end: datetime, tenant_id: str | None = None
 ) -> dict[str, Any]:
     """Aggregate incident KPIs within [start, end)."""
 
     # Total in period (detected_at within window)
     total_r = await db.execute(
         select(func.count()).select_from(Incident)
-        .where(Incident.detected_at >= start, Incident.detected_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.detected_at >= start, Incident.detected_at < end)
     )
     total = total_r.scalar_one()
 
     # Closed in period
     closed_r = await db.execute(
         select(func.count()).select_from(Incident)
-        .where(Incident.closed_at >= start, Incident.closed_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.closed_at >= start, Incident.closed_at < end)
     )
     closed = closed_r.scalar_one()
 
     # SLA breaches (detected in period + breached)
     breach_r = await db.execute(
         select(func.count()).select_from(Incident)
-        .where(
-            Incident.detected_at >= start,
+        .where(_tenant_clause(Incident, tenant_id), Incident.detected_at >= start,
             Incident.detected_at < end,
             Incident.sla_breach.is_(True),
         )
@@ -149,29 +153,29 @@ async def _incident_kpis(
     # Avg MTTD/MTTC/MTTR for incidents closed in period
     mttd_r = await db.execute(
         select(func.avg(Incident.mttd_minutes))
-        .where(Incident.closed_at >= start, Incident.closed_at < end)
-        .where(Incident.mttd_minutes.isnot(None))
+        .where(_tenant_clause(Incident, tenant_id), Incident.closed_at >= start, Incident.closed_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.mttd_minutes.isnot(None))
     )
     avg_mttd = mttd_r.scalar_one()
 
     mttc_r = await db.execute(
         select(func.avg(Incident.mttc_minutes))
-        .where(Incident.closed_at >= start, Incident.closed_at < end)
-        .where(Incident.mttc_minutes.isnot(None))
+        .where(_tenant_clause(Incident, tenant_id), Incident.closed_at >= start, Incident.closed_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.mttc_minutes.isnot(None))
     )
     avg_mttc = mttc_r.scalar_one()
 
     mttr_r = await db.execute(
         select(func.avg(Incident.mttr_minutes))
-        .where(Incident.closed_at >= start, Incident.closed_at < end)
-        .where(Incident.mttr_minutes.isnot(None))
+        .where(_tenant_clause(Incident, tenant_id), Incident.closed_at >= start, Incident.closed_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.mttr_minutes.isnot(None))
     )
     avg_mttr = mttr_r.scalar_one()
 
     # By severity
     sev_r = await db.execute(
         select(Incident.severity, func.count())
-        .where(Incident.detected_at >= start, Incident.detected_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.detected_at >= start, Incident.detected_at < end)
         .group_by(Incident.severity)
     )
     by_severity = {row[0]: row[1] for row in sev_r.all()}
@@ -179,7 +183,7 @@ async def _incident_kpis(
     # By status (open at end of period = not closed/dismissed before end)
     status_r = await db.execute(
         select(Incident.status, func.count())
-        .where(Incident.detected_at >= start, Incident.detected_at < end)
+        .where(_tenant_clause(Incident, tenant_id), Incident.detected_at >= start, Incident.detected_at < end)
         .group_by(Incident.status)
     )
     by_status = {row[0]: row[1] for row in status_r.all()}
@@ -197,13 +201,12 @@ async def _incident_kpis(
 
 
 async def _campaign_kpis(
-    db: AsyncSession, start: datetime, end: datetime
+    db: AsyncSession, start: datetime, end: datetime, tenant_id: str | None = None
 ) -> dict[str, Any]:
     """Aggregate correlation campaign KPIs."""
     campaign_r = await db.execute(
         select(func.count()).select_from(CorrelationCluster)
-        .where(
-            CorrelationCluster.is_campaign.is_(True),
+        .where(_tenant_clause(CorrelationCluster, tenant_id), CorrelationCluster.is_campaign.is_(True),
             CorrelationCluster.first_seen >= start,
             CorrelationCluster.first_seen < end,
         )
@@ -212,8 +215,7 @@ async def _campaign_kpis(
 
     active_r = await db.execute(
         select(func.count()).select_from(CorrelationCluster)
-        .where(
-            CorrelationCluster.is_campaign.is_(True),
+        .where(_tenant_clause(CorrelationCluster, tenant_id), CorrelationCluster.is_campaign.is_(True),
             CorrelationCluster.status == "active",
         )
     )
@@ -222,8 +224,7 @@ async def _campaign_kpis(
     # Critical clusters
     crit_r = await db.execute(
         select(func.count()).select_from(CorrelationCluster)
-        .where(
-            CorrelationCluster.severity == "critical",
+        .where(_tenant_clause(CorrelationCluster, tenant_id), CorrelationCluster.severity == "critical",
             CorrelationCluster.first_seen >= start,
             CorrelationCluster.first_seen < end,
         )
@@ -238,26 +239,25 @@ async def _campaign_kpis(
 
 
 async def _hunting_kpis(
-    db: AsyncSession, start: datetime, end: datetime
+    db: AsyncSession, start: datetime, end: datetime, tenant_id: str | None = None
 ) -> dict[str, Any]:
     """Aggregate threat hunting KPIs."""
     total_r = await db.execute(
         select(func.count()).select_from(Hunt)
-        .where(Hunt.created_at >= start, Hunt.created_at < end)
+        .where(_tenant_clause(Hunt, tenant_id), Hunt.created_at >= start, Hunt.created_at < end)
     )
     total_hunts = total_r.scalar_one()
 
     findings_r = await db.execute(
         select(func.count()).select_from(HuntFinding)
-        .where(HuntFinding.created_at >= start, HuntFinding.created_at < end)
-        .where(HuntFinding.is_false_positive.is_(False))
+        .where(_tenant_clause(HuntFinding, tenant_id), HuntFinding.created_at >= start, HuntFinding.created_at < end)
+        .where(_tenant_clause(HuntFinding, tenant_id), HuntFinding.is_false_positive.is_(False))
     )
     findings = findings_r.scalar_one()
 
     critical_r = await db.execute(
         select(func.count()).select_from(HuntFinding)
-        .where(
-            HuntFinding.severity == "critical",
+        .where(_tenant_clause(HuntFinding, tenant_id), HuntFinding.severity == "critical",
             HuntFinding.created_at >= start,
             HuntFinding.created_at < end,
             HuntFinding.is_false_positive.is_(False),
@@ -273,13 +273,12 @@ async def _hunting_kpis(
 
 
 async def _soar_kpis(
-    db: AsyncSession, start: datetime, end: datetime
+    db: AsyncSession, start: datetime, end: datetime, tenant_id: str | None = None
 ) -> dict[str, Any]:
     """Aggregate SOAR auto-trigger KPIs."""
     fired_r = await db.execute(
         select(func.count()).select_from(PlaybookTrigger)
-        .where(
-            PlaybookTrigger.last_triggered_at >= start,
+        .where(_tenant_clause(PlaybookTrigger, tenant_id), PlaybookTrigger.last_triggered_at >= start,
             PlaybookTrigger.last_triggered_at < end,
         )
     )
@@ -287,7 +286,7 @@ async def _soar_kpis(
 
     alert_r = await db.execute(
         select(func.count()).select_from(Alert)
-        .where(Alert.detected_at >= start, Alert.detected_at < end)
+        .where(_tenant_clause(Alert, tenant_id), Alert.detected_at >= start, Alert.detected_at < end)
     )
     alerts_in_period = alert_r.scalar_one()
 
@@ -307,6 +306,7 @@ async def generate_report(
     period_start: datetime,
     period_end: datetime,
     generated_by: str,
+    tenant_id: str | None = None,
     title: str | None = None,
 ) -> ExecutiveReport:
     """
@@ -318,10 +318,10 @@ async def generate_report(
     now = datetime.now(timezone.utc)
 
     # ── Gather domain KPIs ──
-    inc_kpis = await _incident_kpis(db, period_start, period_end)
-    camp_kpis = await _campaign_kpis(db, period_start, period_end)
-    hunt_kpis = await _hunting_kpis(db, period_start, period_end)
-    soar_kpis = await _soar_kpis(db, period_start, period_end)
+    inc_kpis = await _incident_kpis(db, period_start, period_end, tenant_id)
+    camp_kpis = await _campaign_kpis(db, period_start, period_end, tenant_id)
+    hunt_kpis = await _hunting_kpis(db, period_start, period_end, tenant_id)
+    soar_kpis = await _soar_kpis(db, period_start, period_end, tenant_id)
 
     report_title = title or (
         f"PremosCorp ASC — {report_type.replace('_', ' ').title()} "
@@ -331,6 +331,7 @@ async def generate_report(
     # ── Build canonical payload ──
     canonical: dict[str, Any] = {
         "report_id": str(uuid.uuid4()),  # baked in before signing
+        "tenant_id": tenant_id,          # S105.2 — ata el reporte a su tenant en la firma
         "report_type": report_type,
         "period": period,
         "title": report_title,
@@ -356,6 +357,7 @@ async def generate_report(
         period=period,
         title=report_title,
         generated_by=generated_by,
+        tenant_id=tenant_id,
         period_start=period_start,
         period_end=period_end,
         total_incidents=inc_kpis["total"],
@@ -397,14 +399,17 @@ async def generate_report(
     return report
 
 
-async def verify_report(db: AsyncSession, report_id: str) -> dict[str, Any]:
+async def verify_report(db: AsyncSession, report_id: str, tenant_id: str | None = None) -> dict[str, Any]:
     """
     Re-verify a stored report's hash + signature.
     Updates signature_valid cache and last_verified_at.
     Returns a structured verification result.
     """
     result = await db.execute(
-        select(ExecutiveReport).where(ExecutiveReport.id == report_id)
+        select(ExecutiveReport).where(
+            ExecutiveReport.id == report_id,
+            _tenant_clause(ExecutiveReport, tenant_id),
+        )
     )
     report = result.scalar_one_or_none()
     if report is None:
@@ -436,9 +441,12 @@ async def verify_report(db: AsyncSession, report_id: str) -> dict[str, Any]:
     }
 
 
-async def get_report(db: AsyncSession, report_id: str) -> ExecutiveReport | None:
+async def get_report(db: AsyncSession, report_id: str, tenant_id: str | None = None) -> ExecutiveReport | None:
     result = await db.execute(
-        select(ExecutiveReport).where(ExecutiveReport.id == report_id)
+        select(ExecutiveReport).where(
+            ExecutiveReport.id == report_id,
+            _tenant_clause(ExecutiveReport, tenant_id),
+        )
     )
     return result.scalar_one_or_none()
 
@@ -446,11 +454,12 @@ async def get_report(db: AsyncSession, report_id: str) -> ExecutiveReport | None
 async def list_reports(
     db: AsyncSession,
     *,
+    tenant_id: str | None = None,
     report_type: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[ExecutiveReport]:
-    q = select(ExecutiveReport).order_by(ExecutiveReport.created_at.desc())
+    q = select(ExecutiveReport).where(_tenant_clause(ExecutiveReport, tenant_id)).order_by(ExecutiveReport.created_at.desc())
     if report_type:
         q = q.where(ExecutiveReport.report_type == report_type)
     q = q.limit(limit).offset(offset)
@@ -458,25 +467,26 @@ async def list_reports(
     return list(result.scalars().all())
 
 
-async def get_reporting_summary(db: AsyncSession) -> dict[str, Any]:
+async def get_reporting_summary(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """Dashboard summary: report counts, last generated, unsigned count."""
-    total_r = await db.execute(select(func.count()).select_from(ExecutiveReport))
+    total_r = await db.execute(select(func.count()).select_from(ExecutiveReport).where(_tenant_clause(ExecutiveReport, tenant_id)))
     total = total_r.scalar_one()
 
     unsigned_r = await db.execute(
         select(func.count()).select_from(ExecutiveReport)
-        .where(ExecutiveReport.signature_valid.is_(False))
+        .where(_tenant_clause(ExecutiveReport, tenant_id), ExecutiveReport.signature_valid.is_(False))
     )
     unsigned = unsigned_r.scalar_one()
 
     by_type_r = await db.execute(
         select(ExecutiveReport.report_type, func.count())
+        .where(_tenant_clause(ExecutiveReport, tenant_id))
         .group_by(ExecutiveReport.report_type)
     )
     by_type = {row[0]: row[1] for row in by_type_r.all()}
 
     latest_r = await db.execute(
-        select(ExecutiveReport).order_by(ExecutiveReport.created_at.desc()).limit(1)
+        select(ExecutiveReport).where(_tenant_clause(ExecutiveReport, tenant_id)).order_by(ExecutiveReport.created_at.desc()).limit(1)
     )
     latest = latest_r.scalar_one_or_none()
 
