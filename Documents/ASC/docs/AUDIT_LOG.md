@@ -7452,3 +7452,55 @@ Regresión: `test_p29` 112/112 (se completó el doble de usuario con `tenant_id=
 Supabase SQL Editor ANTES de desplegar el código S105.2. Si el código llega antes, el
 startup schema-check reporta `schema_drift_detected` (columna `tenant_id` inexistente) y
 readiness queda degradado hasta correr el SQL.
+
+---
+
+## Sesión 106 — Piloto end-to-end: puente SPECTER → detección + guía de despliegue
+
+**Frente:** producto/técnico (P0 del reporte alfa 2.0.1). Objetivo: verificar y hacer real
+el loop SPECTER→alerta→respuesta con autenticidad Premos.
+
+### HALLAZGO CRÍTICO (malfuncionamiento): el eslabón entrante estaba roto
+
+Trazado en código (no doc): `ingest_events` **almacenaba `AgentEvent` pero NUNCA corría
+correlación ni creaba alertas**. El flag `is_anomaly` solo se usaba para mostrar en el
+timeline. El motor de alertas (`evaluate_correlation_rules`→`Alert`) se alimentaba SOLO del
+endpoint genérico `/events/ingest`. Resultado: **la telemetría del agente (la fuente de
+datos estrella) no generaba detección.** El lado de respuesta (`specter_bridge.dispatch`) sí
+conectaba. Verificado que no había cron/task ni consumidor de `is_anomaly` que cerrara el
+hueco.
+
+### S106.1 — Puente de detección (decisión: correlación + anomalía)
+
+- `detect_from_agent_events(db, agent, accepted_events)`: normaliza los eventos aceptados →
+  `evaluate_correlation_rules` (MISMAS reglas, sin duplicar lógica) + anomalía/severidad alta
+  → crea `Alert` **scopeada al `tenant_id` del agente** (aislamiento heredado de S103/S105).
+- `ingest_events` ahora devuelve `(accepted, rejected, accepted_events)`; el endpoint
+  `/agents/{id}/events` corre la detección tras almacenar y reporta `alerts_created`.
+- Dedup de anomalías por `(event_type, severity)` dentro del lote.
+
+**Bug propio cazado por el test:** recolectaba `alert.id` ANTES del commit → el default
+`lambda uuid4` se aplica en el flush, así que los ids eran `None` (y un assert débil "pasaba"
+en falso sobre lista vacía). Corregido: se leen los ids TRAS el commit; test reforzado.
+
+### Testing robusto
+
+`tests/test_s106_specter_loop.py` (5) con eventos **firmados de verdad** (Ed25519, modo
+estricto, como el agente real): fuerza bruta dispara correlación; evento crítico dispara
+alerta por severidad; alertas aisladas por tenant entre agentes; batch vacío no crea nada;
+y el lado de respuesta es honesto (`block_ip` sin adaptador → `simulated`, no éxito).
+Regresión: `test_agents` + `test_s103` + `test_s106` = 69 passed. Guardia IDOR 2/2. Espejo
+íntegro (138). Sin migración.
+
+### S106.2 — Guía de despliegue de SPECTER
+
+`docs/SPECTER_DEPLOYMENT.md`, derivada del código: enrolamiento (token HMAC admin-only),
+registro (X-Specter-Token, Ed25519), telemetría firmada, esquema de evento que dispara
+detección, poll adaptativo, y verificación con evidencia.
+
+### Hallazgo secundario (follow-up S107)
+
+El endpoint genérico `/events/ingest[/bulk]` crea `Event`/`Alert` **sin `tenant_id`**
+(quedan globales/NULL). Mismo patrón latente que cerramos en S105 para reportes; hoy inocuo
+(un tenant) pero a scopear cuando toque. Documentado, no corregido en esta sesión para no
+ampliar alcance.

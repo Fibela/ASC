@@ -67,6 +67,7 @@ from asc_api.services.agent_commander import (
     deescalate_threat_level,
     get_pending_commands,
     ingest_events,
+    detect_from_agent_events,
     issue_command,
     mark_command_delivered,
     record_command_result,
@@ -568,7 +569,12 @@ async def ingest_agent_events(
             detail="Telemetry rate limit exceeded. Slow down event submission.",
         )
 
-    accepted, rejected = await ingest_events(db, agent, payload.events)
+    accepted, rejected, accepted_events = await ingest_events(db, agent, payload.events)
+
+    # S106.1 — puente de detección: la telemetría aceptada alimenta el motor de
+    # alertas (correlación + anomalía), scopeada al tenant del agente. Antes moría
+    # como registro sin generar detección.
+    alert_ids = await detect_from_agent_events(db, agent, accepted_events)
 
     # Strict sig mode: if any event was accepted but has invalid sig, emit audit event
     if settings.SPECTER_STRICT_SIGNATURE_MODE and rejected > 0:
@@ -584,6 +590,7 @@ async def ingest_agent_events(
     return {
         "accepted": accepted,
         "rejected": rejected,
+        "alerts_created": len(alert_ids),
         "ts":       datetime.now(timezone.utc).isoformat(),
     }
 

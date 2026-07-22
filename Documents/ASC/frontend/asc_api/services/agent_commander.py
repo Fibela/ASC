@@ -20,7 +20,9 @@ from asc_api.core.config import get_settings
 from asc_api.core.signing import sign_command, verify_agent_event, is_fresh
 from asc_api.models.agent import Agent, AgentCommand, AgentEvent
 
+from asc_api.core.logging import get_logger
 settings = get_settings()
+log = get_logger("asc.agent_commander")
 
 # ── Adaptive poll intervals (seconds) by threat level ─────────────────────────
 POLL_INTERVALS: dict[str, int] = {
@@ -95,7 +97,7 @@ async def ingest_events(
     """
     Verify and store a batch of telemetry events from a SPECTER agent.
 
-    Returns (accepted_count, rejected_count).
+    Returns (accepted_count, rejected_count, accepted_events).
     Rejected = replay (ts fuera de ventana, siempre) o firma inválida
     (SOLO cuando SPECTER_STRICT_SIGNATURE_MODE=True). En modo permisivo los
     eventos con firma inválida se almacenan con signature_valid=False.
@@ -103,7 +105,7 @@ async def ingest_events(
     in the last 500 events for this agent (simple novelty detection).
     """
     if not events:
-        return 0, 0
+        return 0, 0, []
 
     # Load a lightweight set of known event types for this agent (novelty baseline)
     recent_q = await db.execute(
@@ -115,6 +117,7 @@ async def ingest_events(
     known_types: set[str] = {r for (r,) in recent_q}
 
     accepted = rejected = 0
+    accepted_events: list[dict[str, Any]] = []
     for raw in events[:settings.SPECTER_MAX_EVENTS_PER_BATCH]:
         sig = raw.pop("signature", "")
         ts_val = raw.get("ts", 0)
@@ -157,12 +160,104 @@ async def ingest_events(
         )
         db.add(ev)
         accepted += 1
+        # S106.1 — retener el evento aceptado para el puente de detección
+        accepted_events.append({
+            "raw": raw,
+            "event_id": ev.id,
+            "event_type": event_type,
+            "severity": str(raw.get("severity", "info")).lower(),
+            "is_anomaly": is_anomaly,
+        })
 
     # Update agent heartbeat and event counter
     agent.last_seen = datetime.now(timezone.utc)
     agent.total_events = (agent.total_events or 0) + accepted
     await db.commit()
-    return accepted, rejected
+    return accepted, rejected, accepted_events
+
+
+# ── S106.1 — Puente de detección: telemetría SPECTER → alertas ────────────────
+#
+# HALLAZGO S106: ingest_events almacenaba AgentEvent pero NO alimentaba el motor
+# de detección. La telemetría del agente moría como registro. Este puente cierra
+# el eslabón entrante: eventos aceptados → correlación (mismas reglas) + anomalía/
+# severidad → Alert, SIEMPRE scopeada al tenant del agente. Decisión (2026-07-21):
+# ambos caminos (correlación + anomalía).
+
+async def detect_from_agent_events(
+    db: AsyncSession, agent: Agent, accepted_events: list[dict[str, Any]]
+) -> list[str]:
+    """
+    Corre detección sobre los eventos aceptados de un agente y crea alertas.
+    Devuelve la lista de IDs de alertas creadas. Idempotencia por-lote: deduplica
+    las alertas de anomalía por (event_type, severity) dentro del batch.
+    """
+    if not accepted_events:
+        return []
+
+    # Import local para evitar ciclo (correlator no debe importar commander).
+    from asc_api.models.alert import Alert
+    from asc_api.services.correlator import evaluate_correlation_rules, normalize_event
+
+    tid = agent.tenant_id
+    host = agent.hostname
+    event_ids = [it["event_id"] for it in accepted_events]
+
+    normalized = []
+    for it in accepted_events:
+        raw = {**it["raw"]}
+        raw.setdefault("host", host)
+        normalized.append(await normalize_event(raw))
+
+    objs: list[Alert] = []
+
+    # 1) Correlación — MISMAS reglas que el resto del sistema (sin lógica duplicada).
+    for ad in await evaluate_correlation_rules(normalized, db):
+        objs.append(Alert(
+            title=ad["title"],
+            description=ad["description"],
+            severity=ad["severity"],
+            risk_score=ad["risk_score"],
+            ttps=ad.get("ttps", []),
+            source_events=event_ids,
+            affected_hosts=[host] if host else [],
+            recommended_actions=[],
+            tenant_id=tid,
+        ))
+
+    # 2) Anomalía / severidad alta — deduplicado por (event_type, severity) en el lote.
+    seen: set = set()
+    for it in accepted_events:
+        et = it["event_type"]
+        sev = it["severity"]
+        high = sev in ("high", "critical")
+        if not (it["is_anomaly"] or high):
+            continue
+        key = (et, sev)
+        if key in seen:
+            continue
+        seen.add(key)
+        reason = "anomalía de comportamiento (tipo no visto)" if it["is_anomaly"] else f"severidad {sev}"
+        objs.append(Alert(
+            title=f"Telemetría SPECTER: {et} en {host or 'agente'}",
+            description=f"Evento '{et}' del agente {host or agent.id} marcado por {reason}.",
+            severity="high" if high else "medium",
+            risk_score=0.8 if high else 0.5,
+            ttps=[],
+            source_events=[it["event_id"]],
+            affected_hosts=[host] if host else [],
+            recommended_actions=[],
+            tenant_id=tid,
+        ))
+
+    if not objs:
+        return []
+    for a in objs:
+        db.add(a)
+    await db.commit()               # el default de id se aplica en el flush
+    created = [a.id for a in objs]  # ids ya poblados tras el commit
+    log.info("specter_detection_alerts", agent_id=agent.id, alerts=len(created))
+    return created
 
 
 # ── Status management ──────────────────────────────────────────────────────────

@@ -65,7 +65,7 @@ class TestSignatureEnforcement:
     async def test_valid_signature_accepted(self, db):
         priv, pub = _keypair()
         agent = await _mk_agent(db, pub, tenant_id=str(uuid.uuid4()))
-        acc, rej = await AC.ingest_events(db, agent, [_signed_event(priv)])
+        acc, rej, _ = await AC.ingest_events(db, agent, [_signed_event(priv)])
         assert (acc, rej) == (1, 0)
         ev = (await db.execute(select(AgentEvent).where(AgentEvent.agent_id == agent.id))).scalar_one()
         assert ev.signature_valid is True
@@ -75,7 +75,7 @@ class TestSignatureEnforcement:
         AC.settings.SPECTER_STRICT_SIGNATURE_MODE = False
         priv, pub = _keypair()
         agent = await _mk_agent(db, pub, tenant_id=str(uuid.uuid4()))
-        acc, rej = await AC.ingest_events(db, agent, [_bad_sig_event()])
+        acc, rej, _ = await AC.ingest_events(db, agent, [_bad_sig_event()])
         assert (acc, rej) == (1, 0)          # permisivo: se almacena
         ev = (await db.execute(select(AgentEvent).where(AgentEvent.agent_id == agent.id))).scalar_one()
         assert ev.signature_valid is False
@@ -85,7 +85,7 @@ class TestSignatureEnforcement:
         AC.settings.SPECTER_STRICT_SIGNATURE_MODE = True
         priv, pub = _keypair()
         agent = await _mk_agent(db, pub, tenant_id=str(uuid.uuid4()))
-        acc, rej = await AC.ingest_events(db, agent, [_bad_sig_event()])
+        acc, rej, _ = await AC.ingest_events(db, agent, [_bad_sig_event()])
         assert (acc, rej) == (0, 1)          # estricto: rechazado, NO almacenado
         stored = (await db.execute(select(AgentEvent).where(AgentEvent.agent_id == agent.id))).scalars().all()
         assert stored == []
@@ -95,5 +95,5 @@ class TestSignatureEnforcement:
         AC.settings.SPECTER_STRICT_SIGNATURE_MODE = True
         priv, pub = _keypair()
         agent = await _mk_agent(db, pub, tenant_id=str(uuid.uuid4()))
-        acc, rej = await AC.ingest_events(db, agent, [_signed_event(priv)])
+        acc, rej, _ = await AC.ingest_events(db, agent, [_signed_event(priv)])
         assert (acc, rej) == (1, 0)
