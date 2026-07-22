@@ -7595,3 +7595,38 @@ deriva de esquema (I-3), respuesta a incidentes de plataforma, y los pendientes 
 
 **Siguiente:** cerrar el gap de monitoreo continuo — monitor externo (recomendado) y/o tarea
 programada de salud como stopgap.
+
+---
+
+## Sesión 108-Ops.1 — Monitoreo de plataforma (completar feature inconcluso + watchdog)
+
+**Diseño de Alexander:** 3 capas 100% PremosCorp (sin vendors), Supabase como watchdog
+independiente de Vercel. **Verificación:** ~40% ya estaba scaffolded pero INCONCLUSO y **sin
+commitear** en el working tree.
+
+**HALLAZGOS:**
+1. **Segundo head de Alembic** — `a7u90v8y2t15_platform_heartbeats.py` (sin commitear) encadenaba
+   a `z6t89u7x1s14` en vez del head real → 2 heads. **Corregido** a `e37196d70ecb`; head único.
+2. **Endpoint `/health/platform` NO existía** — `heartbeat.py` lo referenciaba pero el lector
+   faltaba: se escribían latidos y nada los leía. **Construido.**
+3. **Cron de heartbeat no agendado** (endpoint existe, no en `vercel.json`).
+4. **Watchdog de Supabase no existía** — la pieza externa clave. **Construido.**
+
+**Mejoras a mi crítica, incorporadas:** watchdog pinguea `/readiness` (no liveness → detecta
+caída de DB); `/health/platform` público = resumen (sin cadencia por-job); cron 1-min diferido
+por eficiencia (per acuerdo).
+
+**Construido:**
+- `GET /api/v1/health/platform` (público, resumen) + `/platform/detail` (analyst+). Umbrales de
+  rancidez por-job; parsing robusto de timestamp (SQLite str / Postgres datetime); degradación
+  honesta a `unknown` si falta la tabla.
+- `supabase/functions/asc-watchdog/index.ts` (Edge Function Deno) + `supabase/watchdog_setup.sql`
+  (pg_cron cada 2 min).
+- `backend/migrations_s108_platform_heartbeats.sql` (idempotente, correr en Supabase).
+
+**Testing:** `tests/test_s108_platform_health.py` (8) — helper de estado, degradación sin tabla,
+operational/degraded por frescura, público no filtra por-job, detalle requiere auth. Espejo
+íntegro (139). Sin fugas. Head Alembic único.
+
+**Despliegue (fundador):** correr el SQL de la tabla, desplegar la Edge Function + secrets,
+programar con pg_cron. Ver `docs/OPERACIONES.md` §S108.1.

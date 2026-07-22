@@ -176,3 +176,93 @@ async def adapter_health(_: User = Depends(get_analyst_or_admin)):
         "adapters":           results,
         "ts":                 datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ── Platform heartbeat monitoring (S108-Ops.1) ────────────────────────────────
+#
+# Lee platform_heartbeats (escrita por los crons de Vercel y el watchdog externo
+# de Supabase) y reporta frescura por-job. Rompe el límite "Vercel no se monitorea
+# a sí mismo": el watchdog escribe desde AWS (infra independiente).
+#
+# Umbrales = intervalo del job + margen. Público expone SOLO el resumen (evita
+# revelar la cadencia operativa a un atacante); el detalle por-job va con auth.
+
+_STALE_AFTER: dict[str, int] = {
+    "cron-heartbeat":          180,   # */1  → 3 min (si se agenda)
+    "cron-escalation":         720,   # */5  → 12 min
+    "cron-pcdi-scan":          720,   # */5  → 12 min
+    "cron-sla-check":         1320,   # */10 → 22 min
+    "cron-correlation-sweep": 1800,   # */15 → 30 min
+    "cron-scheduled-reports": 5400,   # 0 *  → 90 min
+    "watchdog-supabase":       360,   # */2  → 6 min (señal externa)
+}
+_DEFAULT_STALE = 900  # jobs no listados → 15 min
+
+
+async def _load_platform_jobs(db: AsyncSession) -> list[dict] | None:
+    """Devuelve el estado por-job, o None si la tabla no existe (degradación honesta)."""
+    now = datetime.now(timezone.utc)
+    try:
+        rows = (await db.execute(text(
+            "SELECT id, last_seen_at, last_status, consecutive_failures, detail "
+            "FROM platform_heartbeats"
+        ))).mappings().all()
+    except Exception:
+        return None  # tabla ausente (migración pendiente) o error → 'unknown'
+    jobs: list[dict] = []
+    for r in rows:
+        last = r["last_seen_at"]
+        if isinstance(last, str):                      # SQLite/aiosqlite devuelve texto
+            try:
+                last = datetime.fromisoformat(last)
+            except ValueError:
+                last = None
+        if last is not None and last.tzinfo is None:   # Postgres puede venir naive
+            last = last.replace(tzinfo=timezone.utc)
+        age = (now - last).total_seconds() if last else None
+        threshold = _STALE_AFTER.get(r["id"], _DEFAULT_STALE)
+        jobs.append({
+            "id": r["id"],
+            "last_seen_at": last.isoformat() if last else None,
+            "age_seconds": round(age) if age is not None else None,
+            "threshold_seconds": threshold,
+            "stale": (age is None) or (age > threshold),
+            "last_status": r["last_status"],
+            "consecutive_failures": r["consecutive_failures"],
+            "detail": r["detail"],
+        })
+    return jobs
+
+
+def _overall_platform_status(jobs: list[dict] | None) -> str:
+    if not jobs:                      # None (tabla ausente) o vacío
+        return "unknown"
+    stale = any(j["stale"] for j in jobs)
+    errored = any(j["last_status"] != "ok" for j in jobs)
+    return "operational" if not (stale or errored) else "degraded"
+
+
+@router.get("/platform", summary="Resumen público de salud de plataforma (frescura de latidos)")
+async def platform_health(db: AsyncSession = Depends(get_db)):
+    """Público: solo resumen (status + conteos). Sin nombres/timing por-job."""
+    jobs = await _load_platform_jobs(db)
+    return {
+        "status": _overall_platform_status(jobs),   # operational | degraded | unknown
+        "jobs_total": len(jobs) if jobs else 0,
+        "jobs_stale": sum(1 for j in (jobs or []) if j["stale"]),
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/platform/detail", summary="Detalle de latidos por-job (analyst+)")
+async def platform_health_detail(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(get_analyst_or_admin),
+):
+    """Con auth: detalle por-job (nombres, edad, fallos, umbral)."""
+    jobs = await _load_platform_jobs(db)
+    return {
+        "status": _overall_platform_status(jobs),
+        "jobs": jobs or [],
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }

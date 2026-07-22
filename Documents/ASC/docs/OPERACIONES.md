@@ -84,3 +84,45 @@ activo), pero cubre el hueco de inmediato.
 
 ---
 *PremosCorp — "Cree en tu ambición." La honestidad operativa también es producto.*
+
+---
+
+## S108.1 — Monitoreo de plataforma IMPLEMENTADO (3 capas PremosCorp, sin vendors)
+
+Arquitectura aprobada: sin monitores externos de terceros; se usa Supabase (AWS) como
+watchdog independiente de Vercel.
+
+**Hallazgo previo:** el scaffolding (heartbeat + tabla + hooks en los crons) estaba **sin
+commitear** y la migración creaba un **segundo head de Alembic** (encadenaba a `z6t89u7x1s14`).
+Corregido: encadenada al head real `e37196d70ecb`; head único restaurado.
+
+### Capa 1 — Heartbeats (en la DB)
+Los 5 crons de Vercel ya llaman `emit_heartbeat(job)` al terminar (ok/error). El endpoint
+**`GET /api/v1/health/platform`** (NUEVO) lee `platform_heartbeats` y reporta frescura:
+- **Público:** solo resumen (`operational|degraded|unknown` + conteos). No expone nombres ni
+  cadencia por-job (anti-inteligencia).
+- **`/platform/detail` (analyst+):** detalle por-job (edad, umbral, fallos).
+- Degradación honesta: si la tabla no existe → `unknown`, nunca 500.
+
+**Decisión de eficiencia:** el cron dedicado de 1 min queda **fuera de `vercel.json`** (endpoint
+`/cron/heartbeat` disponible pero no agendado). El watchdog a 2 min + los latidos por-job cubren
+la señal; se puede activar después si se quiere sub-2-min.
+
+### Capa 2 — Watchdog externo (Supabase Edge Function)
+`supabase/functions/asc-watchdog/index.ts`: corre en AWS (independiente de Vercel), pinguea
+**`/health/readiness`** (no liveness — así detecta también caída de DB) cada 2 min, escribe el
+latido `watchdog-supabase`, y **alerta por Resend** si no está `ready`.
+
+### Despliegue (orden correcto)
+1. **Tabla:** correr `backend/migrations_s108_platform_heartbeats.sql` en Supabase SQL Editor
+   (sin ella, la Capa 1 no deja rastro).
+2. **Edge Function:** `supabase functions deploy asc-watchdog` + secrets:
+   `supabase secrets set RESEND_API_KEY=... WATCHDOG_ALERT_EMAIL=... SUPABASE_SERVICE_ROLE_KEY=...`
+3. **Programar:** habilitar extensiones `pg_cron` + `pg_net`, correr `supabase/watchdog_setup.sql`
+   (reemplazar `<PROJECT_REF>` y `<SERVICE_ROLE_KEY>`).
+4. **Verificar:** `curl https://asc.premoscorp.com/api/v1/health/platform` → tras unos minutos,
+   `status: operational` con el latido `watchdog-supabase` fresco.
+
+### Capa 3 — Red SPECTER (roadmap)
+Cada agente en un cliente es un punto de observación desde otra red; múltiples agentes
+reportando falla = caída global confirmada. Pendiente.
