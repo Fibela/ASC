@@ -135,3 +135,33 @@ Intervalo de poll adaptativo por nivel de amenaza: normal 30 s, elevated 5 s, cr
 - El token de enrolamiento rota cada hora y es admin-only.
 - Acciones de respuesta a nivel host requieren el agente vivo; sin él, ASC reporta la
   acción como *simulada* honestamente (nunca como ejecutada).
+
+## 9. Piloto rápido con el cliente ya incluido (`asc-agent/`)
+
+El repo YA trae un agente ejecutable (`asc-agent/specter/`, Python). No hay que construir nada.
+
+**Prerrequisito:** el backend debe tener desplegado el puente de detección S106 (commit
+`d57512c` o posterior). Sin él, la telemetría se almacena pero NO genera alertas.
+
+```powershell
+cd asc-agent
+python -m venv .venv ; .venv\Scripts\activate
+pip install -r requirements.txt
+$env:SPECTER_BACKEND_URL = "https://asc.premoscorp.com"
+# $env:SPECTER_ENROLLMENT_TOKEN = "<token admin>"   # solo si el server exige enrolamiento
+python -m specter.agent          # agente real: procesos + red, firma y envía en loop
+```
+
+**Simulador de ataque (regla con nombre):** para ver 'Brute Force Authentication' además de
+las anomalías del agente real:
+```powershell
+python pilot_bruteforce_sim.py   # registra, firma y envía 3 auth-fail → alerta de correlación
+```
+
+**Evidencia esperada:** consola del agente `Registered. Agent ID: …`; portal → Agents
+muestra el host; portal → Alerts muestra alertas por anomalía (agente real) y/o
+'Brute Force Authentication' (simulador). La respuesta del POST incluye `alerts_created`.
+
+**Hallazgo abierto (S107):** el cliente registra SIN `tenant_id` y el token de enrolamiento
+es tenant-agnóstico → hoy no hay forma de atar un agente a un tenant al enrolar (todos
+quedan globales). Inocuo en single-tenant; a resolver para multi-tenant real.
