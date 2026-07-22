@@ -7650,3 +7650,14 @@ ni endpoint nuevo**.
 bridge) + `asc-agent/tests/test_s108_connectivity.py` (3: sin hueco, hueco+recuperación, 4xx no
 cuenta como offline). Regresión bridge S106 5/5 (la exclusión no rompió detección). Espejo
 íntegro (140). Guardia 2/2.
+
+### S108.1 — Watchdog externo VERIFICADO EN VIVO (2026-07-22)
+
+Desplegado por Alexander (Dashboard) + pg_cron cada 2 min. Evidencia:
+- Respuesta de la Edge Function: `status_code 200`, `{"status":"ok","detail":null}`.
+- `platform_heartbeats` fila `watchdog-supabase`, `last_status='ok'`, `last_seen_at` fresco.
+
+Cadena completa verificada: pg_cron → pg_net → Edge Function (Supabase/AWS) → ping a
+`/health/readiness` de ASC → escritura en DB. **Capa 2 viva e independiente de Vercel.**
+Pendiente: push de los commits locales para que `/health/platform` (el lector) exista en
+prod y muestre `operational`; luego los 5 crons de Vercel poblarán sus latidos.
