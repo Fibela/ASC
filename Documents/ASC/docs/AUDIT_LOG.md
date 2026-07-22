@@ -7531,3 +7531,37 @@ end-to-end" del reporte alfa 2.0.1: DEMOSTRADO.**
    token es tenant-agnóstico → agentes globales. A resolver para multi-tenant.
 4. **Sesión del portal caduca rápido** — SSE `notifications/stream` daba 401 y `/auth` daba
    "Not authenticated" con sesión vencida; revisar TTL del access token / refresh flow.
+
+---
+
+## Sesión 107-Legal — Capa legal/confianza (primer paso) + investigación de ley vigente
+
+**Frente P0 del reporte alfa 2.0.1.** Regla: investigar la ley vigente antes de redactar.
+
+**Investigación (verificada, con fuentes):**
+- **México:** nueva LFPDPPP **en vigor desde el 21 de marzo de 2025** (DOF 20/03/2025), abrogó
+  la de 2010. El **INAI se extinguió**; sus funciones pasaron a la **Secretaría Anticorrupción
+  y Buen Gobierno**. Nuevo: aviso de privacidad **simplificado** para datos por medios
+  electrónicos; consentimiento libre/específico/informado, tácito generalmente válido.
+- **GDPR Art. 28:** 8 cláusulas obligatorias del DPA (instrucciones documentadas,
+  confidencialidad, seguridad Art. 32, subencargados con flow-down, asistencia a derechos y
+  brechas, borrado/devolución, auditorías); transferencias UE→fuera vía SCCs.
+
+**HALLAZGO DE MÉTODO (mi error, corregido):** ya existían documentos legales en `docs/legal/`
+(Aviso, Términos, Contrato, NDA, SLA, GDPR checklist, Marco legal, Autorización pentest) y
+empecé a redactar sin verificarlos → creé 2 duplicados inferiores (`AVISO_DE_PRIVACIDAD.md`,
+`TERMINOS_DE_SERVICIO.md`) que **borré**. Mismo patrón que en el código: revisar antes de crear.
+
+**Acciones (todas honestas, marcadas como borrador):**
+- Actualizadas las referencias **obsoletas 2010/INAI → LFPDPPP 2025 + Secretaría Anticorrupción
+  y Buen Gobierno** en `AVISO_PRIVACIDAD.md` y `MARCO_LEGAL.md` (corrección factual verificada).
+- **NUEVOS (huecos reales):** `DPA.md` (Art. 28 GDPR + subencargados: Supabase/Vercel/Stripe/
+  Resend/Anthropic) y `SEGURIDAD.md` (página de confianza honesta, marca *roadmap* lo no vigente:
+  SOC2, SLA, status page).
+- `README.md` de la carpeta: caveat legal general, índice de estado, y pendientes.
+
+**Pendientes para cerrar el P0:** revisión legal profesional (bloqueante), rellenar placeholders
+(domicilio/RFC/correos/plazos/jurisdicción), reconciliar `DPA.md` con las cláusulas de encargado
+que ya viven en `CONTRATO_SERVICIOS.md`/`GDPR_CHECKLIST.md`, versiones en inglés, y publicar.
+
+**Nada de esto es asesoría legal.** Son borradores para que un abogado los valide.

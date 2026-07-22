@@ -43,9 +43,11 @@ y son vinculantes con la misma fuerza legal.
 ## 3. Marco normativo aplicable
 
 ### México
-- **LFPDPPP** — Ley Federal de Protección de Datos Personales en Posesión de los Particulares (2010)
+- **LFPDPPP** — Ley Federal de Protección de Datos Personales en Posesión de los Particulares
+  (nueva ley vigente desde el 21 de marzo de 2025, que abrogó la LFPDPPP de 2010)
 - **RLFPDPPP** — Reglamento de la LFPDPPP (2011)
-- **Lineamientos del Aviso de Privacidad** — INAI (2013)
+- **Autoridad supervisora** — Secretaría Anticorrupción y Buen Gobierno (asumió las funciones
+  del extinto INAI desde el 21/03/2025). Verificar lineamientos/normativa secundaria vigente.
 - **LFTAIP** — Ley Federal de Transparencia y Acceso a la Información Pública
 - **CFF** — Código Fiscal de la Federación (facturación electrónica CFDI)
 - **LFCE** — Ley Federal de Comercio Electrónico

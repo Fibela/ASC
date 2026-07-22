@@ -10,7 +10,11 @@
 
 > Este Aviso de Privacidad cumple con la Ley Federal de Protección de Datos
 > Personales en Posesión de los Particulares (LFPDPPP), su Reglamento (RLFPDPPP)
-> y los Lineamientos del Aviso de Privacidad emitidos por el INAI.
+> y la normativa secundaria aplicable.
+> **Actualización reforma 2025:** la LFPDPPP vigente desde el 21 de marzo de 2025 abrogó la
+> ley de 2010; las funciones del extinto INAI fueron asumidas por la Secretaría Anticorrupción
+> y Buen Gobierno. Se incorpora el aviso de privacidad simplificado para datos recabados por
+> medios electrónicos.
 > Para usuarios en la Unión Europea, se incluyen cláusulas adicionales de
 > cumplimiento con el GDPR (Reglamento UE 2016/679).
 
@@ -96,7 +100,7 @@ PremosCorp podrá transferir datos personales en los siguientes supuestos:
 
 | Destinatario | Finalidad | Consentimiento requerido |
 |--------------|-----------|--------------------------|
-| Autoridades competentes (SAT, INAI, judiciales) | Cumplimiento de obligaciones legales | No (Art. 37 LFPDPPP) |
+| Autoridades competentes (SAT, Secretaría Anticorrupción y Buen Gobierno, judiciales) | Cumplimiento de obligaciones legales | No (Art. 37 LFPDPPP) |
 | Proveedores de infraestructura cloud (Vercel, Supabase) | Hospedaje de la plataforma ASC | No (encargados del tratamiento) |
 | Proveedores de facturación electrónica | Emisión de CFDI | No (encargados del tratamiento) |
 | Auditores externos de seguridad | Auditorías de cumplimiento | No (encargados del tratamiento) |
@@ -177,7 +181,7 @@ Usted tiene derecho a:
 - **Oposición al tratamiento automatizado:** Incluyendo perfilado con efectos significativos
 - **Retirada de consentimiento:** En cualquier momento, sin afectar la licitud del
   tratamiento anterior
-- **Reclamación ante autoridad supervisora:** INAI (México) o autoridad de protección
+- **Reclamación ante autoridad supervisora:** Secretaría Anticorrupción y Buen Gobierno (México, sucesora del INAI desde el 21/03/2025) o autoridad de protección
   de datos de su país UE
 
 ### 7.3 Procedimiento para ejercer derechos
@@ -254,9 +258,9 @@ el presente Aviso de Privacidad:
 Si considera que el tratamiento de sus datos personales infringe la legislación
 aplicable, puede presentar una queja ante:
 
-**México — INAI (Instituto Nacional de Transparencia, Acceso a la Información
-y Protección de Datos Personales)**  
-Sitio web: www.inai.org.mx  
+**México — Secretaría Anticorrupción y Buen Gobierno** (asumió, desde el 21 de marzo de 2025,
+las funciones en materia de protección de datos del extinto INAI)  
+Sitio web: [verificar portal oficial vigente]  
 Teléfono: 800 835 4324
 
 **Unión Europea:** La autoridad de supervisión del Estado Miembro de su residencia.
