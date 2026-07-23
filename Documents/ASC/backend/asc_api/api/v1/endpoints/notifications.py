@@ -25,6 +25,7 @@ Connection lifecycle:
     - A heartbeat comment (": heartbeat\\n\\n") is sent every 30 s to keep the
       connection alive through load balancers and browser timeouts.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -52,11 +53,9 @@ async def _event_stream(
         while True:
             # Wait for the next notification or heartbeat timeout
             try:
-                notification = await asyncio.wait_for(
-                    queue.get(), timeout=_HEARTBEAT_INTERVAL
-                )
+                notification = await asyncio.wait_for(queue.get(), timeout=_HEARTBEAT_INTERVAL)
                 yield notification.to_sse()
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Heartbeat keeps the connection alive through proxies
                 yield ": heartbeat\n\n"
 
@@ -88,8 +87,8 @@ async def notification_stream(
         _event_stream(request, current_user),
         media_type="text/event-stream",
         headers={
-            "Cache-Control":     "no-cache",
-            "X-Accel-Buffering": "no",   # disable nginx buffering
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering
         },
     )
 

@@ -13,6 +13,7 @@ Schedules (vercel.json):
   /api/v1/cron/pcdi-scan            — every 5 min
   /api/v1/cron/scheduled-reports    — hourly
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Header, HTTPException, status
@@ -54,6 +55,7 @@ async def cron_correlation_sweep(authorization: str | None = Header(None)) -> di
     job = "cron-correlation-sweep"
     try:
         from asc_api.tasks.correlation_sweep import _async_sweep
+
         await _async_sweep()
         await emit_heartbeat(job)
         return {"job": "correlation-sweep", "status": "ok"}
@@ -69,6 +71,7 @@ async def cron_escalation(authorization: str | None = Header(None)) -> dict:
     job = "cron-escalation"
     try:
         from asc_api.tasks.escalation import _run
+
         result = await _run()
         await emit_heartbeat(job)
         return {"job": "escalation", "status": "ok", **result}
@@ -84,6 +87,7 @@ async def cron_sla_check(authorization: str | None = Header(None)) -> dict:
     job = "cron-sla-check"
     try:
         from asc_api.tasks.sla_escalation import _run
+
         result = await _run()
         await emit_heartbeat(job)
         return {"job": "sla-check", "status": "ok", **result}
@@ -99,6 +103,7 @@ async def cron_pcdi_scan(authorization: str | None = Header(None)) -> dict:
     job = "cron-pcdi-scan"
     try:
         from asc_api.tasks.pcdi_escalation import _run
+
         result = await _run()
         await emit_heartbeat(job)
         return {"job": "pcdi-scan", "status": "ok", **result}
@@ -114,6 +119,7 @@ async def cron_scheduled_reports(authorization: str | None = Header(None)) -> di
     job = "cron-scheduled-reports"
     try:
         from asc_api.tasks.scheduled_reports import _run
+
         result = await _run()
         await emit_heartbeat(job)
         return {"job": "scheduled-reports", "status": "ok", **result}

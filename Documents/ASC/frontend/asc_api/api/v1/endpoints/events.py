@@ -1,18 +1,19 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, or_
-from datetime import datetime, timezone
-from typing import Any
 import uuid
+from datetime import UTC
+from typing import Any
 
-from asc_api.db.session import get_db
-from asc_api.models.event import Event
-from asc_api.models.alert import Alert
-from asc_api.models.user import User
-from asc_api.api.deps import get_analyst_or_admin
-from asc_api.services.correlator import normalize_event, evaluate_correlation_rules, match_iocs
-from asc_api.core.config import get_settings
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_analyst_or_admin
+from asc_api.core.config import get_settings
+from asc_api.db.session import get_db
+from asc_api.models.alert import Alert
+from asc_api.models.event import Event
+from asc_api.models.user import User
+from asc_api.services.correlator import evaluate_correlation_rules, match_iocs, normalize_event
 
 router = APIRouter(prefix="/events", tags=["Events"])
 settings = get_settings()
@@ -37,7 +38,15 @@ async def ingest_event(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    normalized = await normalize_event({**payload.data, "source": payload.source, "category": payload.category, "action": payload.action, "host": payload.host})
+    normalized = await normalize_event(
+        {
+            **payload.data,
+            "source": payload.source,
+            "category": payload.category,
+            "action": payload.action,
+            "host": payload.host,
+        }
+    )
 
     # IoC matching on key fields
     matched = []
@@ -85,12 +94,18 @@ async def ingest_bulk(
     created_ids = []
 
     for e in payload.events:
-        norm = await normalize_event({**e.data, "source": e.source, "category": e.category, "action": e.action, "host": e.host})
+        norm = await normalize_event(
+            {**e.data, "source": e.source, "category": e.category, "action": e.action, "host": e.host}
+        )
         normalized_events.append(norm)
         event = Event(
             id=str(uuid.uuid4()),
-            source=e.source, category=e.category, action=e.action, host=e.host,
-            raw_log=e.raw_log, normalized=norm,
+            source=e.source,
+            category=e.category,
+            action=e.action,
+            host=e.host,
+            raw_log=e.raw_log,
+            normalized=norm,
             tenant_id=current_user.tenant_id,
         )
         db.add(event)
@@ -99,11 +114,12 @@ async def ingest_bulk(
     # Run correlation rules
     alerts_to_create = await evaluate_correlation_rules(normalized_events, db)
     created_alerts = []
+
     # Earliest event timestamp â†’ threat_start_at for accurate MTTD calculation
     # Normalize to timezone-aware (SQLite returns naive UTC; PostgreSQL returns aware)
     def _ensure_aware(dt):
         if dt is not None and dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
 
     event_timestamps = [
@@ -141,11 +157,27 @@ async def list_events(
     current_user: User = Depends(get_analyst_or_admin),
 ):
     # Visibilidad de 2 capas (S111.2): global (tenant_id NULL) + propio.
-    q = (select(Event)
-         .where(or_(Event.tenant_id.is_(None), Event.tenant_id == current_user.tenant_id))
-         .order_by(desc(Event.timestamp)).offset(offset).limit(limit))
+    q = (
+        select(Event)
+        .where(or_(Event.tenant_id.is_(None), Event.tenant_id == current_user.tenant_id))
+        .order_by(desc(Event.timestamp))
+        .offset(offset)
+        .limit(limit)
+    )
     if severity:
         q = q.where(Event.severity == severity)
     result = await db.execute(q)
     events = result.scalars().all()
-    return [{"id": e.id, "source": e.source, "category": e.category, "action": e.action, "host": e.host, "severity": e.severity, "risk_score": e.risk_score, "timestamp": e.timestamp} for e in events]
+    return [
+        {
+            "id": e.id,
+            "source": e.source,
+            "category": e.category,
+            "action": e.action,
+            "host": e.host,
+            "severity": e.severity,
+            "risk_score": e.risk_score,
+            "timestamp": e.timestamp,
+        }
+        for e in events
+    ]

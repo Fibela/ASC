@@ -30,6 +30,7 @@ Retry:
   Network-level errors (httpx.TransportError) retried up to 3 times
   with exponential back-off (2s → 4s → 8s).
 """
+
 from __future__ import annotations
 
 import re
@@ -54,6 +55,7 @@ FW_TIMEOUT = max(HTTP_TIMEOUT, 15.0)
 
 # ── Object name helpers ───────────────────────────────────────────────────────
 
+
 def _sanitize_ip_name(ip: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9]", "-", ip)
     return f"ASC-BLK-IP-{safe}"[:79]
@@ -66,6 +68,7 @@ def _sanitize_domain_name(domain: str) -> str:
 
 # ── Adapter ───────────────────────────────────────────────────────────────────
 
+
 class FortinetAdapter(BaseFirewallAdapter):
     """
     Fortinet FortiGate adapter.
@@ -76,12 +79,12 @@ class FortinetAdapter(BaseFirewallAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._host      = s.FORTINET_HOST.rstrip("/")
-        self._token     = s.FORTINET_API_TOKEN
-        self._vdom      = s.FORTINET_VDOM
-        self._ip_group  = s.FORTINET_BLOCKED_IP_GROUP
+        self._host = s.FORTINET_HOST.rstrip("/")
+        self._token = s.FORTINET_API_TOKEN
+        self._vdom = s.FORTINET_VDOM
+        self._ip_group = s.FORTINET_BLOCKED_IP_GROUP
         self._dom_group = s.FORTINET_BLOCKED_DOMAIN_GROUP
-        self._base_url  = f"https://{self._host}/api/v2" if self._host else ""
+        self._base_url = f"https://{self._host}/api/v2" if self._host else ""
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
@@ -90,9 +93,9 @@ class FortinetAdapter(BaseFirewallAdapter):
 
     def _headers(self) -> dict[str, str]:
         return {
-            "User-Agent":    USER_AGENT,
-            "Accept":        "application/json",
-            "Content-Type":  "application/json",
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
             "Authorization": f"Bearer {self._token}",
         }
 
@@ -222,8 +225,8 @@ class FortinetAdapter(BaseFirewallAdapter):
 
         new_members = [*existing, {"name": obj_name}]
         body = {
-            "name":    group_name,
-            "member":  new_members,
+            "name": group_name,
+            "member": new_members,
             "comment": comment[:255] if comment else "",
         }
 
@@ -257,9 +260,7 @@ class FortinetAdapter(BaseFirewallAdapter):
         if not self.is_configured():
             return self._not_configured()
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 data = await self._get(client, "/monitor/sys/status")
             results = data.get("results", {})
             return self._ok(
@@ -287,30 +288,31 @@ class FortinetAdapter(BaseFirewallAdapter):
         log.info("fortinet_block_ip", ip=ip, object_name=obj_name, reason=reason)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Create Address Object (ipmask type)
                 try:
-                    await self._post(client, "/cmdb/firewall/address", {
-                        "name":    obj_name,
-                        "type":    "ipmask",
-                        "subnet":  f"{ip}/32",
-                        "comment": f"ASC blocked: {reason[:255]}",
-                    })
+                    await self._post(
+                        client,
+                        "/cmdb/firewall/address",
+                        {
+                            "name": obj_name,
+                            "type": "ipmask",
+                            "subnet": f"{ip}/32",
+                            "comment": f"ASC blocked: {reason[:255]}",
+                        },
+                    )
                 except httpx.HTTPStatusError as exc:
                     # 424 / 500 with "Object already exists" is acceptable
                     body = exc.response.text
                     if exc.response.status_code not in (200, 201) and "already exist" not in body.lower():
                         return self._err(
                             f"create_address_failed: HTTP {exc.response.status_code}",
-                            adapter=self.ADAPTER_NAME, ip=ip,
+                            adapter=self.ADAPTER_NAME,
+                            ip=ip,
                         )
 
                 # 2. Add to blocked IP group (read-modify-write)
-                await self._append_member_to_group(
-                    client, self._ip_group, obj_name, reason
-                )
+                await self._append_member_to_group(client, self._ip_group, obj_name, reason)
 
             return self._ok(
                 adapter=self.ADAPTER_NAME,
@@ -330,9 +332,7 @@ class FortinetAdapter(BaseFirewallAdapter):
         log.info("fortinet_unblock_ip", ip=ip, object_name=obj_name)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Remove from group
                 await self._remove_member_from_group(client, self._ip_group, obj_name)
                 # 2. Delete address object (best-effort)
@@ -353,29 +353,30 @@ class FortinetAdapter(BaseFirewallAdapter):
         log.info("fortinet_block_domain", domain=domain, object_name=obj_name, reason=reason)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Create FQDN Address Object
                 try:
-                    await self._post(client, "/cmdb/firewall/address", {
-                        "name":    obj_name,
-                        "type":    "fqdn",
-                        "fqdn":    domain,
-                        "comment": f"ASC blocked: {reason[:255]}",
-                    })
+                    await self._post(
+                        client,
+                        "/cmdb/firewall/address",
+                        {
+                            "name": obj_name,
+                            "type": "fqdn",
+                            "fqdn": domain,
+                            "comment": f"ASC blocked: {reason[:255]}",
+                        },
+                    )
                 except httpx.HTTPStatusError as exc:
                     body = exc.response.text
                     if exc.response.status_code not in (200, 201) and "already exist" not in body.lower():
                         return self._err(
                             f"create_fqdn_failed: HTTP {exc.response.status_code}",
-                            adapter=self.ADAPTER_NAME, domain=domain,
+                            adapter=self.ADAPTER_NAME,
+                            domain=domain,
                         )
 
                 # 2. Add to domain group
-                await self._append_member_to_group(
-                    client, self._dom_group, obj_name, reason
-                )
+                await self._append_member_to_group(client, self._dom_group, obj_name, reason)
 
             return self._ok(
                 adapter=self.ADAPTER_NAME,
@@ -395,9 +396,7 @@ class FortinetAdapter(BaseFirewallAdapter):
         log.info("fortinet_unblock_domain", domain=domain, object_name=obj_name)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 await self._remove_member_from_group(client, self._dom_group, obj_name)
                 await self._delete(client, f"/cmdb/firewall/address/{obj_name}")
 

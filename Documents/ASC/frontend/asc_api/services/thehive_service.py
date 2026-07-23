@@ -14,44 +14,40 @@ Flow:
 All operations are best-effort: observable creation failures do NOT abort
 the export — they are collected in `errors[]` and returned to the caller.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.adapters.thehive import TheHiveAdapter, _IOC_TYPE_MAP
-from asc_api.core.tenant_context import get_tenant_id
+from asc_api.adapters.thehive import TheHiveAdapter
 from asc_api.core.audit import log_security_action
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.hunt import Hunt, HuntFinding
 
 log = get_logger("asc.thehive_service")
 
 _PRIORITY_SEVERITY = {"low": "low", "medium": "medium", "high": "high", "critical": "critical"}
 _FINDING_TYPE_MAP: dict[str, str] = {
-    "ip":     "ip",
+    "ip": "ip",
     "domain": "domain",
-    "url":    "url",
-    "hash":   "hash",
-    "user":   "other",
-    "host":   "other",
+    "url": "url",
+    "hash": "hash",
+    "user": "other",
+    "host": "other",
 }
 
 
 def _hunt_to_alert_dict(hunt: Hunt, findings: list[HuntFinding]) -> dict:
     """Build an ASC alert-like dict from a hunt for TheHiveAdapter.alert_to_case()."""
     confirmed = [f for f in findings if f.is_confirmed]
-    high_sev   = [f for f in findings if f.severity in ("high", "critical")]
+    high_sev = [f for f in findings if f.severity in ("high", "critical")]
 
-    affected_hosts: list[str] = list({
-        f.affected_host for f in findings if f.affected_host
-    })
-    ttps: list[str] = list({
-        t for f in findings if f.ttps for t in (f.ttps or [])
-    })
+    affected_hosts: list[str] = list({f.affected_host for f in findings if f.affected_host})
+    ttps: list[str] = list({t for f in findings if f.ttps for t in (f.ttps or [])})
 
     # Escalate severity if there are critical/high confirmed findings
     severity = "low"
@@ -160,9 +156,7 @@ async def export_hunt_to_thehive(
         return {"success": False, "error": f"Hunt {hunt_id} not found", "hunt_id": hunt_id}
 
     # Load findings
-    findings_result = await db.execute(
-        select(HuntFinding).where(HuntFinding.hunt_id == hunt_id)
-    )
+    findings_result = await db.execute(select(HuntFinding).where(HuntFinding.hunt_id == hunt_id))
     all_findings = findings_result.scalars().all()
 
     alert_dict = _hunt_to_alert_dict(hunt, list(all_findings))
@@ -198,9 +192,7 @@ async def export_hunt_to_thehive(
         if obs_result.get("success"):
             observables_added += 1
         else:
-            errors.append(
-                f"Finding {finding.id} ({finding.indicator_value}): {obs_result.get('error')}"
-            )
+            errors.append(f"Finding {finding.id} ({finding.indicator_value}): {obs_result.get('error')}")
 
     log_security_action(
         "thehive_hunt_exported",
@@ -231,5 +223,5 @@ async def export_hunt_to_thehive(
         "case_number": case_number,
         "observables_added": observables_added,
         "errors": errors,
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
     }

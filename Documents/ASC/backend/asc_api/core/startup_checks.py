@@ -13,6 +13,7 @@ Checks performed:
   3. DATABASE_URL / REDIS_URL: warn if credentials appear in log-visible strings
   4. API docs: /docs and /redoc are auto-disabled in production
 """
+
 from __future__ import annotations
 
 import structlog
@@ -20,10 +21,21 @@ import structlog
 log = structlog.get_logger("asc.startup")
 
 # Known-weak SECRET_KEY substrings (case-insensitive).
-_WEAK_SUBSTRINGS = frozenset({
-    "changeme", "secret", "password", "default", "test", "dev",
-    "replace", "generate", "placeholder", "example", "sample",
-})
+_WEAK_SUBSTRINGS = frozenset(
+    {
+        "changeme",
+        "secret",
+        "password",
+        "default",
+        "test",
+        "dev",
+        "replace",
+        "generate",
+        "placeholder",
+        "example",
+        "sample",
+    }
+)
 
 _MIN_SECRET_KEY_LEN = 32
 
@@ -33,7 +45,7 @@ def _check_secret_key(secret: str, *, production: bool) -> list[str]:
     if len(secret) < _MIN_SECRET_KEY_LEN:
         issues.append(
             f"SECRET_KEY is only {len(secret)} chars — minimum is {_MIN_SECRET_KEY_LEN}. "
-            "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
     lower = secret.lower()
     for weak in _WEAK_SUBSTRINGS:

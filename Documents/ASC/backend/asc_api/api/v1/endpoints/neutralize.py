@@ -9,27 +9,28 @@ Security layers applied at the endpoint level:
   Self-approval block â€” 403 Forbidden if approved_by == initiated_by
   Rollback guard      â€” only completed, rollback_available actions can be reversed
 """
-from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from asc_api.models.agent import AgentCommand
 
-from asc_api.db.session import get_db
-from asc_api.models.neutralization import NeutralizationAction
-from asc_api.models.user import User
-from asc_api.services.neutralizer import RECOMMENDED_ACTIONS
-from asc_api.services.approval import (
-    request_action,
-    approve_action,
-    reject_action,
-    get_pending,
-    escalate_expired,
-    create_rollback_action,
-)
-from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, field_validator
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_analyst_or_admin
 from asc_api.core.audit import log_security_action
 from asc_api.core.panl import request_rate_limiter
-from pydantic import BaseModel, field_validator
+from asc_api.db.session import get_db
+from asc_api.models.agent import AgentCommand
+from asc_api.models.neutralization import NeutralizationAction
+from asc_api.models.user import User
+from asc_api.services.approval import (
+    approve_action,
+    create_rollback_action,
+    escalate_expired,
+    get_pending,
+    reject_action,
+    request_action,
+)
+from asc_api.services.neutralizer import RECOMMENDED_ACTIONS
 
 router = APIRouter(prefix="/neutralize", tags=["Neutralization"])
 
@@ -54,6 +55,7 @@ async def _rate_limited_user(
 
 # â”€â”€ Request schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 class NeutralizeRequest(BaseModel):
     action_type: str
     target: str
@@ -77,8 +79,13 @@ class NeutralizeRequest(BaseModel):
     @classmethod
     def valid_action_type(cls, v: str) -> str:
         allowed = {
-            "isolate_endpoint", "block_ip", "block_domain",
-            "kill_process", "quarantine_file", "remove_persistence", "disable_account",
+            "isolate_endpoint",
+            "block_ip",
+            "block_domain",
+            "kill_process",
+            "quarantine_file",
+            "remove_persistence",
+            "disable_account",
         }
         if v not in allowed:
             raise ValueError(f"action_type must be one of {sorted(allowed)}")
@@ -102,44 +109,46 @@ class RejectRequest(BaseModel):
 
 # â”€â”€ Serialization helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 def _serialize(a: NeutralizationAction) -> dict:
     return {
-        "id":                  a.id,
-        "action_type":         a.action_type,
-        "severity":            a.severity,
-        "original_severity":   getattr(a, "original_severity", None),
-        "severity_adapted":    getattr(a, "severity_adapted", False),
-        "target":              a.target,
-        "target_type":         a.target_type,
-        "status":              a.status,
-        "automated":           a.automated,
-        "alert_id":            a.alert_id,
-        "initiated_by":        a.initiated_by,
-        "approval_required":   a.approval_required,
-        "required_approvals":  getattr(a, "required_approvals", 1),
-        "approvals_received":  len(getattr(a, "approvals_log", None) or []),
-        "approvals_log":       getattr(a, "approvals_log", []) or [],
-        "timeout_minutes":     a.timeout_minutes,
-        "expires_at":          a.expires_at.isoformat() if a.expires_at else None,
-        "approved_by":         a.approved_by,
-        "approved_at":         a.approved_at.isoformat() if a.approved_at else None,
-        "rejected_by":         a.rejected_by,
-        "rejected_at":         a.rejected_at.isoformat() if a.rejected_at else None,
-        "rejection_reason":    a.rejection_reason,
-        "escalated_at":        a.escalated_at.isoformat() if a.escalated_at else None,
-        "escalation_reason":   a.escalation_reason,
-        "result":              a.result,
-        "error_message":       a.error_message,
-        "rollback_available":  a.rollback_available,
-        "is_rollback":         getattr(a, "is_rollback", False),
-        "rollback_of":         getattr(a, "rollback_of", None),
-        "rollback_action_id":  getattr(a, "rollback_action_id", None),
-        "created_at":          a.created_at.isoformat(),
-        "executed_at":         a.executed_at.isoformat() if a.executed_at else None,
+        "id": a.id,
+        "action_type": a.action_type,
+        "severity": a.severity,
+        "original_severity": getattr(a, "original_severity", None),
+        "severity_adapted": getattr(a, "severity_adapted", False),
+        "target": a.target,
+        "target_type": a.target_type,
+        "status": a.status,
+        "automated": a.automated,
+        "alert_id": a.alert_id,
+        "initiated_by": a.initiated_by,
+        "approval_required": a.approval_required,
+        "required_approvals": getattr(a, "required_approvals", 1),
+        "approvals_received": len(getattr(a, "approvals_log", None) or []),
+        "approvals_log": getattr(a, "approvals_log", []) or [],
+        "timeout_minutes": a.timeout_minutes,
+        "expires_at": a.expires_at.isoformat() if a.expires_at else None,
+        "approved_by": a.approved_by,
+        "approved_at": a.approved_at.isoformat() if a.approved_at else None,
+        "rejected_by": a.rejected_by,
+        "rejected_at": a.rejected_at.isoformat() if a.rejected_at else None,
+        "rejection_reason": a.rejection_reason,
+        "escalated_at": a.escalated_at.isoformat() if a.escalated_at else None,
+        "escalation_reason": a.escalation_reason,
+        "result": a.result,
+        "error_message": a.error_message,
+        "rollback_available": a.rollback_available,
+        "is_rollback": getattr(a, "is_rollback", False),
+        "rollback_of": getattr(a, "rollback_of", None),
+        "rollback_action_id": getattr(a, "rollback_action_id", None),
+        "created_at": a.created_at.isoformat(),
+        "executed_at": a.executed_at.isoformat() if a.executed_at else None,
     }
 
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.post("", summary="Request a neutralization action (PANL + HitL gate)")
 async def neutralize(
@@ -157,6 +166,7 @@ async def neutralize(
     6. SSE notification published to connected analyst browsers
     """
     from asc_api.core.panl import AdaptiveContext
+
     try:
         ctx = AdaptiveContext.from_dict(payload.adaptive_context) if payload.adaptive_context else None
         action = await request_action(
@@ -379,32 +389,30 @@ async def get_action_commands(
     command_ids: list[str] = action.result.get("commands_issued", []) if action.result else []
     if not command_ids:
         return {
-            "action_id":     action_id,
+            "action_id": action_id,
             "dispatch_mode": action.result.get("dispatch_mode", "simulation") if action.result else "simulation",
-            "commands":      [],
+            "commands": [],
         }
 
-    cmd_result = await db.execute(
-        select(AgentCommand).where(AgentCommand.id.in_(command_ids))
-    )
+    cmd_result = await db.execute(select(AgentCommand).where(AgentCommand.id.in_(command_ids)))
     cmds = cmd_result.scalars().all()
 
     return {
-        "action_id":     action_id,
+        "action_id": action_id,
         "dispatch_mode": action.result.get("dispatch_mode", "unknown") if action.result else "unknown",
         "commands": [
             {
-                "id":           c.id,
-                "agent_id":     c.agent_id,
+                "id": c.id,
+                "agent_id": c.agent_id,
                 "command_type": c.command_type,
-                "params":       c.params,
-                "status":       c.status,
-                "issued_by":    c.issued_by,
-                "issued_at":    c.issued_at.isoformat(),
+                "params": c.params,
+                "status": c.status,
+                "issued_by": c.issued_by,
+                "issued_at": c.issued_at.isoformat(),
                 "delivered_at": c.delivered_at.isoformat() if c.delivered_at else None,
                 "completed_at": c.completed_at.isoformat() if c.completed_at else None,
-                "result":       c.result,
-                "error":        c.error,
+                "result": c.result,
+                "error": c.error,
             }
             for c in cmds
         ],

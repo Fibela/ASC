@@ -11,23 +11,23 @@ Metrics are recorded by:
 """
 
 from prometheus_client import (
+    CONTENT_TYPE_LATEST,
     CollectorRegistry,
     Counter,
     Gauge,
     Histogram,
     generate_latest,
-    CONTENT_TYPE_LATEST,
 )
 
 # Re-export so callers don't need a second import
 __all__ = [
-    "REGISTRY",
-    "HTTP_REQUESTS",
-    "HTTP_DURATION",
-    "ALERTS_GAUGE",
-    "EVENTS_GAUGE",
     "AGENTS_GAUGE",
+    "ALERTS_GAUGE",
     "CONTENT_TYPE_LATEST",
+    "EVENTS_GAUGE",
+    "HTTP_DURATION",
+    "HTTP_REQUESTS",
+    "REGISTRY",
     "generate_latest",
 ]
 

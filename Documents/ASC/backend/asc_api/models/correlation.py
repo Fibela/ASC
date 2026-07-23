@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from asc_api.db.base import Base
@@ -13,24 +13,28 @@ from asc_api.db.base import Base
 # ---------------------------------------------------------------------------
 # Pivot types — define HOW signals are grouped
 # ---------------------------------------------------------------------------
-PIVOT_TYPES = frozenset({
-    "host_pivot",
-    "identity_pivot",
-    "ip_pivot",
-    "domain_pivot",
-    "ttp_pivot",
-})
+PIVOT_TYPES = frozenset(
+    {
+        "host_pivot",
+        "identity_pivot",
+        "ip_pivot",
+        "domain_pivot",
+        "ttp_pivot",
+    }
+)
 
 # Signal types — enumerate WHICH domain the signal comes from
-SIGNAL_TYPES = frozenset({
-    "event",
-    "alert",
-    "finding",
-    "identity_action",
-    "panl_action",
-    "ti_indicator",
-    "agent_command",
-})
+SIGNAL_TYPES = frozenset(
+    {
+        "event",
+        "alert",
+        "finding",
+        "identity_action",
+        "panl_action",
+        "ti_indicator",
+        "agent_command",
+    }
+)
 
 CLUSTER_STATUSES = frozenset({"active", "resolved", "dismissed"})
 
@@ -40,9 +44,7 @@ class CorrelationRule(Base):
 
     __tablename__ = "correlation_rules"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -58,16 +60,18 @@ class CorrelationRule(Base):
     # Lifecycle
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
-    clusters: Mapped[list["CorrelationCluster"]] = relationship(
+    clusters: Mapped[list[CorrelationCluster]] = relationship(
         "CorrelationCluster", back_populates="rule", cascade="all, delete-orphan", lazy="select"
     )
 
@@ -88,9 +92,7 @@ class CorrelationCluster(Base):
 
     __tablename__ = "correlation_clusters"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     rule_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("correlation_rules.id", ondelete="CASCADE"), nullable=False
@@ -106,10 +108,12 @@ class CorrelationCluster(Base):
     confidence_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
     # Timeline
-    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
-                                                  default=lambda: datetime.now(timezone.utc))
-    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
-                                                 default=lambda: datetime.now(timezone.utc))
+    first_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+    last_seen: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
 
     # Lifecycle: active → resolved | dismissed
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
@@ -130,17 +134,19 @@ class CorrelationCluster(Base):
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
-    rule: Mapped["CorrelationRule"] = relationship("CorrelationRule", back_populates="clusters")
-    signals: Mapped[list["CorrelationSignal"]] = relationship(
+    rule: Mapped[CorrelationRule] = relationship("CorrelationRule", back_populates="clusters")
+    signals: Mapped[list[CorrelationSignal]] = relationship(
         "CorrelationSignal", back_populates="cluster", cascade="all, delete-orphan", lazy="select"
     )
 
@@ -180,9 +186,7 @@ class CorrelationSignal(Base):
 
     __tablename__ = "correlation_signals"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     cluster_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("correlation_clusters.id", ondelete="CASCADE"), nullable=False
@@ -198,21 +202,21 @@ class CorrelationSignal(Base):
     # Attributes inherited from source record
     severity: Mapped[str] = mapped_column(String(20), nullable=False, default="low")
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
 
     # Extra context from source record (host, user, action_type, ttp, etc.)
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
 
-    cluster: Mapped["CorrelationCluster"] = relationship(
-        "CorrelationCluster", back_populates="signals"
-    )
+    cluster: Mapped[CorrelationCluster] = relationship("CorrelationCluster", back_populates="signals")
 
     __table_args__ = (
         Index("ix_cs_cluster_id", "cluster_id"),

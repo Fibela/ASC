@@ -26,19 +26,18 @@ Security guarantees:
   - All operations are READ-ONLY with respect to the test database
   - No mutation of ELK / Wazuh data
 """
+
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
-import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
-from asc_api.core.signing import generate_keypair, sign_command
+from asc_api.core.signing import sign_command
 
 log = get_logger("asc.praf")
 
@@ -48,16 +47,16 @@ _SCORE_BANDS = [
     (85, "critical"),
     (61, "high"),
     (31, "medium"),
-    (0,  "low"),
+    (0, "low"),
 ]
 
 # Weights for composite score components
-_W_LATENCY     = 0.50   # p95 latency dominates (user-facing)
-_W_ERROR_RATE  = 0.35   # error rate is a hard signal
-_W_THROUGHPUT  = 0.15   # throughput contributes least in burst scenarios
+_W_LATENCY = 0.50  # p95 latency dominates (user-facing)
+_W_ERROR_RATE = 0.35  # error rate is a hard signal
+_W_THROUGHPUT = 0.15  # throughput contributes least in burst scenarios
 
 # p95 latency baselines (ms)
-_LATENCY_BUDGET_MS  = 500.0   # SLA target
+_LATENCY_BUDGET_MS = 500.0  # SLA target
 _LATENCY_CEILING_MS = 2000.0  # absolute ceiling (maps to score=100)
 
 # ── In-process ephemeral ledger  (replace with DB table for persistence) ──────
@@ -65,6 +64,7 @@ _ledger: list[dict] = []
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 class PRAFLedger:
     """
@@ -92,7 +92,7 @@ class PRAFLedger:
 
         Returns the signed ledger entry dict (fingerprint + signature included).
         """
-        ts = datetime.now(timezone.utc).isoformat()
+        ts = datetime.now(UTC).isoformat()
         payload: dict[str, Any] = {
             "id": str(uuid.uuid4()),
             "test_name": test_name,
@@ -174,18 +174,12 @@ class AdaptiveLoadScorer:
                 "evaluated_at": <ISO-str>,
             }
         """
-        latency_score = _latency_component(
-            p95_latency_ms, self._latency_budget, self._latency_ceiling
-        )
-        error_score = min(100, int(error_rate * 100 / 0.05))   # 5% error → 100
+        latency_score = _latency_component(p95_latency_ms, self._latency_budget, self._latency_ceiling)
+        error_score = min(100, int(error_rate * 100 / 0.05))  # 5% error → 100
         throughput_score = _throughput_component(throughput_rps, self._target_rps)
 
-        composite = (
-            _W_LATENCY    * latency_score
-            + _W_ERROR_RATE * error_score
-            + _W_THROUGHPUT * throughput_score
-        )
-        composite = max(0, min(100, int(round(composite))))
+        composite = _W_LATENCY * latency_score + _W_ERROR_RATE * error_score + _W_THROUGHPUT * throughput_score
+        composite = max(0, min(100, round(composite)))
         severity = _band(composite)
 
         return {
@@ -196,7 +190,7 @@ class AdaptiveLoadScorer:
                 "error_score": error_score,
                 "throughput_score": throughput_score,
             },
-            "evaluated_at": datetime.now(timezone.utc).isoformat(),
+            "evaluated_at": datetime.now(UTC).isoformat(),
         }
 
 
@@ -233,7 +227,7 @@ class CrossDomainCorrelator:
             "praf_severity": score_result["severity"],
             "failed_modules": failed_modules,
             "soar_context": self.build_soar_context(score_result),
-            "correlated_at": datetime.now(timezone.utc).isoformat(),
+            "correlated_at": datetime.now(UTC).isoformat(),
         }
 
 
@@ -261,18 +255,9 @@ class ExecutiveReporter:
         failed = total - passed
 
         metrics_list = [e.get("metrics", {}) for e in entries if e.get("metrics")]
-        avg_latency = (
-            sum(m.get("p95_latency_ms", 0) for m in metrics_list) / len(metrics_list)
-            if metrics_list else 0
-        )
-        avg_error_rate = (
-            sum(m.get("error_rate", 0) for m in metrics_list) / len(metrics_list)
-            if metrics_list else 0
-        )
-        avg_rps = (
-            sum(m.get("rps", 0) for m in metrics_list) / len(metrics_list)
-            if metrics_list else 0
-        )
+        avg_latency = sum(m.get("p95_latency_ms", 0) for m in metrics_list) / len(metrics_list) if metrics_list else 0
+        avg_error_rate = sum(m.get("error_rate", 0) for m in metrics_list) / len(metrics_list) if metrics_list else 0
+        avg_rps = sum(m.get("rps", 0) for m in metrics_list) / len(metrics_list) if metrics_list else 0
 
         score_result = self._scorer.score(avg_latency, avg_error_rate, avg_rps)
 
@@ -280,7 +265,7 @@ class ExecutiveReporter:
             "id": str(uuid.uuid4()),
             "title": title,
             "author": author,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "summary": {
                 "total_tests": total,
                 "passed": passed,
@@ -306,6 +291,7 @@ class ExecutiveReporter:
 
 # ── Private helpers ────────────────────────────────────────────────────────────
 
+
 def _sha3_512(payload: dict) -> str:
     """SHA3-512 fingerprint of canonical JSON (sorted keys, no spaces)."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -324,6 +310,7 @@ def _sign_payload(payload: dict) -> str:
         # Derive an ephemeral key from the app secret for test environments.
         # NOT for production — in production, SPECTER_SIGNING_PRIVATE_KEY must be set.
         import hmac as _hmac
+
         token = _hmac.new(
             settings.SECRET_KEY.encode(),
             msg=json.dumps(payload, sort_keys=True).encode(),
@@ -338,7 +325,7 @@ def _latency_component(actual_ms: float, budget_ms: float, ceiling_ms: float) ->
     if actual_ms <= budget_ms:
         return 0
     capped = min(actual_ms, ceiling_ms)
-    return int(round((capped - budget_ms) / (ceiling_ms - budget_ms) * 100))
+    return round((capped - budget_ms) / (ceiling_ms - budget_ms) * 100)
 
 
 def _throughput_component(actual_rps: float, target_rps: float) -> int:
@@ -346,7 +333,7 @@ def _throughput_component(actual_rps: float, target_rps: float) -> int:
     if actual_rps >= target_rps or target_rps == 0:
         return 0
     deficit = (target_rps - actual_rps) / target_rps
-    return int(round(deficit * 100))
+    return round(deficit * 100)
 
 
 def _band(score: int) -> str:

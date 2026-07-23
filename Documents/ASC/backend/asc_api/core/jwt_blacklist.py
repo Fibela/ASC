@@ -24,12 +24,13 @@ Cleanup
 Call `purge_expired(db)` at startup or via a Celery periodic task to
 prevent unbounded table growth.  Purged JTIs are also removed from L1.
 """
+
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,9 +80,7 @@ class JWTBlacklist:
         with self._lock:
             if jti in self._local:
                 return True
-        result = await db.execute(
-            select(RevokedToken).where(RevokedToken.jti == jti)
-        )
+        result = await db.execute(select(RevokedToken).where(RevokedToken.jti == jti))
         if result.scalar_one_or_none():
             with self._lock:
                 self._local.add(jti)
@@ -94,12 +93,8 @@ class JWTBlacklist:
         Also evicts those JTIs from L1.
         Returns the number of entries purged.
         """
-        now = datetime.now(timezone.utc)
-        result = await db.execute(
-            delete(RevokedToken)
-            .where(RevokedToken.expires_at < now)
-            .returning(RevokedToken.jti)
-        )
+        now = datetime.now(UTC)
+        result = await db.execute(delete(RevokedToken).where(RevokedToken.expires_at < now).returning(RevokedToken.jti))
         await db.commit()
         purged = [row[0] for row in result.fetchall()]
         if purged:

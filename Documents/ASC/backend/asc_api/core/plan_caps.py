@@ -13,19 +13,19 @@ Plan defaults (can be overridden per-tenant via tenant.max_* columns):
 
 from __future__ import annotations
 
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.models.user import User
 from asc_api.models.api_key import APIKey
 from asc_api.models.tenant import Tenant
+from asc_api.models.user import User
 
 # ── Plan defaults ─────────────────────────────────────────────────────────────
 
 PLAN_DEFAULTS: dict[str, dict[str, int | None]] = {
-    "free":       {"max_users": 5,    "max_api_keys_per_user": 3},
-    "pro":        {"max_users": 50,   "max_api_keys_per_user": 20},
+    "free": {"max_users": 5, "max_api_keys_per_user": 3},
+    "pro": {"max_users": 50, "max_api_keys_per_user": 20},
     "enterprise": {"max_users": None, "max_api_keys_per_user": None},
 }
 
@@ -43,6 +43,7 @@ def _resolve_cap(tenant: Tenant, key: str) -> int | None:
 
 # ── Enforcement functions ─────────────────────────────────────────────────────
 
+
 async def enforce_user_cap(tenant: Tenant, db: AsyncSession) -> None:
     """Raise HTTP 403 if adding another user would exceed the tenant's user cap.
 
@@ -55,7 +56,7 @@ async def enforce_user_cap(tenant: Tenant, db: AsyncSession) -> None:
     result = await db.execute(
         select(func.count()).where(
             User.tenant_id == tenant.id,
-            User.is_active == True,  # noqa: E712
+            User.is_active == True,
         )
     )
     current_count: int = result.scalar_one()
@@ -65,7 +66,7 @@ async def enforce_user_cap(tenant: Tenant, db: AsyncSession) -> None:
             detail={
                 "code": "user_cap_exceeded",
                 "message": f"Plan '{tenant.plan}' allows a maximum of {cap} active users. "
-                           f"Current count: {current_count}. Upgrade your plan to add more users.",
+                f"Current count: {current_count}. Upgrade your plan to add more users.",
                 "current": current_count,
                 "cap": cap,
                 "plan": tenant.plan,
@@ -85,7 +86,7 @@ async def enforce_api_key_cap(tenant: Tenant, user_id: str, db: AsyncSession) ->
     result = await db.execute(
         select(func.count()).where(
             APIKey.user_id == user_id,
-            APIKey.is_active == True,  # noqa: E712
+            APIKey.is_active == True,
         )
     )
     current_count: int = result.scalar_one()
@@ -95,7 +96,7 @@ async def enforce_api_key_cap(tenant: Tenant, user_id: str, db: AsyncSession) ->
             detail={
                 "code": "api_key_cap_exceeded",
                 "message": f"Plan '{tenant.plan}' allows a maximum of {cap} active API keys per user. "
-                           f"Current count: {current_count}. Upgrade your plan to create more keys.",
+                f"Current count: {current_count}. Upgrade your plan to create more keys.",
                 "current": current_count,
                 "cap": cap,
                 "plan": tenant.plan,

@@ -21,8 +21,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.core.logging import get_logger
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.user import User
 from asc_api.services import soar_service
@@ -31,6 +31,7 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/soar", tags=["SOAR"])
 
 # ── Request schemas ────────────────────────────────────────────────────────────
+
 
 class CreateTriggerRequest(BaseModel):
     playbook_id: str = Field(..., pattern=r"^PB-\d{3}$", description="e.g. PB-005")
@@ -99,6 +100,7 @@ class TestTriggerRequest(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/triggers", summary="List SOAR playbook triggers")
 @limiter.limit("60/minute")
 async def list_triggers(
@@ -166,7 +168,9 @@ async def delete_trigger(
     current_user: User = Depends(get_analyst_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    deleted = await soar_service.delete_trigger(db, trigger_id, deleted_by=current_user.email, tenant_id=current_user.tenant_id)
+    deleted = await soar_service.delete_trigger(
+        db, trigger_id, deleted_by=current_user.email, tenant_id=current_user.tenant_id
+    )
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trigger not found")
 
@@ -181,7 +185,10 @@ async def toggle_trigger(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     result = await soar_service.toggle_trigger(
-        db, trigger_id, enabled=body.enabled, updated_by=current_user.email,
+        db,
+        trigger_id,
+        enabled=body.enabled,
+        updated_by=current_user.email,
         tenant_id=current_user.tenant_id,
     )
     if not result:
@@ -215,6 +222,7 @@ async def evaluate_context(
     if body.dry_run:
         # Dry-run: evaluate conditions without firing
         from sqlalchemy import select as sa_select
+
         from asc_api.models.soar import PlaybookTrigger
         from asc_api.services.soar_service import _evaluate_condition
 
@@ -232,14 +240,16 @@ async def evaluate_context(
                 continue
             matched = _evaluate_condition(t, body.context)
             if matched:
-                matches.append({
-                    "trigger_id": t.id,
-                    "playbook_id": t.playbook_id,
-                    "condition_type": t.condition_type,
-                    "condition_operator": t.condition_operator,
-                    "condition_value": t.condition_value,
-                    "would_fire": True,
-                })
+                matches.append(
+                    {
+                        "trigger_id": t.id,
+                        "playbook_id": t.playbook_id,
+                        "condition_type": t.condition_type,
+                        "condition_operator": t.condition_operator,
+                        "condition_value": t.condition_value,
+                        "would_fire": True,
+                    }
+                )
         return {
             "dry_run": True,
             "context": body.context,
@@ -262,6 +272,7 @@ async def evaluate_context(
 
 
 # ── Scheduled Reports ─────────────────────────────────────────────────────────
+
 
 class CreateScheduledReportRequest(BaseModel):
     hunt_id: str = Field(..., description="UUID of the hunt to report on")

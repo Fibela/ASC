@@ -17,8 +17,9 @@ Prometheus scrape config example:
       static_configs:
         - targets: ['asc.premoscorp.com']
 """
-import time
-from datetime import datetime, timezone, timedelta
+
+import hmac
+from datetime import UTC, datetime, timedelta
 
 import psutil
 import structlog
@@ -29,8 +30,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin
 from asc_api.core.config import get_settings
-import hmac
-
 from asc_api.core.metrics_registry import (
     AGENTS_GAUGE,
     ALERTS_GAUGE,
@@ -56,6 +55,7 @@ _proc = psutil.Process()
 
 # ── Auth helper ───────────────────────────────────────────────────────────────
 
+
 def _check_scrape_token(request: Request) -> bool:
     """Return True if a valid static scrape token is present in Authorization header."""
     scrape_token = getattr(settings, "METRICS_SCRAPE_TOKEN", None)
@@ -69,6 +69,7 @@ def _check_scrape_token(request: Request) -> bool:
 
 # ── Gauge refresh helpers ─────────────────────────────────────────────────────
 
+
 async def _refresh_gauges(db: AsyncSession) -> None:
     """Snapshot DB counts into Prometheus gauges (called before each scrape)."""
     try:
@@ -78,10 +79,10 @@ async def _refresh_gauges(db: AsyncSession) -> None:
         event_count = (await db.execute(select(func.count()).select_from(Event))).scalar() or 0
         EVENTS_GAUGE.set(event_count)
 
-        five_min_ago = datetime.now(timezone.utc) - timedelta(minutes=5)
-        active_agents = (await db.execute(
-            select(func.count()).select_from(Agent).where(Agent.last_seen >= five_min_ago)
-        )).scalar() or 0
+        five_min_ago = datetime.now(UTC) - timedelta(minutes=5)
+        active_agents = (
+            await db.execute(select(func.count()).select_from(Agent).where(Agent.last_seen >= five_min_ago))
+        ).scalar() or 0
         AGENTS_GAUGE.set(active_agents)
 
         PROCESS_CPU_GAUGE.set(_proc.cpu_percent(interval=None))
@@ -92,6 +93,7 @@ async def _refresh_gauges(db: AsyncSession) -> None:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get(
     "/metrics",
@@ -117,13 +119,12 @@ async def prometheus_metrics(
             raise HTTPException(status_code=401, detail="Authentication required")
         try:
             from asc_api.core.security import decode_token_payload
+
             payload = decode_token_payload(auth_header[7:])
             user_id = payload.get("sub")
             if not user_id:
                 raise HTTPException(status_code=401, detail="Invalid token")
-            user_result = await db.execute(
-                select(User).where(User.id == user_id)
-            )
+            user_result = await db.execute(select(User).where(User.id == user_id))
             user = user_result.scalar_one_or_none()
             if not user or user.role not in ("analyst", "admin"):
                 raise HTTPException(status_code=403, detail="Analyst or admin role required")
@@ -162,15 +163,15 @@ async def observability_summary(
         db_ok = False
 
     return {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "process": {
-            "cpu_percent":   round(cpu, 1),
+            "cpu_percent": round(cpu, 1),
             "memory_rss_mb": round(mem.rss / 1_048_576, 1),
             "memory_vms_mb": round(mem.vms / 1_048_576, 1),
-            "pid":           _proc.pid,
+            "pid": _proc.pid,
         },
         "database": {
-            "ok":           db_ok,
+            "ok": db_ok,
             "alerts_total": int(ALERTS_GAUGE._value.get()),
             "events_total": int(EVENTS_GAUGE._value.get()),
         },

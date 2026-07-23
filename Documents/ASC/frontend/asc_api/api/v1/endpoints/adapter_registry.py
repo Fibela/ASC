@@ -22,24 +22,25 @@ Endpoints:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field, model_validator
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_current_admin, get_analyst_or_admin
-from asc_api.core.adapter_crypto import encrypt_credential, credential_hint as make_hint
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
+from asc_api.core.adapter_crypto import credential_hint as make_hint
+from asc_api.core.adapter_crypto import encrypt_credential
 from asc_api.core.config import get_settings
 from asc_api.db.session import get_db
 from asc_api.models.tenant import Tenant
 from asc_api.models.tenant_adapter_config import (
-    TenantAdapterConfig,
-    ADAPTER_TYPES,
     ADAPTER_PROVIDERS,
+    ADAPTER_TYPES,
+    TenantAdapterConfig,
 )
 
 router = APIRouter(prefix="/adapter-registry", tags=["Adapter Registry"])
@@ -48,6 +49,7 @@ _settings = get_settings()
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class AdapterConfigCreate(BaseModel):
     adapter_type: str
@@ -58,16 +60,13 @@ class AdapterConfigCreate(BaseModel):
     credential: str | None = None  # raw credential — encrypted before storage
 
     @model_validator(mode="after")
-    def _validate_type_provider(self) -> "AdapterConfigCreate":
+    def _validate_type_provider(self) -> AdapterConfigCreate:
         if self.adapter_type not in ADAPTER_TYPES:
-            raise ValueError(
-                f"adapter_type must be one of {sorted(ADAPTER_TYPES)}"
-            )
+            raise ValueError(f"adapter_type must be one of {sorted(ADAPTER_TYPES)}")
         allowed = ADAPTER_PROVIDERS.get(self.adapter_type, frozenset())
         if self.provider not in allowed:
             raise ValueError(
-                f"provider '{self.provider}' not valid for type '{self.adapter_type}'. "
-                f"Allowed: {sorted(allowed)}"
+                f"provider '{self.provider}' not valid for type '{self.adapter_type}'. Allowed: {sorted(allowed)}"
             )
         return self
 
@@ -106,11 +105,11 @@ class AdapterTypeInfo(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 _TYPE_DESCRIPTIONS: dict[str, str] = {
-    "edr":      "Endpoint Detection & Response — agent fleet management",
+    "edr": "Endpoint Detection & Response — agent fleet management",
     "firewall": "Network firewall / perimeter — IP/domain blocking",
     "identity": "Identity & Access — Active Directory / LDAP account control",
-    "siem":     "SIEM — alert/event ingestion and indexing",
-    "soar":     "SOAR — case management and automated response",
+    "siem": "SIEM — alert/event ingestion and indexing",
+    "soar": "SOAR — case management and automated response",
 }
 
 
@@ -122,9 +121,7 @@ async def _get_tenant_or_404(tenant_id: str, db: AsyncSession) -> Tenant:
     return tenant
 
 
-async def _get_config_or_404(
-    tenant_id: str, adapter_type: str, db: AsyncSession
-) -> TenantAdapterConfig:
+async def _get_config_or_404(tenant_id: str, adapter_type: str, db: AsyncSession) -> TenantAdapterConfig:
     result = await db.execute(
         select(TenantAdapterConfig).where(
             TenantAdapterConfig.tenant_id == tenant_id,
@@ -159,6 +156,7 @@ def _to_response(cfg: TenantAdapterConfig) -> AdapterConfigResponse:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/types", response_model=list[AdapterTypeInfo])
 async def list_adapter_types(
     _current=Depends(get_analyst_or_admin),
@@ -183,9 +181,9 @@ async def list_tenant_adapters(
     """List all adapter configs for a tenant. Credentials are never returned."""
     await _get_tenant_or_404(tenant_id, db)
     result = await db.execute(
-        select(TenantAdapterConfig).where(
-            TenantAdapterConfig.tenant_id == tenant_id
-        ).order_by(TenantAdapterConfig.adapter_type)
+        select(TenantAdapterConfig)
+        .where(TenantAdapterConfig.tenant_id == tenant_id)
+        .order_by(TenantAdapterConfig.adapter_type)
     )
     configs = result.scalars().all()
     return [_to_response(c) for c in configs]
@@ -235,7 +233,7 @@ async def create_tenant_adapter(
             },
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     encrypted = None
     hint = None
     if body.credential:
@@ -299,12 +297,10 @@ async def update_tenant_adapter(
             cfg.credential_encrypted = None
             cfg.credential_hint = None
         else:
-            cfg.credential_encrypted = encrypt_credential(
-                body.credential, _settings.SECRET_KEY
-            )
+            cfg.credential_encrypted = encrypt_credential(body.credential, _settings.SECRET_KEY)
             cfg.credential_hint = make_hint(body.credential)
 
-    cfg.updated_at = datetime.now(timezone.utc)
+    cfg.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(cfg)
     return _to_response(cfg)
@@ -372,11 +368,10 @@ async def test_tenant_adapter(
             "provider": cfg.provider,
         }
 
-    from asc_api.core.adapter_crypto import decrypt_credential  # noqa: PLC0415
+    from asc_api.core.adapter_crypto import decrypt_credential
+
     try:
-        credential = decrypt_credential(
-            cfg.credential_encrypted, _settings.SECRET_KEY
-        )
+        credential = decrypt_credential(cfg.credential_encrypted, _settings.SECRET_KEY)
     except Exception as exc:
         return {
             "status": "error",
@@ -392,7 +387,7 @@ async def test_tenant_adapter(
 
 async def _live_connectivity_check(cfg, credential: str) -> dict:
     """Dispatch a real connectivity check based on provider."""
-    import httpx  # noqa: PLC0415
+    import httpx
 
     base = {
         "adapter_type": cfg.adapter_type,
@@ -415,12 +410,14 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
                 )
             if r.status_code == 200:
                 data = r.json().get("results", {})
-                return {**base, "status": "ok",
-                        "serial": data.get("Serial-Number"),
-                        "version": data.get("Version"),
-                        "hostname": data.get("Hostname")}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+                return {
+                    **base,
+                    "status": "ok",
+                    "serial": data.get("Serial-Number"),
+                    "version": data.get("Version"),
+                    "hostname": data.get("Hostname"),
+                }
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 
@@ -434,35 +431,32 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
                 )
             if r.status_code == 200 and "success" in r.text:
                 return {**base, "status": "ok", "detail": "PAN-OS version command succeeded"}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 
     # ── Active Directory / LDAP ──────────────────────────────────────────────
     if cfg.provider == "active_directory":
-        import asyncio  # noqa: PLC0415
-        bind_dn  = settings_json.get("bind_dn", "")
-        base_dn  = settings_json.get("base_dn", "")
-        use_ssl  = settings_json.get("use_ssl", True)
+        import asyncio
+
+        bind_dn = settings_json.get("bind_dn", "")
+        base_dn = settings_json.get("base_dn", "")
+        use_ssl = settings_json.get("use_ssl", True)
 
         def _ldap_check() -> dict:
             try:
-                import ldap3  # noqa: PLC0415
+                import ldap3
             except ImportError:
-                return {**base, "status": "error",
-                        "detail": "ldap3 not installed — run: pip install ldap3"}
+                return {**base, "status": "error", "detail": "ldap3 not installed — run: pip install ldap3"}
             try:
                 server = ldap3.Server(host, use_ssl=use_ssl, connect_timeout=timeout)
                 with ldap3.Connection(
-                    server, user=bind_dn, password=credential,
-                    auto_bind=True, read_only=True
+                    server, user=bind_dn, password=credential, auto_bind=True, read_only=True
                 ) as conn:
-                    conn.search(base_dn, "(objectClass=domain)",
-                                search_scope=ldap3.BASE, attributes=["distinguishedName"])
-                    return {**base, "status": "ok",
-                            "server": host, "ssl": use_ssl,
-                            "base_dn_found": bool(conn.entries)}
+                    conn.search(
+                        base_dn, "(objectClass=domain)", search_scope=ldap3.BASE, attributes=["distinguishedName"]
+                    )
+                    return {**base, "status": "ok", "server": host, "ssl": use_ssl, "base_dn_found": bool(conn.entries)}
             except Exception as exc:
                 return {**base, "status": "error", "detail": str(exc)}
 
@@ -472,18 +466,20 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
     if cfg.provider == "elasticsearch":
         username = settings_json.get("username", "elastic")
         try:
-            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501
+            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501  # noqa: S501 — appliance on-prem, cert autofirmado
                 r = await client.get(
                     f"https://{host}/",
                     auth=(username, credential),
                 )
             if r.status_code == 200:
                 data = r.json()
-                return {**base, "status": "ok",
-                        "cluster_name": data.get("cluster_name"),
-                        "version": data.get("version", {}).get("number")}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+                return {
+                    **base,
+                    "status": "ok",
+                    "cluster_name": data.get("cluster_name"),
+                    "version": data.get("version", {}).get("number"),
+                }
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 
@@ -491,17 +487,14 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
     if cfg.provider == "wazuh":
         username = settings_json.get("username", "wazuh-wui")
         try:
-            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501
+            async with httpx.AsyncClient(timeout=timeout, verify=False) as client:  # nosec B501  # noqa: S501 — appliance on-prem, cert autofirmado
                 r = await client.get(
                     f"https://{host}:55000/security/user/authenticate",
                     auth=(username, credential),
                 )
             if r.status_code in (200, 401):
-                return {**base,
-                        "status": "ok" if r.status_code == 200 else "auth_failed",
-                        "http_status": r.status_code}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+                return {**base, "status": "ok" if r.status_code == 200 else "auth_failed", "http_status": r.status_code}
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 
@@ -515,10 +508,8 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
                 )
             if r.status_code == 200:
                 data = r.json()
-                return {**base, "status": "ok",
-                        "hive_version": data.get("versions", {}).get("TheHive")}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+                return {**base, "status": "ok", "hive_version": data.get("versions", {}).get("TheHive")}
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 
@@ -532,8 +523,7 @@ async def _live_connectivity_check(cfg, credential: str) -> dict:
                 )
             if r.status_code == 200:
                 return {**base, "status": "ok"}
-            return {**base, "status": "error",
-                    "http_status": r.status_code, "detail": r.text[:200]}
+            return {**base, "status": "error", "http_status": r.status_code, "detail": r.text[:200]}
         except Exception as exc:
             return {**base, "status": "error", "detail": str(exc)}
 

@@ -31,6 +31,7 @@ Toque Premos guarantees
 • Breaches are reported to the caller for Ledger Premos emission.
 • Fail-open degradation is always logged to asc.rate_limit so operators can see it.
 """
+
 from __future__ import annotations
 
 import threading
@@ -47,10 +48,11 @@ _log = structlog.get_logger("asc.rate_limit")
 @dataclass
 class RateLimitResult:
     """Outcome of a single sliding-window check."""
+
     allowed: bool
     limit: int
-    remaining: int    # requests still allowed in this window
-    reset_at: int     # Unix timestamp when the oldest entry in the window expires
+    remaining: int  # requests still allowed in this window
+    reset_at: int  # Unix timestamp when the oldest entry in the window expires
     retry_after: int = 0  # seconds to wait (only meaningful when allowed=False)
 
 
@@ -88,6 +90,7 @@ class ApiKeyRateLimiter:
             return "memory"
         try:
             import redis.asyncio as aioredis
+
             client = aioredis.from_url(
                 redis_url,
                 decode_responses=True,
@@ -137,11 +140,11 @@ class ApiKeyRateLimiter:
         member = f"{now:.6f}:{uuid.uuid4().hex[:8]}"
         try:
             pipe = self._redis.pipeline()
-            pipe.zremrangebyscore(key, 0, window_start)     # evict stale
-            pipe.zadd(key, {member: now})                   # add this request
-            pipe.zcard(key)                                  # count
-            pipe.zrange(key, 0, 0, withscores=True)         # oldest entry
-            pipe.expire(key, window_seconds * 2)             # keep key alive
+            pipe.zremrangebyscore(key, 0, window_start)  # evict stale
+            pipe.zadd(key, {member: now})  # add this request
+            pipe.zcard(key)  # count
+            pipe.zrange(key, 0, 0, withscores=True)  # oldest entry
+            pipe.expire(key, window_seconds * 2)  # keep key alive
             results = await pipe.execute()
 
             count: int = results[2]

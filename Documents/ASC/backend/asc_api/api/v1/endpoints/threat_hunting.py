@@ -29,9 +29,8 @@ GET    /hunt/{hunt_id}/report                            â€” export structu
 
 All hunting is PASSIVE â€” no active probing of external systems.
 """
-from __future__ import annotations
 
-from typing import Any
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
@@ -48,6 +47,7 @@ router = APIRouter(prefix="/hunt", tags=["threat-hunting"])
 _s = get_settings()
 
 # â”€â”€ Pydantic Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class HuntCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=256)
@@ -155,12 +155,14 @@ class QueryCreate(BaseModel):
 
 # â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 def _require_not_archived(hunt_dict: dict) -> None:
     if hunt_dict.get("status") == "archived":
         raise HTTPException(status_code=409, detail="Hunt is archived and cannot be modified")
 
 
 # â”€â”€ Hunt Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.get("/stats", summary="Hunt corpus stats (analyst+) â€” P22")
 @limiter.limit("60/minute")
@@ -184,9 +186,7 @@ async def list_hunts(
     _: User = Depends(get_analyst_or_admin),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    hunts, total = await svc.list_hunts(
-        db, status=status, priority=priority, scope=scope, limit=limit, offset=offset
-    )
+    hunts, total = await svc.list_hunts(db, status=status, priority=priority, scope=scope, limit=limit, offset=offset)
     return {
         "hunts": [svc._hunt_to_dict(h) for h in hunts],
         "total": total,
@@ -273,6 +273,7 @@ async def archive_hunt(
 
 # â”€â”€ Finding Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 @router.get("/{hunt_id}/findings", summary="List findings for hunt (analyst+) â€” P22")
 @limiter.limit("120/minute")
 async def list_findings(
@@ -306,7 +307,8 @@ async def add_finding(
         raise HTTPException(status_code=409, detail="Cannot add findings to an archived hunt")
     try:
         finding = await svc.add_finding(
-            db, hunt_id,
+            db,
+            hunt_id,
             title=body.title,
             created_by=current_user.email,
             severity=body.severity,
@@ -378,7 +380,8 @@ async def set_verdict(
     if finding is None or finding.hunt_id != hunt_id:
         raise HTTPException(status_code=404, detail="Finding not found")
     updated = await svc.set_finding_verdict(
-        db, finding_id,
+        db,
+        finding_id,
         is_confirmed=body.is_confirmed,
         is_false_positive=body.is_false_positive,
         analyst_notes=body.analyst_notes,
@@ -387,6 +390,7 @@ async def set_verdict(
 
 
 # â”€â”€ Query Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.get("/{hunt_id}/queries", summary="List saved queries for hunt (analyst+) â€” P22")
 @limiter.limit("120/minute")
@@ -417,7 +421,8 @@ async def save_query(
         raise HTTPException(status_code=404, detail="Hunt not found")
     try:
         query = await svc.save_query(
-            db, hunt_id,
+            db,
+            hunt_id,
             name=body.name,
             query_text=body.query_text,
             data_source=body.data_source,
@@ -448,6 +453,7 @@ async def delete_query(
 
 
 # â”€â”€ P23 Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.post(
     "/from-alert/{alert_id}",

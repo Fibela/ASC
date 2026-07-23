@@ -21,9 +21,11 @@ REDIS_URL set (Fase 2 — Docker Compose or Upstash):
 Docker Compose: see docker-compose.yml celery-worker + celery-beat services.
 See docs/deployment-guide.md for the Fase 1 → Fase 2 migration plan.
 """
+
 import logging
 
 from celery import Celery
+
 from asc_api.core.config import get_settings
 
 settings = get_settings()
@@ -32,7 +34,7 @@ settings = get_settings()
 # memory:// is single-process only — no external worker needed, but tasks
 # will NOT execute unless a worker loop is started in the same process.
 # This is intentional for Fase 1 (Supabase/Vercel/Render, no Redis).
-_broker  = settings.REDIS_URL or "memory://"
+_broker = settings.REDIS_URL or "memory://"
 _backend = settings.REDIS_URL or "cache+memory://"
 
 if not settings.REDIS_URL:
@@ -48,15 +50,15 @@ celery_app = Celery(
     backend=_backend,
     include=[
         "app.tasks.escalation",
-        "app.tasks.pcdi_escalation",    # PCDI-driven critical findings escalation (P24+)
+        "app.tasks.pcdi_escalation",  # PCDI-driven critical findings escalation (P24+)
         "app.tasks.scheduled_reports",  # SOAR scheduled report delivery (P25)
         "app.tasks.correlation_sweep",  # Cross-domain correlation engine sweep (P27)
-        "app.tasks.sla_escalation",     # PIIL SLA breach proactive escalation (P30)
+        "app.tasks.sla_escalation",  # PIIL SLA breach proactive escalation (P30)
     ],
 )
 
 _PCDI_INTERVAL = getattr(settings, "PCDI_ESCALATION_INTERVAL_SECONDS", 300)
-_SLA_INTERVAL  = getattr(settings, "SLA_ESCALATION_CHECK_INTERVAL_SECONDS", 120)
+_SLA_INTERVAL = getattr(settings, "SLA_ESCALATION_CHECK_INTERVAL_SECONDS", 120)
 
 celery_app.conf.update(
     task_serializer="json",
@@ -64,8 +66,8 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
-    worker_prefetch_multiplier=1,   # one task at a time per worker (safe for async DB)
-    task_acks_late=True,            # ack after task completes — no lost tasks on crash
+    worker_prefetch_multiplier=1,  # one task at a time per worker (safe for async DB)
+    task_acks_late=True,  # ack after task completes — no lost tasks on crash
     task_reject_on_worker_lost=True,
     beat_schedule={
         "proactive-escalation": {

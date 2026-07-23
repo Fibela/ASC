@@ -9,19 +9,20 @@ POST /api/v1/alerts/{alert_id}/explain
   - Respuesta: SSE (text/event-stream), la explicación llega token a token.
   - El módulo EXPLICA y RECOMIENDA; nunca decide ni ejecuta.
 """
+
 from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_current_user
+from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
 from asc_api.core.rate_limit import limiter
-from asc_api.core.config import get_settings
 from asc_api.db.session import get_db
 from asc_api.models.alert import Alert
 from asc_api.models.tenant import Tenant
@@ -46,11 +47,7 @@ async def explain_alert(
     current_user: User = Depends(get_current_user),
 ):
     # ── Aislamiento de tenant: la alerta debe ser del tenant del usuario ──
-    result = await db.execute(
-        select(Alert).where(
-            Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id
-        )
-    )
+    result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -58,9 +55,7 @@ async def explain_alert(
     # ── Perfil del tenant (fuente de la adaptación) ──
     profile = "pyme"
     if current_user.tenant_id:
-        t = await db.execute(
-            select(Tenant.profile).where(Tenant.id == current_user.tenant_id)
-        )
+        t = await db.execute(select(Tenant.profile).where(Tenant.id == current_user.tenant_id))
         profile = t.scalar_one_or_none() or "pyme"
 
     alert_data = {
@@ -82,7 +77,7 @@ async def explain_alert(
             async for piece in stream_explanation(alert_data, profile):
                 yield _sse("delta", {"text": piece})
             yield _sse("done", {"alert_id": alert.id})
-        except Exception as exc:  # noqa: BLE001 — se reporta, no se simula
+        except Exception as exc:
             log.error("explain_unexpected", alert_id=alert.id, error=str(exc))
             yield _sse("error", {"detail": "Error inesperado generando la explicación."})
 

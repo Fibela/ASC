@@ -18,28 +18,37 @@ Report types
   sla_breach     — SLA breach details report (incidents + entity breakdown)
   full_executive — Combined report (all pillars: incidents, hunting, TI, SOAR)
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from asc_api.db.base import Base
 
-REPORT_TYPES = frozenset({
-    "period_kpi",
-    "campaign_brief",
-    "sla_breach",
-    "full_executive",
-})
+REPORT_TYPES = frozenset(
+    {
+        "period_kpi",
+        "campaign_brief",
+        "sla_breach",
+        "full_executive",
+    }
+)
 
-REPORT_PERIODS = frozenset({
-    "daily", "weekly", "monthly", "quarterly", "custom",
-})
+REPORT_PERIODS = frozenset(
+    {
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "custom",
+    }
+)
 
 
 class ExecutiveReport(Base):
@@ -58,9 +67,7 @@ class ExecutiveReport(Base):
 
     __tablename__ = "executive_reports"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Report metadata
     # S105.2 — aislamiento multi-tenant. NULL = reporte global (modo single-tenant).
@@ -101,13 +108,12 @@ class ExecutiveReport(Base):
 
     # Verification cache
     signature_valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    last_verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
     )
 
     def compute_hash(self) -> str:

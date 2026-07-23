@@ -21,6 +21,7 @@ Security invariants
 - FleetProximity is purely advisory; the bridge still dispatches to ALL agents
   in broadcast mode, but prioritises closest ones for lower latency.
 """
+
 from __future__ import annotations
 
 import threading
@@ -43,10 +44,10 @@ _RANK_TO_SEVERITY: dict[int, str] = {v: k for k, v in _SEVERITY_RANK.items()}
 # Steps accumulate — "critical_infra + ransomware_indicator" can push low → critical.
 UPGRADE_RULES: list[tuple[str, int]] = [
     ("endpoint_is_critical_infrastructure", 1),
-    ("active_threat_intel_match",           1),
-    ("multiple_recent_alerts",              1),   # >3 alerts on this target in 1 h
-    ("known_lateral_movement",              2),
-    ("ransomware_indicator",                2),
+    ("active_threat_intel_match", 1),
+    ("multiple_recent_alerts", 1),  # >3 alerts on this target in 1 h
+    ("known_lateral_movement", 2),
+    ("ransomware_indicator", 2),
 ]
 
 
@@ -58,6 +59,7 @@ class AdaptiveContext:
     Populate from alert metadata, asset inventory, and threat-intel feeds.
     All fields default False — safe to call with an empty context.
     """
+
     endpoint_is_critical_infrastructure: bool = False
     active_threat_intel_match: bool = False
     multiple_recent_alerts: bool = False
@@ -69,9 +71,7 @@ class AdaptiveContext:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AdaptiveContext:
         return cls(
-            endpoint_is_critical_infrastructure=bool(
-                data.get("endpoint_is_critical_infrastructure")
-            ),
+            endpoint_is_critical_infrastructure=bool(data.get("endpoint_is_critical_infrastructure")),
             active_threat_intel_match=bool(data.get("active_threat_intel_match")),
             multiple_recent_alerts=bool(data.get("multiple_recent_alerts")),
             known_lateral_movement=bool(data.get("known_lateral_movement")),
@@ -117,6 +117,7 @@ def adapt_severity(base_severity: str, context: AdaptiveContext) -> str:
 
 # ── Multi-Signature Policy ────────────────────────────────────────────────────
 
+
 def required_approvals_for(severity: str, action_type: str) -> int:
     """
     Return the minimum number of distinct analyst approvals required.
@@ -137,6 +138,7 @@ def required_approvals_for(severity: str, action_type: str) -> int:
 
 
 # ── Behavioral Throttle ───────────────────────────────────────────────────────
+
 
 class BehavioralThrottle:
     """
@@ -226,6 +228,7 @@ def check_behavioral_throttle(user: str, action_type: str) -> None:
 
 # ── Fleet Proximity (fleet-aware dispatch) ────────────────────────────────────
 
+
 def subnet_proximity(agent_ip: str | None, target_ip: str | None) -> int:
     """
     Return a proximity score between an agent's IP and a target IP.
@@ -261,6 +264,7 @@ def subnet_proximity(agent_ip: str | None, target_ip: str | None) -> int:
 
 
 # ── Request Rate Limiter ──────────────────────────────────────────────────────
+
 
 class RequestRateLimiter:
     """

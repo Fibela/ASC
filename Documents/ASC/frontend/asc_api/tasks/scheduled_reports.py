@@ -9,10 +9,11 @@ Design:
   - Best-effort delivery: failed sends are logged + last_error stored; task continues.
   - Non-fatal: exceptions per-report are caught; the full batch still completes.
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from asc_api.core.logging import get_logger
 from asc_api.db.session import AsyncSessionLocal
@@ -20,22 +21,23 @@ from asc_api.tasks.celery_app import celery_app
 
 log = get_logger("asc.tasks.scheduled_reports")
 
-_DAILY_INTERVAL  = timedelta(hours=24)
+_DAILY_INTERVAL = timedelta(hours=24)
 _WEEKLY_INTERVAL = timedelta(days=7)
 
 
 def _is_due(last_sent_at: datetime | None, frequency: str) -> bool:
     if last_sent_at is None:
         return True
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if last_sent_at.tzinfo is None:
-        last_sent_at = last_sent_at.replace(tzinfo=timezone.utc)
+        last_sent_at = last_sent_at.replace(tzinfo=UTC)
     interval = _DAILY_INTERVAL if frequency == "daily" else _WEEKLY_INTERVAL
     return (now - last_sent_at) >= interval
 
 
 async def _run() -> dict:
     from sqlalchemy import select
+
     from asc_api.models.soar import ScheduledReport
     from asc_api.services.soar_service import deliver_scheduled_report
 
@@ -44,9 +46,7 @@ async def _run() -> dict:
     errors = 0
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(ScheduledReport).where(ScheduledReport.enabled.is_(True))
-        )
+        result = await db.execute(select(ScheduledReport).where(ScheduledReport.enabled.is_(True)))
         reports = list(result.scalars().all())
 
         for r in reports:
@@ -71,7 +71,7 @@ async def _run() -> dict:
                         recipient=r.recipient_email,
                         frequency=r.frequency,
                     )
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 errors += 1
                 log.error("scheduled_report_task_error", report_id=r.id, exc=str(exc))
 

@@ -22,7 +22,8 @@ from asc_api.core.audit import log_security_action
 
 # Prometheus metrics — imported lazily to avoid test-import ordering issues
 try:
-    from asc_api.core.metrics_registry import HTTP_REQUESTS, HTTP_DURATION, _normalize_path
+    from asc_api.core.metrics_registry import HTTP_DURATION, HTTP_REQUESTS, _normalize_path
+
     _METRICS_ENABLED = True
 except Exception:  # pragma: no cover
     _METRICS_ENABLED = False
@@ -31,6 +32,7 @@ _log = structlog.get_logger("asc.request")
 
 
 # ── Security Headers ──────────────────────────────────────────────────────────
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
@@ -63,6 +65,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 # ── Body Size Limit ───────────────────────────────────────────────────────────
 
+
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
     """
     Reject requests whose Content-Length exceeds max_bytes with HTTP 413.
@@ -92,6 +95,7 @@ class BodySizeLimitMiddleware(BaseHTTPMiddleware):
 
 
 # ── Request Context ───────────────────────────────────────────────────────────
+
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
     """
@@ -126,7 +130,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             raise
 
         duration_ms = round((time.monotonic() - start) * 1000, 1)
-        duration_s  = (time.monotonic() - start)
+        duration_s = time.monotonic() - start
         _log.info(
             "http_request",
             method=request.method,
@@ -150,6 +154,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 
 # ── API Key Rate Limiting ─────────────────────────────────────────────────────
+
 
 class ApiKeyRateLimitMiddleware(BaseHTTPMiddleware):
     """

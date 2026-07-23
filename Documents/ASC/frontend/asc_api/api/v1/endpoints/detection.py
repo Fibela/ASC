@@ -1,18 +1,17 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from datetime import datetime, timezone
-from typing import Literal
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_current_user, get_analyst_or_admin
-from asc_api.db.session import get_db
-from asc_api.models.user import User
-from asc_api.models.detection_rule import DetectionRule
-from asc_api.services.detection import evaluate_event, evaluate_bulk, DetectionResult
-from asc_api.services.fingerprint import analyze_environmental_keying
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
 from asc_api.core.logging import get_logger
+from asc_api.db.session import get_db
+from asc_api.models.detection_rule import DetectionRule
+from asc_api.models.user import User
+from asc_api.services.detection import DetectionResult, evaluate_bulk, evaluate_event
+from asc_api.services.fingerprint import analyze_environmental_keying
 
 log = get_logger(__name__)
 
@@ -21,24 +20,26 @@ router = APIRouter(prefix="/detection", tags=["Detection"])
 
 # ─── Request/Response schemas ─────────────────────────────────────────────────
 
+
 class EventPayload(BaseModel):
     """Single normalized event in ECS-like format."""
-    host:           str | None = None
-    process:        str | None = None
-    pid:            int | None = None
+
+    host: str | None = None
+    process: str | None = None
+    pid: int | None = None
     parent_process: str | None = None
-    args:           str | None = None
-    command_line:   str | None = None
-    api_call:       str | None = None
-    action:         str | None = None
-    syscall:        str | None = None
-    reg_key:        str | None = None
-    registry_key:   str | None = None
-    category:       str | None = None
-    dst_ip:         str | None = None
-    dst_port:       int | None = None
-    protocol:       str | None = None
-    timestamp:      str | None = None
+    args: str | None = None
+    command_line: str | None = None
+    api_call: str | None = None
+    action: str | None = None
+    syscall: str | None = None
+    reg_key: str | None = None
+    registry_key: str | None = None
+    category: str | None = None
+    dst_ip: str | None = None
+    dst_port: int | None = None
+    protocol: str | None = None
+    timestamp: str | None = None
 
 
 class BulkEvaluationRequest(BaseModel):
@@ -60,6 +61,7 @@ class FingerprintRequest(BaseModel):
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _parse_ts(raw: str | None) -> datetime | None:
     if not raw:
         return None
@@ -74,12 +76,13 @@ def _parse_ts(raw: str | None) -> datetime | None:
 
 def _result_list(results: list[DetectionResult]) -> dict:
     return {
-        "total":   len(results),
+        "total": len(results),
         "results": [r.to_dict() for r in results],
     }
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/evaluate",
@@ -176,27 +179,29 @@ async def fingerprint_artifact(
 async def list_rules(db: AsyncSession = Depends(get_db)):
     """Return metadata for all active detection rules sourced from the DB."""
     result = await db.execute(
-        select(DetectionRule)
-        .where(DetectionRule.is_active == True)  # noqa: E712
-        .order_by(DetectionRule.rule_id)
+        select(DetectionRule).where(DetectionRule.is_active == True).order_by(DetectionRule.rule_id)
     )
     rules = result.scalars().all()
     return {
         "rules": [
             {
-                "rule_id":          r.rule_id,
-                "name":             r.name,
-                "mitre_ttp":        r.mitre_ttp,
-                "severity":         r.severity,
-                "description":      r.description,
-                "tags":             r.tags,
-                "risk_score":       r.risk_score_default,
+                "rule_id": r.rule_id,
+                "name": r.name,
+                "mitre_ttp": r.mitre_ttp,
+                "severity": r.severity,
+                "description": r.description,
+                "tags": r.tags,
+                "risk_score": r.risk_score_default,
             }
             for r in rules
         ],
         "fingerprint_checks": [
-            "hostname_pattern", "domain_check", "registry_pattern",
-            "active_directory_enum", "network_fingerprinting",
-            "timing_evasion", "high_entropy_sections",
+            "hostname_pattern",
+            "domain_check",
+            "registry_pattern",
+            "active_directory_enum",
+            "network_fingerprinting",
+            "timing_evasion",
+            "high_entropy_sections",
         ],
     }

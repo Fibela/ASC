@@ -6,7 +6,7 @@
 [tool.ruff]
 line-length    = 120
 target-version = "py311"
-src            = ["backend/app"]
+src            = ["backend/asc_api"]
 
 [tool.ruff.lint]
 select = [
@@ -30,6 +30,15 @@ ignore = [
     "UP007", # use X | Y instead of Optional — gradual migration
     "UP035", # deprecated imports — gradual migration
     "RUF012", # mutable class attributes — SQLAlchemy pattern
+    "RUF001", # ambiguous unicode char (string) — falso positivo: texto en español (á, é, —)
+    "RUF002", # ambiguous unicode char (docstring) — falso positivo: español
+    "RUF003", # ambiguous unicode char (comment) — falso positivo: español
+    "E711",  # `== None` — intencional: filtros SQLAlchemy generan `IS NULL`
+    "E712",  # `== True/False` — intencional: filtros SQLAlchemy generan `= true`
+    "S107",  # hardcoded-password-default — falso positivo (token_type="bearer")
+    "RUF006", # asyncio-dangling-task — fire-and-forget deliberado (telemetría/logs)
+    "S110",  # try-except-pass — best-effort deliberado en adaptadores/honeypot/analyzer
+    "S112",  # try-except-continue — best-effort en poll de adaptadores
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -39,12 +48,15 @@ ignore = [
     "S106",  # hardcoded passwords expected in test fixtures
     "S108",  # /tmp paths in tests are OK
 ]
-"backend/app/db/**" = [
+"backend/asc_api/db/**" = [
     "S608",  # SQL injection — SQLAlchemy parametrized queries are safe
+]
+"backend/asc_api/api/v1/endpoints/auth_sso.py" = [
+    "E402",  # imports intercalados con init de _log/_sso_settings — deuda cosmética, no bug
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app"]
+known-first-party = ["asc_api"]
 force-single-line = false
 
 [tool.ruff.format]
@@ -54,7 +66,7 @@ line-ending    = "lf"
 
 
 # ─── Bandit — Python Security SAST ────────────────────────────────────────────
-# Run:  bandit -r backend/app/ -c pyproject.toml --quiet
+# Run:  bandit -r backend/asc_api/ -c pyproject.toml --quiet
 # ─────────────────────────────────────────────────────────────────────────────
 
 [tool.bandit]

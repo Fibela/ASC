@@ -39,7 +39,7 @@ jobs:
       - name: Bandit security scan
         run: |
           mkdir -p reports
-          bandit -r backend/app/ \
+          bandit -r backend/asc_api/ \
             -x backend/tests/,backend/.venv/ \
             -f json -o reports/bandit.json \
             -s B101,B105,B106 \
@@ -183,7 +183,7 @@ jobs:
             --config=p/python \
             --config=p/security-audit \
             --config=p/owasp-top-ten \
-            backend/app/ \
+            backend/asc_api/ \
             --json \
             --output=reports/semgrep.json \
             --error 2>&1 || true
@@ -260,10 +260,10 @@ jobs:
           # Note: "changeme" in config.py is allowlisted because it's an explicit
           # documentation string, not a real credential.
           PATTERN='(password123|admin123|secret123|p@ssw0rd|REPLACE_ME|your-api-key-here)'
-          FOUND=$(grep -rEn "$PATTERN" backend/app/ --include="*.py" 2>/dev/null | wc -l)
+          FOUND=$(grep -rEn "$PATTERN" backend/asc_api/ --include="*.py" 2>/dev/null | wc -l)
           if [ "$FOUND" -gt 0 ]; then
             echo "❌ Dangerous placeholder credentials found in app code:"
-            grep -rEn "$PATTERN" backend/app/ --include="*.py"
+            grep -rEn "$PATTERN" backend/asc_api/ --include="*.py"
             exit 1
           fi
           echo "✅ No dangerous placeholder credentials in app code"
@@ -274,13 +274,13 @@ jobs:
           # We check for private IPs embedded in service logic files.
           FOUND=$(grep -rEn \
             "192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+" \
-            backend/app/services/ backend/app/adapters/ \
+            backend/asc_api/services/ backend/asc_api/adapters/ \
             --include="*.py" 2>/dev/null | wc -l)
           if [ "$FOUND" -gt 0 ]; then
             echo "⚠️  Private IP addresses found in service/adapter code (informational):"
             grep -rEn \
               "192\.168\.[0-9]+\.[0-9]+|10\.[0-9]+\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+" \
-              backend/app/services/ backend/app/adapters/ --include="*.py" 2>/dev/null || true
+              backend/asc_api/services/ backend/asc_api/adapters/ --include="*.py" 2>/dev/null || true
           else
             echo "✅ No hardcoded private IPs in service/adapter code"
           fi
@@ -288,17 +288,17 @@ jobs:
       - name: No print() statements in production services
         run: |
           # Services should use structlog (log.*), not print().
-          FOUND=$(grep -rn "^\s*print(" backend/app/services/ --include="*.py" 2>/dev/null | wc -l)
+          FOUND=$(grep -rn "^\s*print(" backend/asc_api/services/ --include="*.py" 2>/dev/null | wc -l)
           if [ "$FOUND" -gt 0 ]; then
             echo "❌ print() statements found in services/ (use structlog instead):"
-            grep -rn "^\s*print(" backend/app/services/ --include="*.py"
+            grep -rn "^\s*print(" backend/asc_api/services/ --include="*.py"
             exit 1
           fi
           echo "✅ No print() in services/"
 
       - name: Verify asyncio.sleep placeholders removed
         run: |
-          COUNT=$(grep -rn "asyncio\.sleep" backend/app/services/ --include="*.py" 2>/dev/null | wc -l)
+          COUNT=$(grep -rn "asyncio\.sleep" backend/asc_api/services/ --include="*.py" 2>/dev/null | wc -l)
           echo "ℹ️  asyncio.sleep calls in services/: $COUNT"
           # Informational only — sleep is valid in some retry patterns
 

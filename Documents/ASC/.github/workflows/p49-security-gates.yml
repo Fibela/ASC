@@ -404,7 +404,7 @@ jobs:
       - name: Bandit SAST (SARIF output)
         run: |
           mkdir -p reports
-          bandit -r backend/app/ \
+          bandit -r backend/asc_api/ \
             -x backend/tests/,backend/.venv/ \
             -f sarif \
             -o reports/bandit.sarif \

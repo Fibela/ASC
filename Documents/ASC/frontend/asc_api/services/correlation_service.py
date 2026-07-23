@@ -24,15 +24,16 @@ domains, indicating coordinated multi-stage attacker activity.
 Security posture: ALL queries are READ-ONLY (SELECT).  No domain record is
 modified by correlation.  Only correlation_* tables are written.
 """
+
 from __future__ import annotations
 
 import json
 import uuid
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.audit import log_security_action
@@ -42,7 +43,6 @@ from asc_api.models.correlation import (
     CorrelationCluster,
     CorrelationRule,
     CorrelationSignal,
-    SIGNAL_TYPES,
 )
 from asc_api.models.event import Event
 from asc_api.models.hunt import HuntFinding
@@ -72,6 +72,7 @@ def _meets_threshold(severity: str, threshold: str) -> bool:
 # Signal gathering — one function per pivot type
 # ---------------------------------------------------------------------------
 
+
 async def _gather_host_signals(
     db: AsyncSession, window_start: datetime, tenant_id: str | None = None
 ) -> list[dict[str, Any]]:
@@ -86,14 +87,16 @@ async def _gather_host_signals(
     if tenant_id is not None:
         _q = _q.where(Event.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "event",
-            "signal_id": row.id,
-            "pivot_value": row.host.lower(),
-            "severity": row.severity or "low",
-            "timestamp": row.timestamp,
-            "meta": {"host": row.host},
-        })
+        signals.append(
+            {
+                "signal_type": "event",
+                "signal_id": row.id,
+                "pivot_value": row.host.lower(),
+                "severity": row.severity or "low",
+                "timestamp": row.timestamp,
+                "meta": {"host": row.host},
+            }
+        )
 
     # Alerts — affected_hosts is a JSON list
     _q = (
@@ -113,14 +116,16 @@ async def _gather_host_signals(
                 hosts = [hosts]
         for h in hosts:
             if h:
-                signals.append({
-                    "signal_type": "alert",
-                    "signal_id": row.id,
-                    "pivot_value": str(h).lower(),
-                    "severity": row.severity or "low",
-                    "timestamp": row.detected_at,
-                    "meta": {"host": h},
-                })
+                signals.append(
+                    {
+                        "signal_type": "alert",
+                        "signal_id": row.id,
+                        "pivot_value": str(h).lower(),
+                        "severity": row.severity or "low",
+                        "timestamp": row.detected_at,
+                        "meta": {"host": h},
+                    }
+                )
 
     # HuntFindings with affected_host
     _q = (
@@ -132,19 +137,25 @@ async def _gather_host_signals(
     if tenant_id is not None:
         _q = _q.where(HuntFinding.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "finding",
-            "signal_id": row.id,
-            "pivot_value": row.affected_host.lower(),
-            "severity": row.severity or "low",
-            "timestamp": row.created_at,
-            "meta": {"host": row.affected_host},
-        })
+        signals.append(
+            {
+                "signal_type": "finding",
+                "signal_id": row.id,
+                "pivot_value": row.affected_host.lower(),
+                "severity": row.severity or "low",
+                "timestamp": row.created_at,
+                "meta": {"host": row.affected_host},
+            }
+        )
 
     # PANL — isolate_endpoint actions
     _q = (
-        select(NeutralizationAction.id, NeutralizationAction.target,
-               NeutralizationAction.severity, NeutralizationAction.executed_at)
+        select(
+            NeutralizationAction.id,
+            NeutralizationAction.target,
+            NeutralizationAction.severity,
+            NeutralizationAction.executed_at,
+        )
         .where(NeutralizationAction.action_type == "isolate_endpoint")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
@@ -152,14 +163,16 @@ async def _gather_host_signals(
     if tenant_id is not None:
         _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "panl_action",
-            "signal_id": row.id,
-            "pivot_value": row.target.lower(),
-            "severity": row.severity or "medium",
-            "timestamp": row.executed_at,
-            "meta": {"host": row.target, "action_type": "isolate_endpoint"},
-        })
+        signals.append(
+            {
+                "signal_type": "panl_action",
+                "signal_id": row.id,
+                "pivot_value": row.target.lower(),
+                "severity": row.severity or "medium",
+                "timestamp": row.executed_at,
+                "meta": {"host": row.target, "action_type": "isolate_endpoint"},
+            }
+        )
 
     return signals
 
@@ -170,23 +183,27 @@ async def _gather_identity_signals(
     signals: list[dict[str, Any]] = []
 
     # IdentityAction — every IAM enforcement action has a username
-    _q = (
-        select(IdentityAction.id, IdentityAction.username, IdentityAction.domain,
-               IdentityAction.action_type, IdentityAction.executed_at)
-        .where(IdentityAction.executed_at >= window_start)
-    )
+    _q = select(
+        IdentityAction.id,
+        IdentityAction.username,
+        IdentityAction.domain,
+        IdentityAction.action_type,
+        IdentityAction.executed_at,
+    ).where(IdentityAction.executed_at >= window_start)
     if tenant_id is not None:
         _q = _q.where(IdentityAction.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
         pivot = f"{row.username}@{row.domain}".lower()
-        signals.append({
-            "signal_type": "identity_action",
-            "signal_id": row.id,
-            "pivot_value": pivot,
-            "severity": "high",
-            "timestamp": row.executed_at,
-            "meta": {"username": row.username, "domain": row.domain, "action_type": row.action_type},
-        })
+        signals.append(
+            {
+                "signal_type": "identity_action",
+                "signal_id": row.id,
+                "pivot_value": pivot,
+                "severity": "high",
+                "timestamp": row.executed_at,
+                "meta": {"username": row.username, "domain": row.domain, "action_type": row.action_type},
+            }
+        )
 
     # HuntFindings with affected_user
     _q = (
@@ -198,14 +215,16 @@ async def _gather_identity_signals(
     if tenant_id is not None:
         _q = _q.where(HuntFinding.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "finding",
-            "signal_id": row.id,
-            "pivot_value": row.affected_user.lower(),
-            "severity": row.severity or "medium",
-            "timestamp": row.created_at,
-            "meta": {"user": row.affected_user},
-        })
+        signals.append(
+            {
+                "signal_type": "finding",
+                "signal_id": row.id,
+                "pivot_value": row.affected_user.lower(),
+                "severity": row.severity or "medium",
+                "timestamp": row.created_at,
+                "meta": {"user": row.affected_user},
+            }
+        )
 
     return signals
 
@@ -233,19 +252,25 @@ async def _gather_ip_signals(
         for ip_key in ("src_ip", "dst_ip", "source_ip", "destination_ip", "ip"):
             ip_val = norm.get(ip_key)
             if ip_val and isinstance(ip_val, str):
-                signals.append({
-                    "signal_type": "event",
-                    "signal_id": row.id,
-                    "pivot_value": ip_val,
-                    "severity": row.severity or "low",
-                    "timestamp": row.timestamp,
-                    "meta": {"ip_field": ip_key, "ip": ip_val},
-                })
+                signals.append(
+                    {
+                        "signal_type": "event",
+                        "signal_id": row.id,
+                        "pivot_value": ip_val,
+                        "severity": row.severity or "low",
+                        "timestamp": row.timestamp,
+                        "meta": {"ip_field": ip_key, "ip": ip_val},
+                    }
+                )
 
     # ThreatIntelIndicator type=ip
     _q = (
-        select(ThreatIntelIndicator.id, ThreatIntelIndicator.value,
-               ThreatIntelIndicator.severity, ThreatIntelIndicator.last_seen)
+        select(
+            ThreatIntelIndicator.id,
+            ThreatIntelIndicator.value,
+            ThreatIntelIndicator.severity,
+            ThreatIntelIndicator.last_seen,
+        )
         .where(ThreatIntelIndicator.indicator_type == "ip")
         .where(ThreatIntelIndicator.active.is_(True))
         .where(ThreatIntelIndicator.last_seen >= window_start)
@@ -253,19 +278,25 @@ async def _gather_ip_signals(
     if tenant_id is not None:
         _q = _q.where(ThreatIntelIndicator.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "ti_indicator",
-            "signal_id": row.id,
-            "pivot_value": row.value,
-            "severity": row.severity or "medium",
-            "timestamp": row.last_seen,
-            "meta": {"indicator_type": "ip", "value": row.value},
-        })
+        signals.append(
+            {
+                "signal_type": "ti_indicator",
+                "signal_id": row.id,
+                "pivot_value": row.value,
+                "severity": row.severity or "medium",
+                "timestamp": row.last_seen,
+                "meta": {"indicator_type": "ip", "value": row.value},
+            }
+        )
 
     # PANL — block_ip actions
     _q = (
-        select(NeutralizationAction.id, NeutralizationAction.target,
-               NeutralizationAction.severity, NeutralizationAction.executed_at)
+        select(
+            NeutralizationAction.id,
+            NeutralizationAction.target,
+            NeutralizationAction.severity,
+            NeutralizationAction.executed_at,
+        )
         .where(NeutralizationAction.action_type == "block_ip")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
@@ -273,14 +304,16 @@ async def _gather_ip_signals(
     if tenant_id is not None:
         _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "panl_action",
-            "signal_id": row.id,
-            "pivot_value": row.target,
-            "severity": row.severity or "high",
-            "timestamp": row.executed_at,
-            "meta": {"ip": row.target, "action_type": "block_ip"},
-        })
+        signals.append(
+            {
+                "signal_type": "panl_action",
+                "signal_id": row.id,
+                "pivot_value": row.target,
+                "severity": row.severity or "high",
+                "timestamp": row.executed_at,
+                "meta": {"ip": row.target, "action_type": "block_ip"},
+            }
+        )
 
     return signals
 
@@ -292,9 +325,13 @@ async def _gather_domain_signals(
 
     # ThreatIntelIndicator type=domain|url
     _q = (
-        select(ThreatIntelIndicator.id, ThreatIntelIndicator.value,
-               ThreatIntelIndicator.indicator_type, ThreatIntelIndicator.severity,
-               ThreatIntelIndicator.last_seen)
+        select(
+            ThreatIntelIndicator.id,
+            ThreatIntelIndicator.value,
+            ThreatIntelIndicator.indicator_type,
+            ThreatIntelIndicator.severity,
+            ThreatIntelIndicator.last_seen,
+        )
         .where(ThreatIntelIndicator.indicator_type.in_(["domain", "url"]))
         .where(ThreatIntelIndicator.active.is_(True))
         .where(ThreatIntelIndicator.last_seen >= window_start)
@@ -302,19 +339,25 @@ async def _gather_domain_signals(
     if tenant_id is not None:
         _q = _q.where(ThreatIntelIndicator.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "ti_indicator",
-            "signal_id": row.id,
-            "pivot_value": row.value.lower(),
-            "severity": row.severity or "medium",
-            "timestamp": row.last_seen,
-            "meta": {"indicator_type": row.indicator_type, "value": row.value},
-        })
+        signals.append(
+            {
+                "signal_type": "ti_indicator",
+                "signal_id": row.id,
+                "pivot_value": row.value.lower(),
+                "severity": row.severity or "medium",
+                "timestamp": row.last_seen,
+                "meta": {"indicator_type": row.indicator_type, "value": row.value},
+            }
+        )
 
     # PANL — block_domain
     _q = (
-        select(NeutralizationAction.id, NeutralizationAction.target,
-               NeutralizationAction.severity, NeutralizationAction.executed_at)
+        select(
+            NeutralizationAction.id,
+            NeutralizationAction.target,
+            NeutralizationAction.severity,
+            NeutralizationAction.executed_at,
+        )
         .where(NeutralizationAction.action_type == "block_domain")
         .where(NeutralizationAction.executed_at >= window_start)
         .where(NeutralizationAction.executed_at.isnot(None))
@@ -322,19 +365,20 @@ async def _gather_domain_signals(
     if tenant_id is not None:
         _q = _q.where(NeutralizationAction.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "panl_action",
-            "signal_id": row.id,
-            "pivot_value": row.target.lower(),
-            "severity": row.severity or "high",
-            "timestamp": row.executed_at,
-            "meta": {"domain": row.target, "action_type": "block_domain"},
-        })
+        signals.append(
+            {
+                "signal_type": "panl_action",
+                "signal_id": row.id,
+                "pivot_value": row.target.lower(),
+                "severity": row.severity or "high",
+                "timestamp": row.executed_at,
+                "meta": {"domain": row.target, "action_type": "block_domain"},
+            }
+        )
 
     # HuntFindings with indicator_type=domain
     _q = (
-        select(HuntFinding.id, HuntFinding.indicator_value, HuntFinding.severity,
-               HuntFinding.created_at)
+        select(HuntFinding.id, HuntFinding.indicator_value, HuntFinding.severity, HuntFinding.created_at)
         .where(HuntFinding.indicator_type == "domain")
         .where(HuntFinding.indicator_value.isnot(None))
         .where(HuntFinding.created_at >= window_start)
@@ -343,14 +387,16 @@ async def _gather_domain_signals(
     if tenant_id is not None:
         _q = _q.where(HuntFinding.tenant_id == tenant_id)
     for row in (await db.execute(_q)).all():
-        signals.append({
-            "signal_type": "finding",
-            "signal_id": row.id,
-            "pivot_value": row.indicator_value.lower(),
-            "severity": row.severity or "medium",
-            "timestamp": row.created_at,
-            "meta": {"domain": row.indicator_value},
-        })
+        signals.append(
+            {
+                "signal_type": "finding",
+                "signal_id": row.id,
+                "pivot_value": row.indicator_value.lower(),
+                "severity": row.severity or "medium",
+                "timestamp": row.created_at,
+                "meta": {"domain": row.indicator_value},
+            }
+        )
 
     return signals
 
@@ -377,14 +423,16 @@ async def _gather_ttp_signals(
                 tags = []
         for tag in tags:
             if isinstance(tag, str) and tag.upper().startswith("T"):
-                signals.append({
-                    "signal_type": "event",
-                    "signal_id": row.id,
-                    "pivot_value": tag.upper(),
-                    "severity": row.severity or "low",
-                    "timestamp": row.timestamp,
-                    "meta": {"ttp": tag},
-                })
+                signals.append(
+                    {
+                        "signal_type": "event",
+                        "signal_id": row.id,
+                        "pivot_value": tag.upper(),
+                        "severity": row.severity or "low",
+                        "timestamp": row.timestamp,
+                        "meta": {"ttp": tag},
+                    }
+                )
 
     # Alerts — ttps JSON list
     _q = (
@@ -404,14 +452,16 @@ async def _gather_ttp_signals(
                 ttps = []
         for ttp in ttps:
             if ttp:
-                signals.append({
-                    "signal_type": "alert",
-                    "signal_id": row.id,
-                    "pivot_value": str(ttp).upper(),
-                    "severity": row.severity or "medium",
-                    "timestamp": row.detected_at,
-                    "meta": {"ttp": ttp},
-                })
+                signals.append(
+                    {
+                        "signal_type": "alert",
+                        "signal_id": row.id,
+                        "pivot_value": str(ttp).upper(),
+                        "severity": row.severity or "medium",
+                        "timestamp": row.detected_at,
+                        "meta": {"ttp": ttp},
+                    }
+                )
 
     return signals
 
@@ -429,6 +479,7 @@ _GATHER_FN = {
 # Cluster upsert
 # ---------------------------------------------------------------------------
 
+
 async def _upsert_cluster(
     db: AsyncSession,
     rule: CorrelationRule,
@@ -436,7 +487,7 @@ async def _upsert_cluster(
     new_signals: list[dict[str, Any]],
     tenant_id: str | None = None,
 ) -> CorrelationCluster:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Find or create the active cluster for this rule + pivot_value + tenant
     _q = (
@@ -468,8 +519,9 @@ async def _upsert_cluster(
 
     # Determine which signals are already recorded for this cluster
     r = await db.execute(
-        select(CorrelationSignal.signal_type, CorrelationSignal.signal_id)
-        .where(CorrelationSignal.cluster_id == cluster.id)
+        select(CorrelationSignal.signal_type, CorrelationSignal.signal_id).where(
+            CorrelationSignal.cluster_id == cluster.id
+        )
     )
     existing_keys = {(row.signal_type, row.signal_id) for row in r.all()}
 
@@ -498,9 +550,9 @@ async def _upsert_cluster(
 
     # Re-aggregate from all signals in this cluster
     r = await db.execute(
-        select(CorrelationSignal.severity, CorrelationSignal.signal_type,
-               CorrelationSignal.timestamp)
-        .where(CorrelationSignal.cluster_id == cluster.id)
+        select(CorrelationSignal.severity, CorrelationSignal.signal_type, CorrelationSignal.timestamp).where(
+            CorrelationSignal.cluster_id == cluster.id
+        )
     )
     all_sigs = r.all()
 
@@ -528,6 +580,7 @@ async def _upsert_cluster(
 # Main sweep
 # ---------------------------------------------------------------------------
 
+
 async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) -> dict[str, Any]:
     """
     Iterate enabled rules visible to *tenant_id* (global + own), gather signals
@@ -535,7 +588,7 @@ async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) 
     When tenant_id is None (single-tenant / legacy mode) no tenant scoping is applied.
     Returns a summary dict suitable for task logging.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Use list_rules to respect global + tenant visibility
     all_rules = await list_rules(db, tenant_id)
@@ -559,10 +612,7 @@ async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) 
         raw_signals = await gather_fn(db, window_start, tenant_id=tenant_id)
 
         # Filter by severity threshold
-        filtered = [
-            s for s in raw_signals
-            if _meets_threshold(s["severity"], rule.severity_threshold)
-        ]
+        filtered = [s for s in raw_signals if _meets_threshold(s["severity"], rule.severity_threshold)]
 
         # Group by pivot_value
         groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -605,9 +655,7 @@ async def run_correlation_sweep(db: AsyncSession, tenant_id: str | None = None) 
     return stats
 
 
-async def _cluster_exists(
-    db: AsyncSession, rule_id: str, pivot_value: str, tenant_id: str | None = None
-) -> bool:
+async def _cluster_exists(db: AsyncSession, rule_id: str, pivot_value: str, tenant_id: str | None = None) -> bool:
     _q = (
         select(func.count(CorrelationCluster.id))
         .where(CorrelationCluster.rule_id == rule_id)
@@ -625,6 +673,7 @@ async def _cluster_exists(
 # ---------------------------------------------------------------------------
 # Query API helpers
 # ---------------------------------------------------------------------------
+
 
 async def list_rules(db: AsyncSession, tenant_id: str | None = None) -> list[CorrelationRule]:
     """Return global (NULL) rules + rules owned by *tenant_id*."""
@@ -699,12 +748,19 @@ async def update_rule(
         return None
     if rule.tenant_id is None and tenant_id is not None:
         raise PermissionError("Cannot modify system global rules")
-    allowed = {"name", "description", "pivot_type", "min_signals", "time_window_minutes",
-                "severity_threshold", "enabled"}
+    allowed = {
+        "name",
+        "description",
+        "pivot_type",
+        "min_signals",
+        "time_window_minutes",
+        "severity_threshold",
+        "enabled",
+    }
     for k, v in kwargs.items():
         if k in allowed:
             setattr(rule, k, v)
-    rule.updated_at = datetime.now(timezone.utc)
+    rule.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(rule)
     return rule
@@ -769,7 +825,7 @@ async def update_cluster_status(
     if cluster is None:
         return None
     cluster.status = status
-    cluster.updated_at = datetime.now(timezone.utc)
+    cluster.updated_at = datetime.now(UTC)
     if analyst_notes is not None:
         cluster.analyst_notes = analyst_notes
     if assigned_to is not None:
@@ -788,9 +844,7 @@ async def get_cluster_signals(db: AsyncSession, cluster_id: str) -> list[Correla
     return list(r.scalars().all())
 
 
-async def get_cluster_graph(
-    db: AsyncSession, cluster_id: str, tenant_id: str | None = None
-) -> dict[str, Any] | None:
+async def get_cluster_graph(db: AsyncSession, cluster_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
     """
     Build a graph representation of a cluster for the frontend visualizer.
 
@@ -828,22 +882,26 @@ async def get_cluster_graph(
     for sig in signals:
         node_id = f"{sig.signal_type}:{sig.signal_id}"
         if node_id not in seen_signal_nodes:
-            nodes.append({
-                "id": node_id,
-                "type": sig.signal_type,
-                "label": f"{sig.signal_type} / {sig.pivot_value}",
-                "severity": sig.severity,
-                "ts": sig.timestamp.isoformat() if sig.timestamp else None,
-                "meta": sig.meta,
-            })
+            nodes.append(
+                {
+                    "id": node_id,
+                    "type": sig.signal_type,
+                    "label": f"{sig.signal_type} / {sig.pivot_value}",
+                    "severity": sig.severity,
+                    "ts": sig.timestamp.isoformat() if sig.timestamp else None,
+                    "meta": sig.meta,
+                }
+            )
             seen_signal_nodes.add(node_id)
 
-        edges.append({
-            "source": cluster.id,
-            "target": node_id,
-            "pivot": sig.pivot_value,
-            "pivot_type": pivot_type,
-        })
+        edges.append(
+            {
+                "source": cluster.id,
+                "target": node_id,
+                "pivot": sig.pivot_value,
+                "pivot_type": pivot_type,
+            }
+        )
 
     return {
         "cluster_id": cluster.id,
@@ -890,9 +948,7 @@ async def get_correlation_summary(db: AsyncSession, tenant_id: str | None = None
         )
     )
     signal_r = await db.execute(_s(select(func.count(CorrelationSignal.id))))
-    rules_r = await db.execute(
-        _r(select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True)))
-    )
+    rules_r = await db.execute(_r(select(func.count(CorrelationRule.id)).where(CorrelationRule.enabled.is_(True))))
 
     return {
         "total_clusters": total_r.scalar() or 0,

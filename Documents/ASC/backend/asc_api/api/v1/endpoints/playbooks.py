@@ -11,7 +11,6 @@ Endpoints:
   POST /playbooks/runs/{run_id}/abort    Abort a pending/awaiting run
 """
 
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -39,6 +38,7 @@ router = APIRouter(prefix="/playbooks", tags=["Playbooks"])
 
 
 # â”€â”€â”€ Request schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class TriggerRequest(BaseModel):
     playbook_id: str = Field(..., pattern=r"^PB-\d{3}$", description="e.g. PB-001")
@@ -72,28 +72,30 @@ class ApproveRequest(BaseModel):
 
 # â”€â”€â”€ Response helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 def _run_to_dict(run: PlaybookRun) -> dict:
     return {
-        "id":                run.id,
-        "playbook_id":       run.playbook_id,
-        "playbook_name":     run.playbook_name,
-        "trigger_source":    run.trigger_source,
-        "semaphore":         run.semaphore,
-        "risk_score":        run.risk_score,
-        "status":            run.status,
-        "steps_log":         run.steps_log,
-        "alert_id":          run.alert_id,
-        "approval_token":    run.approval_token,
-        "approved_by":       run.approved_by,
-        "approved_at":       run.approved_at.isoformat() if run.approved_at else None,
-        "initiated_by":      run.initiated_by,
-        "started_at":        run.started_at.isoformat() if run.started_at else None,
-        "completed_at":      run.completed_at.isoformat() if run.completed_at else None,
-        "error":             run.error,
+        "id": run.id,
+        "playbook_id": run.playbook_id,
+        "playbook_name": run.playbook_name,
+        "trigger_source": run.trigger_source,
+        "semaphore": run.semaphore,
+        "risk_score": run.risk_score,
+        "status": run.status,
+        "steps_log": run.steps_log,
+        "alert_id": run.alert_id,
+        "approval_token": run.approval_token,
+        "approved_by": run.approved_by,
+        "approved_at": run.approved_at.isoformat() if run.approved_at else None,
+        "initiated_by": run.initiated_by,
+        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "error": run.error,
     }
 
 
 # â”€â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.get("", summary="Catalog of available playbooks")
 async def list_playbooks(
@@ -141,7 +143,9 @@ async def trigger_manual(
     return _run_to_dict(run)
 
 
-@router.post("/auto-trigger", status_code=status.HTTP_201_CREATED, summary="Auto-select and trigger playbook from context")
+@router.post(
+    "/auto-trigger", status_code=status.HTTP_201_CREATED, summary="Auto-select and trigger playbook from context"
+)
 async def trigger_auto(
     body: AutoTriggerRequest,
     db: AsyncSession = Depends(get_db),
@@ -269,7 +273,7 @@ async def abort_run(
         await db.commit()
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
-    except Exception as exc:
+    except Exception:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Abort failed")
 

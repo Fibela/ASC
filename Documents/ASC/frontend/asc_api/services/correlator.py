@@ -1,14 +1,15 @@
 """
 Event Correlation & IoC Matching Service — SIEM logic.
 """
-from datetime import datetime, timezone
+
+from datetime import UTC, datetime
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from asc_api.models.event import Event
-from asc_api.models.ioc import IoC
-from asc_api.models.alert import Alert
-from asc_api.core.logging import get_logger
+
 from asc_api.core.config import get_settings
+from asc_api.core.logging import get_logger
+from asc_api.models.ioc import IoC
 
 settings = get_settings()
 log = get_logger(__name__)
@@ -17,73 +18,73 @@ log = get_logger(__name__)
 # Correlation rules: each rule inspects a window of events and fires an alert
 CORRELATION_RULES = [
     {
-        "id":          "rule_brute_force",
-        "name":        "Brute Force Authentication",
+        "id": "rule_brute_force",
+        "name": "Brute Force Authentication",
         "description": "More than 10 failed login attempts from the same host in 5 minutes",
-        "category":    "authentication",
-        "severity":    "high",
-        "risk_score":  0.75,
-        "ttps":        ["T1110"],
+        "category": "authentication",
+        "severity": "high",
+        "risk_score": 0.75,
+        "ttps": ["T1110"],
     },
     {
-        "id":          "rule_lateral_movement",
-        "name":        "Lateral Movement via SMB",
+        "id": "rule_lateral_movement",
+        "name": "Lateral Movement via SMB",
         "description": "SMB connections to multiple hosts from the same source within 10 minutes",
-        "category":    "network",
-        "severity":    "critical",
-        "risk_score":  0.90,
-        "ttps":        ["T1021.002"],
+        "category": "network",
+        "severity": "critical",
+        "risk_score": 0.90,
+        "ttps": ["T1021.002"],
     },
     {
-        "id":          "rule_persistence_registry",
-        "name":        "Persistence via Registry Run Key",
+        "id": "rule_persistence_registry",
+        "name": "Persistence via Registry Run Key",
         "description": "Write to registry run key detected",
-        "category":    "registry",
-        "severity":    "high",
-        "risk_score":  0.80,
-        "ttps":        ["T1547.001"],
+        "category": "registry",
+        "severity": "high",
+        "risk_score": 0.80,
+        "ttps": ["T1547.001"],
     },
     {
-        "id":          "rule_data_exfiltration",
-        "name":        "Potential Data Exfiltration",
+        "id": "rule_data_exfiltration",
+        "name": "Potential Data Exfiltration",
         "description": "Large outbound transfer to external IP not in allowlist",
-        "category":    "network",
-        "severity":    "critical",
-        "risk_score":  0.88,
-        "ttps":        ["T1041"],
+        "category": "network",
+        "severity": "critical",
+        "risk_score": 0.88,
+        "ttps": ["T1041"],
     },
     {
-        "id":          "rule_credential_dump",
-        "name":        "Credential Dumping Detected",
+        "id": "rule_credential_dump",
+        "name": "Credential Dumping Detected",
         "description": "LSASS memory access or credential harvesting tool signature",
-        "category":    "process",
-        "severity":    "critical",
-        "risk_score":  0.95,
-        "ttps":        ["T1003"],
+        "category": "process",
+        "severity": "critical",
+        "risk_score": 0.95,
+        "ttps": ["T1003"],
     },
 ]
 
 
 async def match_iocs(value: str, db: AsyncSession) -> list[dict]:
     """Check a value against all active IoCs in the database."""
-    result = await db.execute(
-        select(IoC).where(IoC.value == value, IoC.active == True)
-    )
+    result = await db.execute(select(IoC).where(IoC.value == value, IoC.active == True))
     hits = result.scalars().all()
 
     matched = []
     for ioc in hits:
         # Update hit counter
         ioc.hit_count += 1
-        ioc.last_seen = datetime.now(timezone.utc)
-        matched.append({
-            "ioc_id":     ioc.id,
-            "value":      ioc.value,
-            "type":       ioc.ioc_type,
-            "threat":     ioc.threat_type,
-            "confidence": ioc.confidence,
-            "severity":   ioc.severity,
-        })
+        ioc.last_seen = datetime.now(UTC)
+        matched.append(
+            {
+                "ioc_id": ioc.id,
+                "value": ioc.value,
+                "type": ioc.ioc_type,
+                "threat": ioc.threat_type,
+                "confidence": ioc.confidence,
+                "severity": ioc.severity,
+            }
+        )
 
     if matched:
         await db.commit()
@@ -93,70 +94,80 @@ async def match_iocs(value: str, db: AsyncSession) -> list[dict]:
 async def normalize_event(raw: dict) -> dict:
     """Normalize raw log to ECS-compatible fields."""
     return {
-        "source":    raw.get("source", "unknown"),
-        "category":  raw.get("category", "unknown"),
-        "action":    raw.get("action", ""),
-        "host":      raw.get("host", raw.get("hostname", "unknown")),
-        "user":      raw.get("user", raw.get("username", "")),
-        "process":   raw.get("process", raw.get("process_name", "")),
-        "pid":       raw.get("pid"),
-        "src_ip":    raw.get("src_ip", raw.get("source_ip", "")),
-        "dst_ip":    raw.get("dst_ip", raw.get("dest_ip", "")),
-        "dst_port":  raw.get("dst_port", raw.get("port")),
+        "source": raw.get("source", "unknown"),
+        "category": raw.get("category", "unknown"),
+        "action": raw.get("action", ""),
+        "host": raw.get("host", raw.get("hostname", "unknown")),
+        "user": raw.get("user", raw.get("username", "")),
+        "process": raw.get("process", raw.get("process_name", "")),
+        "pid": raw.get("pid"),
+        "src_ip": raw.get("src_ip", raw.get("source_ip", "")),
+        "dst_ip": raw.get("dst_ip", raw.get("dest_ip", "")),
+        "dst_port": raw.get("dst_port", raw.get("port")),
         "file_path": raw.get("file_path", raw.get("file", "")),
-        "reg_key":   raw.get("reg_key", raw.get("registry_key", "")),
-        "timestamp": raw.get("timestamp", datetime.now(timezone.utc).isoformat()),
-        "tags":      raw.get("tags", []),
+        "reg_key": raw.get("reg_key", raw.get("registry_key", "")),
+        "timestamp": raw.get("timestamp", datetime.now(UTC).isoformat()),
+        "tags": raw.get("tags", []),
     }
 
 
 async def evaluate_correlation_rules(events: list[dict], db: AsyncSession) -> list[dict]:
     """Evaluate correlation rules against a batch of normalized events. Returns alerts to create."""
     alerts_to_create = []
-    hosts = [e.get("host") for e in events if e.get("host")]
-    categories = [e.get("category") for e in events]
 
     for rule in CORRELATION_RULES:
         fired = False
 
         if rule["id"] == "rule_brute_force":
-            auth_failures = [e for e in events if e.get("category") == "authentication" and "fail" in str(e.get("action", "")).lower()]
+            auth_failures = [
+                e
+                for e in events
+                if e.get("category") == "authentication" and "fail" in str(e.get("action", "")).lower()
+            ]
             if len(auth_failures) >= 3:
                 fired = True
 
         elif rule["id"] == "rule_persistence_registry":
-            reg_writes = [e for e in events if e.get("category") == "registry" and "write" in str(e.get("action", "")).lower()]
+            reg_writes = [
+                e for e in events if e.get("category") == "registry" and "write" in str(e.get("action", "")).lower()
+            ]
             if reg_writes:
                 fired = True
 
         elif rule["id"] == "rule_credential_dump":
-            cred_events = [e for e in events if "lsass" in str(e.get("process", "")).lower() or "mimikatz" in str(e.get("action", "")).lower()]
+            cred_events = [
+                e
+                for e in events
+                if "lsass" in str(e.get("process", "")).lower() or "mimikatz" in str(e.get("action", "")).lower()
+            ]
             if cred_events:
                 fired = True
 
         elif rule["id"] == "rule_lateral_movement":
-            smb_events = [e for e in events if e.get("dst_port") in [445, 139] or "smb" in str(e.get("action", "")).lower()]
+            smb_events = [
+                e for e in events if e.get("dst_port") in [445, 139] or "smb" in str(e.get("action", "")).lower()
+            ]
             if len(smb_events) >= 2:
                 fired = True
 
         elif rule["id"] == "rule_data_exfiltration":
             exfil_events = [
-                e for e in events
-                if e.get("category") == "network"
-                and "exfil" in str(e.get("action", "")).lower()
+                e for e in events if e.get("category") == "network" and "exfil" in str(e.get("action", "")).lower()
             ]
             if exfil_events:
                 fired = True
 
         if fired:
-            alerts_to_create.append({
-                "title":       rule["name"],
-                "description": rule["description"],
-                "severity":    rule["severity"],
-                "risk_score":  rule["risk_score"],
-                "ttps":        rule["ttps"],
-                "rule_id":     rule["id"],
-            })
+            alerts_to_create.append(
+                {
+                    "title": rule["name"],
+                    "description": rule["description"],
+                    "severity": rule["severity"],
+                    "risk_score": rule["risk_score"],
+                    "ttps": rule["ttps"],
+                    "rule_id": rule["id"],
+                }
+            )
             log.info("correlation_rule_fired", rule=rule["id"], severity=rule["severity"])
 
     return alerts_to_create

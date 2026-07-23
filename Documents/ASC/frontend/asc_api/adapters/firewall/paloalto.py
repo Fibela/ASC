@@ -28,12 +28,13 @@ Retry:
   Network-level errors (httpx.TransportError) are retried up to 3 times
   with exponential back-off (2s → 4s → 8s). HTTP 4xx/5xx are not retried.
 """
+
 from __future__ import annotations
 
 import re
-import defusedxml.ElementTree as ET
 from typing import Any
 
+import defusedxml.ElementTree as ET
 import httpx
 from tenacity import (
     retry,
@@ -42,7 +43,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from asc_api.adapters import HTTP_TIMEOUT, USER_AGENT
+from asc_api.adapters import HTTP_TIMEOUT
 from asc_api.adapters.firewall.base import BaseFirewallAdapter
 from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
@@ -59,6 +60,7 @@ FW_TIMEOUT = max(HTTP_TIMEOUT, 15.0)
 
 # ── Object name helpers ───────────────────────────────────────────────────────
 
+
 def _sanitize_ip_name(ip: str) -> str:
     """Convert an IP address to a safe PAN-OS object name (max 63 chars)."""
     safe = re.sub(r"[^a-zA-Z0-9]", "-", ip)
@@ -72,6 +74,7 @@ def _sanitize_domain_name(domain: str) -> str:
 
 
 # ── XML response parsing ──────────────────────────────────────────────────────
+
 
 def _parse_status(xml_text: str) -> tuple[bool, str]:
     """
@@ -127,6 +130,7 @@ def _extract_url_list(xml_text: str) -> list[str]:
 
 # ── Adapter ───────────────────────────────────────────────────────────────────
 
+
 class PaloAltoAdapter(BaseFirewallAdapter):
     """
     Palo Alto Networks PAN-OS adapter.
@@ -137,12 +141,12 @@ class PaloAltoAdapter(BaseFirewallAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._host       = s.PALOALTO_HOST.rstrip("/")
-        self._api_key    = s.PALOALTO_API_KEY
-        self._vsys       = s.PALOALTO_VSYS
-        self._ip_group   = s.PALOALTO_BLOCKED_IP_GROUP
-        self._url_cat    = s.PALOALTO_BLOCKED_URL_CATEGORY
-        self._base_url   = f"https://{self._host}/api/" if self._host else ""
+        self._host = s.PALOALTO_HOST.rstrip("/")
+        self._api_key = s.PALOALTO_API_KEY
+        self._vsys = s.PALOALTO_VSYS
+        self._ip_group = s.PALOALTO_BLOCKED_IP_GROUP
+        self._url_cat = s.PALOALTO_BLOCKED_URL_CATEGORY
+        self._base_url = f"https://{self._host}/api/" if self._host else ""
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
@@ -155,10 +159,7 @@ class PaloAltoAdapter(BaseFirewallAdapter):
     # ── XPath helpers ─────────────────────────────────────────────────────────
 
     def _vsys_xpath(self, suffix: str = "") -> str:
-        base = (
-            f"/config/devices/entry[@name='localhost.localdomain']"
-            f"/vsys/entry[@name='{self._vsys}']"
-        )
+        base = f"/config/devices/entry[@name='localhost.localdomain']/vsys/entry[@name='{self._vsys}']"
         return base + suffix
 
     def _address_xpath(self, name: str) -> str:
@@ -242,9 +243,7 @@ class PaloAltoAdapter(BaseFirewallAdapter):
         if not self.is_configured():
             return self._not_configured()
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 raw = await self._xml_api(
                     client,
                     {"type": "op", "cmd": "<show><system><info/></system></show>"},
@@ -254,7 +253,7 @@ class PaloAltoAdapter(BaseFirewallAdapter):
                 try:
                     root = ET.fromstring(raw)
                     sw_ver = root.findtext(".//sw-version", "unknown")
-                    model  = root.findtext(".//model", "unknown")
+                    model = root.findtext(".//model", "unknown")
                 except ET.ParseError:
                     sw_ver = model = "unknown"
                 return self._ok(
@@ -282,37 +281,44 @@ class PaloAltoAdapter(BaseFirewallAdapter):
         log.info("paloalto_block_ip", ip=ip, object_name=obj_name, reason=reason)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Create Address Object
                 addr_element = f"<ip-netmask>{ip}/32</ip-netmask><description>ASC blocked: {reason[:64]}</description>"
-                raw = await self._xml_api(client, {
-                    "type":    "config",
-                    "action":  "set",
-                    "xpath":   self._address_xpath(obj_name),
-                    "element": addr_element,
-                })
+                raw = await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "set",
+                        "xpath": self._address_xpath(obj_name),
+                        "element": addr_element,
+                    },
+                )
                 ok, msg = _parse_status(raw)
                 if not ok:
                     return self._err(f"create_address_failed: {msg}", adapter=self.ADAPTER_NAME, ip=ip)
 
                 # 2. Read current group members
-                raw_group = await self._xml_api(client, {
-                    "type":   "config",
-                    "action": "get",
-                    "xpath":  self._address_group_xpath(self._ip_group),
-                })
+                raw_group = await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "get",
+                        "xpath": self._address_group_xpath(self._ip_group),
+                    },
+                )
                 existing = _extract_group_members(raw_group)
 
                 # 3. Add member if not already present
                 if obj_name not in existing:
-                    raw = await self._xml_api(client, {
-                        "type":    "config",
-                        "action":  "set",
-                        "xpath":   self._address_group_xpath(self._ip_group) + "/static",
-                        "element": f"<member>{obj_name}</member>",
-                    })
+                    raw = await self._xml_api(
+                        client,
+                        {
+                            "type": "config",
+                            "action": "set",
+                            "xpath": self._address_group_xpath(self._ip_group) + "/static",
+                            "element": f"<member>{obj_name}</member>",
+                        },
+                    )
                     ok, msg = _parse_status(raw)
                     if not ok:
                         return self._err(f"add_to_group_failed: {msg}", adapter=self.ADAPTER_NAME, ip=ip)
@@ -341,22 +347,26 @@ class PaloAltoAdapter(BaseFirewallAdapter):
         log.info("paloalto_unblock_ip", ip=ip, object_name=obj_name)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Remove from group
-                await self._xml_api(client, {
-                    "type":   "config",
-                    "action": "delete",
-                    "xpath":  self._address_group_xpath(self._ip_group) + f"/static/member[text()='{obj_name}']",
-                })
+                await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "delete",
+                        "xpath": self._address_group_xpath(self._ip_group) + f"/static/member[text()='{obj_name}']",
+                    },
+                )
 
                 # 2. Delete address object (best-effort — might not exist)
-                await self._xml_api(client, {
-                    "type":   "config",
-                    "action": "delete",
-                    "xpath":  self._address_xpath(obj_name),
-                })
+                await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "delete",
+                        "xpath": self._address_xpath(obj_name),
+                    },
+                )
 
                 # 3. Commit
                 commit_ok, commit_msg = await self._commit(client)
@@ -382,25 +392,29 @@ class PaloAltoAdapter(BaseFirewallAdapter):
         log.info("paloalto_block_domain", domain=domain, reason=reason)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # 1. Get current URL category entries
-                raw_cat = await self._xml_api(client, {
-                    "type":   "config",
-                    "action": "get",
-                    "xpath":  self._url_category_xpath(self._url_cat),
-                })
+                raw_cat = await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "get",
+                        "xpath": self._url_category_xpath(self._url_cat),
+                    },
+                )
                 existing = _extract_url_list(raw_cat)
 
                 # 2. Add domain if not already present
                 if domain not in existing:
-                    raw = await self._xml_api(client, {
-                        "type":    "config",
-                        "action":  "set",
-                        "xpath":   self._url_category_xpath(self._url_cat) + "/list",
-                        "element": f"<member>{domain}</member>",
-                    })
+                    raw = await self._xml_api(
+                        client,
+                        {
+                            "type": "config",
+                            "action": "set",
+                            "xpath": self._url_category_xpath(self._url_cat) + "/list",
+                            "element": f"<member>{domain}</member>",
+                        },
+                    )
                     ok, msg = _parse_status(raw)
                     if not ok:
                         return self._err(f"add_to_category_failed: {msg}", adapter=self.ADAPTER_NAME, domain=domain)
@@ -427,15 +441,16 @@ class PaloAltoAdapter(BaseFirewallAdapter):
         log.info("paloalto_unblock_domain", domain=domain)
 
         try:
-            async with httpx.AsyncClient(
-                timeout=FW_TIMEOUT, verify=True
-            ) as client:
+            async with httpx.AsyncClient(timeout=FW_TIMEOUT, verify=True) as client:
                 # Remove domain from URL category
-                await self._xml_api(client, {
-                    "type":   "config",
-                    "action": "delete",
-                    "xpath":  self._url_category_xpath(self._url_cat) + f"/list/member[text()='{domain}']",
-                })
+                await self._xml_api(
+                    client,
+                    {
+                        "type": "config",
+                        "action": "delete",
+                        "xpath": self._url_category_xpath(self._url_cat) + f"/list/member[text()='{domain}']",
+                    },
+                )
 
                 commit_ok, commit_msg = await self._commit(client)
                 if not commit_ok:

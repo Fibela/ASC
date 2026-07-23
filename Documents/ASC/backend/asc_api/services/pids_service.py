@@ -14,6 +14,7 @@ Verification uses the corresponding public key env var
 
 All operations are async-safe: no shared mutable state.
 """
+
 from __future__ import annotations
 
 import base64
@@ -21,7 +22,7 @@ import hashlib
 import json
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import and_, asc, desc, func, select
@@ -33,23 +34,26 @@ from asc_api.models.identity_action import IdentityAction
 
 log = get_logger("asc.pids")
 
-_VALID_ACTION_TYPES = frozenset({
-    "disable_account",
-    "enable_account",
-    "force_password_reset",
-    "quarantine_account",
-    "enrich_user",
-})
+_VALID_ACTION_TYPES = frozenset(
+    {
+        "disable_account",
+        "enable_account",
+        "force_password_reset",
+        "quarantine_account",
+        "enrich_user",
+    }
+)
 
 
 # ── Cryptographic primitives ───────────────────────────────────────────────────
+
 
 def _build_canonical(action: IdentityAction) -> dict[str, Any]:
     """Deterministic canonical dict bound to every immutable field of an action."""
     dt = action.executed_at
     if dt is not None and dt.tzinfo is None:
         # SQLite returns naive datetimes even for timezone=True columns; treat as UTC
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return {
         "pids_version": "1",
         "action_id": action.id,
@@ -84,6 +88,7 @@ def _sign_hash(hash_hex: str) -> str | None:
         return None
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
         raw = base64.b64decode(key_b64)
         private_key = Ed25519PrivateKey.from_private_bytes(raw)
         sig = private_key.sign(hash_hex.encode())
@@ -103,7 +108,7 @@ def _verify_signature(hash_hex: str, signature_b64: str) -> bool | None:
         return None
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-        from cryptography.exceptions import InvalidSignature
+
         pub_key = Ed25519PublicKey.from_public_bytes(base64.b64decode(pub_b64))
         pub_key.verify(base64.b64decode(signature_b64), hash_hex.encode())
         return True
@@ -112,6 +117,7 @@ def _verify_signature(hash_hex: str, signature_b64: str) -> bool | None:
 
 
 # ── Core service ───────────────────────────────────────────────────────────────
+
 
 async def create_identity_action(
     db: AsyncSession,
@@ -136,11 +142,9 @@ async def create_identity_action(
     Ed25519 signature is added if a signing key is available.
     """
     if action_type not in _VALID_ACTION_TYPES:
-        raise ValueError(
-            f"Invalid action_type '{action_type}'. Valid: {sorted(_VALID_ACTION_TYPES)}"
-        )
+        raise ValueError(f"Invalid action_type '{action_type}'. Valid: {sorted(_VALID_ACTION_TYPES)}")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     action = IdentityAction(
         id=str(uuid.uuid4()),
         action_type=action_type,
@@ -262,11 +266,7 @@ async def list_identity_actions(
 
 async def get_identity_timeline(db: AsyncSession, hunt_id: str) -> list[dict]:
     """Chronological identity actions for a hunt — forward order for forensic timeline."""
-    stmt = (
-        select(IdentityAction)
-        .where(IdentityAction.hunt_id == hunt_id)
-        .order_by(asc(IdentityAction.executed_at))
-    )
+    stmt = select(IdentityAction).where(IdentityAction.hunt_id == hunt_id).order_by(asc(IdentityAction.executed_at))
     result = await db.execute(stmt)
     return [_action_to_dict(a) for a in result.scalars().all()]
 
@@ -278,7 +278,7 @@ async def get_pids_summary(db: AsyncSession, hunt_id: str | None = None) -> dict
     If hunt_id is provided, statistics are scoped to that hunt.
     Returns total/successful/failed action counts, success rate, and 24h activity.
     """
-    cutoff_24h = datetime.now(timezone.utc) - timedelta(hours=24)
+    cutoff_24h = datetime.now(UTC) - timedelta(hours=24)
     base_filter: list = []
     if hunt_id:
         base_filter.append(IdentityAction.hunt_id == hunt_id)
@@ -288,13 +288,15 @@ async def get_pids_summary(db: AsyncSession, hunt_id: str | None = None) -> dict
         total_stmt = total_stmt.where(and_(*base_filter))
     total = (await db.execute(total_stmt)).scalar() or 0
 
-    success_stmt = select(func.count()).select_from(IdentityAction).where(
-        and_(*base_filter, IdentityAction.success.is_(True))
+    success_stmt = (
+        select(func.count()).select_from(IdentityAction).where(and_(*base_filter, IdentityAction.success.is_(True)))
     )
     successful = (await db.execute(success_stmt)).scalar() or 0
 
-    recent_stmt = select(func.count()).select_from(IdentityAction).where(
-        and_(*base_filter, IdentityAction.executed_at >= cutoff_24h)
+    recent_stmt = (
+        select(func.count())
+        .select_from(IdentityAction)
+        .where(and_(*base_filter, IdentityAction.executed_at >= cutoff_24h))
     )
     recent_24h = (await db.execute(recent_stmt)).scalar() or 0
 
@@ -309,6 +311,7 @@ async def get_pids_summary(db: AsyncSession, hunt_id: str | None = None) -> dict
 
 
 # ── Serialization ──────────────────────────────────────────────────────────────
+
 
 def _action_to_dict(action: IdentityAction) -> dict:
     return {

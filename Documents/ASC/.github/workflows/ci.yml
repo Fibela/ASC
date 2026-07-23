@@ -33,11 +33,11 @@ jobs:
 
       # Errors annotated inline on the PR diff
       - name: Ruff — lint
-        run: ruff check backend/app/ --output-format=github
+        run: ruff check backend/asc_api/ --output-format=github
 
       # Format check (does not auto-fix; fails if formatting diverges)
       - name: Ruff — format check
-        run: ruff format backend/app/ --check
+        run: ruff format backend/asc_api/ --check
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 2 — Backend Tests
@@ -139,35 +139,6 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8000
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JOB 4 — Docker Build Validation
-# ─────────────────────────────────────────────────────────────────────────────
-  docker-build:
-    name: Docker Build Validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build backend image
-        run: docker build -t asc_backend:ci ./backend/
-
-      - name: Build frontend image
-        run: docker build -t asc_frontend:ci ./frontend/
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:8000
-
-      # Trivy scans for OS-level CVEs in the built image.
-      # exit-code 0 = informational — unfixed CVEs in base images are common
-      # and outside our control.  Security-gate workflow handles blocking.
-      - name: Trivy — container vulnerability scan (backend)
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: asc_backend:ci
-          format: table
-          exit-code: '0'
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-
-# ─────────────────────────────────────────────────────────────────────────────
 # JOB 5 — Secrets Scan (gitleaks)
 # ─────────────────────────────────────────────────────────────────────────────
   gitleaks:
@@ -187,7 +158,7 @@ jobs:
 # ─────────────────────────────────────────────────────────────────────────────
   ci-gate:
     name: CI Gate
-    needs: [lint, test-backend, test-frontend, docker-build, gitleaks]
+    needs: [lint, test-backend, test-frontend, gitleaks]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -198,7 +169,6 @@ jobs:
           [[ "${{ needs.lint.result }}"          != "success" ]] && FAILED+=" lint"
           [[ "${{ needs.test-backend.result }}"  != "success" ]] && FAILED+=" test-backend"
           [[ "${{ needs.test-frontend.result }}" != "success" ]] && FAILED+=" test-frontend"
-          [[ "${{ needs.docker-build.result }}"  != "success" ]] && FAILED+=" docker-build"
           [[ "${{ needs.gitleaks.result }}"      != "success" ]] && FAILED+=" gitleaks"
 
           if [[ -n "$FAILED" ]]; then

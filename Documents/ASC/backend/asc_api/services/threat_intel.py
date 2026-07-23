@@ -13,13 +13,14 @@ Design principles (Calidad sobre Comodidad):
   - Bulk import is idempotent: duplicate (type, value) updates instead of inserting
   - All DB ops are async, no blocking calls
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
@@ -31,17 +32,29 @@ log = get_logger("asc.threat_intel")
 _ICASE_TYPES = frozenset({"domain", "email", "url", "file_path", "mutex", "registry_key"})
 
 # ── Valid indicator types ──────────────────────────────────────────────────────
-VALID_TYPES = frozenset({
-    "ip", "cidr", "asn",
-    "domain", "url", "email",
-    "hash_md5", "hash_sha1", "hash_sha256",
-    "file_path", "mutex", "registry_key", "cve",
-})
+VALID_TYPES = frozenset(
+    {
+        "ip",
+        "cidr",
+        "asn",
+        "domain",
+        "url",
+        "email",
+        "hash_md5",
+        "hash_sha1",
+        "hash_sha256",
+        "file_path",
+        "mutex",
+        "registry_key",
+        "cve",
+    }
+)
 
 VALID_SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
 
 def _normalize(value: str, indicator_type: str) -> str:
     if indicator_type in _ICASE_TYPES:
@@ -50,7 +63,7 @@ def _normalize(value: str, indicator_type: str) -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── Visibilidad de tenant (S105.1) ───────────────────────────────────────────
@@ -61,6 +74,7 @@ def _now() -> datetime:
 # roadmap en docs/roadmap/threat-intel-3-capas.md; se activará al haber 2+ tenants.
 # Nota: si tenant_id es None, la rama "== None" colapsa a IS NULL (SQLAlchemy) →
 # el scope None ve únicamente la CAPA 0 global, consistente con apply_tenant_filter.
+
 
 def _visible(tenant_id: str | None):
     """Cláusula de LECTURA: global (NULL) OR propio (== tenant_id)."""
@@ -78,6 +92,7 @@ def _own_scope(tenant_id: str | None):
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
+
 
 async def create_indicator(
     db: AsyncSession,
@@ -168,12 +183,15 @@ async def list_indicators(
 
     q = select(ThreatIntelIndicator).where(*filters) if filters else select(ThreatIntelIndicator)
     total_q = select(func.count()).select_from(
-        select(ThreatIntelIndicator).where(*filters).subquery() if filters
-        else select(ThreatIntelIndicator).subquery()
+        select(ThreatIntelIndicator).where(*filters).subquery() if filters else select(ThreatIntelIndicator).subquery()
     )
 
     total = (await db.execute(total_q)).scalar_one()
-    rows = (await db.execute(q.order_by(ThreatIntelIndicator.last_seen.desc()).limit(limit).offset(offset))).scalars().all()
+    rows = (
+        (await db.execute(q.order_by(ThreatIntelIndicator.last_seen.desc()).limit(limit).offset(offset)))
+        .scalars()
+        .all()
+    )
     return list(rows), total
 
 
@@ -188,8 +206,17 @@ async def update_indicator(
         return None
 
     allowed = {
-        "severity", "confidence", "active", "description", "tags", "ttps",
-        "threat_actor", "malware_family", "campaign", "source_reference", "expires_at",
+        "severity",
+        "confidence",
+        "active",
+        "description",
+        "tags",
+        "ttps",
+        "threat_actor",
+        "malware_family",
+        "campaign",
+        "source_reference",
+        "expires_at",
     }
     for k, v in updates.items():
         if k in allowed:
@@ -202,9 +229,7 @@ async def update_indicator(
     return indicator
 
 
-async def delete_indicator(
-    db: AsyncSession, indicator_id: str, tenant_id: str | None = None
-) -> bool:
+async def delete_indicator(db: AsyncSession, indicator_id: str, tenant_id: str | None = None) -> bool:
     indicator = await get_indicator(db, indicator_id, tenant_id)
     if not indicator:
         return False
@@ -216,6 +241,7 @@ async def delete_indicator(
 
 
 # ── Bulk import ───────────────────────────────────────────────────────────────
+
 
 async def bulk_import(
     db: AsyncSession,
@@ -303,6 +329,7 @@ async def bulk_import(
 
 # ── Enrichment ────────────────────────────────────────────────────────────────
 
+
 async def enrich(
     db: AsyncSession,
     value: str,
@@ -345,9 +372,7 @@ async def enrich(
         )
     )
 
-    result = await db.execute(
-        select(ThreatIntelIndicator).where(and_(*filters))
-    )
+    result = await db.execute(select(ThreatIntelIndicator).where(and_(*filters)))
     matches = result.scalars().all()
 
     if matches and track_hit:
@@ -404,30 +429,43 @@ def _indicator_to_dict(ind: ThreatIntelIndicator) -> dict:
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
+
 async def get_stats(db: AsyncSession, tenant_id: str | None = None) -> dict:
     total = (await db.execute(select(func.count(ThreatIntelIndicator.id)).where(_visible(tenant_id)))).scalar_one()
-    active = (await db.execute(
-        select(func.count(ThreatIntelIndicator.id)).where(_visible(tenant_id), ThreatIntelIndicator.active == True)
-    )).scalar_one()
+    active = (
+        await db.execute(
+            select(func.count(ThreatIntelIndicator.id)).where(_visible(tenant_id), ThreatIntelIndicator.active == True)
+        )
+    ).scalar_one()
 
-    by_type_rows = (await db.execute(
-        select(ThreatIntelIndicator.indicator_type, func.count(ThreatIntelIndicator.id))
-        .where(_visible(tenant_id), ThreatIntelIndicator.active == True)
-        .group_by(ThreatIntelIndicator.indicator_type)
-    )).all()
+    by_type_rows = (
+        await db.execute(
+            select(ThreatIntelIndicator.indicator_type, func.count(ThreatIntelIndicator.id))
+            .where(_visible(tenant_id), ThreatIntelIndicator.active == True)
+            .group_by(ThreatIntelIndicator.indicator_type)
+        )
+    ).all()
 
-    by_severity_rows = (await db.execute(
-        select(ThreatIntelIndicator.severity, func.count(ThreatIntelIndicator.id))
-        .where(_visible(tenant_id), ThreatIntelIndicator.active == True)
-        .group_by(ThreatIntelIndicator.severity)
-    )).all()
+    by_severity_rows = (
+        await db.execute(
+            select(ThreatIntelIndicator.severity, func.count(ThreatIntelIndicator.id))
+            .where(_visible(tenant_id), ThreatIntelIndicator.active == True)
+            .group_by(ThreatIntelIndicator.severity)
+        )
+    ).all()
 
-    top_hits = (await db.execute(
-        select(ThreatIntelIndicator)
-        .where(_visible(tenant_id), ThreatIntelIndicator.active == True, ThreatIntelIndicator.hit_count > 0)
-        .order_by(ThreatIntelIndicator.hit_count.desc())
-        .limit(10)
-    )).scalars().all()
+    top_hits = (
+        (
+            await db.execute(
+                select(ThreatIntelIndicator)
+                .where(_visible(tenant_id), ThreatIntelIndicator.active == True, ThreatIntelIndicator.hit_count > 0)
+                .order_by(ThreatIntelIndicator.hit_count.desc())
+                .limit(10)
+            )
+        )
+        .scalars()
+        .all()
+    )
 
     return {
         "total": total,

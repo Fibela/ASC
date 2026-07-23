@@ -6,6 +6,7 @@ triggers where condition_type='incident_sla_breach' via the PIIL bridge.
 
 Schedule: every SLA_ESCALATION_CHECK_INTERVAL_SECONDS (default 120s).
 """
+
 import asyncio
 
 from asc_api.db.session import AsyncSessionLocal

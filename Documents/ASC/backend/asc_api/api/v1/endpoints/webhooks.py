@@ -20,7 +20,7 @@ Registration cap: 10 active webhooks per user.
 
 import secrets
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,14 +28,14 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_current_user, get_current_admin
+from asc_api.api.deps import get_current_admin, get_current_user
 from asc_api.core.audit import log_security_action
 from asc_api.core.tenant_context import get_tenant_id
 from asc_api.core.webhook_dispatcher import deliver_to_url
 from asc_api.db.session import get_db
 from asc_api.db.tenant_filter import apply_tenant_filter
-from asc_api.models.webhook import Webhook, VALID_WEBHOOK_EVENTS, _MAX_WEBHOOKS_PER_USER
 from asc_api.models.user import User
+from asc_api.models.webhook import _MAX_WEBHOOKS_PER_USER, VALID_WEBHOOK_EVENTS, Webhook
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -49,6 +49,7 @@ _SIGNING_NOTE = (
 
 # â”€â”€ Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 class WebhookCreate(BaseModel):
     url: str = Field(..., max_length=2048)
     events: list[str] = Field(..., min_length=1)
@@ -58,6 +59,7 @@ class WebhookCreate(BaseModel):
     @classmethod
     def validate_url(cls, v: str) -> str:
         from urllib.parse import urlparse
+
         parsed = urlparse(v)
         if parsed.scheme not in ("http", "https"):
             raise ValueError("URL must use http:// or https://")
@@ -70,9 +72,7 @@ class WebhookCreate(BaseModel):
     def validate_events(cls, v: list[str]) -> list[str]:
         invalid = [e for e in v if e not in VALID_WEBHOOK_EVENTS]
         if invalid:
-            raise ValueError(
-                f"Invalid events: {invalid}. Valid: {sorted(VALID_WEBHOOK_EVENTS)}"
-            )
+            raise ValueError(f"Invalid events: {invalid}. Valid: {sorted(VALID_WEBHOOK_EVENTS)}")
         return list(set(v))  # deduplicate
 
 
@@ -92,6 +92,7 @@ class WebhookResponse(BaseModel):
 
 class WebhookCreated(WebhookResponse):
     """Returned ONCE at creation â€” includes the raw signing secret."""
+
     secret: str
     signing_note: str
 
@@ -108,6 +109,7 @@ class WebhookPatch(BaseModel):
         if v is None:
             return v
         from urllib.parse import urlparse
+
         parsed = urlparse(v)
         if parsed.scheme not in ("http", "https"):
             raise ValueError("URL must use http:// or https://")
@@ -122,9 +124,7 @@ class WebhookPatch(BaseModel):
             return v
         invalid = [e for e in v if e not in VALID_WEBHOOK_EVENTS]
         if invalid:
-            raise ValueError(
-                f"Invalid events: {invalid}. Valid: {sorted(VALID_WEBHOOK_EVENTS)}"
-            )
+            raise ValueError(f"Invalid events: {invalid}. Valid: {sorted(VALID_WEBHOOK_EVENTS)}")
         return list(set(v))
 
 
@@ -136,6 +136,7 @@ class WebhookTestResult(BaseModel):
 
 
 # â”€â”€ DB helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 async def _get_webhook_or_404(webhook_id: str, db: AsyncSession, tenant_id: str | None = None) -> Webhook:
     query = select(Webhook).where(Webhook.id == webhook_id)
@@ -155,6 +156,7 @@ def _assert_owner_or_admin(wh: Webhook, user: User) -> None:
 
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.post("", response_model=WebhookCreated, status_code=status.HTTP_201_CREATED)
 async def register_webhook(
@@ -183,7 +185,7 @@ async def register_webhook(
         )
 
     raw_secret = secrets.token_hex(32)  # 64 hex chars
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     wh = Webhook(
         id=str(_uuid.uuid4()),
         url=payload.url,
@@ -235,14 +237,10 @@ async def list_webhooks(
     P51: all queries scoped to the request's tenant via apply_tenant_filter().
     """
     if current_user.role == "admin":
-        stmt = apply_tenant_filter(
-            select(Webhook).order_by(Webhook.created_at.desc()), Webhook
-        )
+        stmt = apply_tenant_filter(select(Webhook).order_by(Webhook.created_at.desc()), Webhook)
     else:
         stmt = apply_tenant_filter(
-            select(Webhook)
-            .where(Webhook.user_id == current_user.id)
-            .order_by(Webhook.created_at.desc()),
+            select(Webhook).where(Webhook.user_id == current_user.id).order_by(Webhook.created_at.desc()),
             Webhook,
         )
     result = await db.execute(stmt)
@@ -327,7 +325,7 @@ async def test_webhook(
 
     test_payload = {
         "event": "test",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "data": {
             "message": "ASC PremosCorp webhook test delivery",
             "webhook_id": wh.id,
@@ -335,12 +333,10 @@ async def test_webhook(
         },
     }
 
-    success, status_code, latency_ms, error = await deliver_to_url(
-        wh.url, wh.secret, "test", test_payload
-    )
+    success, status_code, latency_ms, error = await deliver_to_url(wh.url, wh.secret, "test", test_payload)
 
     # Update stats
-    wh.last_triggered_at = datetime.now(timezone.utc)
+    wh.last_triggered_at = datetime.now(UTC)
     if success:
         wh.failure_count = 0
     else:
@@ -370,8 +366,6 @@ async def admin_list_all_webhooks(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin-only: list all webhooks across all users within the current tenant."""
-    stmt = apply_tenant_filter(
-        select(Webhook).order_by(Webhook.created_at.desc()), Webhook
-    )
+    stmt = apply_tenant_filter(select(Webhook).order_by(Webhook.created_at.desc()), Webhook)
     result = await db.execute(stmt)
     return result.scalars().all()

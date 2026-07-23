@@ -38,22 +38,22 @@ import hashlib
 import hmac
 import json
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
 from asc_api.core.audit import log_security_action
 
-
 # ── Canary Token System ────────────────────────────────────────────────────────
+
 
 @dataclass
 class CanaryAccess:
     """Single access record for a canary token."""
+
     ts: str
     client_ip: str
     user_agent: str
@@ -64,10 +64,11 @@ class CanaryAccess:
 @dataclass
 class CanaryToken:
     """A traceable token embedded in decoy content."""
+
     token_id: str
-    endpoint: str          # which honeypot endpoint generated this
+    endpoint: str  # which honeypot endpoint generated this
     created_at: str
-    label: str             # human-readable context (e.g. "fake-db-password")
+    label: str  # human-readable context (e.g. "fake-db-password")
     accesses: list[CanaryAccess] = field(default_factory=list)
 
     @property
@@ -75,11 +76,11 @@ class CanaryToken:
         return len(self.accesses)
 
     @property
-    def first_access(self) -> Optional[str]:
+    def first_access(self) -> str | None:
         return self.accesses[0].ts if self.accesses else None
 
     @property
-    def last_access(self) -> Optional[str]:
+    def last_access(self) -> str | None:
         return self.accesses[-1].ts if self.accesses else None
 
 
@@ -99,7 +100,7 @@ class CanaryTokenStore:
         token = CanaryToken(
             token_id=str(uuid.uuid4()).replace("-", ""),
             endpoint=endpoint,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
             label=label,
         )
         with self._lock:
@@ -111,13 +112,13 @@ class CanaryTokenStore:
         token_id: str,
         client_ip: str,
         headers: dict[str, str],
-    ) -> Optional[CanaryToken]:
+    ) -> CanaryToken | None:
         with self._lock:
             token = self._tokens.get(token_id)
             if not token:
                 return None
             access = CanaryAccess(
-                ts=datetime.now(timezone.utc).isoformat(),
+                ts=datetime.now(UTC).isoformat(),
                 client_ip=client_ip,
                 user_agent=headers.get("user-agent", "unknown")[:256],
                 referer=headers.get("referer", "")[:256],
@@ -126,7 +127,7 @@ class CanaryTokenStore:
             token.accesses.append(access)
             return token
 
-    def get(self, token_id: str) -> Optional[CanaryToken]:
+    def get(self, token_id: str) -> CanaryToken | None:
         with self._lock:
             return self._tokens.get(token_id)
 
@@ -145,31 +146,33 @@ canary_store = CanaryTokenStore()
 
 # ── Attacker Fingerprinting ────────────────────────────────────────────────────
 
+
 @dataclass
 class AttackerFingerprint:
     """Passive fingerprint of an attacker session."""
+
     client_ip: str
     user_agent: str
     accept_language: str
     accept_encoding: str
     referer: str
-    x_forwarded_for: str        # may reveal real IP behind proxy
-    connection_type: str         # keep-alive | close
+    x_forwarded_for: str  # may reveal real IP behind proxy
+    connection_type: str  # keep-alive | close
     all_headers: dict[str, str]
     timestamp: str
-    fingerprint_hash: str        # SHA-256 of key fields for cross-session correlation
+    fingerprint_hash: str  # SHA-256 of key fields for cross-session correlation
 
     def to_dict(self) -> dict:
         return {
-            "client_ip":       self.client_ip,
-            "user_agent":      self.user_agent,
+            "client_ip": self.client_ip,
+            "user_agent": self.user_agent,
             "accept_language": self.accept_language,
             "accept_encoding": self.accept_encoding,
-            "referer":         self.referer,
+            "referer": self.referer,
             "x_forwarded_for": self.x_forwarded_for,
             "connection_type": self.connection_type,
-            "all_headers":     self.all_headers,
-            "timestamp":       self.timestamp,
+            "all_headers": self.all_headers,
+            "timestamp": self.timestamp,
             "fingerprint_hash": self.fingerprint_hash,
         }
 
@@ -184,11 +187,11 @@ def fingerprint_request(
     Does NOT inject or execute anything — purely reads what the attacker
     already sent in their HTTP request.
     """
-    ua  = headers.get("user-agent", "")[:512]
+    ua = headers.get("user-agent", "")[:512]
     lang = headers.get("accept-language", "")[:128]
-    enc  = headers.get("accept-encoding", "")[:128]
-    ref  = headers.get("referer", "")[:256]
-    xff  = headers.get("x-forwarded-for", "")[:256]
+    enc = headers.get("accept-encoding", "")[:128]
+    ref = headers.get("referer", "")[:256]
+    xff = headers.get("x-forwarded-for", "")[:256]
     conn = headers.get("connection", "")[:64]
 
     # Fingerprint hash for cross-session correlation
@@ -210,12 +213,13 @@ def fingerprint_request(
         x_forwarded_for=xff,
         connection_type=conn,
         all_headers=clean_headers,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         fingerprint_hash=fp_hash,
     )
 
 
 # ── IP Reputation Lookup ───────────────────────────────────────────────────────
+
 
 async def lookup_ip_reputation(ip: str, abuseipdb_key: str = "") -> dict[str, Any]:
     """
@@ -248,19 +252,23 @@ async def lookup_ip_reputation(ip: str, abuseipdb_key: str = "") -> dict[str, An
 
     try:
         async with httpx.AsyncClient(timeout=4) as client:
-            r = await client.get(f"http://ip-api.com/json/{ip}?fields=country,countryCode,city,isp,as,org,proxy,hosting")
+            r = await client.get(
+                f"http://ip-api.com/json/{ip}?fields=country,countryCode,city,isp,as,org,proxy,hosting"
+            )
             if r.status_code == 200:
                 data = r.json()
-                result.update({
-                    "country":      data.get("country"),
-                    "country_code": data.get("countryCode"),
-                    "city":         data.get("city"),
-                    "isp":          data.get("isp"),
-                    "asn":          data.get("as"),
-                    "org":          data.get("org"),
-                    "is_proxy":     data.get("proxy"),
-                    "is_hosting":   data.get("hosting"),
-                })
+                result.update(
+                    {
+                        "country": data.get("country"),
+                        "country_code": data.get("countryCode"),
+                        "city": data.get("city"),
+                        "isp": data.get("isp"),
+                        "asn": data.get("as"),
+                        "org": data.get("org"),
+                        "is_proxy": data.get("proxy"),
+                        "is_hosting": data.get("hosting"),
+                    }
+                )
     except Exception:  # nosec B110 — external threat-intel API failure is non-fatal; attacker info is best-effort
         pass
 
@@ -274,10 +282,12 @@ async def lookup_ip_reputation(ip: str, abuseipdb_key: str = "") -> dict[str, An
                 )
                 if r.status_code == 200:
                     data = r.json().get("data", {})
-                    result.update({
-                        "abuse_confidence_score": data.get("abuseConfidenceScore"),
-                        "abuse_reports":          data.get("totalReports"),
-                    })
+                    result.update(
+                        {
+                            "abuse_confidence_score": data.get("abuseConfidenceScore"),
+                            "abuse_reports": data.get("totalReports"),
+                        }
+                    )
         except Exception:  # nosec B110 — AbuseIPDB API failure is non-fatal; enrichment is best-effort
             pass
 
@@ -285,6 +295,7 @@ async def lookup_ip_reputation(ip: str, abuseipdb_key: str = "") -> dict[str, An
 
 
 # ── Decoy Content Generator ────────────────────────────────────────────────────
+
 
 def _canary_url(base_url: str, token_id: str) -> str:
     """Build the canary callback URL embedded in decoy content."""
@@ -299,14 +310,14 @@ def build_probe_decoy(base_url: str) -> tuple[dict, CanaryToken]:
     """
     token = canary_store.create("/agents/probe", label="probe-diagnostics-link")
     return {
-        "status":          "operational",
-        "agents_online":   0,
-        "agents_total":    0,
+        "status": "operational",
+        "agents_online": 0,
+        "agents_total": 0,
         "backend_version": "1.0.0",
-        "db_status":       "connected",
-        "probe_ts":        datetime.now(timezone.utc).isoformat(),
+        "db_status": "connected",
+        "probe_ts": datetime.now(UTC).isoformat(),
         "diagnostics_url": _canary_url(base_url, token.token_id),
-        "support_id":      token.token_id[:8],
+        "support_id": token.token_id[:8],
     }, token
 
 
@@ -318,28 +329,28 @@ def build_dump_decoy(base_url: str) -> tuple[dict, CanaryToken]:
     """
     token = canary_store.create("/agents/dump", label="dump-report-link")
     return {
-        "dump_id":    token.token_id[:12],
-        "generated":  datetime.now(timezone.utc).isoformat(),
+        "dump_id": token.token_id[:12],
+        "generated": datetime.now(UTC).isoformat(),
         "agents": [
             {
-                "id":          "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                "hostname":    "ws-corp-01.premoscorp.local",
-                "ip":          "10.10.0.101",
-                "os":          "windows",
-                "status":      "active",
-                "last_seen":   datetime.now(timezone.utc).isoformat(),
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                "hostname": "ws-corp-01.premoscorp.local",
+                "ip": "10.10.0.101",
+                "os": "windows",
+                "status": "active",
+                "last_seen": datetime.now(UTC).isoformat(),
             },
             {
-                "id":          "f0e1d2c3-b4a5-6789-0fed-cba987654321",
-                "hostname":    "srv-linux-prod.premoscorp.local",
-                "ip":          "10.10.0.201",
-                "os":          "linux",
-                "status":      "active",
-                "last_seen":   datetime.now(timezone.utc).isoformat(),
+                "id": "f0e1d2c3-b4a5-6789-0fed-cba987654321",
+                "hostname": "srv-linux-prod.premoscorp.local",
+                "ip": "10.10.0.201",
+                "os": "linux",
+                "status": "active",
+                "last_seen": datetime.now(UTC).isoformat(),
             },
         ],
-        "report_url":   _canary_url(base_url, token.token_id),
-        "total":        2,
+        "report_url": _canary_url(base_url, token.token_id),
+        "total": 2,
     }, token
 
 
@@ -353,38 +364,39 @@ def build_export_decoy(base_url: str) -> tuple[dict, CanaryToken]:
     token = canary_store.create("/agents/export", label="export-config-link")
     cred_token = canary_store.create("/agents/export", label="export-embedded-credential")
     return {
-        "export_id":    token.token_id[:16],
-        "export_ts":    datetime.now(timezone.utc).isoformat(),
-        "status":       "ready",
-        "format":       "json",
+        "export_id": token.token_id[:16],
+        "export_ts": datetime.now(UTC).isoformat(),
+        "status": "ready",
+        "format": "json",
         "config": {
             "database": {
-                "host":     "db-primary.premoscorp.local",
-                "port":     5432,
-                "name":     "asc_prod",
-                "user":     f"svc_specter_{cred_token.token_id[:8]}",
+                "host": "db-primary.premoscorp.local",
+                "port": 5432,
+                "name": "asc_prod",
+                "user": f"svc_specter_{cred_token.token_id[:8]}",
                 "password": f"Sp3ct3r!{cred_token.token_id[8:16]}@2026",
-                "schema":   "public",
+                "schema": "public",
             },
             "redis": {
-                "host":     "redis-cache.premoscorp.local",
-                "port":     6379,
+                "host": "redis-cache.premoscorp.local",
+                "port": 6379,
                 "password": cred_token.token_id[16:32],
             },
             "signing_key": cred_token.token_id,
         },
         "download_url": _canary_url(base_url, token.token_id),
-        "expires_in":   3600,
+        "expires_in": 3600,
     }, token
 
 
 # ── Signed Evidence Report ─────────────────────────────────────────────────────
 
+
 def generate_evidence_report(
     event_type: str,
     fingerprint: AttackerFingerprint,
-    token: Optional[CanaryToken],
-    ip_reputation: Optional[dict],
+    token: CanaryToken | None,
+    ip_reputation: dict | None,
     secret_key: str,
     additional_context: dict | None = None,
 ) -> dict[str, Any]:
@@ -403,33 +415,35 @@ def generate_evidence_report(
     """
     report_id = str(uuid.uuid4())
     report: dict[str, Any] = {
-        "report_id":     report_id,
-        "generated_at":  datetime.now(timezone.utc).isoformat(),
-        "generated_by":  "SPECTER-Honeypot-Engine-PremosCorp-v1",
-        "event_type":    event_type,
+        "report_id": report_id,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_by": "SPECTER-Honeypot-Engine-PremosCorp-v1",
+        "event_type": event_type,
         "incident_summary": {
-            "description":    f"Unauthorized access to PremosCorp honeypot endpoint detected.",
-            "severity":       "medium" if ((ip_reputation or {}).get("abuse_confidence_score") or 0) < 50 else "high",
-            "attacker_ip":    fingerprint.client_ip,
+            "description": "Unauthorized access to PremosCorp honeypot endpoint detected.",
+            "severity": "medium" if ((ip_reputation or {}).get("abuse_confidence_score") or 0) < 50 else "high",
+            "attacker_ip": fingerprint.client_ip,
             "x_forwarded_for": fingerprint.x_forwarded_for or None,
-            "attack_ts":      fingerprint.timestamp,
+            "attack_ts": fingerprint.timestamp,
         },
         "attacker_fingerprint": fingerprint.to_dict(),
-        "ip_reputation":   ip_reputation or {},
+        "ip_reputation": ip_reputation or {},
         "canary_evidence": {
-            "token_id":     token.token_id if token else None,
-            "endpoint":     token.endpoint if token else None,
-            "label":        token.label if token else None,
+            "token_id": token.token_id if token else None,
+            "endpoint": token.endpoint if token else None,
+            "label": token.label if token else None,
             "access_count": token.access_count if token else 0,
             "first_access": token.first_access if token else None,
-            "last_access":  token.last_access if token else None,
-        } if token else None,
+            "last_access": token.last_access if token else None,
+        }
+        if token
+        else None,
         "evidence_chain": [
             {
-                "ts":       access.ts,
-                "ip":       access.client_ip,
-                "ua":       access.user_agent,
-                "action":   "canary_callback_triggered",
+                "ts": access.ts,
+                "ip": access.client_ip,
+                "ua": access.user_agent,
+                "action": "canary_callback_triggered",
                 "endpoint": token.endpoint if token else "unknown",
             }
             for access in (token.accesses if token else [])
@@ -442,10 +456,10 @@ def generate_evidence_report(
             "Report generated for potential submission to relevant authorities."
         ),
         "reporting_guidelines": {
-            "abuseipdb":   "https://www.abuseipdb.com/report",
-            "cert_co":     "https://colcert.gov.co/",
-            "cert_es":     "https://www.incibe-cert.es/",
-            "interpol":    "https://www.interpol.int/Crimes/Cybercrime",
+            "abuseipdb": "https://www.abuseipdb.com/report",
+            "cert_co": "https://colcert.gov.co/",
+            "cert_es": "https://www.incibe-cert.es/",
+            "interpol": "https://www.interpol.int/Crimes/Cybercrime",
         },
     }
 
@@ -464,7 +478,7 @@ def generate_evidence_report(
 
     return {
         "report_id": report_id,
-        "report":    report,
+        "report": report,
         "signature": sig,
     }
 

@@ -1,16 +1,17 @@
-from fastapi import APIRouter, Depends, Query
-from fastapi.responses import Response, HTMLResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
-from datetime import datetime, timezone, timedelta
 import uuid
+from datetime import UTC, datetime, timedelta
 
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse, Response
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_current_user
 from asc_api.db.session import get_db
 from asc_api.models.alert import Alert
-from asc_api.models.user import User
-from asc_api.services.reporter import generate_pdf_report, generate_html_report
-from asc_api.api.deps import get_current_user
 from asc_api.models.event import Event
+from asc_api.models.user import User
+from asc_api.services.reporter import generate_html_report, generate_pdf_report
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -23,7 +24,7 @@ def _tc(model, tenant_id):
 async def _build_report_data(
     db: AsyncSession, hours: int, analyst: str = "System", tenant_id: str | None = None
 ) -> dict:
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
 
     alerts_result = await db.execute(
         select(Alert).where(_tc(Alert, tenant_id), Alert.detected_at >= since).order_by(desc(Alert.detected_at))
@@ -58,30 +59,30 @@ async def _build_report_data(
 
     return {
         "report_id": str(uuid.uuid4())[:8].upper(),
-        "analyst":   analyst,
-        "period":    f"Last {hours}h",
+        "analyst": analyst,
+        "period": f"Last {hours}h",
         "summary": {
-            "total_alerts":   total,
+            "total_alerts": total,
             "critical_count": critical,
-            "risk_posture":   posture,
-            "total_events":   total_events,
+            "risk_posture": posture,
+            "total_events": total_events,
         },
         "metrics": {
-            "total_alerts":     total,
-            "total_events":     total_events,
-            "true_positives":   total - fp,
-            "fp_rate":          fp_rate,
-            "mttr_minutes":     mttr,
-            "mttd_minutes":     mttd,
-            "ioc_coverage":     0.0,
+            "total_alerts": total,
+            "total_events": total_events,
+            "true_positives": total - fp,
+            "fp_rate": fp_rate,
+            "mttr_minutes": mttr,
+            "mttd_minutes": mttd,
+            "ioc_coverage": 0.0,
             "endpoint_coverage": 0.0,
         },
         "alerts": [
             {
-                "title":       a.title,
-                "severity":    a.severity,
-                "risk_score":  a.risk_score,
-                "status":      a.status,
+                "title": a.title,
+                "severity": a.severity,
+                "risk_score": a.risk_score,
+                "status": a.status,
                 "detected_at": a.detected_at.isoformat() if a.detected_at else "",
             }
             for a in alerts
@@ -100,8 +101,9 @@ async def download_pdf(
     pdf_bytes = generate_pdf_report(data)
     if not pdf_bytes:
         from fastapi import HTTPException
+
         raise HTTPException(status_code=500, detail="PDF generation failed — install reportlab")
-    filename = f"ASC_Report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.pdf"
+    filename = f"ASC_Report_{datetime.now(UTC).strftime('%Y%m%d_%H%M')}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

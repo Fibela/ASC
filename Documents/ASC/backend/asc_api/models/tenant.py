@@ -14,27 +14,25 @@ Design decisions:
 """
 
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime
+from datetime import UTC, datetime
+
+from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
 class Tenant(Base):
     __tablename__ = "tenants"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     plan: Mapped[str] = mapped_column(String(50), default="free")  # free | pro | enterprise
     # S102 — audiencia del explainer adaptativo: hogar | pyme | enterprise
     profile: Mapped[str] = mapped_column(String(20), default="pyme", server_default="pyme")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     # Contact for billing / support
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Max active users allowed under this plan (None = unlimited)
@@ -51,6 +49,4 @@ class Tenant(Base):
     # ── P60 Stripe Checkout Auto-Provisioning ─────────────────────────────────
     # Checkout session ID used for idempotency (cs_XXXXXXXXXXXXXXXXXX).
     # Prevents duplicate provisioning if Stripe fires the event more than once.
-    stripe_checkout_session_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, unique=True
-    )
+    stripe_checkout_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)

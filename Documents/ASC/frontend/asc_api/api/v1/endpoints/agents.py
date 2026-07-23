@@ -27,7 +27,7 @@ P14 Security layers active on this router:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
@@ -35,29 +35,26 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_analyst_or_admin, get_current_admin, get_current_user
+from asc_api.api.deps import get_analyst_or_admin, get_current_admin
 from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
-from asc_api.core.signing import verify_agent_event
+from asc_api.core.honeypot import (
+    build_dump_decoy,
+    build_export_decoy,
+    build_probe_decoy,
+    fingerprint_request,
+    generate_evidence_report,
+    lookup_ip_reputation,
+)
 from asc_api.core.specter_security import (
     SprecterRateLimiter,
     check_injection,
     check_suspicious_registration,
     generate_enrollment_token,
     generate_tenant_enrollment_token,
-    verify_and_extract_tenant,
     log_honeypot_trigger,
     validate_command_params,
-    verify_enrollment_token,
-)
-from asc_api.core.honeypot import (
-    build_probe_decoy,
-    build_dump_decoy,
-    build_export_decoy,
-    canary_store,
-    fingerprint_request,
-    generate_evidence_report,
-    lookup_ip_reputation,
+    verify_and_extract_tenant,
 )
 from asc_api.db.session import get_db
 from asc_api.models.agent import Agent, AgentCommand, AgentEvent
@@ -65,11 +62,9 @@ from asc_api.models.honeypot import HoneypotEvidenceReport
 from asc_api.models.user import User
 from asc_api.services.agent_commander import (
     compute_poll_interval,
-    escalate_threat_level,
-    deescalate_threat_level,
+    detect_from_agent_events,
     get_pending_commands,
     ingest_events,
-    detect_from_agent_events,
     issue_command,
     mark_command_delivered,
     record_command_result,
@@ -91,22 +86,31 @@ _GUARD_HEADER = "SPECTER-Guard-PremosCorp-v1"
 # Valid command types (P35 executors added in P36)
 _VALID_COMMAND_TYPES = {
     # P13 originals
-    "kill_process", "block_ip", "quarantine_file",
-    "isolate", "unisolate", "collect_snapshot", "canary_ping",
+    "kill_process",
+    "block_ip",
+    "quarantine_file",
+    "isolate",
+    "unisolate",
+    "collect_snapshot",
+    "canary_ping",
     # P35 new executors
-    "isolate_endpoint", "log_query", "unblock_ip", "unblock_domain",
+    "isolate_endpoint",
+    "log_query",
+    "unblock_ip",
+    "unblock_domain",
 }
 
 
 # â”€â”€ Pydantic schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 class AgentRegisterRequest(BaseModel):
     hostname: str
-    os_type: str           # windows | linux | macos
+    os_type: str  # windows | linux | macos
     os_version: str
-    arch: str              # x86_64 | arm64
+    arch: str  # x86_64 | arm64
     ip_address: str
-    public_key: str        # Ed25519 raw public key, base64
+    public_key: str  # Ed25519 raw public key, base64
     specter_version: str = "1.0.0"
     labels: dict[str, str] = Field(default_factory=dict)
     tenant_id: str | None = None  # populated by the admin who generates the enrollment token
@@ -165,10 +169,11 @@ class IssueCommandRequest(BaseModel):
 
 
 class SetThreatRequest(BaseModel):
-    threat_level: str   # normal | elevated | critical
+    threat_level: str  # normal | elevated | critical
 
 
 # â”€â”€ Agent identity header dependency â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 async def _get_agent_by_header(
     x_specter_id: str = Header(..., alias="X-Specter-ID"),
@@ -177,12 +182,14 @@ async def _get_agent_by_header(
     result = await db.execute(select(Agent).where(Agent.id == x_specter_id))
     agent = result.scalar_one_or_none()
     if not agent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Agent not found. Re-register the SPECTER agent.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found. Re-register the SPECTER agent."
+        )
     return agent
 
 
 # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 async def _get_agent_or_404(agent_id: str, db: AsyncSession, tenant_id: str | None = None) -> Agent:
     query = select(Agent).where(Agent.id == agent_id)
@@ -197,20 +204,20 @@ async def _get_agent_or_404(agent_id: str, db: AsyncSession, tenant_id: str | No
 
 def _cmd_out(cmd: AgentCommand, include_result: bool = False) -> dict:
     out = {
-        "id":           cmd.id,
-        "agent_id":     cmd.agent_id,
+        "id": cmd.id,
+        "agent_id": cmd.agent_id,
         "command_type": cmd.command_type,
-        "params":       cmd.params,
-        "signature":    cmd.signature,
-        "status":       cmd.status,
-        "issued_by":    cmd.issued_by,
-        "issued_at":    cmd.issued_at.isoformat(),
+        "params": cmd.params,
+        "signature": cmd.signature,
+        "status": cmd.status,
+        "issued_by": cmd.issued_by,
+        "issued_at": cmd.issued_at.isoformat(),
         "delivered_at": cmd.delivered_at.isoformat() if cmd.delivered_at else None,
         "completed_at": cmd.completed_at.isoformat() if cmd.completed_at else None,
     }
     if include_result:
         out["result"] = cmd.result
-        out["error"]  = cmd.error
+        out["error"] = cmd.error
     return out
 
 
@@ -220,6 +227,7 @@ def _guard(response: Response) -> None:
 
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.post("/register", summary="SPECTER agent self-registration")
 async def register_agent(
@@ -238,9 +246,7 @@ async def register_agent(
     _guard(response)
 
     # Barrier: enrollment token — extrae el tenant del token (S111.3), no del payload
-    _token_valid, _token_tenant = verify_and_extract_tenant(
-        settings.SPECTER_ENROLLMENT_SECRET, x_specter_token
-    )
+    _token_valid, _token_tenant = verify_and_extract_tenant(settings.SPECTER_ENROLLMENT_SECRET, x_specter_token)
     if not _token_valid:
         log_security_action(
             "specter_enrollment_token_invalid",
@@ -260,9 +266,7 @@ async def register_agent(
     check_suspicious_registration(payload.hostname, client_ip)
 
     # Idempotent: same hostname â†’ update existing agent record
-    existing = await db.execute(
-        select(Agent).where(Agent.hostname == payload.hostname)
-    )
+    existing = await db.execute(select(Agent).where(Agent.hostname == payload.hostname))
     agent = existing.scalar_one_or_none()
 
     if agent:
@@ -271,7 +275,7 @@ async def register_agent(
         agent.os_version = payload.os_version
         agent.specter_version = payload.specter_version
         agent.status = "active"
-        agent.last_seen = datetime.now(timezone.utc)
+        agent.last_seen = datetime.now(UTC)
         if _token_tenant and not agent.tenant_id:
             agent.tenant_id = _token_tenant
         await db.commit()
@@ -295,11 +299,11 @@ async def register_agent(
         await db.refresh(agent)
 
     return {
-        "agent_id":        agent.id,
-        "poll_interval":   agent.poll_interval,
-        "threat_level":    agent.threat_level,
+        "agent_id": agent.id,
+        "poll_interval": agent.poll_interval,
+        "threat_level": agent.threat_level,
         "backend_pub_key": settings.SPECTER_SIGNING_PUBLIC_KEY,
-        "ts":              datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -311,12 +315,7 @@ async def list_agents(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    q = (
-        select(Agent)
-        .where(Agent.tenant_id == current_user.tenant_id)
-        .order_by(Agent.last_seen.desc())
-        .limit(limit)
-    )
+    q = select(Agent).where(Agent.tenant_id == current_user.tenant_id).order_by(Agent.last_seen.desc()).limit(limit)
     if status_filter:
         q = q.where(Agent.status == status_filter)
     if threat_filter:
@@ -325,7 +324,7 @@ async def list_agents(
     agents = result.scalars().all()
     return {
         "agents": [AgentOut.from_orm(a).model_dump() for a in agents],
-        "total":  len(agents),
+        "total": len(agents),
     }
 
 
@@ -342,7 +341,7 @@ async def get_enrollment_token(
 
     Security: admin-only.  Analysts cannot retrieve the enrollment token (least privilege).
     """
-    import math, time as _time
+    import time as _time
 
     if not settings.SPECTER_ENROLLMENT_SECRET:
         return {
@@ -370,6 +369,7 @@ async def get_enrollment_token(
 # â”€â”€ Honeypot endpoints (registered before /{agent_id} â€” order matters) â”€â”€â”€â”€â”€â”€â”€â”€
 # Legitimate SPECTER agents never call these paths.
 # Any access triggers a security audit event indicating reconnaissance.
+
 
 @router.get("/probe", summary="[HONEYPOT] Reconnaissance detection endpoint", include_in_schema=False)
 async def _honeypot_probe(
@@ -401,17 +401,19 @@ async def _honeypot_probe(
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "system_probe", "canary_label": token.label},
     )
-    db.add(HoneypotEvidenceReport(
-        report_id=report["report_id"],
-        token_id=token.token_id,
-        event_type="honeypot_probe_accessed",
-        attacker_ip=client_ip,
-        severity=report["report"]["incident_summary"]["severity"],
-        generated_at=datetime.now(timezone.utc),
-        report_json=report["report"],
-        signature=report["signature"],
-        fingerprint_hash=fp.fingerprint_hash,
-    ))
+    db.add(
+        HoneypotEvidenceReport(
+            report_id=report["report_id"],
+            token_id=token.token_id,
+            event_type="honeypot_probe_accessed",
+            attacker_ip=client_ip,
+            severity=report["report"]["incident_summary"]["severity"],
+            generated_at=datetime.now(UTC),
+            report_json=report["report"],
+            signature=report["signature"],
+            fingerprint_hash=fp.fingerprint_hash,
+        )
+    )
     await db.commit()
     return decoy
 
@@ -446,17 +448,19 @@ async def _honeypot_dump(
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "agent_inventory", "canary_label": token.label},
     )
-    db.add(HoneypotEvidenceReport(
-        report_id=report["report_id"],
-        token_id=token.token_id,
-        event_type="honeypot_dump_accessed",
-        attacker_ip=client_ip,
-        severity=report["report"]["incident_summary"]["severity"],
-        generated_at=datetime.now(timezone.utc),
-        report_json=report["report"],
-        signature=report["signature"],
-        fingerprint_hash=fp.fingerprint_hash,
-    ))
+    db.add(
+        HoneypotEvidenceReport(
+            report_id=report["report_id"],
+            token_id=token.token_id,
+            event_type="honeypot_dump_accessed",
+            attacker_ip=client_ip,
+            severity=report["report"]["incident_summary"]["severity"],
+            generated_at=datetime.now(UTC),
+            report_json=report["report"],
+            signature=report["signature"],
+            fingerprint_hash=fp.fingerprint_hash,
+        )
+    )
     await db.commit()
     return decoy
 
@@ -492,22 +496,25 @@ async def _honeypot_export(
         secret_key=settings.SECRET_KEY,
         additional_context={"decoy_type": "credentials_export", "canary_label": token.label},
     )
-    db.add(HoneypotEvidenceReport(
-        report_id=report["report_id"],
-        token_id=token.token_id,
-        event_type="honeypot_export_accessed",
-        attacker_ip=client_ip,
-        severity=report["report"]["incident_summary"]["severity"],
-        generated_at=datetime.now(timezone.utc),
-        report_json=report["report"],
-        signature=report["signature"],
-        fingerprint_hash=fp.fingerprint_hash,
-    ))
+    db.add(
+        HoneypotEvidenceReport(
+            report_id=report["report_id"],
+            token_id=token.token_id,
+            event_type="honeypot_export_accessed",
+            attacker_ip=client_ip,
+            severity=report["report"]["incident_summary"]["severity"],
+            generated_at=datetime.now(UTC),
+            report_json=report["report"],
+            signature=report["signature"],
+            fingerprint_hash=fp.fingerprint_hash,
+        )
+    )
     await db.commit()
     return decoy
 
 
 # â”€â”€ Agent-specific endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 @router.get("/{agent_id}", summary="SPECTER agent detail")
 async def get_agent(
@@ -515,9 +522,7 @@ async def get_agent(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
-    result = await db.execute(
-        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
-    )
+    result = await db.execute(select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -531,9 +536,7 @@ async def deregister_agent(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ) -> dict:
-    result = await db.execute(
-        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
-    )
+    result = await db.execute(select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -600,7 +603,7 @@ async def ingest_agent_events(
         "accepted": accepted,
         "rejected": rejected,
         "alerts_created": len(alert_ids),
-        "ts":       datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -616,7 +619,7 @@ async def poll_commands(
     if agent.id != agent_id:
         raise HTTPException(status_code=403, detail="Agent ID mismatch.")
 
-    agent.last_seen = datetime.now(timezone.utc)
+    agent.last_seen = datetime.now(UTC)
     if agent.status == "inactive":
         agent.status = "active"
 
@@ -625,10 +628,10 @@ async def poll_commands(
         await mark_command_delivered(db, cmd)
 
     return {
-        "commands":      [_cmd_out(c) for c in cmds],
+        "commands": [_cmd_out(c) for c in cmds],
         "poll_interval": agent.poll_interval,
-        "threat_level":  agent.threat_level,
-        "ts":            datetime.now(timezone.utc).isoformat(),
+        "threat_level": agent.threat_level,
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -656,7 +659,8 @@ async def report_command_result(
         raise HTTPException(status_code=404, detail="Command not found.")
 
     cmd = await record_command_result(
-        db, cmd,
+        db,
+        cmd,
         success=payload.success,
         result=payload.result,
         error=payload.error,
@@ -678,9 +682,7 @@ async def issue_agent_command(
         )
 
     # Agent lookup first â€” 404 takes semantic priority over param errors
-    result = await db.execute(
-        select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id)
-    )
+    result = await db.execute(select(Agent).where(Agent.id == agent_id, Agent.tenant_id == current_user.tenant_id))
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -709,7 +711,11 @@ async def issue_agent_command(
             detail=f"Shell injection pattern detected in params: {flagged}",
         )
     cmd = await issue_command(
-        db, agent, payload.command_type, payload.params, str(current_user.id),
+        db,
+        agent,
+        payload.command_type,
+        payload.params,
+        str(current_user.id),
         tenant_id=current_user.tenant_id,
     )
 
@@ -750,8 +756,8 @@ async def set_threat_level(
         detail=f"{old_level} â†’ {payload.threat_level} hostname={agent.hostname}",
     )
     return {
-        "agent_id":      agent.id,
-        "threat_level":  agent.threat_level,
+        "agent_id": agent.id,
+        "threat_level": agent.threat_level,
         "poll_interval": agent.poll_interval,
     }
 
@@ -765,14 +771,9 @@ async def agent_timeline(
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     agent = await _get_agent_or_404(agent_id, db, tenant_id=current_user.tenant_id)
-    q = (
-        select(AgentEvent)
-        .where(AgentEvent.agent_id == agent_id)
-        .order_by(AgentEvent.ts.desc())
-        .limit(min(limit, 500))
-    )
+    q = select(AgentEvent).where(AgentEvent.agent_id == agent_id).order_by(AgentEvent.ts.desc()).limit(min(limit, 500))
     if anomalies_only:
-        q = q.where(AgentEvent.is_anomaly == True)  # noqa: E712
+        q = q.where(AgentEvent.is_anomaly == True)
 
     result = await db.execute(q)
     events = result.scalars().all()
@@ -781,14 +782,14 @@ async def agent_timeline(
         "hostname": agent.hostname,
         "events": [
             {
-                "id":              e.id,
-                "event_type":      e.event_type,
-                "severity":        e.severity,
-                "is_anomaly":      e.is_anomaly,
+                "id": e.id,
+                "event_type": e.event_type,
+                "severity": e.severity,
+                "is_anomaly": e.is_anomaly,
                 "signature_valid": e.signature_valid,
-                "data":            e.data,
-                "ts":              e.ts.isoformat(),
-                "received_at":     e.received_at.isoformat(),
+                "data": e.data,
+                "ts": e.ts.isoformat(),
+                "received_at": e.received_at.isoformat(),
             }
             for e in events
         ],
@@ -833,5 +834,5 @@ async def agent_command_history(
         "agent_id": agent_id,
         "hostname": agent.hostname,
         "commands": [_cmd_out(c, include_result=True) for c in cmds],
-        "total":    len(cmds),
+        "total": len(cmds),
     }

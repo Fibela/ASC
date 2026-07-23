@@ -10,36 +10,37 @@ Responsible for:
 
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.config import get_settings
-from asc_api.core.signing import sign_command, verify_agent_event, is_fresh
+from asc_api.core.logging import get_logger
+from asc_api.core.signing import is_fresh, sign_command, verify_agent_event
 from asc_api.models.agent import Agent, AgentCommand, AgentEvent
 
-from asc_api.core.logging import get_logger
 settings = get_settings()
 log = get_logger("asc.agent_commander")
 
 # ── Adaptive poll intervals (seconds) by threat level ─────────────────────────
 POLL_INTERVALS: dict[str, int] = {
-    "normal":   30,
-    "elevated":  5,
-    "critical":  1,
+    "normal": 30,
+    "elevated": 5,
+    "critical": 1,
 }
 
 # ── Threat level → command priority ───────────────────────────────────────────
 THREAT_LEVEL_WEIGHT: dict[str, int] = {
-    "normal":   0,
+    "normal": 0,
     "elevated": 1,
     "critical": 2,
 }
 
 
 # ── Command issuing ────────────────────────────────────────────────────────────
+
 
 async def issue_command(
     db: AsyncSession,
@@ -59,11 +60,11 @@ async def issue_command(
     ts = time.time()
 
     signable = {
-        "id":           cmd_id,
-        "agent_id":     agent.id,
+        "id": cmd_id,
+        "agent_id": agent.id,
         "command_type": command_type,
-        "params":       params,
-        "ts":           ts,
+        "params": params,
+        "ts": ts,
     }
 
     if not settings.SPECTER_SIGNING_PRIVATE_KEY:
@@ -88,6 +89,7 @@ async def issue_command(
 
 
 # ── Telemetry ingestion ────────────────────────────────────────────────────────
+
 
 async def ingest_events(
     db: AsyncSession,
@@ -118,7 +120,7 @@ async def ingest_events(
 
     accepted = rejected = 0
     accepted_events: list[dict[str, Any]] = []
-    for raw in events[:settings.SPECTER_MAX_EVENTS_PER_BATCH]:
+    for raw in events[: settings.SPECTER_MAX_EVENTS_PER_BATCH]:
         sig = raw.pop("signature", "")
         ts_val = raw.get("ts", 0)
 
@@ -144,9 +146,9 @@ async def ingest_events(
         known_types.add(event_type)
 
         try:
-            event_ts = datetime.fromtimestamp(ts_val, tz=timezone.utc)
+            event_ts = datetime.fromtimestamp(ts_val, tz=UTC)
         except Exception:
-            event_ts = datetime.now(timezone.utc)
+            event_ts = datetime.now(UTC)
 
         ev = AgentEvent(
             agent_id=agent.id,
@@ -161,16 +163,18 @@ async def ingest_events(
         db.add(ev)
         accepted += 1
         # S106.1 — retener el evento aceptado para el puente de detección
-        accepted_events.append({
-            "raw": raw,
-            "event_id": ev.id,
-            "event_type": event_type,
-            "severity": str(raw.get("severity", "info")).lower(),
-            "is_anomaly": is_anomaly,
-        })
+        accepted_events.append(
+            {
+                "raw": raw,
+                "event_id": ev.id,
+                "event_type": event_type,
+                "severity": str(raw.get("severity", "info")).lower(),
+                "is_anomaly": is_anomaly,
+            }
+        )
 
     # Update agent heartbeat and event counter
-    agent.last_seen = datetime.now(timezone.utc)
+    agent.last_seen = datetime.now(UTC)
     agent.total_events = (agent.total_events or 0) + accepted
     await db.commit()
     return accepted, rejected, accepted_events
@@ -184,9 +188,8 @@ async def ingest_events(
 # severidad → Alert, SIEMPRE scopeada al tenant del agente. Decisión (2026-07-21):
 # ambos caminos (correlación + anomalía).
 
-async def detect_from_agent_events(
-    db: AsyncSession, agent: Agent, accepted_events: list[dict[str, Any]]
-) -> list[str]:
+
+async def detect_from_agent_events(db: AsyncSession, agent: Agent, accepted_events: list[dict[str, Any]]) -> list[str]:
     """
     Corre detección sobre los eventos aceptados de un agente y crea alertas.
     Devuelve la lista de IDs de alertas creadas. Idempotencia por-lote: deduplica
@@ -220,17 +223,19 @@ async def detect_from_agent_events(
 
     # 1) Correlación — MISMAS reglas que el resto del sistema (sin lógica duplicada).
     for ad in await evaluate_correlation_rules(normalized, db):
-        objs.append(Alert(
-            title=ad["title"],
-            description=ad["description"],
-            severity=ad["severity"],
-            risk_score=ad["risk_score"],
-            ttps=ad.get("ttps", []),
-            source_events=event_ids,
-            affected_hosts=[host] if host else [],
-            recommended_actions=[],
-            tenant_id=tid,
-        ))
+        objs.append(
+            Alert(
+                title=ad["title"],
+                description=ad["description"],
+                severity=ad["severity"],
+                risk_score=ad["risk_score"],
+                ttps=ad.get("ttps", []),
+                source_events=event_ids,
+                affected_hosts=[host] if host else [],
+                recommended_actions=[],
+                tenant_id=tid,
+            )
+        )
 
     # 2) Anomalía / severidad alta — deduplicado por (event_type, severity) en el lote.
     seen: set = set()
@@ -245,29 +250,32 @@ async def detect_from_agent_events(
             continue
         seen.add(key)
         reason = "anomalía de comportamiento (tipo no visto)" if it["is_anomaly"] else f"severidad {sev}"
-        objs.append(Alert(
-            title=f"Telemetría SPECTER: {et} en {host or 'agente'}",
-            description=f"Evento '{et}' del agente {host or agent.id} marcado por {reason}.",
-            severity="high" if high else "medium",
-            risk_score=0.8 if high else 0.5,
-            ttps=[],
-            source_events=[it["event_id"]],
-            affected_hosts=[host] if host else [],
-            recommended_actions=[],
-            tenant_id=tid,
-        ))
+        objs.append(
+            Alert(
+                title=f"Telemetría SPECTER: {et} en {host or 'agente'}",
+                description=f"Evento '{et}' del agente {host or agent.id} marcado por {reason}.",
+                severity="high" if high else "medium",
+                risk_score=0.8 if high else 0.5,
+                ttps=[],
+                source_events=[it["event_id"]],
+                affected_hosts=[host] if host else [],
+                recommended_actions=[],
+                tenant_id=tid,
+            )
+        )
 
     if not objs:
         return []
     for a in objs:
         db.add(a)
-    await db.commit()               # el default de id se aplica en el flush
+    await db.commit()  # el default de id se aplica en el flush
     created = [a.id for a in objs]  # ids ya poblados tras el commit
     log.info("specter_detection_alerts", agent_id=agent.id, alerts=len(created))
     return created
 
 
 # ── Status management ──────────────────────────────────────────────────────────
+
 
 def compute_poll_interval(threat_level: str) -> int:
     """Return the poll interval in seconds for a given threat level."""
@@ -296,8 +304,8 @@ async def refresh_agent_status(db: AsyncSession, agent: Agent) -> Agent:
     threshold = settings.SPECTER_INACTIVE_THRESHOLD_SECONDS
     last_seen = agent.last_seen
     if last_seen.tzinfo is None:
-        last_seen = last_seen.replace(tzinfo=timezone.utc)
-    elapsed = (datetime.now(timezone.utc) - last_seen).total_seconds()
+        last_seen = last_seen.replace(tzinfo=UTC)
+    elapsed = (datetime.now(UTC) - last_seen).total_seconds()
     if elapsed > threshold and agent.status == "active":
         agent.status = "inactive"
         await db.commit()
@@ -305,6 +313,7 @@ async def refresh_agent_status(db: AsyncSession, agent: Agent) -> Agent:
 
 
 # ── Command delivery helpers ───────────────────────────────────────────────────
+
 
 async def get_pending_commands(db: AsyncSession, agent_id: str) -> list[AgentCommand]:
     """Fetch all pending commands for an agent (oldest first)."""
@@ -318,7 +327,7 @@ async def get_pending_commands(db: AsyncSession, agent_id: str) -> list[AgentCom
 
 async def mark_command_delivered(db: AsyncSession, cmd: AgentCommand) -> None:
     cmd.status = "delivered"
-    cmd.delivered_at = datetime.now(timezone.utc)
+    cmd.delivered_at = datetime.now(UTC)
     await db.commit()
 
 
@@ -330,7 +339,7 @@ async def record_command_result(
     error: str | None = None,
 ) -> AgentCommand:
     cmd.status = "completed" if success else "failed"
-    cmd.completed_at = datetime.now(timezone.utc)
+    cmd.completed_at = datetime.now(UTC)
     cmd.result = result
     cmd.error = error
 
@@ -340,7 +349,9 @@ async def record_command_result(
     # original key (detecting compromised agents running with copied credentials).
     if cmd.command_type == "canary_ping" and success:
         from sqlalchemy import select as _select
+
         from asc_api.core.audit import log_security_action
+
         agent_q = await db.execute(_select(Agent).where(Agent.id == cmd.agent_id))
         agent_obj = agent_q.scalar_one_or_none()
         if agent_obj:

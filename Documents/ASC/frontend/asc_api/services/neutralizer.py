@@ -24,8 +24,9 @@ For actions that require the SPECTER agent binary (isolate_endpoint,
 kill_process, quarantine_file, remove_persistence) the fallback is always a
 logged simulation because those require a live agent on the endpoint.
 """
+
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from asc_api.core.logging import get_logger
 
@@ -51,9 +52,7 @@ class NeutralizationResult:
     ):
         self.success = success
         self.simulated = simulated
-        self.status = status or (
-            "executed" if success else ("simulated" if simulated else "failed")
-        )
+        self.status = status or ("executed" if success else ("simulated" if simulated else "failed"))
         self.message = message
         self.details = details or {}
         # Los flags honestos viajan también dentro de details (persistidos en DB/UI).
@@ -64,9 +63,7 @@ class NeutralizationResult:
 def _sim(message: str, details: dict, requires: str) -> NeutralizationResult:
     """Construye un resultado simulado honesto: success=False, simulated=True."""
     details = {**details, "simulation": True, "requires": requires}
-    return NeutralizationResult(
-        success=False, simulated=True, status="simulated", message=message, details=details
-    )
+    return NeutralizationResult(success=False, simulated=True, status="simulated", message=message, details=details)
 
 
 async def isolate_endpoint(host: str, reason: str = "") -> NeutralizationResult:
@@ -75,7 +72,7 @@ async def isolate_endpoint(host: str, reason: str = "") -> NeutralizationResult:
     await asyncio.sleep(0.1)
     return _sim(
         f"[SIMULATION] Endpoint {host} isolation NOT executed — requires a live SPECTER agent",
-        {"host": host, "ts": datetime.now(timezone.utc).isoformat()},
+        {"host": host, "ts": datetime.now(UTC).isoformat()},
         requires="specter_agent",
     )
 
@@ -93,13 +90,19 @@ async def block_ip(ip: str, direction: str = "both", reason: str = "") -> Neutra
                 success=result.get("success", True),
                 simulated=False,
                 message=result.get("message", f"IP {ip} blocked via {type(fw).__name__}"),
-                details={"ip": ip, "direction": direction, "adapter": type(fw).__name__,
-                         "blocked_at": datetime.now(timezone.utc).isoformat()},
+                details={
+                    "ip": ip,
+                    "direction": direction,
+                    "adapter": type(fw).__name__,
+                    "blocked_at": datetime.now(UTC).isoformat(),
+                },
             )
         except Exception as exc:
             log.error("neutralize_fallback_adapter_error", action="block_ip", ip=ip, error=str(exc))
             return NeutralizationResult(
-                success=False, simulated=False, status="failed",
+                success=False,
+                simulated=False,
+                status="failed",
                 message=f"IP {ip} block FAILED via {type(fw).__name__}: {exc}",
                 details={"ip": ip, "direction": direction, "adapter": type(fw).__name__, "error": str(exc)},
             )
@@ -108,7 +111,7 @@ async def block_ip(ip: str, direction: str = "both", reason: str = "") -> Neutra
     await asyncio.sleep(0.05)
     return _sim(
         f"[SIMULATION] IP {ip} block NOT executed ({direction}) — no firewall adapter configured",
-        {"ip": ip, "direction": direction, "blocked_at": datetime.now(timezone.utc).isoformat()},
+        {"ip": ip, "direction": direction, "blocked_at": datetime.now(UTC).isoformat()},
         requires="firewall_adapter",
     )
 
@@ -126,13 +129,14 @@ async def block_domain(domain: str, reason: str = "") -> NeutralizationResult:
                 success=result.get("success", True),
                 simulated=False,
                 message=result.get("message", f"Domain {domain} blocked via {type(fw).__name__}"),
-                details={"domain": domain, "adapter": type(fw).__name__,
-                         "blocked_at": datetime.now(timezone.utc).isoformat()},
+                details={"domain": domain, "adapter": type(fw).__name__, "blocked_at": datetime.now(UTC).isoformat()},
             )
         except Exception as exc:
             log.error("neutralize_fallback_adapter_error", action="block_domain", domain=domain, error=str(exc))
             return NeutralizationResult(
-                success=False, simulated=False, status="failed",
+                success=False,
+                simulated=False,
+                status="failed",
                 message=f"Domain {domain} block FAILED via {type(fw).__name__}: {exc}",
                 details={"domain": domain, "adapter": type(fw).__name__, "error": str(exc)},
             )
@@ -141,7 +145,7 @@ async def block_domain(domain: str, reason: str = "") -> NeutralizationResult:
     await asyncio.sleep(0.05)
     return _sim(
         f"[SIMULATION] Domain {domain} sinkhole NOT executed — no firewall adapter configured",
-        {"domain": domain, "blocked_at": datetime.now(timezone.utc).isoformat()},
+        {"domain": domain, "blocked_at": datetime.now(UTC).isoformat()},
         requires="firewall_adapter",
     )
 
@@ -153,7 +157,7 @@ async def kill_process(host: str, process_name: str, pid: int | None = None) -> 
     await asyncio.sleep(0.05)
     return _sim(
         f"[SIMULATION] Process {target} termination NOT executed on {host} — requires a live SPECTER agent",
-        {"host": host, "process": process_name, "pid": pid, "ts": datetime.now(timezone.utc).isoformat()},
+        {"host": host, "process": process_name, "pid": pid, "ts": datetime.now(UTC).isoformat()},
         requires="specter_agent",
     )
 
@@ -165,8 +169,12 @@ async def quarantine_file(host: str, file_path: str) -> NeutralizationResult:
     quarantine_path = f"C:\\Quarantine\\{file_path.replace('/', '_').replace(chr(92), '_')}"
     return _sim(
         f"[SIMULATION] File quarantine NOT executed on {host} — requires a live SPECTER agent",
-        {"host": host, "original_path": file_path, "quarantine_path": quarantine_path,
-         "ts": datetime.now(timezone.utc).isoformat()},
+        {
+            "host": host,
+            "original_path": file_path,
+            "quarantine_path": quarantine_path,
+            "ts": datetime.now(UTC).isoformat(),
+        },
         requires="specter_agent",
     )
 
@@ -177,8 +185,7 @@ async def remove_persistence(host: str, persistence_type: str, target: str) -> N
     await asyncio.sleep(0.05)
     return _sim(
         f"[SIMULATION] Persistence removal NOT executed on {host}: {persistence_type} — requires a live SPECTER agent",
-        {"host": host, "type": persistence_type, "target": target,
-         "ts": datetime.now(timezone.utc).isoformat()},
+        {"host": host, "type": persistence_type, "target": target, "ts": datetime.now(UTC).isoformat()},
         requires="specter_agent",
     )
 
@@ -196,13 +203,19 @@ async def disable_account(username: str, domain: str = "LOCAL") -> Neutralizatio
                 success=result.get("success", True),
                 simulated=False,
                 message=result.get("message", f"Account {domain}\\{username} disabled via {type(iam).__name__}"),
-                details={"username": username, "domain": domain, "adapter": type(iam).__name__,
-                         "disabled_at": datetime.now(timezone.utc).isoformat()},
+                details={
+                    "username": username,
+                    "domain": domain,
+                    "adapter": type(iam).__name__,
+                    "disabled_at": datetime.now(UTC).isoformat(),
+                },
             )
         except Exception as exc:
             log.error("neutralize_fallback_adapter_error", action="disable_account", user=username, error=str(exc))
             return NeutralizationResult(
-                success=False, simulated=False, status="failed",
+                success=False,
+                simulated=False,
+                status="failed",
                 message=f"Account {domain}\\{username} disable FAILED via {type(iam).__name__}: {exc}",
                 details={"username": username, "domain": domain, "adapter": type(iam).__name__, "error": str(exc)},
             )
@@ -211,27 +224,27 @@ async def disable_account(username: str, domain: str = "LOCAL") -> Neutralizatio
     await asyncio.sleep(0.05)
     return _sim(
         f"[SIMULATION] Account {domain}\\{username} disable NOT executed — no identity (AD) adapter configured",
-        {"username": username, "domain": domain, "disabled_at": datetime.now(timezone.utc).isoformat()},
+        {"username": username, "domain": domain, "disabled_at": datetime.now(UTC).isoformat()},
         requires="identity_adapter",
     )
 
 
 # Dispatcher map
 ACTION_HANDLERS = {
-    "isolate_endpoint":   isolate_endpoint,
-    "block_ip":           block_ip,
-    "block_domain":       block_domain,
-    "kill_process":       kill_process,
-    "quarantine_file":    quarantine_file,
+    "isolate_endpoint": isolate_endpoint,
+    "block_ip": block_ip,
+    "block_domain": block_domain,
+    "kill_process": kill_process,
+    "quarantine_file": quarantine_file,
     "remove_persistence": remove_persistence,
-    "disable_account":    disable_account,
+    "disable_account": disable_account,
 }
 
 RECOMMENDED_ACTIONS = {
     "critical": ["isolate_endpoint", "kill_process", "block_ip"],
-    "high":     ["block_ip", "quarantine_file", "remove_persistence"],
-    "medium":   ["block_domain", "block_ip"],
-    "low":      ["block_domain"],
+    "high": ["block_ip", "quarantine_file", "remove_persistence"],
+    "medium": ["block_domain", "block_ip"],
+    "low": ["block_domain"],
 }
 
 
@@ -239,13 +252,13 @@ async def execute_action(action_type: str, params: dict) -> NeutralizationResult
     handler = ACTION_HANDLERS.get(action_type)
     if not handler:
         return NeutralizationResult(
-            success=False, simulated=False, status="failed",
+            success=False,
+            simulated=False,
+            status="failed",
             message=f"Unknown action: {action_type}",
         )
     try:
         return await handler(**params)
     except Exception as e:
         log.error("neutralize_action_failed", action=action_type, error=str(e))
-        return NeutralizationResult(
-            success=False, simulated=False, status="failed", message=str(e)
-        )
+        return NeutralizationResult(success=False, simulated=False, status="failed", message=str(e))

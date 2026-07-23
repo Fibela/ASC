@@ -1,8 +1,9 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator, model_validator
-from functools import lru_cache
-from typing import Any, List
 import json
+from functools import lru_cache
+from typing import Any
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
 
     # CORS — include all production frontend origins.
     # Override via CORS_ORIGINS env var (JSON array) for additional domains.
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "https://premoscorp.com",
         "https://asc.premoscorp.com",
@@ -51,28 +52,28 @@ class Settings(BaseSettings):
     # ── SIEM/EDR/SOAR Adapter credentials (all optional — empty = adapter disabled) ──
 
     # ELK / Elasticsearch
-    ELASTICSEARCH_URL: str = ""              # e.g. https://elastic.premoscorp.local:9200
-    ELASTICSEARCH_API_KEY: str = ""          # base64(id:api_key) from Kibana → API Keys
+    ELASTICSEARCH_URL: str = ""  # e.g. https://elastic.premoscorp.local:9200
+    ELASTICSEARCH_API_KEY: str = ""  # base64(id:api_key) from Kibana → API Keys
     ELASTICSEARCH_INDEX_ALERTS: str = "asc-alerts"
     ELASTICSEARCH_INDEX_EVENTS: str = "asc-events"
 
     # Wazuh Manager REST API
-    WAZUH_URL: str = ""                      # e.g. https://wazuh.premoscorp.local:55000
-    WAZUH_USERNAME: str = ""                 # Wazuh API user
-    WAZUH_PASSWORD: str = ""                 # Wazuh API password
+    WAZUH_URL: str = ""  # e.g. https://wazuh.premoscorp.local:55000
+    WAZUH_USERNAME: str = ""  # Wazuh API user
+    WAZUH_PASSWORD: str = ""  # Wazuh API password
     WAZUH_VERIFY_SSL: bool = True
 
     # TheHive SOAR
-    THEHIVE_URL: str = ""                    # e.g. https://thehive.premoscorp.local:9000
-    THEHIVE_API_KEY: str = ""                # TheHive API key (user profile → API Keys)
+    THEHIVE_URL: str = ""  # e.g. https://thehive.premoscorp.local:9000
+    THEHIVE_API_KEY: str = ""  # TheHive API key (user profile → API Keys)
     THEHIVE_ORGANISATION: str = "PremosCorp"
 
     # ── SPECTER Agent (P13) ────────────────────────────────────────────────────
     # Ed25519 keypair for signing commands sent to SPECTER agents.
     # Generate with: python -c "from asc_api.core.signing import generate_keypair; p,q=generate_keypair(); print('PRIVATE:',p); print('PUBLIC:',q)"
-    SPECTER_SIGNING_PRIVATE_KEY: str = ""    # base64 raw Ed25519 private key (32 bytes)
-    SPECTER_SIGNING_PUBLIC_KEY: str = ""     # base64 raw Ed25519 public key  (32 bytes)
-    SPECTER_AGENT_VERSION: str = "1.0.0"    # minimum accepted agent version
+    SPECTER_SIGNING_PRIVATE_KEY: str = ""  # base64 raw Ed25519 private key (32 bytes)
+    SPECTER_SIGNING_PUBLIC_KEY: str = ""  # base64 raw Ed25519 public key  (32 bytes)
+    SPECTER_AGENT_VERSION: str = "1.0.0"  # minimum accepted agent version
     SPECTER_MAX_EVENTS_PER_BATCH: int = 200  # max events in a single telemetry POST
     SPECTER_INACTIVE_THRESHOLD_SECONDS: int = 120  # seconds without heartbeat → inactive
 
@@ -113,7 +114,7 @@ class Settings(BaseSettings):
     # PALOALTO_HOST: hostname or IP of Panorama/firewall (no https:// prefix).
     # PALOALTO_API_KEY: generated via Device → Administrators → API Key.
     PALOALTO_HOST: str = ""
-    PALOALTO_API_KEY: str = ""                      # nosec B105 — from env/Vault
+    PALOALTO_API_KEY: str = ""  # nosec B105 — from env/Vault
     PALOALTO_VSYS: str = "vsys1"
     PALOALTO_BLOCKED_IP_GROUP: str = "ASC-Blocked-IPs"
     PALOALTO_BLOCKED_URL_CATEGORY: str = "ASC-Blocked-Domains"
@@ -122,7 +123,7 @@ class Settings(BaseSettings):
     # FORTINET_HOST: hostname or IP of FortiGate (no https:// prefix).
     # FORTINET_API_TOKEN: generated via System → Administrators → REST API Admin.
     FORTINET_HOST: str = ""
-    FORTINET_API_TOKEN: str = ""                    # nosec B105 — from env/Vault
+    FORTINET_API_TOKEN: str = ""  # nosec B105 — from env/Vault
     FORTINET_VDOM: str = "root"
     FORTINET_BLOCKED_IP_GROUP: str = "ASC-Blocked-IPs"
     FORTINET_BLOCKED_DOMAIN_GROUP: str = "ASC-Blocked-Domains"
@@ -131,26 +132,26 @@ class Settings(BaseSettings):
     # AD_SERVER_URL: LDAPS URL of domain controller (ldaps://dc.corp.local:636).
     # AD_BIND_DN: Service account full DN — use minimum-privilege account.
     # AD_BIND_PASSWORD: Service account password — MUST come from Vault in prod.
-    AD_SERVER_URL: str = ""                         # ldaps://dc.premoscorp.local:636
-    AD_BIND_DN: str = ""                            # CN=svc-asc,OU=Service Accounts,DC=corp,DC=local
-    AD_BIND_PASSWORD: str = ""                      # nosec B105 — from env/Vault
-    AD_BASE_DN: str = ""                            # DC=corp,DC=local
-    AD_QUARANTINE_OU: str = ""                      # OU=Quarantine,DC=corp,DC=local
-    AD_USE_SSL: bool = True                         # Always True in production
-    AD_VERIFY_CERT: bool = True                     # Set False only for self-signed dev certs
+    AD_SERVER_URL: str = ""  # ldaps://dc.premoscorp.local:636
+    AD_BIND_DN: str = ""  # CN=svc-asc,OU=Service Accounts,DC=corp,DC=local
+    AD_BIND_PASSWORD: str = ""  # nosec B105 — from env/Vault
+    AD_BASE_DN: str = ""  # DC=corp,DC=local
+    AD_QUARANTINE_OU: str = ""  # OU=Quarantine,DC=corp,DC=local
+    AD_USE_SSL: bool = True  # Always True in production
+    AD_VERIFY_CERT: bool = True  # Set False only for self-signed dev certs
 
     # ── P41 Rate Limiting — Per API Key ──────────────────────────────────────
     # Sliding window limits enforced by ApiKeyRateLimitMiddleware.
     # Per-minute limit controls burst; per-hour limit controls sustained throughput.
     # Both windows are enforced simultaneously — the stricter one governs.
-    RATE_LIMIT_API_KEY_PER_MINUTE: int = 60    # requests/minute per key (burst)
-    RATE_LIMIT_API_KEY_PER_HOUR: int = 1000    # requests/hour per key (throughput)
+    RATE_LIMIT_API_KEY_PER_MINUTE: int = 60  # requests/minute per key (burst)
+    RATE_LIMIT_API_KEY_PER_HOUR: int = 1000  # requests/hour per key (throughput)
 
     # ── P39 Observability ─────────────────────────────────────────────────────
     # Static bearer token for Prometheus scraper (no JWT login required).
     # Empty = scrape token disabled; only analyst+ JWT works.
     # Generate: python -c "import secrets; print(secrets.token_hex(32))"
-    METRICS_SCRAPE_TOKEN: str = ""   # nosec B105 — from env/Vault
+    METRICS_SCRAPE_TOKEN: str = ""  # nosec B105 — from env/Vault
 
     # ── P53 Email Verification ────────────────────────────────────────────────
     # Number of hours before the email verification token expires.
@@ -159,31 +160,31 @@ class Settings(BaseSettings):
     # ── P53 Email (Resend) ────────────────────────────────────────────────────
     # Resend API key for transactional emails (verification, alerts, reports).
     # Empty = email disabled (stub logs only).
-    RESEND_API_KEY: str = ""              # nosec B105 — re_live_…
+    RESEND_API_KEY: str = ""  # nosec B105 — re_live_…
     RESEND_FROM_EMAIL: str = "noreply@premoscorp.com"
 
     # ── P55 Stripe Billing ────────────────────────────────────────────────────
     # Empty = Stripe integration disabled (default for dev/test).
     # In production set these via env/Vault. Never hard-code.
-    STRIPE_SECRET_KEY: str = ""           # nosec B105 — sk_live_… or sk_test_…
-    STRIPE_WEBHOOK_SECRET: str = ""       # nosec B105 — whsec_…
+    STRIPE_SECRET_KEY: str = ""  # nosec B105 — sk_live_… or sk_test_…
+    STRIPE_WEBHOOK_SECRET: str = ""  # nosec B105 — whsec_…
 
     # ── S102 Explicación adaptativa (Anthropic claude-fable-5) ────────────────
     # El explainer EXPLICA y RECOMIENDA; nunca decide ni ejecuta acciones.
     # Empty = módulo deshabilitado (el endpoint responde 503, sin simulaciones).
-    ANTHROPIC_API_KEY: str = ""           # nosec B105 — sk-ant-…, solo en Vercel env
+    ANTHROPIC_API_KEY: str = ""  # nosec B105 — sk-ant-…, solo en Vercel env
     ANTHROPIC_MODEL: str = "claude-fable-5"
     EXPLAINER_MAX_TOKENS: int = 1024
-    EXPLAINER_TIMEOUT_SECONDS: int = 25   # < maxDuration 30s del Lambda
+    EXPLAINER_TIMEOUT_SECONDS: int = 25  # < maxDuration 30s del Lambda
 
     # ── SPECTER Security Hardening (P14) ──────────────────────────────────────
     # Enrollment token: HMAC-SHA256 shared secret. Empty = dev mode (skip check).
     # Generate a token with: python -c "from asc_api.core.specter_security import generate_enrollment_token; print(generate_enrollment_token('your-secret'))"
-    SPECTER_ENROLLMENT_SECRET: str = ""      # nosec B105 — empty means dev mode
+    SPECTER_ENROLLMENT_SECRET: str = ""  # nosec B105 — empty means dev mode
     # Vercel Cron Jobs — secret Vercel sends as "Authorization: Bearer <CRON_SECRET>"
     # Generate: python -c "import secrets; print(secrets.token_hex(32))"
     # Set in Vercel Dashboard (same value for all cron endpoints).
-    CRON_SECRET: str = ""                    # nosec B105 — empty = dev mode only
+    CRON_SECRET: str = ""  # nosec B105 — empty = dev mode only
     # Strict signature mode: reject telemetry events whose Ed25519 signature is invalid.
     # In dev/test mode keep False; enable in production for zero-trust enforcement.
     SPECTER_STRICT_SIGNATURE_MODE: bool = False
@@ -201,8 +202,8 @@ class Settings(BaseSettings):
     STRIPE_SEGURIDAD_PRODUCT_ID: str = ""
     # Stripe Price IDs for each paid plan (price_XXXXXXXXXXXXXXXXXX from Stripe dashboard).
     # Empty = plan not available for self-serve checkout (contact sales flow).
-    STRIPE_PRICE_PRO: str = ""        # nosec B105 — Monthly Pro price ID
-    STRIPE_PRICE_ENTERPRISE: str = "" # nosec B105 — Monthly Enterprise price ID
+    STRIPE_PRICE_PRO: str = ""  # nosec B105 — Monthly Pro price ID
+    STRIPE_PRICE_ENTERPRISE: str = ""  # nosec B105 — Monthly Enterprise price ID
     # Redirect URLs after Stripe checkout flow.
     STRIPE_SUCCESS_URL: str = "https://asc.premoscorp.com/dashboard?billing=success"
     STRIPE_CANCEL_URL: str = "https://asc.premoscorp.com/pricing?billing=cancelled"
@@ -215,15 +216,15 @@ class Settings(BaseSettings):
     # SUPABASE_JWT_SECRET: legacy HS256 secret (only needed if still using HS256 tokens)
     # SUPABASE_JWT_AUDIENCE: expected "aud" claim in Supabase JWTs (default: "authenticated")
     # Empty SUPABASE_URL disables SSO bridge (returns 503).
-    SUPABASE_URL: str = ""                   # https://xyz.supabase.co
-    SUPABASE_ANON_KEY: str = ""              # nosec B105 — public anon key, safe to expose
-    SUPABASE_JWT_SECRET: str = ""            # nosec B105 — legacy HS256 secret
-    SUPABASE_JWT_PUBLIC_KEY: str = ""        # PEM public key (Settings → API → JWT Signing Keys)
+    SUPABASE_URL: str = ""  # https://xyz.supabase.co
+    SUPABASE_ANON_KEY: str = ""  # nosec B105 — public anon key, safe to expose
+    SUPABASE_JWT_SECRET: str = ""  # nosec B105 — legacy HS256 secret
+    SUPABASE_JWT_PUBLIC_KEY: str = ""  # PEM public key (Settings → API → JWT Signing Keys)
     SUPABASE_JWT_AUDIENCE: str = "authenticated"
     # ASC plan assigned to new SSO-provisioned tenants: free | pro | enterprise
     SSO_DEFAULT_PLAN: str = "free"
     # CORS: add *.premoscorp.com for SSO cross-origin requests from premoscorp.com
-    CORS_ORIGINS_EXTRA: List[str] = []       # additional origins (merged with CORS_ORIGINS)
+    CORS_ORIGINS_EXTRA: list[str] = []  # additional origins (merged with CORS_ORIGINS)
 
     @field_validator("CORS_ORIGINS", "CORS_ORIGINS_EXTRA", mode="before")
     @classmethod
@@ -242,14 +243,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _reject_default_secret_in_production(self) -> "Settings":
         is_local = (
-            "localhost" in self.DATABASE_URL
-            or "127.0.0.1" in self.DATABASE_URL
-            or ":memory:" in self.DATABASE_URL
+            "localhost" in self.DATABASE_URL or "127.0.0.1" in self.DATABASE_URL or ":memory:" in self.DATABASE_URL
         )
         if self.SECRET_KEY.startswith("changeme") and not is_local:
             raise ValueError(
                 "SECRET_KEY must be changed from the default value in production. "
-                "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                'Generate with: python -c "import secrets; print(secrets.token_hex(32))"'
             )
         return self
 

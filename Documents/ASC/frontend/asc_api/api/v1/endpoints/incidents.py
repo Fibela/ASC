@@ -25,6 +25,7 @@ Endpoints
 Security: analyst+ for reads/writes; close/dismiss requires analyst+ (actor is recorded).
 Rate-limiting: writes 10/min, reads 60/min.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -34,9 +35,9 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_analyst_or_admin, get_current_admin
-from asc_api.core.rate_limit import limiter
+from asc_api.api.deps import get_analyst_or_admin
 from asc_api.core.logging import get_logger
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.forensic_entry import ForensicEntry
 from asc_api.models.incident import (
@@ -44,7 +45,6 @@ from asc_api.models.incident import (
     INCIDENT_TYPES,
     LINK_ENTITY_TYPES,
     IncidentTimeline,
-    VALID_TRANSITIONS,
 )
 from asc_api.models.user import User
 from asc_api.services import incident_service
@@ -56,6 +56,7 @@ _VALID_SEVERITY = {"info", "low", "medium", "high", "critical"}
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
+
 
 class CreateIncidentRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=512)
@@ -143,6 +144,7 @@ class DismissIncidentRequest(BaseModel):
 
 # ── Serializers ───────────────────────────────────────────────────────────────
 
+
 def _inc(inc: Any) -> dict:
     return {
         "id": inc.id,
@@ -220,6 +222,7 @@ def _fe(entry: Any) -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/summary", summary="KPI dashboard — MTTD/MTTC/MTTR, SLA, breach counts")
 @limiter.limit("60/minute")
@@ -322,9 +325,7 @@ async def transition_status(
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     try:
-        inc = await incident_service.transition_status(
-            db, incident_id, body.new_status, current_user.email
-        )
+        inc = await incident_service.transition_status(db, incident_id, body.new_status, current_user.email)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     return _inc(inc)
@@ -340,9 +341,7 @@ async def assign_incident(
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     try:
-        inc = await incident_service.assign_incident(
-            db, incident_id, body.assigned_to, current_user.email
-        )
+        inc = await incident_service.assign_incident(db, incident_id, body.assigned_to, current_user.email)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     return _inc(inc)
@@ -370,8 +369,7 @@ async def update_mitre(
     return _inc(inc)
 
 
-@router.post("/{incident_id}/links", status_code=status.HTTP_201_CREATED,
-             summary="Vincular entidad al incidente")
+@router.post("/{incident_id}/links", status_code=status.HTTP_201_CREATED, summary="Vincular entidad al incidente")
 @limiter.limit("10/minute")
 async def add_link(
     request: Request,
@@ -406,11 +404,12 @@ async def list_links(
     if inc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Incident not found")
     links = await incident_service.get_incident_links(db, incident_id)
-    return {"incident_id": incident_id, "items": [_link(l) for l in links], "count": len(links)}
+    return {"incident_id": incident_id, "items": [_link(link) for link in links], "count": len(links)}
 
 
-@router.delete("/{incident_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT,
-               summary="Eliminar vínculo de entidad")
+@router.delete(
+    "/{incident_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Eliminar vínculo de entidad"
+)
 @limiter.limit("10/minute")
 async def remove_link(
     request: Request,
@@ -443,8 +442,7 @@ async def get_timeline(
     }
 
 
-@router.post("/{incident_id}/notes", status_code=status.HTTP_201_CREATED,
-             summary="Agregar nota de analista")
+@router.post("/{incident_id}/notes", status_code=status.HTTP_201_CREATED, summary="Agregar nota de analista")
 @limiter.limit("10/minute")
 async def add_note(
     request: Request,
@@ -454,9 +452,7 @@ async def add_note(
     current_user: User = Depends(get_analyst_or_admin),
 ) -> dict:
     try:
-        entry = await incident_service.add_note(
-            db, incident_id, current_user.email, body.text
-        )
+        entry = await incident_service.add_note(db, incident_id, current_user.email, body.text)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     return _tl(entry)
@@ -507,8 +503,7 @@ async def dismiss_incident(
     return _inc(inc)
 
 
-@router.get("/{incident_id}/piil-binding",
-            summary="PIIL Forensic Ledger — entradas SOAR binding del incidente (P30)")
+@router.get("/{incident_id}/piil-binding", summary="PIIL Forensic Ledger — entradas SOAR binding del incidente (P30)")
 @limiter.limit("60/minute")
 async def get_piil_binding(
     request: Request,
@@ -537,8 +532,9 @@ async def get_piil_binding(
     }
 
 
-@router.get("/{incident_id}/soar-events",
-            summary="Eventos SOAR disparados durante el ciclo de vida del incidente (P30)")
+@router.get(
+    "/{incident_id}/soar-events", summary="Eventos SOAR disparados durante el ciclo de vida del incidente (P30)"
+)
 @limiter.limit("60/minute")
 async def get_soar_events(
     request: Request,

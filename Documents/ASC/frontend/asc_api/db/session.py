@@ -1,7 +1,8 @@
 import os
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import NullPool, AsyncAdaptedQueuePool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import AsyncAdaptedQueuePool, NullPool
+
 from asc_api.core.config import get_settings
 
 settings = get_settings()
@@ -20,11 +21,15 @@ _IS_SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUN
 engine = create_async_engine(
     _db_url,
     poolclass=NullPool if _IS_SERVERLESS else AsyncAdaptedQueuePool,
-    **({} if _IS_SERVERLESS else {
-        "pool_pre_ping": True,
-        "pool_size": 10,
-        "max_overflow": 20,
-    }),
+    **(
+        {}
+        if _IS_SERVERLESS
+        else {
+            "pool_pre_ping": True,
+            "pool_size": 10,
+            "max_overflow": 20,
+        }
+    ),
     echo=settings.DEBUG,
     connect_args={"statement_cache_size": 0},  # required for Supabase Transaction pooler (port 6543)
 )

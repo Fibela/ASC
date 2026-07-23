@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Index
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
@@ -19,17 +21,11 @@ class RevokedToken(Base):
     """
 
     __tablename__ = "revoked_tokens"
-    __table_args__ = (
-        Index("ix_revoked_tokens_expires_at", "expires_at"),
-    )
+    __table_args__ = (Index("ix_revoked_tokens_expires_at", "expires_at"),)
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     jti: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    revoked_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     revoked_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     reason: Mapped[str | None] = mapped_column(String(100), nullable=True)

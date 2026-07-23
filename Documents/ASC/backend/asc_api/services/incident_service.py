@@ -16,14 +16,15 @@ Security posture
   external mutation; it only creates Incident rows when a cluster is promoted
   to campaign status
 """
+
 from __future__ import annotations
 
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.audit import log_security_action
@@ -48,7 +49,7 @@ _SEV_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _minutes_between(start: datetime | None, end: datetime | None) -> int | None:
@@ -146,9 +147,7 @@ async def list_incidents(
 
 async def get_incident_links(db: AsyncSession, incident_id: str) -> list[IncidentLink]:
     result = await db.execute(
-        select(IncidentLink)
-        .where(IncidentLink.incident_id == incident_id)
-        .order_by(IncidentLink.created_at.asc())
+        select(IncidentLink).where(IncidentLink.incident_id == incident_id).order_by(IncidentLink.created_at.asc())
     )
     return list(result.scalars().all())
 
@@ -174,46 +173,32 @@ async def get_incident_summary(db: AsyncSession, tenant_id: str | None = None) -
     total = total_r.scalar_one()
 
     # By status
-    status_r = await db.execute(
-        _scope(select(Incident.status, func.count()).group_by(Incident.status))
-    )
+    status_r = await db.execute(_scope(select(Incident.status, func.count()).group_by(Incident.status)))
     by_status: dict[str, int] = {row[0]: row[1] for row in status_r.all()}
 
     # By severity
-    sev_r = await db.execute(
-        _scope(select(Incident.severity, func.count()).group_by(Incident.severity))
-    )
+    sev_r = await db.execute(_scope(select(Incident.severity, func.count()).group_by(Incident.severity)))
     by_severity: dict[str, int] = {row[0]: row[1] for row in sev_r.all()}
 
     # SLA breach count
-    breach_r = await db.execute(
-        _scope(select(func.count()).select_from(Incident).where(Incident.sla_breach.is_(True)))
-    )
+    breach_r = await db.execute(_scope(select(func.count()).select_from(Incident).where(Incident.sla_breach.is_(True))))
     sla_breach_count = breach_r.scalar_one()
 
     # Average MTTD (minutes) — incidents that have triaged_at
-    mttd_r = await db.execute(
-        _scope(select(func.avg(Incident.mttd_minutes)).where(Incident.mttd_minutes.isnot(None)))
-    )
+    mttd_r = await db.execute(_scope(select(func.avg(Incident.mttd_minutes)).where(Incident.mttd_minutes.isnot(None))))
     avg_mttd = mttd_r.scalar_one()
 
     # Average MTTR (minutes) — closed incidents
-    mttr_r = await db.execute(
-        _scope(select(func.avg(Incident.mttr_minutes)).where(Incident.mttr_minutes.isnot(None)))
-    )
+    mttr_r = await db.execute(_scope(select(func.avg(Incident.mttr_minutes)).where(Incident.mttr_minutes.isnot(None))))
     avg_mttr = mttr_r.scalar_one()
 
     # Average MTTC (minutes)
-    mttc_r = await db.execute(
-        _scope(select(func.avg(Incident.mttc_minutes)).where(Incident.mttc_minutes.isnot(None)))
-    )
+    mttc_r = await db.execute(_scope(select(func.avg(Incident.mttc_minutes)).where(Incident.mttc_minutes.isnot(None))))
     avg_mttc = mttc_r.scalar_one()
 
     # Open campaigns (incidents with cluster links that are not closed/dismissed)
     open_r = await db.execute(
-        _scope(select(func.count()).select_from(Incident).where(
-            Incident.status.not_in(["closed", "dismissed"])
-        ))
+        _scope(select(func.count()).select_from(Incident).where(Incident.status.not_in(["closed", "dismissed"])))
     )
     open_count = open_r.scalar_one()
 
@@ -277,12 +262,18 @@ async def create_incident(
     db.add(incident)
 
     # Initial timeline entry
-    _add_timeline(db, incident.id, "created", created_by, {
-        "title": title,
-        "incident_type": incident_type,
-        "severity": severity,
-        "sla_minutes": incident.sla_minutes,
-    })
+    _add_timeline(
+        db,
+        incident.id,
+        "created",
+        created_by,
+        {
+            "title": title,
+            "incident_type": incident_type,
+            "severity": severity,
+            "sla_minutes": incident.sla_minutes,
+        },
+    )
 
     # Optional initial entity link
     if linked_entity_type and linked_entity_id:
@@ -296,10 +287,16 @@ async def create_incident(
             created_at=now,
         )
         db.add(link)
-        _add_timeline(db, incident.id, "link_added", created_by, {
-            "entity_type": linked_entity_type,
-            "entity_id": linked_entity_id,
-        })
+        _add_timeline(
+            db,
+            incident.id,
+            "link_added",
+            created_by,
+            {
+                "entity_type": linked_entity_type,
+                "entity_id": linked_entity_id,
+            },
+        )
 
     await db.commit()
     await db.refresh(incident)
@@ -328,8 +325,7 @@ async def transition_status(
     allowed = VALID_TRANSITIONS.get(old_status, set())
     if new_status not in allowed:
         raise ValueError(
-            f"Transition {old_status!r} → {new_status!r} is not allowed. "
-            f"Valid next states: {sorted(allowed)}"
+            f"Transition {old_status!r} → {new_status!r} is not allowed. Valid next states: {sorted(allowed)}"
         )
 
     now = _utcnow()
@@ -355,12 +351,18 @@ async def transition_status(
     incident.sla_breach = _check_sla_breach(incident)
     incident.updated_at = now
 
-    _add_timeline(db, incident_id, "status_change", actor, {
-        "from": old_status,
-        "to": new_status,
-        "nist_phase": incident.nist_phase,
-        "sla_breach": incident.sla_breach,
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "status_change",
+        actor,
+        {
+            "from": old_status,
+            "to": new_status,
+            "nist_phase": incident.nist_phase,
+            "sla_breach": incident.sla_breach,
+        },
+    )
 
     await db.commit()
     await db.refresh(incident)
@@ -376,6 +378,7 @@ async def transition_status(
     # PIIL Adaptive SOAR Binding — non-blocking, never raises
     try:
         from asc_api.services.soar_incident_bridge import evaluate_soar_for_incident
+
         await evaluate_soar_for_incident(db, incident, new_status, actor)
     except Exception as _bridge_exc:
         log.warning("PIIL bridge call failed (non-fatal): %s", _bridge_exc)
@@ -397,10 +400,16 @@ async def assign_incident(
     incident.assigned_to = assigned_to
     incident.updated_at = _utcnow()
 
-    _add_timeline(db, incident_id, "assignment", actor, {
-        "previous_assignee": prev,
-        "new_assignee": assigned_to,
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "assignment",
+        actor,
+        {
+            "previous_assignee": prev,
+            "new_assignee": assigned_to,
+        },
+    )
 
     await db.commit()
     await db.refresh(incident)
@@ -433,11 +442,17 @@ async def link_entity(
     db.add(link)
 
     incident.updated_at = now
-    _add_timeline(db, incident_id, "link_added", added_by, {
-        "entity_type": entity_type,
-        "entity_id": entity_id,
-        "notes": notes,
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "link_added",
+        added_by,
+        {
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "notes": notes,
+        },
+    )
 
     await db.commit()
     await db.refresh(link)
@@ -461,10 +476,16 @@ async def remove_link(
     if link is None:
         return False
 
-    _add_timeline(db, incident_id, "link_removed", actor, {
-        "entity_type": link.entity_type,
-        "entity_id": link.entity_id,
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "link_removed",
+        actor,
+        {
+            "entity_type": link.entity_type,
+            "entity_id": link.entity_id,
+        },
+    )
     await db.delete(link)
     await db.commit()
     log.info("incident_link_removed id=%s link_id=%s actor=%s", incident_id, link_id, actor)
@@ -511,8 +532,8 @@ async def close_incident(
 
     # Auto-advance through required intermediate states to reach closed
     path_to_close = {
-        "recovered":     ["post_incident", "closed"],
-        "eradicated":    ["recovered", "post_incident", "closed"],
+        "recovered": ["post_incident", "closed"],
+        "eradicated": ["recovered", "post_incident", "closed"],
         "post_incident": ["closed"],
     }
     if incident.status in path_to_close:
@@ -523,10 +544,7 @@ async def close_incident(
     elif incident.status == "dismissed":
         raise ValueError("Dismissed incidents cannot be closed; create a new incident")
     else:
-        raise ValueError(
-            f"Cannot close from status {incident.status!r}. "
-            "Advance to at least 'recovered' first."
-        )
+        raise ValueError(f"Cannot close from status {incident.status!r}. Advance to at least 'recovered' first.")
 
     # Populate post-incident fields
     now = _utcnow()
@@ -544,14 +562,20 @@ async def close_incident(
     incident.forensic_hash = incident.compute_forensic_hash()
     incident.updated_at = now
 
-    _add_timeline(db, incident_id, "closed", actor, {
-        "mttd_minutes": incident.mttd_minutes,
-        "mttc_minutes": incident.mttc_minutes,
-        "mttr_minutes": incident.mttr_minutes,
-        "sla_breach": incident.sla_breach,
-        "false_positive": false_positive,
-        "forensic_hash": incident.forensic_hash[:16] + "…",
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "closed",
+        actor,
+        {
+            "mttd_minutes": incident.mttd_minutes,
+            "mttc_minutes": incident.mttc_minutes,
+            "mttr_minutes": incident.mttr_minutes,
+            "sla_breach": incident.sla_breach,
+            "false_positive": false_positive,
+            "forensic_hash": incident.forensic_hash[:16] + "…",
+        },
+    )
 
     await db.commit()
     await db.refresh(incident)
@@ -591,9 +615,7 @@ async def dismiss_incident(
 
     allowed = VALID_TRANSITIONS.get(incident.status, set())
     if "dismissed" not in allowed:
-        raise ValueError(
-            f"Cannot dismiss incident in status {incident.status!r}"
-        )
+        raise ValueError(f"Cannot dismiss incident in status {incident.status!r}")
 
     now = _utcnow()
     incident.status = "dismissed"
@@ -603,12 +625,18 @@ async def dismiss_incident(
     incident.forensic_hash = incident.compute_forensic_hash()
     incident.updated_at = now
 
-    _add_timeline(db, incident_id, "status_change", actor, {
-        "from": incident.status,
-        "to": "dismissed",
-        "reason": reason,
-        "forensic_hash": incident.forensic_hash[:16] + "…",
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "status_change",
+        actor,
+        {
+            "from": incident.status,
+            "to": "dismissed",
+            "reason": reason,
+            "forensic_hash": incident.forensic_hash[:16] + "…",
+        },
+    )
 
     await db.commit()
     await db.refresh(incident)
@@ -642,12 +670,18 @@ async def update_mitre(
         incident.mitre_techniques = mitre_techniques
 
     incident.updated_at = _utcnow()
-    _add_timeline(db, incident_id, "note_added", actor, {
-        "mitre_tactics_prev": prev_tactics,
-        "mitre_techniques_prev": prev_techniques,
-        "mitre_tactics_new": incident.mitre_tactics,
-        "mitre_techniques_new": incident.mitre_techniques,
-    })
+    _add_timeline(
+        db,
+        incident_id,
+        "note_added",
+        actor,
+        {
+            "mitre_tactics_prev": prev_tactics,
+            "mitre_techniques_prev": prev_techniques,
+            "mitre_tactics_new": incident.mitre_tactics,
+            "mitre_techniques_new": incident.mitre_techniques,
+        },
+    )
 
     await db.commit()
     await db.refresh(incident)

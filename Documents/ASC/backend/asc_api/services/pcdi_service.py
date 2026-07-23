@@ -17,16 +17,17 @@ All operations are READ-ONLY with respect to production data except for:
   - PCDISignedReport persistence (sign_hunt_report)
   - verified flag update (verify_signed_report)
 """
+
 from __future__ import annotations
 
 import base64
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
@@ -49,20 +50,20 @@ _SEV_BASE: dict[str, int] = {
 }
 
 _PANL_BOOST_BY_TYPE: dict[str, int] = {
-    "isolate_endpoint":   15,
-    "block_ip":           10,
-    "block_domain":       10,
-    "kill_process":        8,
-    "delete_file":         5,
-    "remove_persistence":  5,
-    "disable_account":     8,
-    "quarantine_file":     5,
+    "isolate_endpoint": 15,
+    "block_ip": 10,
+    "block_domain": 10,
+    "kill_process": 8,
+    "delete_file": 5,
+    "remove_persistence": 5,
+    "disable_account": 8,
+    "quarantine_file": 5,
 }
 
 _PANL_STATUS_MULTIPLIER: dict[str, float] = {
-    "completed":       1.0,
-    "executing":       0.9,
-    "approved":        0.7,
+    "completed": 1.0,
+    "executing": 0.9,
+    "approved": 0.7,
     "pending_approval": 0.3,
 }
 
@@ -72,6 +73,7 @@ _TI_MATCH_BOOST = 8
 
 
 # ── 1. Adaptive Scoring ────────────────────────────────────────────────────────
+
 
 async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
     """
@@ -85,9 +87,7 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
 
     Returns adaptive score, recommendation, and contributing signals.
     """
-    result = await db.execute(
-        select(HuntFinding).where(HuntFinding.id == finding_id)
-    )
+    result = await db.execute(select(HuntFinding).where(HuntFinding.id == finding_id))
     finding = result.scalar_one_or_none()
     if finding is None:
         return {"error": "Finding not found", "finding_id": finding_id}
@@ -101,9 +101,7 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
     hunt = hunt_result.scalar_one_or_none()
 
     score = _SEV_BASE.get(finding.severity, 20)
-    signals: list[dict] = [
-        {"source": "severity", "value": finding.severity, "contribution": score}
-    ]
+    signals: list[dict] = [{"source": "severity", "value": finding.severity, "contribution": score}]
 
     # Active hunt boost
     if hunt and hunt.status == "active":
@@ -119,23 +117,29 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
     ti_matches: list[dict] = []
     if finding.indicator_value:
         ti_result = await db.execute(
-            select(ThreatIntelIndicator).where(
-                ThreatIntelIndicator.value == finding.indicator_value
-            )
+            select(ThreatIntelIndicator).where(ThreatIntelIndicator.value == finding.indicator_value)
         )
         ti_matches_raw = list(ti_result.scalars().all())
         for ti in ti_matches_raw:
             boost = min(_TI_MATCH_BOOST, _SEV_BASE.get(ti.severity or "info", 5))
             score += boost
-            ti_matches.append({
-                "indicator_id": ti.id,
-                "value": ti.value,
-                "severity": ti.severity,
-                "source": ti.source,
-                "contribution": boost,
-            })
+            ti_matches.append(
+                {
+                    "indicator_id": ti.id,
+                    "value": ti.value,
+                    "severity": ti.severity,
+                    "source": ti.source,
+                    "contribution": boost,
+                }
+            )
         if ti_matches_raw:
-            signals.append({"source": "ti_indicator_matches", "value": len(ti_matches_raw), "contribution": sum(m["contribution"] for m in ti_matches)})
+            signals.append(
+                {
+                    "source": "ti_indicator_matches",
+                    "value": len(ti_matches_raw),
+                    "contribution": sum(m["contribution"] for m in ti_matches),
+                }
+            )
 
     # PANL action history for the same target
     panl_signals: list[dict] = []
@@ -153,15 +157,23 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
             status_mult = _PANL_STATUS_MULTIPLIER.get(action.status, 0.5)
             boost = int(type_boost * status_mult)
             score += boost
-            panl_signals.append({
-                "action_id": action.id,
-                "action_type": action.action_type,
-                "status": action.status,
-                "target": action.target,
-                "contribution": boost,
-            })
+            panl_signals.append(
+                {
+                    "action_id": action.id,
+                    "action_type": action.action_type,
+                    "status": action.status,
+                    "target": action.target,
+                    "contribution": boost,
+                }
+            )
         if panl_signals:
-            signals.append({"source": "panl_history", "value": len(panl_signals), "contribution": sum(p["contribution"] for p in panl_signals)})
+            signals.append(
+                {
+                    "source": "panl_history",
+                    "value": len(panl_signals),
+                    "contribution": sum(p["contribution"] for p in panl_signals),
+                }
+            )
 
     # Cap at 100
     score = min(100, score)
@@ -194,7 +206,7 @@ async def compute_adaptive_score(db: AsyncSession, finding_id: str) -> dict:
         "signals": signals,
         "ti_matches": ti_matches,
         "panl_correlations": panl_signals,
-        "scored_at": datetime.now(timezone.utc).isoformat(),
+        "scored_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -226,6 +238,7 @@ def _score_to_recommendation(score: int, original: str, adapted: str) -> str:
 
 # ── 2. Cross-Domain Correlation ────────────────────────────────────────────────
 
+
 async def correlate_hunt_with_panl(db: AsyncSession, hunt_id: str) -> dict:
     """
     Correlate all findings in a hunt with PANL neutralization actions.
@@ -242,9 +255,7 @@ async def correlate_hunt_with_panl(db: AsyncSession, hunt_id: str) -> dict:
     if hunt is None:
         return {"error": "Hunt not found", "hunt_id": hunt_id}
 
-    findings_result = await db.execute(
-        select(HuntFinding).where(HuntFinding.hunt_id == hunt_id)
-    )
+    findings_result = await db.execute(select(HuntFinding).where(HuntFinding.hunt_id == hunt_id))
     findings = list(findings_result.scalars().all())
 
     # Gather all unique target values from findings
@@ -268,43 +279,42 @@ async def correlate_hunt_with_panl(db: AsyncSession, hunt_id: str) -> dict:
 
         for action in panl_actions:
             matched_findings = [
-                f.id for f in findings
-                if action.target in (f.indicator_value, f.affected_host, f.affected_user)
+                f.id for f in findings if action.target in (f.indicator_value, f.affected_host, f.affected_user)
             ]
-            correlations.append({
-                "action_id": action.id,
-                "action_type": action.action_type,
-                "status": action.status,
-                "severity": action.severity,
-                "target": action.target,
-                "target_type": action.target_type,
-                "executed_at": action.executed_at.isoformat() if action.executed_at else None,
-                "matched_finding_ids": matched_findings,
-                "match_count": len(matched_findings),
-            })
+            correlations.append(
+                {
+                    "action_id": action.id,
+                    "action_type": action.action_type,
+                    "status": action.status,
+                    "severity": action.severity,
+                    "target": action.target,
+                    "target_type": action.target_type,
+                    "executed_at": action.executed_at.isoformat() if action.executed_at else None,
+                    "matched_finding_ids": matched_findings,
+                    "match_count": len(matched_findings),
+                }
+            )
             panl_summary[action.action_type] = panl_summary.get(action.action_type, 0) + 1
 
     # TI correlations
     ti_correlations: list[dict] = []
     if target_values:
         ti_result = await db.execute(
-            select(ThreatIntelIndicator).where(
-                ThreatIntelIndicator.value.in_(list(target_values))
-            ).limit(50)
+            select(ThreatIntelIndicator).where(ThreatIntelIndicator.value.in_(list(target_values))).limit(50)
         )
         ti_indicators = list(ti_result.scalars().all())
         for ti in ti_indicators:
-            matched_findings = [
-                f.id for f in findings if f.indicator_value == ti.value
-            ]
-            ti_correlations.append({
-                "indicator_id": ti.id,
-                "value": ti.value,
-                "type": ti.type,
-                "severity": ti.severity,
-                "source": ti.source,
-                "matched_finding_ids": matched_findings,
-            })
+            matched_findings = [f.id for f in findings if f.indicator_value == ti.value]
+            ti_correlations.append(
+                {
+                    "indicator_id": ti.id,
+                    "value": ti.value,
+                    "type": ti.type,
+                    "severity": ti.severity,
+                    "source": ti.source,
+                    "matched_finding_ids": matched_findings,
+                }
+            )
 
     log.info(
         "pcdi_correlation_computed",
@@ -324,11 +334,12 @@ async def correlate_hunt_with_panl(db: AsyncSession, hunt_id: str) -> dict:
         "ti_correlations": ti_correlations,
         "total_panl_matches": len(correlations),
         "total_ti_matches": len(ti_correlations),
-        "correlated_at": datetime.now(timezone.utc).isoformat(),
+        "correlated_at": datetime.now(UTC).isoformat(),
     }
 
 
 # ── 3. Cryptographic Hunt Report Signing ──────────────────────────────────────
+
 
 def _compute_report_hash(canonical: dict) -> str:
     """SHA3-512 hex digest of deterministic JSON serialisation."""
@@ -339,6 +350,7 @@ def _compute_report_hash(canonical: dict) -> str:
 def _sign_report_hash(hash_hex: str, private_key_b64: str) -> str:
     """Ed25519 sign the hash. Returns base64-encoded signature."""
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     priv_bytes = base64.b64decode(private_key_b64)
     key = Ed25519PrivateKey.from_private_bytes(priv_bytes)
     sig = key.sign(hash_hex.encode())
@@ -349,7 +361,7 @@ def _verify_report_signature(hash_hex: str, signature_b64: str, public_key_b64: 
     """Verify Ed25519 signature. Never raises."""
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-        from cryptography.exceptions import InvalidSignature
+
         pub_bytes = base64.b64decode(public_key_b64)
         pub_key = Ed25519PublicKey.from_public_bytes(pub_bytes)
         sig = base64.b64decode(signature_b64)
@@ -387,7 +399,7 @@ async def sign_hunt_report(
         "hunt_id": hunt_id,
         "hunt_name": hunt.name if hunt else None,
         "signed_by": signed_by_email,
-        "signed_at": datetime.now(timezone.utc).isoformat(),
+        "signed_at": datetime.now(UTC).isoformat(),
         "report": report_data,
     }
 
@@ -403,7 +415,7 @@ async def sign_hunt_report(
         signature_ed25519=signature,
         signed_by_email=signed_by_email,
         signed_by_user_id=signed_by_user_id,
-        signed_at=datetime.now(timezone.utc),
+        signed_at=datetime.now(UTC),
         verified=False,
         pcdi_version="1",
         adaptive_score=adaptive_score,
@@ -434,9 +446,7 @@ async def verify_signed_report(
     Recomputes SHA3-512 from canonical_data and checks the Ed25519 signature.
     Updates the verified flag on success.
     """
-    result = await db.execute(
-        select(PCDISignedReport).where(PCDISignedReport.id == report_id)
-    )
+    result = await db.execute(select(PCDISignedReport).where(PCDISignedReport.id == report_id))
     entry = result.scalar_one_or_none()
     if entry is None:
         return {"error": "Signed report not found", "report_id": report_id}
@@ -450,7 +460,7 @@ async def verify_signed_report(
 
     if overall_valid:
         entry.verified = True
-        entry.last_verified_at = datetime.now(timezone.utc)
+        entry.last_verified_at = datetime.now(UTC)
         await db.commit()
 
     log.info(
@@ -469,7 +479,7 @@ async def verify_signed_report(
         "signature_valid": sig_valid,
         "signed_by": entry.signed_by_email,
         "signed_at": entry.signed_at.isoformat(),
-        "verified_at": datetime.now(timezone.utc).isoformat(),
+        "verified_at": datetime.now(UTC).isoformat(),
         "details": {
             "stored_hash_prefix": entry.hash_sha3_512[:16],
             "recomputed_hash_prefix": recomputed_hash[:16],
@@ -496,9 +506,7 @@ async def list_signed_reports(
 
 async def get_signed_report(db: AsyncSession, report_id: str) -> dict | None:
     """Fetch a single signed report by ID."""
-    result = await db.execute(
-        select(PCDISignedReport).where(PCDISignedReport.id == report_id)
-    )
+    result = await db.execute(select(PCDISignedReport).where(PCDISignedReport.id == report_id))
     entry = result.scalar_one_or_none()
     return _signed_report_to_dict(entry) if entry else None
 
@@ -558,103 +566,117 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
     raw_events: list[dict] = []
 
     # ── Hunt lifecycle events ─────────────────────────────────────────────────
-    raw_events.append({
-        "event_type": "hunt_created",
-        "ts": _iso(hunt.created_at),
-        "actor": hunt.created_by,
-        "data": {
-            "hunt_name": hunt.name,
-            "priority": hunt.priority,
-            "scope": hunt.scope,
-            "mitre_technique": hunt.mitre_technique,
-        },
-    })
-    if hunt.started_at:
-        raw_events.append({
-            "event_type": "hunt_started",
-            "ts": _iso(hunt.started_at),
-            "actor": hunt.assigned_to or hunt.created_by,
-            "data": {"status": "active"},
-        })
-    if hunt.completed_at:
-        raw_events.append({
-            "event_type": "hunt_completed",
-            "ts": _iso(hunt.completed_at),
-            "actor": hunt.assigned_to or hunt.created_by,
+    raw_events.append(
+        {
+            "event_type": "hunt_created",
+            "ts": _iso(hunt.created_at),
+            "actor": hunt.created_by,
             "data": {
-                "status": hunt.status,
-                "findings_count": hunt.findings_count,
-                "true_positive_count": hunt.true_positive_count,
-                "conclusion": hunt.conclusion,
+                "hunt_name": hunt.name,
+                "priority": hunt.priority,
+                "scope": hunt.scope,
+                "mitre_technique": hunt.mitre_technique,
             },
-        })
+        }
+    )
+    if hunt.started_at:
+        raw_events.append(
+            {
+                "event_type": "hunt_started",
+                "ts": _iso(hunt.started_at),
+                "actor": hunt.assigned_to or hunt.created_by,
+                "data": {"status": "active"},
+            }
+        )
+    if hunt.completed_at:
+        raw_events.append(
+            {
+                "event_type": "hunt_completed",
+                "ts": _iso(hunt.completed_at),
+                "actor": hunt.assigned_to or hunt.created_by,
+                "data": {
+                    "status": hunt.status,
+                    "findings_count": hunt.findings_count,
+                    "true_positive_count": hunt.true_positive_count,
+                    "conclusion": hunt.conclusion,
+                },
+            }
+        )
 
     # ── HuntQuery events ──────────────────────────────────────────────────────
     queries_result = await db.execute(
-        select(HuntQuery).where(HuntQuery.hunt_id == hunt_id)
-        .order_by(HuntQuery.created_at)
+        select(HuntQuery).where(HuntQuery.hunt_id == hunt_id).order_by(HuntQuery.created_at)
     )
     for q in queries_result.scalars().all():
-        raw_events.append({
-            "event_type": "query_created",
-            "ts": _iso(q.created_at),
-            "actor": q.created_by,
-            "data": {"query_id": q.id, "query_name": q.name, "data_source": q.data_source},
-        })
-        if q.last_executed_at:
-            raw_events.append({
-                "event_type": "query_executed",
-                "ts": _iso(q.last_executed_at),
+        raw_events.append(
+            {
+                "event_type": "query_created",
+                "ts": _iso(q.created_at),
                 "actor": q.created_by,
-                "data": {
-                    "query_id": q.id,
-                    "query_name": q.name,
-                    "data_source": q.data_source,
-                    "result_count": q.last_result_count,
-                    "execution_ms": q.last_execution_ms,
-                },
-            })
+                "data": {"query_id": q.id, "query_name": q.name, "data_source": q.data_source},
+            }
+        )
+        if q.last_executed_at:
+            raw_events.append(
+                {
+                    "event_type": "query_executed",
+                    "ts": _iso(q.last_executed_at),
+                    "actor": q.created_by,
+                    "data": {
+                        "query_id": q.id,
+                        "query_name": q.name,
+                        "data_source": q.data_source,
+                        "result_count": q.last_result_count,
+                        "execution_ms": q.last_execution_ms,
+                    },
+                }
+            )
 
     # ── HuntFinding events ────────────────────────────────────────────────────
     findings_result = await db.execute(
-        select(HuntFinding).where(HuntFinding.hunt_id == hunt_id)
-        .order_by(HuntFinding.created_at)
+        select(HuntFinding).where(HuntFinding.hunt_id == hunt_id).order_by(HuntFinding.created_at)
     )
     findings = list(findings_result.scalars().all())
     target_values: set[str] = set()
 
     for f in findings:
-        raw_events.append({
-            "event_type": "finding_created",
-            "ts": _iso(f.created_at),
-            "actor": f.created_by,
-            "data": {
-                "finding_id": f.id,
-                "title": f.title,
-                "severity": f.severity,
-                "indicator_value": f.indicator_value,
-                "affected_host": f.affected_host,
-                "data_source": f.data_source,
-            },
-        })
-        if f.is_confirmed:
-            raw_events.append({
-                "event_type": "finding_confirmed",
-                "ts": _iso(f.updated_at),
+        raw_events.append(
+            {
+                "event_type": "finding_created",
+                "ts": _iso(f.created_at),
                 "actor": f.created_by,
                 "data": {
                     "finding_id": f.id,
+                    "title": f.title,
                     "severity": f.severity,
                     "indicator_value": f.indicator_value,
+                    "affected_host": f.affected_host,
+                    "data_source": f.data_source,
                 },
-            })
+            }
+        )
+        if f.is_confirmed:
+            raw_events.append(
+                {
+                    "event_type": "finding_confirmed",
+                    "ts": _iso(f.updated_at),
+                    "actor": f.created_by,
+                    "data": {
+                        "finding_id": f.id,
+                        "severity": f.severity,
+                        "indicator_value": f.indicator_value,
+                    },
+                }
+            )
         if f.is_false_positive:
-            raw_events.append({
-                "event_type": "finding_false_positive",
-                "ts": _iso(f.updated_at),
-                "actor": f.created_by,
-                "data": {"finding_id": f.id, "indicator_value": f.indicator_value},
-            })
+            raw_events.append(
+                {
+                    "event_type": "finding_false_positive",
+                    "ts": _iso(f.updated_at),
+                    "actor": f.created_by,
+                    "data": {"finding_id": f.id, "indicator_value": f.indicator_value},
+                }
+            )
         for v in (f.indicator_value, f.affected_host, f.affected_user):
             if v:
                 target_values.add(v)
@@ -668,56 +690,63 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
             .limit(100)
         )
         for action in panl_result.scalars().all():
-            raw_events.append({
-                "event_type": "panl_action_created",
-                "ts": _iso(action.created_at),
-                "actor": action.initiated_by or "system",
-                "data": {
-                    "action_id": action.id,
-                    "action_type": action.action_type,
-                    "target": action.target,
-                    "severity": action.severity,
-                    "status": action.status,
-                    "automated": action.automated,
-                },
-            })
-            if action.executed_at:
-                raw_events.append({
-                    "event_type": "panl_action_executed",
-                    "ts": _iso(action.executed_at),
-                    "actor": action.approved_by or action.initiated_by or "system",
+            raw_events.append(
+                {
+                    "event_type": "panl_action_created",
+                    "ts": _iso(action.created_at),
+                    "actor": action.initiated_by or "system",
                     "data": {
                         "action_id": action.id,
                         "action_type": action.action_type,
                         "target": action.target,
+                        "severity": action.severity,
                         "status": action.status,
+                        "automated": action.automated,
                     },
-                })
+                }
+            )
+            if action.executed_at:
+                raw_events.append(
+                    {
+                        "event_type": "panl_action_executed",
+                        "ts": _iso(action.executed_at),
+                        "actor": action.approved_by or action.initiated_by or "system",
+                        "data": {
+                            "action_id": action.id,
+                            "action_type": action.action_type,
+                            "target": action.target,
+                            "status": action.status,
+                        },
+                    }
+                )
 
     # ── PCDI signed report events ─────────────────────────────────────────────
     reports_result = await db.execute(
-        select(PCDISignedReport).where(PCDISignedReport.hunt_id == hunt_id)
-        .order_by(PCDISignedReport.signed_at)
+        select(PCDISignedReport).where(PCDISignedReport.hunt_id == hunt_id).order_by(PCDISignedReport.signed_at)
     )
     for rpt in reports_result.scalars().all():
-        raw_events.append({
-            "event_type": "report_signed",
-            "ts": _iso(rpt.signed_at),
-            "actor": rpt.signed_by_email,
-            "data": {
-                "report_id": rpt.id,
-                "hash_prefix": rpt.hash_sha3_512[:16] + "...",
-                "pcdi_version": rpt.pcdi_version,
-                "adaptive_score": rpt.adaptive_score,
-            },
-        })
-        if rpt.last_verified_at:
-            raw_events.append({
-                "event_type": "report_verified",
-                "ts": _iso(rpt.last_verified_at),
+        raw_events.append(
+            {
+                "event_type": "report_signed",
+                "ts": _iso(rpt.signed_at),
                 "actor": rpt.signed_by_email,
-                "data": {"report_id": rpt.id, "verified": rpt.verified},
-            })
+                "data": {
+                    "report_id": rpt.id,
+                    "hash_prefix": rpt.hash_sha3_512[:16] + "...",
+                    "pcdi_version": rpt.pcdi_version,
+                    "adaptive_score": rpt.adaptive_score,
+                },
+            }
+        )
+        if rpt.last_verified_at:
+            raw_events.append(
+                {
+                    "event_type": "report_verified",
+                    "ts": _iso(rpt.last_verified_at),
+                    "actor": rpt.signed_by_email,
+                    "data": {"report_id": rpt.id, "verified": rpt.verified},
+                }
+            )
 
     # ── Sort and build chain hashes ───────────────────────────────────────────
     raw_events.sort(key=lambda e: e["ts"])
@@ -728,15 +757,19 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
     for idx, event in enumerate(raw_events):
         entry_payload = {**event, "sequence": idx, "prev_hash": prev_hash}
         entry_hash = _compute_report_hash(entry_payload)
-        chained.append({
-            **event,
-            "sequence": idx,
-            "prev_hash": prev_hash,
-            "entry_hash": entry_hash,
-        })
+        chained.append(
+            {
+                **event,
+                "sequence": idx,
+                "prev_hash": prev_hash,
+                "entry_hash": entry_hash,
+            }
+        )
         prev_hash = entry_hash
 
-    chain_root = prev_hash if chained else _compute_report_hash({"seed": _GENESIS_SEED, "hunt_id": hunt_id, "empty": True})
+    chain_root = (
+        prev_hash if chained else _compute_report_hash({"seed": _GENESIS_SEED, "hunt_id": hunt_id, "empty": True})
+    )
 
     log.info(
         "pcdi_forensic_timeline_built",
@@ -753,14 +786,14 @@ async def build_forensic_timeline(db: AsyncSession, hunt_id: str) -> dict:
         "chain_root_prefix": chain_root[:16] + "...",
         "genesis_seed": _GENESIS_SEED,
         "timeline": chained,
-        "built_at": datetime.now(timezone.utc).isoformat(),
+        "built_at": datetime.now(UTC).isoformat(),
     }
 
 
 def _iso(dt: datetime | None) -> str:
     """Normalize datetime to UTC ISO-8601 string."""
     if dt is None:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.isoformat()

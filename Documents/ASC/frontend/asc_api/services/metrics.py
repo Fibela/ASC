@@ -10,22 +10,23 @@ Definitions:
 All functions accept sequences of Alert ORM objects and return plain dicts
 (no DB access here — keep this layer pure and testable).
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Callable, Sequence
 
 from asc_api.models.alert import Alert
 
-
 # ─── SLA thresholds (SOC standard defaults) ──────────────────────────────────
 
-MTTD_SLA_SECONDS: float = 3_600.0   # 1 h
-MTTA_SLA_SECONDS: float = 900.0     # 15 min
+MTTD_SLA_SECONDS: float = 3_600.0  # 1 h
+MTTA_SLA_SECONDS: float = 900.0  # 15 min
 MTTR_SLA_SECONDS: float = 14_400.0  # 4 h
 
 
 # ─── Low-level stat helpers ───────────────────────────────────────────────────
+
 
 def _avg(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
@@ -48,7 +49,7 @@ def _stat_block(values: list[float], sla_seconds: float | None = None) -> dict:
     avg = _avg(values)
 
     result: dict = {
-        "count":       len(values),
+        "count": len(values),
         "avg_seconds": round(avg, 1) if avg is not None else None,
         "avg_minutes": round(avg / 60, 2) if avg is not None else None,
         "p50_seconds": round(_percentile(s, 50), 1) if s else None,
@@ -59,13 +60,14 @@ def _stat_block(values: list[float], sla_seconds: float | None = None) -> dict:
     if sla_seconds is not None:
         within = sum(1 for v in values if v <= sla_seconds)
         result["sla_threshold_seconds"] = sla_seconds
-        result["sla_compliant_count"]   = within
-        result["sla_compliant_pct"]     = round(within / len(values) * 100, 1) if values else None
+        result["sla_compliant_count"] = within
+        result["sla_compliant_pct"] = round(within / len(values) * 100, 1) if values else None
 
     return result
 
 
 # ─── Per-metric calculators ───────────────────────────────────────────────────
+
 
 def calculate_mttd(alerts: Sequence[Alert]) -> dict:
     """
@@ -127,13 +129,17 @@ def calculate_mttr_respond(alerts: Sequence[Alert]) -> dict:
 
 # ─── Breakdown helpers ────────────────────────────────────────────────────────
 
+
 def breakdown_by_severity(
     alerts: Sequence[Alert],
     metric_fn: Callable[[Sequence[Alert]], dict],
 ) -> dict[str, dict]:
     """Apply a metric function to each severity bucket."""
     buckets: dict[str, list[Alert]] = {
-        "critical": [], "high": [], "medium": [], "low": [],
+        "critical": [],
+        "high": [],
+        "medium": [],
+        "low": [],
     }
     for a in alerts:
         if a.severity in buckets:
@@ -144,8 +150,11 @@ def breakdown_by_severity(
 def status_funnel(alerts: Sequence[Alert]) -> dict[str, int]:
     """Count alerts per status — shows the incident lifecycle pipeline."""
     funnel: dict[str, int] = {
-        "open": 0, "investigating": 0, "contained": 0,
-        "resolved": 0, "false_positive": 0,
+        "open": 0,
+        "investigating": 0,
+        "contained": 0,
+        "resolved": 0,
+        "false_positive": 0,
     }
     for a in alerts:
         key = a.status if a.status in funnel else "open"
@@ -158,37 +167,35 @@ def daily_mttr_trend(alerts: Sequence[Alert], days: int = 7) -> list[dict]:
     MTTR broken down by calendar day for the past N days.
     Useful for trending charts in the frontend.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     trend: list[dict] = []
     for i in range(days - 1, -1, -1):
-        day_start = (now - timedelta(days=i)).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
-        day_alerts = [
-            a for a in alerts
-            if a.detected_at and day_start <= a.detected_at < day_end
-        ]
+        day_alerts = [a for a in alerts if a.detected_at and day_start <= a.detected_at < day_end]
         mttr = calculate_mttr(day_alerts)
-        trend.append({
-            "date":       day_start.strftime("%Y-%m-%d"),
-            "count":      len(day_alerts),
-            "mttr_avg_m": round(mttr["avg_seconds"] / 60, 1) if mttr["avg_seconds"] else None,
-            "mttr_p90_m": round(mttr["p90_seconds"] / 60, 1) if mttr["p90_seconds"] else None,
-        })
+        trend.append(
+            {
+                "date": day_start.strftime("%Y-%m-%d"),
+                "count": len(day_alerts),
+                "mttr_avg_m": round(mttr["avg_seconds"] / 60, 1) if mttr["avg_seconds"] else None,
+                "mttr_p90_m": round(mttr["p90_seconds"] / 60, 1) if mttr["p90_seconds"] else None,
+            }
+        )
     return trend
 
 
 # ─── Combined window summary ─────────────────────────────────────────────────
+
 
 def build_soc_summary(alerts: Sequence[Alert]) -> dict:
     """
     One-call helper used by /metrics/soc.
     Returns flat top-level numbers for KPI cards (backward-compatible).
     """
-    mttd  = calculate_mttd(alerts)
-    mtta  = calculate_mtta(alerts)
-    mttr  = calculate_mttr(alerts)
+    mttd = calculate_mttd(alerts)
+    mtta = calculate_mtta(alerts)
+    mttr = calculate_mttr(alerts)
 
     return {
         "mttd_seconds": mttd["avg_seconds"],

@@ -1,27 +1,36 @@
-from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, Depends, status, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 import uuid
+from datetime import UTC, datetime, timedelta
 
-from asc_api.db.session import get_db
-from asc_api.models.user import User
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import (
+    get_current_admin,
+    get_current_user,
+    get_current_user_allow_reset,
+)
+from asc_api.core.audit import log_auth_event, log_iam_event
+from asc_api.core.config import get_settings
+from asc_api.core.jwt_blacklist import jwt_blacklist
+from asc_api.core.rate_limit import limiter
 from asc_api.core.security import (
-    verify_password, get_password_hash, validate_password_strength,
-    create_access_token, create_refresh_token, verify_token,
-    decode_token_payload, REFRESH_EXPIRE_DAYS, is_token_before_epoch,
+    create_access_token,
+    create_refresh_token,
+    decode_token_payload,
+    get_password_hash,
+    is_token_before_epoch,
+    validate_password_strength,
+    verify_password,
+    verify_token,
 )
 from asc_api.core.signing import (
-    generate_analyst_keypair, encrypt_analyst_private_key,
+    encrypt_analyst_private_key,
+    generate_analyst_keypair,
 )
-from asc_api.core.jwt_blacklist import jwt_blacklist
-from asc_api.core.config import get_settings
-from asc_api.core.audit import log_auth_event, log_iam_event
-from asc_api.core.rate_limit import limiter
-from asc_api.api.deps import (
-    get_current_user, get_current_user_allow_reset, get_current_admin,
-)
-from pydantic import BaseModel, Field, field_validator
+from asc_api.db.session import get_db
+from asc_api.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 settings = get_settings()
@@ -36,6 +45,7 @@ _TIMING_SENTINEL_HASH: str = get_password_hash("asc-timing-mitigation-sentinel-v
 
 
 # ── Request / response schemas ────────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -54,7 +64,7 @@ class RefreshRequest(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str | None = None   # optional when force_password_reset=True
+    current_password: str | None = None  # optional when force_password_reset=True
     new_password: str
 
     @field_validator("new_password")
@@ -73,6 +83,7 @@ class UpdateUserRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _provision_signing_keys(user: User) -> None:
     """Generate and store an Ed25519 keypair for the user at account creation."""
     priv_b64, pub_b64 = generate_analyst_keypair()
@@ -82,33 +93,34 @@ def _provision_signing_keys(user: User) -> None:
 
 def _token_response(user: User) -> dict:
     return {
-        "access_token":  create_access_token(user.id),
+        "access_token": create_access_token(user.id),
         "refresh_token": create_refresh_token(user.id),
-        "token_type":    "bearer",  # nosec B105
-        "expires_in":    settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "role":          user.role,
+        "token_type": "bearer",  # nosec B105
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "role": user.role,
     }
 
 
 def _user_dict(user: User) -> dict:
     return {
-        "id":                    user.id,
-        "email":                 user.email,
-        "full_name":             user.full_name,
-        "role":                  user.role,
-        "is_active":             user.is_active,
-        "is_locked":             user.is_locked,
-        "locked_until":          user.locked_until.isoformat() if user.locked_until else None,
+        "id": user.id,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "is_locked": user.is_locked,
+        "locked_until": user.locked_until.isoformat() if user.locked_until else None,
         "failed_login_attempts": user.failed_login_attempts,
-        "force_password_reset":  user.force_password_reset,
-        "last_login":            user.last_login.isoformat() if user.last_login else None,
-        "created_at":            user.created_at.isoformat() if user.created_at else None,
-        "onboarding_step":       getattr(user, "onboarding_step", "completed"),
-        "tenant_id":             user.tenant_id,
+        "force_password_reset": user.force_password_reset,
+        "last_login": user.last_login.isoformat() if user.last_login else None,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "onboarding_step": getattr(user, "onboarding_step", "completed"),
+        "tenant_id": user.tenant_id,
     }
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
+
 
 @router.post("/login", summary="Autenticar usuario y obtener tokens JWT")
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
@@ -123,9 +135,7 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
         # for non-existent accounts — measurable by an attacker.
         verify_password(payload.password, _TIMING_SENTINEL_HASH)
         log_auth_event("login_failure", email=payload.email, detail="not_found_or_inactive")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
     # Account lock check — give explicit message so user knows to contact admin
     if user.is_locked:
@@ -140,9 +150,7 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
 
         if user.failed_login_attempts >= settings.ACCOUNT_LOCK_THRESHOLD:
-            user.locked_until = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.ACCOUNT_LOCK_MINUTES
-            )
+            user.locked_until = datetime.now(UTC) + timedelta(minutes=settings.ACCOUNT_LOCK_MINUTES)
             log_iam_event(
                 "account_locked",
                 performed_by="system",
@@ -155,14 +163,12 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
 
         await db.commit()
         log_auth_event("login_failure", email=payload.email, detail="invalid_password")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
 
     # Successful login — reset counters
     user.failed_login_attempts = 0
     user.locked_until = None
-    user.last_login = datetime.now(timezone.utc)
+    user.last_login = datetime.now(UTC)
     await db.commit()
 
     log_auth_event("login_success", user_id=str(user.id), email=user.email, detail=user.role)
@@ -174,6 +180,7 @@ async def login(request: Request, payload: LoginRequest, db: AsyncSession = Depe
 
 
 # ── Register (bootstrap only) ─────────────────────────────────────────────────
+
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Registrar nuevo usuario")
 @limiter.limit(settings.RATE_LIMIT_REGISTER)
@@ -206,6 +213,7 @@ async def register(request: Request, payload: RegisterRequest, db: AsyncSession 
 
 # ── Admin: create user ────────────────────────────────────────────────────────
 
+
 @router.post("/users", status_code=status.HTTP_201_CREATED, summary="Admin: crear usuario adicional")
 async def create_user(
     payload: RegisterRequest,
@@ -232,6 +240,7 @@ async def create_user(
 
 
 # ── Admin: list + update users ────────────────────────────────────────────────
+
 
 @router.get("/users", summary="Admin: listar todos los usuarios")
 async def list_users(
@@ -295,6 +304,7 @@ async def update_user(
 
 # ── Refresh ───────────────────────────────────────────────────────────────────
 
+
 @router.post("/refresh", summary="Renovar access token usando refresh token")
 @limiter.limit(settings.RATE_LIMIT_REFRESH)
 async def refresh(request: Request, payload: RefreshRequest, db: AsyncSession = Depends(get_db)):
@@ -308,9 +318,7 @@ async def refresh(request: Request, payload: RefreshRequest, db: AsyncSession = 
         )
 
     user_id = verify_token(payload.refresh_token, token_type="refresh")  # nosec B106
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.is_active == True)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
@@ -332,16 +340,16 @@ async def refresh(request: Request, payload: RefreshRequest, db: AsyncSession = 
     # Revoke the old refresh token (rotation)
     if ref_jti:
         from datetime import datetime as _dt
-        expires_at = _dt.fromtimestamp(ref_payload.get("exp", 0), tz=timezone.utc)
-        await jwt_blacklist.revoke(
-            ref_jti, expires_at, db, revoked_by=user.email, reason="token_rotation"
-        )
+
+        expires_at = _dt.fromtimestamp(ref_payload.get("exp", 0), tz=UTC)
+        await jwt_blacklist.revoke(ref_jti, expires_at, db, revoked_by=user.email, reason="token_rotation")
 
     log_auth_event("token_refresh", user_id=str(user.id), email=user.email)
     return _token_response(user)
 
 
 # ── Logout ────────────────────────────────────────────────────────────────────
+
 
 @router.post("/logout", summary="Revocar token de acceso actual")
 async def logout(
@@ -360,9 +368,12 @@ async def logout(
 
     if jti:
         from datetime import datetime as _dt
-        expires_at = _dt.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+
+        expires_at = _dt.fromtimestamp(payload.get("exp", 0), tz=UTC)
         await jwt_blacklist.revoke(
-            jti, expires_at, db,
+            jti,
+            expires_at,
+            db,
             revoked_by=current_user.email,
             reason="logout",
         )
@@ -373,6 +384,7 @@ async def logout(
 
 
 # ── Change password ───────────────────────────────────────────────────────────
+
 
 @router.post("/change-password", summary="Cambiar contraseña (requerido si force_password_reset=True)")
 @limiter.limit(settings.RATE_LIMIT_CHANGE_PASSWORD)
@@ -423,7 +435,7 @@ async def change_password(
     current_user.force_password_reset = False
     # SECURITY (S103.3): corta TODAS las sesiones previas (access + refresh, de
     # cualquier dispositivo). Un token robado deja de servir tras el cambio.
-    current_user.tokens_valid_after = datetime.now(timezone.utc)
+    current_user.tokens_valid_after = datetime.now(UTC)
     await db.commit()
 
     # Revoke current access token — force fresh login with new credentials
@@ -433,9 +445,12 @@ async def change_password(
     jti = token_payload.get("jti")
     if jti:
         from datetime import datetime as _dt
-        expires_at = _dt.fromtimestamp(token_payload.get("exp", 0), tz=timezone.utc)
+
+        expires_at = _dt.fromtimestamp(token_payload.get("exp", 0), tz=UTC)
         await jwt_blacklist.revoke(
-            jti, expires_at, db,
+            jti,
+            expires_at,
+            db,
             revoked_by=current_user.email,
             reason="password_changed",
         )
@@ -446,6 +461,7 @@ async def change_password(
 
 
 # ── Me ────────────────────────────────────────────────────────────────────────
+
 
 @router.post("/users/{user_id}/unlock", summary="Admin: desbloquear cuenta de usuario")
 async def unlock_user(
@@ -479,6 +495,7 @@ async def unlock_user(
 
 
 # ── Me ────────────────────────────────────────────────────────────────────────
+
 
 @router.get("/me", summary="Perfil del usuario autenticado")
 async def me(current_user: User = Depends(get_current_user)):

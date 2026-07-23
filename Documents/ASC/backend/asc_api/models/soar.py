@@ -7,12 +7,13 @@ PlaybookTrigger: condition-based auto-trigger for playbooks.
 ScheduledReport: recurring hunt report delivery.
   Celery Beat sends PDF/JSON reports on daily/weekly cadence.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from asc_api.db.base import Base
@@ -30,6 +31,7 @@ class PlaybookTrigger(Base):
 
     Operators: gte, lte, eq, contains (type-dependent)
     """
+
     __tablename__ = "playbook_triggers"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -49,9 +51,7 @@ class PlaybookTrigger(Base):
     )  # "80" for score, "critical" for severity, etc.
 
     # Scope
-    hunt_id_filter: Mapped[str | None] = mapped_column(
-        String(36), nullable=True
-    )  # None = apply to all hunts
+    hunt_id_filter: Mapped[str | None] = mapped_column(String(36), nullable=True)  # None = apply to all hunts
 
     # Adaptive orchestration — P26
     priority: Mapped[int] = mapped_column(
@@ -75,7 +75,7 @@ class PlaybookTrigger(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     __table_args__ = (
@@ -92,6 +92,7 @@ class ScheduledReport(Base):
     Generates a PCDI-signed summary PDF/JSON for a hunt and delivers
     it to the specified email address on the configured cadence.
     """
+
     __tablename__ = "scheduled_reports"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -101,9 +102,7 @@ class ScheduledReport(Base):
 
     # Delivery
     recipient_email: Mapped[str] = mapped_column(String(256), nullable=False)
-    frequency: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="daily"
-    )  # daily | weekly
+    frequency: Mapped[str] = mapped_column(String(20), nullable=False, default="daily")  # daily | weekly
     format: Mapped[str] = mapped_column(
         String(10), nullable=False, default="json"
     )  # json | pdf (pdf requires weasyprint)
@@ -119,7 +118,7 @@ class ScheduledReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     __table_args__ = (

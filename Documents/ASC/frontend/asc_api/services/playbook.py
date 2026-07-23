@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +30,14 @@ log = get_logger(__name__)
 
 # ─── Context ──────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class PlaybookContext:
     """Normalized trigger context passed to every playbook."""
-    semaphore: str                                # green | yellow | red
+
+    semaphore: str  # green | yellow | red
     risk_score: float
-    trigger_source: str                           # manual | auto_detection | auto_fingerprint
+    trigger_source: str  # manual | auto_detection | auto_fingerprint
     trigger_data: dict = field(default_factory=dict)
 
     # Event fields (optional — derived from trigger_data when available)
@@ -50,14 +52,13 @@ class PlaybookContext:
     fingerprint_triggers: list[str] = field(default_factory=list)
 
     # Identity context — P26 PIDS
-    affected_user: str | None = None       # sAMAccountName of the target identity
-    affected_domain: str = "corp.local"   # AD domain for the target identity
+    affected_user: str | None = None  # sAMAccountName of the target identity
+    affected_domain: str = "corp.local"  # AD domain for the target identity
 
     @classmethod
-    def from_detection(cls, event: dict, risk_score: float, semaphore: str) -> "PlaybookContext":
+    def from_detection(cls, event: dict, risk_score: float, semaphore: str) -> PlaybookContext:
         host = (
-            event.get("host", {}).get("hostname")
-            or event.get("host")
+            event.get("host", {}).get("hostname") or event.get("host")
             if not isinstance(event.get("host"), str)
             else event.get("host")
         )
@@ -68,13 +69,15 @@ class PlaybookContext:
             trigger_data=event,
             host=str(host) if host else None,
             dst_ip=event.get("destination", {}).get("ip") if isinstance(event.get("destination"), dict) else None,
-            dst_domain=event.get("destination", {}).get("domain") if isinstance(event.get("destination"), dict) else None,
+            dst_domain=event.get("destination", {}).get("domain")
+            if isinstance(event.get("destination"), dict)
+            else None,
             process_name=event.get("process", {}).get("name") if isinstance(event.get("process"), dict) else None,
             ttps=event.get("ttps", []),
         )
 
     @classmethod
-    def from_fingerprint(cls, result: dict) -> "PlaybookContext":
+    def from_fingerprint(cls, result: dict) -> PlaybookContext:
         confidence = result.get("confidence", 0.0)
         risk = result.get("risk_score", 0.85)
         return cls(
@@ -89,9 +92,10 @@ class PlaybookContext:
 
 # ─── Playbook Definitions ─────────────────────────────────────────────────────
 
+
 @dataclass
 class StepDef:
-    action: str      # LOG | CREATE_ALERT | TAG_ALERT | NOTIFY | AWAIT_APPROVAL | ISOLATE_ENDPOINT | BLOCK_IP | BLOCK_DOMAIN | REMOVE_PERSISTENCE
+    action: str  # LOG | CREATE_ALERT | TAG_ALERT | NOTIFY | AWAIT_APPROVAL | ISOLATE_ENDPOINT | BLOCK_IP | BLOCK_DOMAIN | REMOVE_PERSISTENCE
     name: str
     params: dict = field(default_factory=dict)
 
@@ -118,9 +122,9 @@ PLAYBOOKS: dict[str, PlaybookDefinition] = {
         min_risk=0.0,
         max_risk=0.39,
         steps=[
-            StepDef("LOG",        "Registrar evento nominal en SIEM"),
-            StepDef("TAG_ALERT",  "Clasificar alerta como monitoreo continuo"),
-            StepDef("NOTIFY",     "Notificación informativa a analista de turno"),
+            StepDef("LOG", "Registrar evento nominal en SIEM"),
+            StepDef("TAG_ALERT", "Clasificar alerta como monitoreo continuo"),
+            StepDef("NOTIFY", "Notificación informativa a analista de turno"),
         ],
     ),
     "PB-002": PlaybookDefinition(
@@ -132,12 +136,12 @@ PLAYBOOKS: dict[str, PlaybookDefinition] = {
         min_risk=0.40,
         max_risk=0.84,
         steps=[
-            StepDef("LOG",            "Registrar actividad sospechosa — prioridad alta"),
-            StepDef("CREATE_ALERT",   "Crear alerta HIGH en base de datos"),
-            StepDef("NOTIFY",         "Notificar analista SOC"),
+            StepDef("LOG", "Registrar actividad sospechosa — prioridad alta"),
+            StepDef("CREATE_ALERT", "Crear alerta HIGH en base de datos"),
+            StepDef("NOTIFY", "Notificar analista SOC"),
             StepDef("AWAIT_APPROVAL", "Esperar aprobación analista (Human-in-the-Loop)"),
-            StepDef("BLOCK_IP",       "Bloquear IP C2 si disponible en contexto"),
-            StepDef("BLOCK_DOMAIN",   "Bloquear dominio C2 si disponible en contexto"),
+            StepDef("BLOCK_IP", "Bloquear IP C2 si disponible en contexto"),
+            StepDef("BLOCK_DOMAIN", "Bloquear dominio C2 si disponible en contexto"),
         ],
     ),
     "PB-003": PlaybookDefinition(
@@ -149,15 +153,15 @@ PLAYBOOKS: dict[str, PlaybookDefinition] = {
         min_risk=0.85,
         max_risk=1.0,
         steps=[
-            StepDef("LOG",              "Registrar compromiso activo — CRÍTICO"),
-            StepDef("CREATE_ALERT",     "Crear alerta CRITICAL en base de datos"),
-            StepDef("NOTIFY",           "Notificación de emergencia a SOC senior"),
-            StepDef("AWAIT_APPROVAL",   "Autorización analista senior (Human-in-the-Loop)"),
+            StepDef("LOG", "Registrar compromiso activo — CRÍTICO"),
+            StepDef("CREATE_ALERT", "Crear alerta CRITICAL en base de datos"),
+            StepDef("NOTIFY", "Notificación de emergencia a SOC senior"),
+            StepDef("AWAIT_APPROVAL", "Autorización analista senior (Human-in-the-Loop)"),
             StepDef("ISOLATE_ENDPOINT", "Aislar endpoint comprometido de la red"),
-            StepDef("BLOCK_IP",         "Bloquear tráfico C2 entrante y saliente"),
-            StepDef("BLOCK_DOMAIN",     "Bloquear dominio C2 en DNS sinkhole"),
+            StepDef("BLOCK_IP", "Bloquear tráfico C2 entrante y saliente"),
+            StepDef("BLOCK_DOMAIN", "Bloquear dominio C2 en DNS sinkhole"),
             StepDef("REMOVE_PERSISTENCE", "Eliminar mecanismos de persistencia en registro"),
-            StepDef("NOTIFY",           "Notificar cierre de acciones al equipo"),
+            StepDef("NOTIFY", "Notificar cierre de acciones al equipo"),
         ],
     ),
     "PB-004": PlaybookDefinition(
@@ -169,12 +173,12 @@ PLAYBOOKS: dict[str, PlaybookDefinition] = {
         min_risk=0.0,
         max_risk=1.0,
         steps=[
-            StepDef("LOG",            "Registrar malware dirigido — environmental keying detectado"),
-            StepDef("CREATE_ALERT",   "Crear alerta CRITICAL — TARGETED ATTACK en BD"),
-            StepDef("NOTIFY",         "Escalación inmediata a SOC senior y CISO"),
+            StepDef("LOG", "Registrar malware dirigido — environmental keying detectado"),
+            StepDef("CREATE_ALERT", "Crear alerta CRITICAL — TARGETED ATTACK en BD"),
+            StepDef("NOTIFY", "Escalación inmediata a SOC senior y CISO"),
             StepDef("AWAIT_APPROVAL", "Aprobación para aislamiento (Human-in-the-Loop)"),
             StepDef("ISOLATE_ENDPOINT", "Aislar endpoint (condicional: confidence ≥ 0.80)"),
-            StepDef("BLOCK_DOMAIN",   "Bloquear dominios de C2 detectados"),
+            StepDef("BLOCK_DOMAIN", "Bloquear dominios de C2 detectados"),
         ],
     ),
     "PB-005": PlaybookDefinition(
@@ -190,20 +194,21 @@ PLAYBOOKS: dict[str, PlaybookDefinition] = {
         min_risk=0.0,
         max_risk=1.0,
         steps=[
-            StepDef("LOG",                 "Registrar acción PIDS — identidad comprometida detectada"),
-            StepDef("CREATE_ALERT",        "Crear alerta CRITICAL — Identity Compromise en BD"),
-            StepDef("NOTIFY",              "Notificar al equipo SOC — acción sobre identidad pendiente"),
-            StepDef("AWAIT_APPROVAL",      "Aprobación analista para acciones sobre identidad (Human-in-the-Loop)"),
-            StepDef("DISABLE_ACCOUNT",     "Deshabilitar cuenta de usuario en Active Directory"),
-            StepDef("FORCE_PASSWORD_RESET","Forzar cambio de contraseña en próximo inicio de sesión"),
-            StepDef("QUARANTINE_ACCOUNT",  "Mover usuario a OU de cuarentena en Active Directory"),
-            StepDef("NOTIFY",              "Notificar cierre de acciones PIDS al equipo"),
+            StepDef("LOG", "Registrar acción PIDS — identidad comprometida detectada"),
+            StepDef("CREATE_ALERT", "Crear alerta CRITICAL — Identity Compromise en BD"),
+            StepDef("NOTIFY", "Notificar al equipo SOC — acción sobre identidad pendiente"),
+            StepDef("AWAIT_APPROVAL", "Aprobación analista para acciones sobre identidad (Human-in-the-Loop)"),
+            StepDef("DISABLE_ACCOUNT", "Deshabilitar cuenta de usuario en Active Directory"),
+            StepDef("FORCE_PASSWORD_RESET", "Forzar cambio de contraseña en próximo inicio de sesión"),
+            StepDef("QUARANTINE_ACCOUNT", "Mover usuario a OU de cuarentena en Active Directory"),
+            StepDef("NOTIFY", "Notificar cierre de acciones PIDS al equipo"),
         ],
     ),
 }
 
 
 # ─── Playbook Selection ───────────────────────────────────────────────────────
+
 
 def select_playbook_id(ctx: PlaybookContext) -> str:
     """Auto-select the most appropriate playbook for the given context."""
@@ -222,6 +227,7 @@ def select_playbook_id(ctx: PlaybookContext) -> str:
 
 # ─── Step Executor ────────────────────────────────────────────────────────────
 
+
 async def _execute_step(
     step: StepDef,
     ctx: PlaybookContext,
@@ -229,7 +235,7 @@ async def _execute_step(
     db: AsyncSession,
 ) -> dict[str, Any]:
     """Execute a single playbook step. Returns a step_log entry dict."""
-    ts = datetime.now(timezone.utc).isoformat()
+    ts = datetime.now(UTC).isoformat()
     result: dict[str, Any] = {"action": step.action, "name": step.name, "status": "ok", "ts": ts}
 
     try:
@@ -347,7 +353,7 @@ async def _execute_step(
             result["status"] = "warning"
             result["detail"] = f"Unknown action type: {step.action}"
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.error("playbook_step_error", run_id=run.id, step=step.action, error=str(exc))
         result["status"] = "error"
         result["detail"] = str(exc)
@@ -442,6 +448,7 @@ def _recommended_actions(ctx: PlaybookContext) -> list[str]:
 
 # ─── Engine ───────────────────────────────────────────────────────────────────
 
+
 async def _run_steps(
     run: PlaybookRun,
     pb: PlaybookDefinition,
@@ -470,14 +477,14 @@ async def _run_steps(
         if step_entry.get("status") == "error":
             run.status = "failed"
             run.error = step_entry.get("detail", "Unknown error")
-            run.completed_at = datetime.now(timezone.utc)
+            run.completed_at = datetime.now(UTC)
             await db.flush()
             log.error("playbook_failed", run_id=run.id, step=step.action, error=run.error)
             return
 
     # All steps done
     run.status = "completed"
-    run.completed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(UTC)
     run.steps_log = steps_log
     await db.flush()
     log.info("playbook_completed", run_id=run.id, playbook=run.playbook_id, steps=len(steps_log))
@@ -506,7 +513,7 @@ async def trigger_playbook(
         steps_log=[],
         next_step_index=0,
         initiated_by=initiated_by,
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
     )
     db.add(run)
     await db.flush()
@@ -551,7 +558,7 @@ async def approve_playbook_run(
     ctx = _context_from_run(run)
 
     run.approved_by = approved_by
-    run.approved_at = datetime.now(timezone.utc)
+    run.approved_at = datetime.now(UTC)
     run.approval_token = None
     run.status = "running"
     await db.flush()
@@ -574,7 +581,7 @@ async def abort_playbook_run(run: PlaybookRun, aborted_by: str, db: AsyncSession
         raise ValueError(f"Cannot abort run with status={run.status}")
 
     run.status = "aborted"
-    run.completed_at = datetime.now(timezone.utc)
+    run.completed_at = datetime.now(UTC)
     run.error = f"Aborted by {aborted_by}"
     await db.flush()
     log.info("playbook_aborted", run_id=run.id, aborted_by=aborted_by)
@@ -601,6 +608,7 @@ def _context_from_run(run: PlaybookRun) -> PlaybookContext:
 
 
 # ─── Catalog Helper ───────────────────────────────────────────────────────────
+
 
 def get_playbook_catalog() -> list[dict]:
     """Return the list of available playbooks (for API /playbooks/ endpoint)."""

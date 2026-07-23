@@ -25,37 +25,40 @@ Security:
   - Trigger execution is logged via log_security_action.
   - trigger_count + last_triggered_at updated atomically on fire.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.audit import log_security_action
-from asc_api.core.tenant_context import get_tenant_id
 from asc_api.core.logging import get_logger
+from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.soar import PlaybookTrigger
 
 log = get_logger("asc.soar")
 
 # ── Condition evaluation ───────────────────────────────────────────────────────
 
-_VALID_CONDITION_TYPES = frozenset({
-    "pcdi_score",
-    "finding_severity",
-    "hunt_priority",
-    "panl_status",
-    # P26 PIDS — identity-aware condition types
-    "identity_group",        # context["groups"] list contains condition_value
-    "iam_event",             # context["iam_action"] matches condition_value (eq/contains)
-    # P30 PIIL — incident lifecycle condition types
-    "incident_status_change",  # context["new_status"] eq/contains condition_value
-    "incident_sla_breach",     # context["sla_breach"] is True (any operator matches)
-    "incident_severity",       # context["severity"] gte/lte/eq condition_value
-})
+_VALID_CONDITION_TYPES = frozenset(
+    {
+        "pcdi_score",
+        "finding_severity",
+        "hunt_priority",
+        "panl_status",
+        # P26 PIDS — identity-aware condition types
+        "identity_group",  # context["groups"] list contains condition_value
+        "iam_event",  # context["iam_action"] matches condition_value (eq/contains)
+        # P30 PIIL — incident lifecycle condition types
+        "incident_status_change",  # context["new_status"] eq/contains condition_value
+        "incident_sla_breach",  # context["sla_breach"] is True (any operator matches)
+        "incident_severity",  # context["severity"] gte/lte/eq condition_value
+    }
+)
 
 _VALID_OPERATORS = frozenset({"gte", "lte", "eq", "contains"})
 
@@ -73,8 +76,8 @@ def _evaluate_condition(trigger: PlaybookTrigger, context: dict[str, Any]) -> bo
       panl_status   : str    — PANL action status
     """
     ctype = trigger.condition_type
-    op    = trigger.condition_operator
-    val   = trigger.condition_value
+    op = trigger.condition_operator
+    val = trigger.condition_value
 
     if ctype == "pcdi_score":
         score = context.get("pcdi_score")
@@ -167,6 +170,7 @@ def _evaluate_condition(trigger: PlaybookTrigger, context: dict[str, Any]) -> bo
 
 # ── Core service functions ─────────────────────────────────────────────────────
 
+
 async def evaluate_triggers_for_context(
     db: AsyncSession,
     context: dict[str, Any],
@@ -188,9 +192,7 @@ async def evaluate_triggers_for_context(
         "finding_id": "...",
       }
     """
-    result = await db.execute(
-        select(PlaybookTrigger).where(PlaybookTrigger.enabled.is_(True))
-    )
+    result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.enabled.is_(True)))
     # P26: adaptive orchestration — evaluate highest-priority triggers first
     triggers = sorted(result.scalars().all(), key=lambda t: getattr(t, "priority", 5), reverse=True)
 
@@ -240,9 +242,10 @@ async def _is_dedup_active(
     created within the dedup window.  Prevents duplicate approval queues.
     """
     from datetime import timedelta
+
     from asc_api.models.playbook_run import PlaybookRun
 
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=dedup_window_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=dedup_window_minutes)
     stmt = (
         select(PlaybookRun)
         .where(
@@ -300,7 +303,7 @@ async def _fire_trigger(
 
     # Update trigger metadata
     trigger.trigger_count = (trigger.trigger_count or 0) + 1
-    trigger.last_triggered_at = datetime.now(timezone.utc)
+    trigger.last_triggered_at = datetime.now(UTC)
     trigger.last_triggered_context = str(context)[:500]
     await db.commit()
 
@@ -327,7 +330,7 @@ async def _fire_trigger(
         "matched": True,
         "run_id": run_id,
         "error": error,
-        "fired_at": datetime.now(timezone.utc).isoformat(),
+        "fired_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -367,7 +370,7 @@ async def create_trigger(
         enabled=True,
         trigger_count=0,
         created_by=created_by,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(trigger)
     await db.commit()
@@ -435,7 +438,9 @@ async def delete_trigger(db: AsyncSession, trigger_id: str, *, deleted_by: str, 
     return True
 
 
-async def toggle_trigger(db: AsyncSession, trigger_id: str, *, enabled: bool, updated_by: str, tenant_id: str | None = None) -> dict | None:
+async def toggle_trigger(
+    db: AsyncSession, trigger_id: str, *, enabled: bool, updated_by: str, tenant_id: str | None = None
+) -> dict | None:
     stmt = select(PlaybookTrigger).where(PlaybookTrigger.id == trigger_id)
     if tenant_id is not None:  # SECURITY (S103.6)
         stmt = stmt.where(PlaybookTrigger.tenant_id == tenant_id)
@@ -528,7 +533,7 @@ async def create_scheduled_report(
         enabled=True,
         send_count=0,
         created_by=created_by,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(sr)
     await db.commit()
@@ -599,9 +604,7 @@ async def delete_scheduled_report(db: AsyncSession, report_id: str, *, deleted_b
     return True
 
 
-async def toggle_scheduled_report(
-    db: AsyncSession, report_id: str, *, enabled: bool, updated_by: str
-) -> dict | None:
+async def toggle_scheduled_report(db: AsyncSession, report_id: str, *, enabled: bool, updated_by: str) -> dict | None:
     from asc_api.models.soar import ScheduledReport
 
     _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
@@ -631,9 +634,10 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
     """
     import hashlib
     import json
-    from asc_api.models.soar import ScheduledReport
+
     from asc_api.models.hunt import Hunt, HuntFinding
-    from asc_api.services.pids_service import get_identity_timeline, _sign_hash
+    from asc_api.models.soar import ScheduledReport
+    from asc_api.services.pids_service import _sign_hash, get_identity_timeline
 
     _stmt = select(ScheduledReport).where(ScheduledReport.id == report_id)
     _tid = get_tenant_id()  # SECURITY (S103.7)
@@ -648,15 +652,13 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
     hunt_result = await db.execute(select(Hunt).where(Hunt.id == r.hunt_id))
     hunt = hunt_result.scalar_one_or_none()
 
-    findings_result = await db.execute(
-        select(HuntFinding).where(HuntFinding.hunt_id == r.hunt_id)
-    )
+    findings_result = await db.execute(select(HuntFinding).where(HuntFinding.hunt_id == r.hunt_id))
     findings = findings_result.scalars().all()
 
     # Load PIDS identity timeline
     identity_timeline = await get_identity_timeline(db, r.hunt_id)
 
-    now_ts = datetime.now(timezone.utc).isoformat()
+    now_ts = datetime.now(UTC).isoformat()
     summary = {
         "hunt_id": r.hunt_id,
         "hunt_name": hunt.name if hunt else r.hunt_name,
@@ -678,7 +680,8 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
     # P26: forensic signing of the full report payload
     canonical_payload = json.dumps(
         {"report_id": report_id, "report": summary},
-        sort_keys=True, separators=(",", ":"),
+        sort_keys=True,
+        separators=(",", ":"),
     ).encode()
     forensic_hash = hashlib.sha3_512(canonical_payload).hexdigest()
     forensic_signature = _sign_hash(forensic_hash)
@@ -690,7 +693,7 @@ async def deliver_scheduled_report(db: AsyncSession, report_id: str) -> dict:
         error = str(exc)
         log.warning("scheduled_report_send_error", report_id=report_id, error=error)
 
-    r.last_sent_at = datetime.now(timezone.utc)
+    r.last_sent_at = datetime.now(UTC)
     r.send_count = (r.send_count or 0) + 1
     r.last_error = error
     await db.commit()
@@ -723,7 +726,8 @@ async def _send_report(recipient_email: str, summary: dict, *, format: str) -> N
     Falls back to log-only when the key is absent (dev / self-hosted).
     Raises RuntimeError on Resend API failure so the caller can record it.
     """
-    from asc_api.core.config import get_settings  # noqa: PLC0415
+    from asc_api.core.config import get_settings
+
     _cfg = get_settings()
     api_key = _cfg.RESEND_API_KEY
 
@@ -739,14 +743,14 @@ async def _send_report(recipient_email: str, summary: dict, *, format: str) -> N
         return
 
     hunt_name = summary.get("hunt_name", "Unknown Hunt")
-    total     = summary.get("total_findings", 0)
+    total = summary.get("total_findings", 0)
     confirmed = summary.get("confirmed", 0)
-    critical  = summary.get("critical_findings", 0)
-    high      = summary.get("high_findings", 0)
-    fp        = summary.get("false_positives", 0)
-    ia_count  = summary.get("identity_action_count", 0)
-    ia_ok     = summary.get("identity_actions_successful", 0)
-    gen_at    = summary.get("generated_at", "")
+    critical = summary.get("critical_findings", 0)
+    high = summary.get("high_findings", 0)
+    fp = summary.get("false_positives", 0)
+    ia_count = summary.get("identity_action_count", 0)
+    ia_ok = summary.get("identity_actions_successful", 0)
+    gen_at = summary.get("generated_at", "")
 
     text_body = (
         f"ASC PremosCorp — Scheduled Report\n\n"
@@ -768,8 +772,8 @@ async def _send_report(recipient_email: str, summary: dict, *, format: str) -> N
         "<div style='font-family:sans-serif;color:#1a1a2e;max-width:600px'>"
         "<h2 style='color:#0d1b2a'>ASC PremosCorp — Scheduled Report</h2>"
         f"<p><strong>Hunt:</strong> {hunt_name}</p>"
-        f"<p><strong>Status:</strong> {summary.get('hunt_status','unknown')} &nbsp;|&nbsp; "
-        f"<strong>Priority:</strong> {summary.get('hunt_priority','unknown')}</p>"
+        f"<p><strong>Status:</strong> {summary.get('hunt_status', 'unknown')} &nbsp;|&nbsp; "
+        f"<strong>Priority:</strong> {summary.get('hunt_priority', 'unknown')}</p>"
         f"<p><strong>Generated:</strong> {gen_at}</p>"
         "<h3>Findings Summary</h3>"
         "<table border='1' cellpadding='8' cellspacing='0' style='border-collapse:collapse'>"
@@ -787,7 +791,8 @@ async def _send_report(recipient_email: str, summary: dict, *, format: str) -> N
         "</div>"
     )
 
-    import httpx  # noqa: PLC0415
+    import httpx
+
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             "https://api.resend.com/emails",
@@ -805,9 +810,7 @@ async def _send_report(recipient_email: str, summary: dict, *, format: str) -> N
         )
 
     if resp.status_code not in (200, 201):
-        raise RuntimeError(
-            f"Resend error {resp.status_code}: {resp.text[:200]}"
-        )
+        raise RuntimeError(f"Resend error {resp.status_code}: {resp.text[:200]}")
 
     log.info(
         "scheduled_report_sent",

@@ -15,16 +15,14 @@ Diseño (S110 — motor 100% PropremosCorp, sin LLM externo):
   - `build_alert_context` / `_PROFILE_SYSTEM` se conservan como utilidades de
     contexto y registro (reutilizables por una capa premium futura).
 """
+
 from __future__ import annotations
 
 import json
 
-
-from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
 
 log = get_logger("asc.explainer")
-
 
 
 # ── Guardrail común a todos los perfiles ──────────────────────────────────────
@@ -52,16 +50,14 @@ _PROFILE_SYSTEM = {
         "alerta al responsable de IT de una pequeña o mediana empresa, con "
         "conocimiento técnico medio y sin equipo de seguridad dedicado.\n"
         "Sé claro y accionable: qué pasó, por qué importa para el negocio, y qué "
-        "conviene revisar o pedir. Explica la jerga la primera vez que aparezca.\n"
-        + _GUARDRAIL
+        "conviene revisar o pedir. Explica la jerga la primera vez que aparezca.\n" + _GUARDRAIL
     ),
     "enterprise": (
         "Eres el asistente de ciberseguridad de ASC (PremosCorp) explicando una "
         "alerta a un analista SOC de nivel enterprise.\n"
         "Puedes usar terminología técnica (MITRE ATT&CK, IOC, cadena de eventos) "
         "sin diluirla. Sé conciso y denso en señal: hipótesis de la técnica, "
-        "pivotes de investigación sugeridos, y qué evidencia correlacionar.\n"
-        + _GUARDRAIL
+        "pivotes de investigación sugeridos, y qué evidencia correlacionar.\n" + _GUARDRAIL
     ),
 }
 
@@ -104,6 +100,7 @@ async def stream_local(alert: dict, profile: str | None):
     ni ejecuta, nunca inventa datos ausentes.
     """
     from asc_api.services.local_explainer import stream_local_explanation
+
     log.info("explainer_start", profile=_normalize_profile(profile), alert_id=alert.get("id"), engine="local")
     async for piece in stream_local_explanation(alert, profile):
         yield piece

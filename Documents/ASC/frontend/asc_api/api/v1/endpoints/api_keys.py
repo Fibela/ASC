@@ -20,7 +20,7 @@ Key format: asc_<8-char prefix>_<40-char random hex>
 import hashlib
 import hmac as _hmac
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_current_user, get_current_admin
+from asc_api.api.deps import get_current_admin, get_current_user
 from asc_api.core.api_key_rate_limit import api_key_limiter
 from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
@@ -46,7 +46,7 @@ _settings = get_settings()
 # â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _PREFIX_LEN = 8
-_SECRET_LEN = 40   # hex chars from secrets.token_hex(20) â†’ 40 hex chars
+_SECRET_LEN = 40  # hex chars from secrets.token_hex(20) â†’ 40 hex chars
 _MAX_KEYS_PER_USER = 20
 
 VALID_SCOPES = frozenset({"read", "write", "admin"})
@@ -54,10 +54,11 @@ VALID_SCOPES = frozenset({"read", "write", "admin"})
 
 # â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 def _generate_raw_key() -> str:
     """Return a new raw API key: asc_<prefix8>_<random40>"""
-    prefix = secrets.token_hex(4)      # 8 hex chars
-    body = secrets.token_hex(20)       # 40 hex chars
+    prefix = secrets.token_hex(4)  # 8 hex chars
+    body = secrets.token_hex(20)  # 40 hex chars
     return f"asc_{prefix}_{body}"
 
 
@@ -85,6 +86,7 @@ def _prefix_of(raw_key: str) -> str:
 
 
 # â”€â”€ Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 class APIKeyCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
@@ -118,17 +120,19 @@ class APIKeyPatch(BaseModel):
 
 class RateLimitStatus(BaseModel):
     """P41 â€” Current rate limit usage for an API key."""
+
     key_prefix: str
     limit_per_minute: int
     limit_per_hour: int
-    count_minute: int       # requests in the current minute window
-    count_hour: int         # requests in the current hour window
+    count_minute: int  # requests in the current minute window
+    count_hour: int  # requests in the current hour window
     remaining_minute: int
     remaining_hour: int
-    backend: str            # 'redis' or 'memory'
+    backend: str  # 'redis' or 'memory'
 
 
 # â”€â”€ Helpers (DB) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 async def _get_key_or_404(key_id: str, db: AsyncSession) -> APIKey:
     _stmt = select(APIKey).where(APIKey.id == key_id)
@@ -152,6 +156,7 @@ def _validate_scopes(scopes: list[str]) -> None:
 
 
 # â”€â”€ Ledger Premos helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 def _ledger_create(user: User, key: APIKey) -> None:
     """Emit Ledger Premos entry for key creation."""
@@ -195,6 +200,7 @@ def _ledger_revoke(user: User, key_id: str, key_prefix: str) -> None:
 
 # â”€â”€ Endpoints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+
 @router.post("", response_model=APIKeyCreated, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     payload: APIKeyCreate,
@@ -211,9 +217,7 @@ async def create_api_key(
 
     # P54: enforce per-plan api_key cap before any DB write.
     if current_user.tenant_id:
-        tenant_result = await db.execute(
-            select(Tenant).where(Tenant.id == current_user.tenant_id)
-        )
+        tenant_result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
         tenant = tenant_result.scalar_one_or_none()
         if tenant:
             await enforce_api_key_cap(tenant, current_user.id, db)
@@ -261,14 +265,10 @@ async def list_api_keys(
     P51: all queries scoped to the request's tenant via apply_tenant_filter().
     """
     if current_user.role == "admin":
-        stmt = apply_tenant_filter(
-            select(APIKey).order_by(APIKey.created_at.desc()), APIKey
-        )
+        stmt = apply_tenant_filter(select(APIKey).order_by(APIKey.created_at.desc()), APIKey)
     else:
         stmt = apply_tenant_filter(
-            select(APIKey)
-            .where(APIKey.user_id == current_user.id)
-            .order_by(APIKey.created_at.desc()),
+            select(APIKey).where(APIKey.user_id == current_user.id).order_by(APIKey.created_at.desc()),
             APIKey,
         )
     result = await db.execute(stmt)
@@ -352,7 +352,7 @@ async def rotate_api_key(
     key.key_prefix = _prefix_of(raw)
     key.key_hash = _hash_key(raw)
     key.last_used_at = None  # reset usage tracker after rotation
-    key.is_active = True     # re-activate if it was soft-deactivated
+    key.is_active = True  # re-activate if it was soft-deactivated
 
     await db.commit()
     await db.refresh(key)
@@ -380,9 +380,7 @@ async def admin_list_all_keys(
     db: AsyncSession = Depends(get_db),
 ):
     """Admin-only: list all API keys across all users within the current tenant."""
-    stmt = apply_tenant_filter(
-        select(APIKey).order_by(APIKey.created_at.desc()), APIKey
-    )
+    stmt = apply_tenant_filter(select(APIKey).order_by(APIKey.created_at.desc()), APIKey)
     result = await db.execute(stmt)
     return result.scalars().all()
 

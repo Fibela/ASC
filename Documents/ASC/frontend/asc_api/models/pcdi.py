@@ -9,12 +9,13 @@ Stores cryptographically signed hunt reports.  Each entry contains:
 Supports offline verification: recompute the hash from canonical_data and verify
 the signature against the analyst's stored public key.
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Index, JSON, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from asc_api.db.base import Base
@@ -23,9 +24,7 @@ from asc_api.db.base import Base
 class PCDISignedReport(Base):
     __tablename__ = "pcdi_signed_reports"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     # Reference to the hunt session (not a FK — hunts can be archived/deleted)
@@ -54,9 +53,7 @@ class PCDISignedReport(Base):
 
     # PCDI metadata
     pcdi_version: Mapped[str] = mapped_column(String(10), nullable=False, default="1")
-    adaptive_score: Mapped[int | None] = mapped_column(
-        __import__("sqlalchemy").Integer, nullable=True
-    )
+    adaptive_score: Mapped[int | None] = mapped_column(__import__("sqlalchemy").Integer, nullable=True)
 
     __table_args__ = (
         Index("ix_pcdi_hunt_id", "hunt_id"),

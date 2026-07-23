@@ -26,33 +26,31 @@ ASC IoC type → TheHive dataType:
   mutex        → other
   registry_key → registry
 """
+
 from __future__ import annotations
 
 import httpx
-from datetime import datetime, timezone
-from typing import Any
 
-from asc_api.adapters import BaseAdapter, HTTP_TIMEOUT, USER_AGENT
+from asc_api.adapters import HTTP_TIMEOUT, USER_AGENT, BaseAdapter
 from asc_api.core.config import get_settings
-
 
 # ─── Severity mapping ─────────────────────────────────────────────────────────
 
 _SEVERITY_MAP: dict[str, int] = {
-    "low":      1,
-    "medium":   2,
-    "high":     3,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
     "critical": 4,
 }
 
 _IOC_TYPE_MAP: dict[str, str] = {
-    "ip":           "ip",
-    "domain":       "domain",
-    "url":          "url",
-    "hash_md5":     "hash",
-    "hash_sha1":    "hash",
-    "hash_sha256":  "hash",
-    "mutex":        "other",
+    "ip": "ip",
+    "domain": "domain",
+    "url": "url",
+    "hash_md5": "hash",
+    "hash_sha1": "hash",
+    "hash_sha256": "hash",
+    "mutex": "other",
     "registry_key": "registry",
 }
 
@@ -62,9 +60,9 @@ class TheHiveAdapter(BaseAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._url    = s.THEHIVE_URL.rstrip("/")
+        self._url = s.THEHIVE_URL.rstrip("/")
         self._apikey = s.THEHIVE_API_KEY
-        self._org    = s.THEHIVE_ORGANISATION
+        self._org = s.THEHIVE_ORGANISATION
 
     # ─── Configuration ────────────────────────────────────────────────────────
 
@@ -73,9 +71,9 @@ class TheHiveAdapter(BaseAdapter):
 
     def _auth_headers(self) -> dict:
         return {
-            "User-Agent":    USER_AGENT,
-            "Accept":        "application/json",
-            "Content-Type":  "application/json",
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
             "Authorization": f"Bearer {self._apikey}",
         }
 
@@ -86,8 +84,8 @@ class TheHiveAdapter(BaseAdapter):
         Transform an ASC alert dict into a TheHive 5.x case creation body.
         """
         severity = _SEVERITY_MAP.get(alert.get("severity", "medium"), 2)
-        ttps     = alert.get("ttps", [])
-        hosts    = alert.get("affected_hosts", [])
+        ttps = alert.get("ttps", [])
+        hosts = alert.get("affected_hosts", [])
 
         tags = ["asc", "automated"]
         if ttps:
@@ -105,18 +103,18 @@ class TheHiveAdapter(BaseAdapter):
             description_parts += ["", "**MITRE ATT&CK TTPs:**", *[f"- {t}" for t in ttps]]
 
         return {
-            "title":       f"[ASC] {alert.get('title', 'Untitled Alert')}",
+            "title": f"[ASC] {alert.get('title', 'Untitled Alert')}",
             "description": "\n".join(description_parts),
-            "severity":    severity,
-            "status":      "New",
-            "flag":        severity >= 3,          # flag high/critical for immediate attention
-            "tlp":         2,                      # TLP:AMBER
-            "pap":         2,                      # PAP:AMBER
-            "tags":        tags,
+            "severity": severity,
+            "status": "New",
+            "flag": severity >= 3,  # flag high/critical for immediate attention
+            "tlp": 2,  # TLP:AMBER
+            "pap": 2,  # PAP:AMBER
+            "tags": tags,
             "customFields": {
-                "asc-alert-id":   {"string": alert.get("id", "")},
-                "asc-risk-score": {"float":  float(alert.get("risk_score", 0.0))},
-                "asc-severity":   {"string": alert.get("severity", "medium")},
+                "asc-alert-id": {"string": alert.get("id", "")},
+                "asc-risk-score": {"float": float(alert.get("risk_score", 0.0))},
+                "asc-severity": {"string": alert.get("severity", "medium")},
             },
         }
 
@@ -124,7 +122,7 @@ class TheHiveAdapter(BaseAdapter):
         """
         Transform an ASC IoC dict into a TheHive observable creation body.
         """
-        ioc_type  = ioc.get("ioc_type", "other")
+        ioc_type = ioc.get("ioc_type", "other")
         data_type = _IOC_TYPE_MAP.get(ioc_type, "other")
 
         tags = ["asc", "ioc"]
@@ -132,13 +130,13 @@ class TheHiveAdapter(BaseAdapter):
             tags.append(ioc["threat_type"])
 
         return {
-            "dataType":    data_type,
-            "data":        ioc.get("value", ""),
-            "message":     ioc.get("description") or f"IoC from ASC: {ioc_type}",
-            "tlp":         2,
-            "ioc":         True,
-            "sighted":     bool(ioc.get("hit_count", 0)),
-            "tags":        tags,
+            "dataType": data_type,
+            "data": ioc.get("value", ""),
+            "message": ioc.get("description") or f"IoC from ASC: {ioc_type}",
+            "tlp": 2,
+            "ioc": True,
+            "sighted": bool(ioc.get("hit_count", 0)),
+            "tags": tags,
         }
 
     # ─── HTTP operations ──────────────────────────────────────────────────────

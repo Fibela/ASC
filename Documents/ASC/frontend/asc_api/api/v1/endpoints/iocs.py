@@ -2,20 +2,20 @@
 IoCs endpoint â€” P21-F2: authentication enforced + rate limiting added.
 Previously iocs.py had NO auth dependency â€” security gap now closed.
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from datetime import datetime, timezone
+
 import uuid
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
+from sqlalchemy import desc, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
-from asc_api.core.tenant_context import get_tenant_id
 from asc_api.models.ioc import IoC
 from asc_api.models.user import User
-from asc_api.api.deps import get_current_user, get_analyst_or_admin, get_current_admin
-from asc_api.core.rate_limit import limiter
-from asc_api.core.config import get_settings
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/iocs", tags=["IoCs"])
 settings = get_settings()
@@ -23,7 +23,7 @@ settings = get_settings()
 
 class IoCCreate(BaseModel):
     value: str
-    ioc_type: str        # hash_md5, hash_sha256, ip, domain, url, mutex
+    ioc_type: str  # hash_md5, hash_sha256, ip, domain, url, mutex
     threat_type: str | None = None
     confidence: float = 0.7
     severity: str = "medium"
@@ -90,9 +90,13 @@ async def list_iocs(
     iocs = result.scalars().all()
     return [
         {
-            "id": i.id, "value": i.value, "type": i.ioc_type,
-            "threat": i.threat_type, "confidence": i.confidence,
-            "severity": i.severity, "hits": i.hit_count,
+            "id": i.id,
+            "value": i.value,
+            "type": i.ioc_type,
+            "threat": i.threat_type,
+            "confidence": i.confidence,
+            "severity": i.severity,
+            "hits": i.hit_count,
             "last_seen": i.last_seen.isoformat() if i.last_seen else None,
         }
         for i in iocs

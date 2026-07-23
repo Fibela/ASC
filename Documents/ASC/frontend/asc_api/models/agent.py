@@ -8,9 +8,9 @@ Three tables:
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text, ForeignKey
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from asc_api.db.base import Base
@@ -19,15 +19,14 @@ from asc_api.db.base import Base
 class Agent(Base):
     __tablename__ = "agents"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True,
-                                    default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     hostname: Mapped[str] = mapped_column(String(255), nullable=False)
-    os_type: Mapped[str] = mapped_column(String(20), nullable=False)    # windows, linux, macos
+    os_type: Mapped[str] = mapped_column(String(20), nullable=False)  # windows, linux, macos
     os_version: Mapped[str] = mapped_column(String(128), nullable=False)
-    arch: Mapped[str] = mapped_column(String(16), nullable=False)       # x86_64, arm64
-    ip_address: Mapped[str] = mapped_column(String(45), nullable=False) # IPv4 or IPv6
-    public_key: Mapped[str] = mapped_column(Text, nullable=False)       # Ed25519 raw key, base64
+    arch: Mapped[str] = mapped_column(String(16), nullable=False)  # x86_64, arm64
+    ip_address: Mapped[str] = mapped_column(String(45), nullable=False)  # IPv4 or IPv6
+    public_key: Mapped[str] = mapped_column(Text, nullable=False)  # Ed25519 raw key, base64
     specter_version: Mapped[str] = mapped_column(String(20), nullable=False, default="1.0.0")
 
     # Status / threat posture
@@ -39,10 +38,8 @@ class Agent(Base):
     # seconds — backend adjusts based on threat_level
 
     # Lifecycle timestamps
-    first_seen: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    last_seen: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     # Metadata
     labels: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -53,8 +50,7 @@ class Agent(Base):
 class AgentEvent(Base):
     __tablename__ = "agent_events"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True,
-                                    default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id"), nullable=False)
 
     # Event classification
@@ -65,7 +61,7 @@ class AgentEvent(Base):
 
     # Signed payload from agent
     data: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    signature: Mapped[str] = mapped_column(Text, nullable=False)     # Ed25519 sig, base64
+    signature: Mapped[str] = mapped_column(Text, nullable=False)  # Ed25519 sig, base64
     signature_valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Behavioral anomaly flag (set by backend after signature verification)
@@ -74,15 +70,13 @@ class AgentEvent(Base):
     # Timestamps
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # timestamp from the agent (when the event occurred on the endpoint)
-    received_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class AgentCommand(Base):
     __tablename__ = "agent_commands"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True,
-                                    default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id"), nullable=False)
 
@@ -99,8 +93,7 @@ class AgentCommand(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     # pending | delivered | executing | completed | failed | cancelled
     issued_by: Mapped[str] = mapped_column(String(36), nullable=False)  # user_id
-    issued_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

@@ -6,12 +6,13 @@ Creates an async DB session, calls run_correlation_sweep(), and logs the result.
 
 Task name: asc.correlation_sweep.run_sweep
 """
+
 from __future__ import annotations
 
 import asyncio
 
-from asc_api.tasks.celery_app import celery_app
 from asc_api.core.logging import get_logger
+from asc_api.tasks.celery_app import celery_app
 
 log = get_logger(__name__)
 

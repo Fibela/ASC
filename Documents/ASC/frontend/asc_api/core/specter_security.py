@@ -24,7 +24,6 @@ from typing import Any
 
 from asc_api.core.audit import log_security_action
 
-
 # ── Enrollment token — HMAC-SHA256, 1-hour rolling window ─────────────────────
 
 _ENROLL_PREFIX = "SPECTER-ENROLL-PREMOSCORP"
@@ -78,6 +77,7 @@ def verify_enrollment_token(secret: str, token: str) -> bool:
 # un tenant ajeno. Formato: "<tenant_b64>.<hmac(secret, PREFIX:tenant:window)>".
 # Token sin "." = global/legacy (tenant None) — retrocompatible.
 
+
 def generate_tenant_enrollment_token(secret: str, tenant_id: str, window_offset: int = 0) -> str:
     """Token de enrolamiento que ata el agente al tenant indicado."""
     window = _current_window() + window_offset
@@ -118,32 +118,32 @@ COMMAND_PARAM_SCHEMAS: dict[str, dict[str, type]] = {
     # Strict schemas used by the public POST /agents/{id}/command endpoint.
     # Keys listed here are REQUIRED. Optional extras go in COMMAND_EXTRA_PARAMS.
     # Internal bridge calls issue_command() directly and bypass this validation.
-    "kill_process":       {"pid": int},
-    "kill_process_name":  {"process_name": str},   # bridge-issued: kill by name (broadcast)
-    "block_ip":           {"ip": str},
-    "block_domain":       {"domain": str},          # P16.2 — DNS sinkhole / hosts file
-    "quarantine_file":    {"path": str},
+    "kill_process": {"pid": int},
+    "kill_process_name": {"process_name": str},  # bridge-issued: kill by name (broadcast)
+    "block_ip": {"ip": str},
+    "block_domain": {"domain": str},  # P16.2 — DNS sinkhole / hosts file
+    "quarantine_file": {"path": str},
     "remove_persistence": {"persistence_type": str, "target": str},  # P16.2 — registry/cron/startup
-    "isolate":            {},
-    "unisolate":          {},
-    "collect_snapshot":   {},
-    "canary_ping":        {"nonce": str},
+    "isolate": {},
+    "unisolate": {},
+    "collect_snapshot": {},
+    "canary_ping": {"nonce": str},
     # PANL rollback command types (P16 pre-P16.3)
-    "unblock_ip":         {"ip": str},
-    "unblock_domain":     {"domain": str},
-    "restore_file":       {"path": str},
+    "unblock_ip": {"ip": str},
+    "unblock_domain": {"domain": str},
+    "restore_file": {"path": str},
     # P35 new executors
-    "isolate_endpoint":   {"asc_server_ip": str},
-    "log_query":          {"pattern": str, "read_only": bool},
+    "isolate_endpoint": {"asc_server_ip": str},
+    "log_query": {"pattern": str, "read_only": bool},
 }
 
 # Optional params allowed per command type (whitelist — not required but accepted).
 # The strict validator rejects any key not in schema OR in this set.
 COMMAND_EXTRA_PARAMS: dict[str, set[str]] = {
     "isolate_endpoint": {"asc_server_port", "comment"},
-    "unisolate":        {"dry_run"},
-    "unblock_ip":       {"direction"},
-    "log_query":        {"data_source", "log_path", "since_minutes", "max_results", "is_regex"},
+    "unisolate": {"dry_run"},
+    "unblock_ip": {"direction"},
+    "log_query": {"data_source", "log_path", "since_minutes", "max_results", "is_regex"},
 }
 
 
@@ -167,10 +167,7 @@ def validate_command_params(command_type: str, params: dict[str, Any]) -> list[s
         if key not in params:
             errors.append(f"Missing required param: {key!r}")
         elif not isinstance(params[key], expected_type):
-            errors.append(
-                f"Param {key!r}: expected {expected_type.__name__}, "
-                f"got {type(params[key]).__name__}"
-            )
+            errors.append(f"Param {key!r}: expected {expected_type.__name__}, got {type(params[key]).__name__}")
 
     unknown = set(params.keys()) - set(schema.keys()) - extras
     if unknown:
@@ -197,6 +194,7 @@ def check_injection(params: dict[str, Any]) -> list[str]:
 
 
 # ── Sliding-window rate limiter ────────────────────────────────────────────────
+
 
 class SprecterRateLimiter:
     """
@@ -237,6 +235,7 @@ class SprecterRateLimiter:
 
 
 # ── Suspicious registration tracker ───────────────────────────────────────────
+
 
 class _RegistrationTracker:
     """Track registration frequency per hostname to detect rapid re-registration."""
@@ -280,6 +279,7 @@ def check_suspicious_registration(hostname: str, client_ip: str) -> bool:
 
 
 # ── Honeypot trigger logger ────────────────────────────────────────────────────
+
 
 def log_honeypot_trigger(endpoint: str, client_ip: str, headers: dict) -> None:
     """

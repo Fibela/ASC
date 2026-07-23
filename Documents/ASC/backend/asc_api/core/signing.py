@@ -65,7 +65,9 @@ def _derive_fernet_key(secret: str) -> bytes:
     )
     return base64.urlsafe_b64encode(kdf.derive(secret.encode()))
 
+
 # ── Key generation ─────────────────────────────────────────────────────────────
+
 
 def generate_keypair() -> tuple[str, str]:
     """
@@ -82,6 +84,7 @@ def generate_keypair() -> tuple[str, str]:
 
 
 # ── Signing ────────────────────────────────────────────────────────────────────
+
 
 def _canonical(payload: dict[str, Any]) -> bytes:
     """Deterministic JSON serialisation for signing. Sorted keys, no spaces."""
@@ -102,6 +105,7 @@ def sign_command(private_key_b64: str, payload: dict[str, Any]) -> str:
 
 
 # ── Verification ───────────────────────────────────────────────────────────────
+
 
 def verify_agent_event(public_key_b64: str, payload: dict[str, Any], signature_b64: str) -> bool:
     """
@@ -141,6 +145,7 @@ def is_fresh(ts: float, window: int = REPLAY_WINDOW_SECONDS) -> bool:
 
 
 # ── Per-analyst keystore (P16.3) ───────────────────────────────────────────────
+
 
 def generate_analyst_keypair() -> tuple[str, str]:
     """

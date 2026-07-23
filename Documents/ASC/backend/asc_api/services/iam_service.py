@@ -19,10 +19,10 @@ tenant_id isolation:
   - System/bridge callers (performed_by="system") may omit tenant_id
     when operating outside of a user request context.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +35,7 @@ log = get_logger(__name__)
 
 
 # ── Account lifecycle ─────────────────────────────────────────────────────────
+
 
 async def disable_account(
     target_email: str,
@@ -125,7 +126,7 @@ async def lock_account(
     if not user:
         return False, f"Usuario no encontrado: {target_email}"
 
-    locked_until = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    locked_until = datetime.now(UTC) + timedelta(minutes=minutes)
     user.locked_until = locked_until
     await db.commit()
 
@@ -211,7 +212,7 @@ async def get_user_iam_status(
     db: AsyncSession,
     *,
     tenant_id: str | None = None,
-) -> Optional[dict]:
+) -> dict | None:
     """Return IAM status dict for a user, or None if not found."""
     query = select(User).where(User.email == target_email)
     if tenant_id is not None:

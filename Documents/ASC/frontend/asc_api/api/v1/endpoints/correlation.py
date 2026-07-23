@@ -20,6 +20,7 @@ Endpoints:
 Security: all endpoints require analyst or admin role.
 Rate-limiting: writes/mutations 10/min, reads 60/min.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -29,10 +30,10 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin, get_current_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.core.logging import get_logger
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
-from asc_api.models.correlation import PIVOT_TYPES, CLUSTER_STATUSES
+from asc_api.models.correlation import CLUSTER_STATUSES, PIVOT_TYPES
 from asc_api.models.user import User
 from asc_api.services import correlation_service
 
@@ -43,6 +44,7 @@ _VALID_SEVERITY = {"info", "low", "medium", "high", "critical"}
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
+
 
 class CreateRuleRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=256)
@@ -106,6 +108,7 @@ class UpdateClusterStatusRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _rule_out(rule) -> dict[str, Any]:
     return {
         "id": rule.id,
@@ -162,6 +165,7 @@ def _signal_out(s) -> dict[str, Any]:
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/summary")
 @limiter.limit("60/minute")
 async def get_summary(
@@ -173,6 +177,7 @@ async def get_summary(
 
 
 # ── Rules ─────────────────────────────────────────────────────────────────────
+
 
 @router.get("/rules")
 @limiter.limit("60/minute")
@@ -236,9 +241,7 @@ async def update_rule(
     if not updates:
         raise HTTPException(status_code=422, detail="No fields to update")
     try:
-        rule = await correlation_service.update_rule(
-            db, rule_id, tenant_id=current_user.tenant_id, **updates
-        )
+        rule = await correlation_service.update_rule(db, rule_id, tenant_id=current_user.tenant_id, **updates)
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     if rule is None:
@@ -263,6 +266,7 @@ async def delete_rule(
 
 
 # ── Clusters ──────────────────────────────────────────────────────────────────
+
 
 @router.get("/clusters")
 @limiter.limit("60/minute")
@@ -364,6 +368,7 @@ async def trigger_sweep(
     """Manually enqueue a correlation sweep scoped to the requesting tenant."""
     try:
         from asc_api.tasks.correlation_sweep import run_sweep
+
         task = run_sweep.delay()
         return {"status": "queued", "task_id": task.id}
     except Exception:

@@ -1,18 +1,20 @@
 """
 Alerts endpoint â€” P21-F2: rate limiting added.
 """
-from fastapi import APIRouter, HTTPException, Depends, Query, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func, case
-from datetime import datetime, timezone
 
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
+from sqlalchemy import case, desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.alert import Alert
 from asc_api.models.user import User
-from asc_api.api.deps import get_current_user, get_analyst_or_admin
-from asc_api.core.rate_limit import limiter
-from asc_api.core.config import get_settings
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 settings = get_settings()
@@ -60,15 +62,17 @@ async def alert_stats(
     current_user: User = Depends(get_current_user),
 ):
     tid = current_user.tenant_id
-    row = (await db.execute(
-        select(
-            func.count().label("total"),
-            func.count(case((Alert.status == "open", 1))).label("open_count"),
-            func.count(case((Alert.severity == "critical", 1))).label("critical"),
-            func.count(case((Alert.severity == "high", 1))).label("high"),
-            func.count(case((Alert.false_positive == True, 1))).label("fp"),  # noqa: E712
-        ).where(Alert.tenant_id == tid)
-    )).one()
+    row = (
+        await db.execute(
+            select(
+                func.count().label("total"),
+                func.count(case((Alert.status == "open", 1))).label("open_count"),
+                func.count(case((Alert.severity == "critical", 1))).label("critical"),
+                func.count(case((Alert.severity == "high", 1))).label("high"),
+                func.count(case((Alert.false_positive == True, 1))).label("fp"),
+            ).where(Alert.tenant_id == tid)
+        )
+    ).one()
     total, open_count, critical, high, fp = row
     fp_rate = round(fp / total, 4) if total else 0.0
 
@@ -90,9 +94,7 @@ async def get_alert(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id)
-    )
+    result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -108,9 +110,7 @@ async def update_alert(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
-    result = await db.execute(
-        select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id)
-    )
+    result = await db.execute(select(Alert).where(Alert.id == alert_id, Alert.tenant_id == current_user.tenant_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -118,9 +118,9 @@ async def update_alert(
     if payload.status:
         alert.status = payload.status
         if payload.status in ("resolved", "false_positive") and not alert.resolved_at:
-            alert.resolved_at = datetime.now(timezone.utc)
+            alert.resolved_at = datetime.now(UTC)
         if payload.status == "investigating" and not alert.acknowledged_at:
-            alert.acknowledged_at = datetime.now(timezone.utc)
+            alert.acknowledged_at = datetime.now(UTC)
     if payload.analyst_notes is not None:
         alert.analyst_notes = payload.analyst_notes
     if payload.assigned_to is not None:
@@ -134,19 +134,19 @@ async def update_alert(
 
 def _alert_to_dict(a: Alert) -> dict:
     return {
-        "id":                a.id,
-        "title":             a.title,
-        "description":       a.description,
-        "severity":          a.severity,
-        "status":            a.status,
-        "risk_score":        a.risk_score,
-        "ttps":              a.ttps,
-        "affected_hosts":    a.affected_hosts,
+        "id": a.id,
+        "title": a.title,
+        "description": a.description,
+        "severity": a.severity,
+        "status": a.status,
+        "risk_score": a.risk_score,
+        "ttps": a.ttps,
+        "affected_hosts": a.affected_hosts,
         "recommended_actions": a.recommended_actions,
-        "analyst_notes":     a.analyst_notes,
-        "assigned_to":       a.assigned_to,
-        "false_positive":    a.false_positive,
-        "detected_at":       a.detected_at.isoformat() if a.detected_at else None,
-        "acknowledged_at":   a.acknowledged_at.isoformat() if a.acknowledged_at else None,
-        "resolved_at":       a.resolved_at.isoformat() if a.resolved_at else None,
+        "analyst_notes": a.analyst_notes,
+        "assigned_to": a.assigned_to,
+        "false_positive": a.false_positive,
+        "detected_at": a.detected_at.isoformat() if a.detected_at else None,
+        "acknowledged_at": a.acknowledged_at.isoformat() if a.acknowledged_at else None,
+        "resolved_at": a.resolved_at.isoformat() if a.resolved_at else None,
     }

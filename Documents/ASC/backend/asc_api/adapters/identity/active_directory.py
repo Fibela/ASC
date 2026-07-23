@@ -33,6 +33,7 @@ Security notes:
   - TLS certificate validation is enforced (ssl.CERT_REQUIRED) in production.
   - AD_VERIFY_CERT=False is available for development with self-signed certs.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -53,12 +54,10 @@ def _import_ldap3():
     """Lazy import so the module loads even if ldap3 is not installed."""
     try:
         import ldap3
+
         return ldap3
     except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "ldap3 is required for Active Directory integration. "
-            "Run: pip install ldap3"
-        ) from exc
+        raise ImportError("ldap3 is required for Active Directory integration. Run: pip install ldap3") from exc
 
 
 class ActiveDirectoryAdapter(BaseAdapter):
@@ -72,12 +71,12 @@ class ActiveDirectoryAdapter(BaseAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._server_url  = s.AD_SERVER_URL        # ldaps://dc.corp.local:636
-        self._bind_dn     = s.AD_BIND_DN           # CN=svc-asc,OU=Service Accounts,DC=corp,DC=local
-        self._bind_pw     = s.AD_BIND_PASSWORD     # from Vault / env
-        self._base_dn     = s.AD_BASE_DN           # DC=corp,DC=local
-        self._quarantine  = s.AD_QUARANTINE_OU     # OU=Quarantine,DC=corp,DC=local
-        self._use_ssl     = s.AD_USE_SSL
+        self._server_url = s.AD_SERVER_URL  # ldaps://dc.corp.local:636
+        self._bind_dn = s.AD_BIND_DN  # CN=svc-asc,OU=Service Accounts,DC=corp,DC=local
+        self._bind_pw = s.AD_BIND_PASSWORD  # from Vault / env
+        self._base_dn = s.AD_BASE_DN  # DC=corp,DC=local
+        self._quarantine = s.AD_QUARANTINE_OU  # OU=Quarantine,DC=corp,DC=local
+        self._use_ssl = s.AD_USE_SSL
         self._verify_cert = s.AD_VERIFY_CERT
 
     # ── Configuration ─────────────────────────────────────────────────────────
@@ -429,13 +428,15 @@ class ActiveDirectoryAdapter(BaseAdapter):
                         if conn.entries:
                             e = conn.entries[0]
                             uac = int(e.userAccountControl.value or 0)
-                            members.append({
-                                "username": str(e.sAMAccountName.value or ""),
-                                "display_name": str(e.displayName.value or ""),
-                                "email": str(e.mail.value or "") if e.mail.value else None,
-                                "enabled": not bool(uac & _UF_ACCOUNTDISABLE),
-                                "dn": str(member_dn),
-                            })
+                            members.append(
+                                {
+                                    "username": str(e.sAMAccountName.value or ""),
+                                    "display_name": str(e.displayName.value or ""),
+                                    "email": str(e.mail.value or "") if e.mail.value else None,
+                                    "enabled": not bool(uac & _UF_ACCOUNTDISABLE),
+                                    "dn": str(member_dn),
+                                }
+                            )
                     except Exception:  # nosec B110 — member attributes may be inaccessible; skip silently
                         pass
 

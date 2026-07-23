@@ -8,9 +8,11 @@ Environmental keying is a sophisticated evasion technique where malware
 checks for specific host/domain/registry/network markers before activating,
 making it appear benign in sandboxes that don't replicate the target environment.
 """
-import re
+
 import math
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass
+
 from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -19,19 +21,19 @@ log = get_logger(__name__)
 @dataclass
 class FingerprintResult:
     environmental_keying_detected: bool
-    confidence: float          # 0.0 – 1.0
+    confidence: float  # 0.0 – 1.0
     risk_score: float
-    triggers: list[str]        # which checks fired
-    details: list[dict]        # each finding with context
+    triggers: list[str]  # which checks fired
+    details: list[dict]  # each finding with context
     recommendation: str
 
     def to_dict(self) -> dict:
         return {
             "environmental_keying_detected": self.environmental_keying_detected,
-            "confidence":    self.confidence,
-            "risk_score":    self.risk_score,
-            "triggers":      self.triggers,
-            "details":       self.details,
+            "confidence": self.confidence,
+            "risk_score": self.risk_score,
+            "triggers": self.triggers,
+            "details": self.details,
             "recommendation": self.recommendation,
         }
 
@@ -43,9 +45,9 @@ class FingerprintResult:
 HOSTNAME_PATTERNS = [
     re.compile(rb"PREMOS", re.IGNORECASE),
     re.compile(rb"PremosCorp", re.IGNORECASE),
-    re.compile(rb"PREMOS-\w+", re.IGNORECASE),         # e.g. PREMOS-WS-042
-    re.compile(rb"WS-PREMOS-\d+", re.IGNORECASE),      # workstation naming convention
-    re.compile(rb"SRV-PREMOS-\d+", re.IGNORECASE),     # server naming convention
+    re.compile(rb"PREMOS-\w+", re.IGNORECASE),  # e.g. PREMOS-WS-042
+    re.compile(rb"WS-PREMOS-\d+", re.IGNORECASE),  # workstation naming convention
+    re.compile(rb"SRV-PREMOS-\d+", re.IGNORECASE),  # server naming convention
 ]
 
 DOMAIN_PATTERNS = [
@@ -103,17 +105,20 @@ SLEEP_PATTERNS = [
 
 # ─── Individual check functions ───────────────────────────────────────────────
 
+
 def _check_hostname_patterns(data: bytes) -> list[dict]:
     findings = []
     for pattern in HOSTNAME_PATTERNS:
         matches = pattern.findall(data)
         if matches:
-            findings.append({
-                "check":   "hostname_pattern",
-                "pattern": pattern.pattern.decode(errors="replace"),
-                "matches": len(matches),
-                "context": "Malware references PremosCorp hostname pattern — targeted check",
-            })
+            findings.append(
+                {
+                    "check": "hostname_pattern",
+                    "pattern": pattern.pattern.decode(errors="replace"),
+                    "matches": len(matches),
+                    "context": "Malware references PremosCorp hostname pattern — targeted check",
+                }
+            )
     return findings
 
 
@@ -122,12 +127,14 @@ def _check_domain_patterns(data: bytes) -> list[dict]:
     for pattern in DOMAIN_PATTERNS:
         matches = pattern.findall(data)
         if matches:
-            findings.append({
-                "check":   "domain_check",
-                "pattern": pattern.pattern.decode(errors="replace"),
-                "matches": len(matches),
-                "context": "Malware references PremosCorp domain — targeted activation check",
-            })
+            findings.append(
+                {
+                    "check": "domain_check",
+                    "pattern": pattern.pattern.decode(errors="replace"),
+                    "matches": len(matches),
+                    "context": "Malware references PremosCorp domain — targeted activation check",
+                }
+            )
     return findings
 
 
@@ -136,12 +143,14 @@ def _check_registry_patterns(data: bytes) -> list[dict]:
     for pattern in REGISTRY_PATTERNS:
         matches = pattern.findall(data)
         if matches:
-            findings.append({
-                "check":   "registry_pattern",
-                "pattern": pattern.pattern.decode(errors="replace"),
-                "matches": len(matches),
-                "context": "Registry key referencing PremosCorp namespace — environment verification",
-            })
+            findings.append(
+                {
+                    "check": "registry_pattern",
+                    "pattern": pattern.pattern.decode(errors="replace"),
+                    "matches": len(matches),
+                    "context": "Registry key referencing PremosCorp namespace — environment verification",
+                }
+            )
     return findings
 
 
@@ -151,20 +160,24 @@ def _check_ad_enumeration(data: bytes) -> list[dict]:
     env_hits = [p for p in ENV_CHECK_PATTERNS if p.search(data)]
 
     if ad_hits:
-        findings.append({
-            "check":   "active_directory_enum",
-            "apis":    [p.pattern.decode(errors="replace") for p in ad_hits],
-            "count":   len(ad_hits),
-            "context": "Active Directory enumeration APIs — domain membership verification before activation",
-        })
+        findings.append(
+            {
+                "check": "active_directory_enum",
+                "apis": [p.pattern.decode(errors="replace") for p in ad_hits],
+                "count": len(ad_hits),
+                "context": "Active Directory enumeration APIs — domain membership verification before activation",
+            }
+        )
 
     if env_hits and (ad_hits or len(env_hits) >= 3):
-        findings.append({
-            "check":   "environment_variable_check",
-            "apis":    [p.pattern.decode(errors="replace") for p in env_hits],
-            "count":   len(env_hits),
-            "context": "Multiple environment variable reads combined with domain checks — fingerprinting pattern",
-        })
+        findings.append(
+            {
+                "check": "environment_variable_check",
+                "apis": [p.pattern.decode(errors="replace") for p in env_hits],
+                "count": len(env_hits),
+                "context": "Multiple environment variable reads combined with domain checks — fingerprinting pattern",
+            }
+        )
 
     return findings
 
@@ -174,12 +187,14 @@ def _check_network_fingerprinting(data: bytes) -> list[dict]:
     net_hits = [p for p in NETWORK_CHECKS if p.search(data)]
 
     if net_hits:
-        findings.append({
-            "check":   "network_fingerprinting",
-            "apis":    [p.pattern.decode(errors="replace") for p in net_hits],
-            "count":   len(net_hits),
-            "context": "Network adapter/DNS enumeration — checking network topology before activation",
-        })
+        findings.append(
+            {
+                "check": "network_fingerprinting",
+                "apis": [p.pattern.decode(errors="replace") for p in net_hits],
+                "count": len(net_hits),
+                "context": "Network adapter/DNS enumeration — checking network topology before activation",
+            }
+        )
     return findings
 
 
@@ -192,15 +207,17 @@ def _check_timing_evasion(data: bytes) -> list[dict]:
 
     # High confidence of targeted malware when sleep + env checks coexist
     if sleep_hits and (env_hits + ad_hits) >= 2:
-        findings.append({
-            "check":   "timing_evasion_with_env_check",
-            "sleep_apis":  [p.pattern.decode(errors="replace") for p in sleep_hits],
-            "env_checks":  env_hits + ad_hits,
-            "context": (
-                "Delay/sleep calls combined with environment checks — "
-                "classic sandbox evasion + conditional activation pattern"
-            ),
-        })
+        findings.append(
+            {
+                "check": "timing_evasion_with_env_check",
+                "sleep_apis": [p.pattern.decode(errors="replace") for p in sleep_hits],
+                "env_checks": env_hits + ad_hits,
+                "context": (
+                    "Delay/sleep calls combined with environment checks — "
+                    "classic sandbox evasion + conditional activation pattern"
+                ),
+            }
+        )
     return findings
 
 
@@ -222,8 +239,8 @@ def _check_string_obfuscation(data: bytes) -> dict | None:
 
     if high_entropy_chunks >= 3:
         return {
-            "check":   "high_entropy_sections",
-            "chunks":  high_entropy_chunks,
+            "check": "high_entropy_sections",
+            "chunks": high_entropy_chunks,
             "context": (
                 f"{high_entropy_chunks} secciones de alta entropía detectadas — "
                 "posible cifrado de strings de entorno para evadir análisis estático"
@@ -233,6 +250,7 @@ def _check_string_obfuscation(data: bytes) -> dict | None:
 
 
 # ─── Master fingerprint function ─────────────────────────────────────────────
+
 
 def analyze_environmental_keying(filename: str, data: bytes) -> FingerprintResult:
     """
@@ -246,11 +264,11 @@ def analyze_environmental_keying(filename: str, data: bytes) -> FingerprintResul
 
     # Run all checks
     hostname_findings = _check_hostname_patterns(data)
-    domain_findings   = _check_domain_patterns(data)
+    domain_findings = _check_domain_patterns(data)
     registry_findings = _check_registry_patterns(data)
-    ad_findings       = _check_ad_enumeration(data)
-    net_findings      = _check_network_fingerprinting(data)
-    timing_findings   = _check_timing_evasion(data)
+    ad_findings = _check_ad_enumeration(data)
+    net_findings = _check_network_fingerprinting(data)
+    timing_findings = _check_timing_evasion(data)
 
     entropy_finding = _check_string_obfuscation(data)
 
@@ -264,23 +282,30 @@ def analyze_environmental_keying(filename: str, data: bytes) -> FingerprintResul
         all_findings.append(entropy_finding)
 
     # Build trigger list
-    if hostname_findings: triggers.append("hostname_pattern")
-    if domain_findings:   triggers.append("domain_check")
-    if registry_findings: triggers.append("registry_pattern")
-    if ad_findings:       triggers.append("active_directory_enum")
-    if net_findings:      triggers.append("network_fingerprinting")
-    if timing_findings:   triggers.append("timing_evasion")
-    if entropy_finding:   triggers.append("high_entropy_sections")
+    if hostname_findings:
+        triggers.append("hostname_pattern")
+    if domain_findings:
+        triggers.append("domain_check")
+    if registry_findings:
+        triggers.append("registry_pattern")
+    if ad_findings:
+        triggers.append("active_directory_enum")
+    if net_findings:
+        triggers.append("network_fingerprinting")
+    if timing_findings:
+        triggers.append("timing_evasion")
+    if entropy_finding:
+        triggers.append("high_entropy_sections")
 
     # Confidence scoring — weighted by trigger severity
     weights = {
-        "hostname_pattern":        0.40,
-        "domain_check":            0.40,
-        "registry_pattern":        0.25,
-        "active_directory_enum":   0.30,
-        "network_fingerprinting":  0.20,
-        "timing_evasion":          0.25,
-        "high_entropy_sections":   0.15,
+        "hostname_pattern": 0.40,
+        "domain_check": 0.40,
+        "registry_pattern": 0.25,
+        "active_directory_enum": 0.30,
+        "network_fingerprinting": 0.20,
+        "timing_evasion": 0.25,
+        "high_entropy_sections": 0.15,
     }
     raw_confidence = sum(weights.get(t, 0.10) for t in triggers)
     confidence = min(round(raw_confidence, 3), 1.0)
@@ -294,8 +319,9 @@ def analyze_environmental_keying(filename: str, data: bytes) -> FingerprintResul
     detected = confidence >= 0.30 or direct_reference
 
     if detected:
-        log.warning("fingerprint_environmental_keying_detected",
-                    filename=filename, confidence=confidence, triggers=triggers)
+        log.warning(
+            "fingerprint_environmental_keying_detected", filename=filename, confidence=confidence, triggers=triggers
+        )
         recommendation = (
             "ALERTA CRÍTICA: El malware contiene referencias directas al entorno PremosCorp. "
             "Este artefacto es potencialmente una amenaza dirigida específicamente a esta organización. "
@@ -314,8 +340,9 @@ def analyze_environmental_keying(filename: str, data: bytes) -> FingerprintResul
             "El artefacto no parece tener activación condicional específica para PremosCorp."
         )
 
-    log.info("fingerprint_complete",
-             filename=filename, detected=detected, confidence=confidence, triggers=len(triggers))
+    log.info(
+        "fingerprint_complete", filename=filename, detected=detected, confidence=confidence, triggers=len(triggers)
+    )
 
     return FingerprintResult(
         environmental_keying_detected=detected,

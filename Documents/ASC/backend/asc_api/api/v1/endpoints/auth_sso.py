@@ -28,14 +28,15 @@ Endpoint:
 
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import logging
 import jwt as pyjwt
-from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from jwt import PyJWKClient, PyJWKClientConnectionError, PyJWKClientError
+
 from asc_api.core.rate_limit import limiter
 
 _log = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.config import get_settings
+
 _sso_settings = get_settings()
 from asc_api.core.security import create_access_token, get_password_hash
 from asc_api.db.session import get_db
@@ -56,6 +58,7 @@ _settings = get_settings()
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class SSORequest(BaseModel):
     supabase_token: str = Field(..., min_length=10, description="Supabase access token (JWT)")
@@ -73,6 +76,7 @@ class SSOResponse(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _validate_supabase_token(token: str) -> dict:
     """
     Decode and validate a Supabase JWT.
@@ -88,8 +92,7 @@ def _validate_supabase_token(token: str) -> dict:
     if not supabase_url:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "sso_not_configured",
-                    "message": "SSO bridge is not configured on this instance."},
+            detail={"code": "sso_not_configured", "message": "SSO bridge is not configured on this instance."},
         )
 
     # Detect algorithm from token header without full verification
@@ -98,8 +101,7 @@ def _validate_supabase_token(token: str) -> dict:
     except pyjwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "supabase_token_invalid",
-                    "message": "Cannot parse token header."},
+            detail={"code": "supabase_token_invalid", "message": "Cannot parse token header."},
         )
 
     algorithm = header.get("alg", "HS256")
@@ -146,8 +148,10 @@ def _validate_supabase_token(token: str) -> dict:
             if not secret:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail={"code": "sso_not_configured",
-                            "message": "SSO bridge (legacy HS256) requires SUPABASE_JWT_SECRET."},
+                    detail={
+                        "code": "sso_not_configured",
+                        "message": "SSO bridge (legacy HS256) requires SUPABASE_JWT_SECRET.",
+                    },
                 )
             payload = pyjwt.decode(
                 token,
@@ -162,32 +166,33 @@ def _validate_supabase_token(token: str) -> dict:
         _log.error("sso_jwks_error detail=%s type=%s", exc, type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "sso_jwks_error",
-                    "message": f"Could not reach Supabase JWKS endpoint: {exc}"},
+            detail={"code": "sso_jwks_error", "message": f"Could not reach Supabase JWKS endpoint: {exc}"},
         )
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "supabase_token_expired",
-                    "message": "Supabase token has expired. Please refresh your session."},
+            detail={
+                "code": "supabase_token_expired",
+                "message": "Supabase token has expired. Please refresh your session.",
+            },
         )
     except pyjwt.InvalidAudienceError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "supabase_token_invalid_audience",
-                    "message": "Supabase token has unexpected audience claim."},
+            detail={
+                "code": "supabase_token_invalid_audience",
+                "message": "Supabase token has unexpected audience claim.",
+            },
         )
     except pyjwt.PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "supabase_token_invalid",
-                    "message": f"Supabase token validation failed: {exc}"},
+            detail={"code": "supabase_token_invalid", "message": f"Supabase token validation failed: {exc}"},
         )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "sso_jwks_error",
-                    "message": f"Could not fetch JWKS from Supabase: {exc}"},
+            detail={"code": "sso_jwks_error", "message": f"Could not fetch JWKS from Supabase: {exc}"},
         )
 
     supabase_uid = payload.get("sub")
@@ -195,8 +200,7 @@ def _validate_supabase_token(token: str) -> dict:
     if not supabase_uid or not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": "supabase_token_missing_claims",
-                    "message": "Token missing required sub or email claims."},
+            detail={"code": "supabase_token_missing_claims", "message": "Token missing required sub or email claims."},
         )
 
     return payload
@@ -229,7 +233,7 @@ async def _find_or_create_user(
         return existing_by_email, False
 
     # 3. Auto-provision: new tenant + user
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tenant_id = str(uuid.uuid4())
     slug = email.split("@")[0].lower().replace(".", "-")[:50]
 
@@ -266,6 +270,7 @@ async def _find_or_create_user(
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/supabase-sso",
     response_model=SSOResponse,
@@ -300,8 +305,7 @@ async def supabase_sso(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "user_inactive",
-                    "message": "Account is disabled. Contact your administrator."},
+            detail={"code": "user_inactive", "message": "Account is disabled. Contact your administrator."},
         )
 
     access_token = create_access_token(subject=user.id, tenant_id=user.tenant_id)

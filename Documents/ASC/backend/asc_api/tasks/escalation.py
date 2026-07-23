@@ -14,11 +14,12 @@ SSE events are published via direct Redis publish so all connected FastAPI
 workers receive the notification, regardless of which worker runs the task.
 In local mode (no Redis), the DB update still happens — SSE is best-effort.
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
@@ -45,13 +46,16 @@ async def _run() -> dict:
     if settings.REDIS_URL:
         try:
             import redis.asyncio as aioredis  # type: ignore[import]
+
             r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
             for action_id in escalated_ids:
-                payload = json.dumps({
-                    "event_type": "action_escalated",
-                    "payload":    {"action_id": action_id, "source": "celery_beat"},
-                    "timestamp":  datetime.now(timezone.utc).isoformat(),
-                })
+                payload = json.dumps(
+                    {
+                        "event_type": "action_escalated",
+                        "payload": {"action_id": action_id, "source": "celery_beat"},
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                )
                 await r.publish(NOTIFICATION_CHANNEL, payload)
             await r.aclose()
         except Exception as exc:

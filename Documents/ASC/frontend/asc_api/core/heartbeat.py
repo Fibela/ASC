@@ -7,9 +7,10 @@ job_id='watchdog-supabase', providing an external independent signal.
 
 Staleness thresholds: see STALE_AFTER in health.py /platform endpoint.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -47,7 +48,7 @@ async def emit_heartbeat(
                 _UPSERT,
                 {
                     "id": job_id,
-                    "ts": datetime.now(timezone.utc),
+                    "ts": datetime.now(UTC),
                     "status": status,
                     "detail": detail,
                 },

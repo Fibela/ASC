@@ -21,10 +21,11 @@ Security invariants:
   - rollback_available is set automatically on successful execution of reversible actions
   - Double rollback prevented: rollback_of chain is one level deep
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -34,15 +35,15 @@ from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
 from asc_api.core.logging import get_logger
 from asc_api.core.notifications import notification_bus
-from asc_api.core.signing import (
-    decrypt_analyst_private_key,
-    sign_approval,
-)
 from asc_api.core.panl import (
     AdaptiveContext,
     adapt_severity,
     check_behavioral_throttle,
     required_approvals_for,
+)
+from asc_api.core.signing import (
+    decrypt_analyst_private_key,
+    sign_approval,
 )
 from asc_api.models.neutralization import NeutralizationAction
 from asc_api.models.user import User
@@ -56,38 +57,43 @@ log = get_logger(__name__)
 
 TIMEOUT_BY_SEVERITY: dict[str, int] = {
     "critical": 15,
-    "high":     30,
-    "medium":   60,
-    "low":      120,
+    "high": 30,
+    "medium": 60,
+    "low": 120,
 }
 
 # These action types always require human approval regardless of severity
-ALWAYS_REQUIRE_APPROVAL: frozenset[str] = frozenset({
-    "isolate_endpoint",
-    "disable_account",
-})
+ALWAYS_REQUIRE_APPROVAL: frozenset[str] = frozenset(
+    {
+        "isolate_endpoint",
+        "disable_account",
+    }
+)
 
 # Severities that route through the approval gate
 APPROVAL_SEVERITIES: frozenset[str] = frozenset({"critical", "high"})
 
 # Actions whose effects can be reversed by PANL dynamic rollback
-REVERSIBLE_ACTIONS: frozenset[str] = frozenset({
-    "isolate_endpoint",
-    "block_ip",
-    "block_domain",
-    "quarantine_file",
-})
+REVERSIBLE_ACTIONS: frozenset[str] = frozenset(
+    {
+        "isolate_endpoint",
+        "block_ip",
+        "block_domain",
+        "quarantine_file",
+    }
+)
 
 # Maps each reversible action_type → its inverse action_type
 ROLLBACK_MAP: dict[str, str] = {
     "isolate_endpoint": "unisolate_endpoint",
-    "block_ip":         "unblock_ip",
-    "block_domain":     "unblock_domain",
-    "quarantine_file":  "restore_file",
+    "block_ip": "unblock_ip",
+    "block_domain": "unblock_domain",
+    "quarantine_file": "restore_file",
 }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def needs_approval(action_type: str, severity: str) -> bool:
     """Return True if this action/severity combination must pass through HitL."""
@@ -95,7 +101,7 @@ def needs_approval(action_type: str, severity: str) -> bool:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _expires_at(severity: str) -> datetime:
@@ -104,6 +110,7 @@ def _expires_at(severity: str) -> datetime:
 
 
 # ── Core state machine ────────────────────────────────────────────────────────
+
 
 async def request_action(
     db: AsyncSession,
@@ -189,12 +196,12 @@ async def request_action(
             notification_bus.publish(
                 "pending_approval_created",
                 {
-                    "action_id":    action.id,
-                    "action_type":  action_type,
-                    "severity":     severity,
-                    "target":       target,
+                    "action_id": action.id,
+                    "action_type": action_type,
+                    "severity": severity,
+                    "target": target,
                     "initiated_by": initiated_by,
-                    "expires_at":   action.expires_at.isoformat() if action.expires_at else None,
+                    "expires_at": action.expires_at.isoformat() if action.expires_at else None,
                     "required_approvals": req_approvals,
                 },
             )
@@ -235,8 +242,7 @@ async def approve_action(
     existing_approvers = {a["approved_by"] for a in (action.approvals_log or [])}
     if approved_by in existing_approvers:
         raise ValueError(
-            f"Analyst {approved_by!r} has already signed this action. "
-            "Multi-signature requires two *distinct* analysts."
+            f"Analyst {approved_by!r} has already signed this action. Multi-signature requires two *distinct* analysts."
         )
 
     _check_not_expired(action)
@@ -251,19 +257,15 @@ async def approve_action(
         analyst_result = await db.execute(select(User).where(User.email == approved_by))
         analyst = analyst_result.scalar_one_or_none()
         if analyst and analyst.signing_private_key_enc and analyst.signing_public_key:
-            priv_b64 = decrypt_analyst_private_key(
-                analyst.signing_private_key_enc, settings.SECRET_KEY
-            )
-            log_entry["signature"] = sign_approval(
-                priv_b64, action_id, approved_by, approved_at_iso
-            )
+            priv_b64 = decrypt_analyst_private_key(analyst.signing_private_key_enc, settings.SECRET_KEY)
+            log_entry["signature"] = sign_approval(priv_b64, action_id, approved_by, approved_at_iso)
             log_entry["public_key"] = analyst.signing_public_key
     except Exception as exc:
         # Signing failure is non-fatal — audit trail degrades gracefully.
         # The approval is still recorded; the signature field is absent.
         log.warning("approval_signing_failed", analyst=approved_by, error=str(exc))
 
-    action.approvals_log = list(action.approvals_log or []) + [log_entry]
+    action.approvals_log = [*list(action.approvals_log or []), log_entry]
 
     required = getattr(action, "required_approvals", 1) or 1
     approvals_received = len(action.approvals_log)
@@ -293,11 +295,11 @@ async def approve_action(
             notification_bus.publish(
                 "action_approved",
                 {
-                    "action_id":   action.id,
+                    "action_id": action.id,
                     "action_type": action.action_type,
                     "approved_by": approved_by,
-                    "approvals":   approvals_received,
-                    "required":    required,
+                    "approvals": approvals_received,
+                    "required": required,
                 },
             )
         )
@@ -316,8 +318,7 @@ async def approve_action(
             resource="neutralization",
             resource_id=action.id,
             detail=(
-                f"action_type={action.action_type} "
-                f"approvals={approvals_received}/{required} — awaiting more signatures"
+                f"action_type={action.action_type} approvals={approvals_received}/{required} — awaiting more signatures"
             ),
             status="partial",
         )
@@ -326,14 +327,13 @@ async def approve_action(
             notification_bus.publish(
                 "action_partial_approved",
                 {
-                    "action_id":   action.id,
+                    "action_id": action.id,
                     "action_type": action.action_type,
                     "approved_by": approved_by,
-                    "approvals":   approvals_received,
-                    "required":    required,
+                    "approvals": approvals_received,
+                    "required": required,
                     "note": (
-                        f"CRITICAL action requires {required} signatures. "
-                        f"{required - approvals_received} more needed."
+                        f"CRITICAL action requires {required} signatures. {required - approvals_received} more needed."
                     ),
                 },
             )
@@ -384,10 +384,10 @@ async def reject_action(
         notification_bus.publish(
             "action_rejected",
             {
-                "action_id":   action.id,
+                "action_id": action.id,
                 "action_type": action.action_type,
                 "rejected_by": rejected_by,
-                "reason":      reason.strip()[:200],
+                "reason": reason.strip()[:200],
             },
         )
     )
@@ -414,9 +414,7 @@ async def escalate_expired(db: AsyncSession) -> list[str]:
     for action in expired:
         action.status = "escalated"
         action.escalated_at = now
-        action.escalation_reason = (
-            f"No decision within {action.timeout_minutes} minutes — auto-escalated"
-        )
+        action.escalation_reason = f"No decision within {action.timeout_minutes} minutes — auto-escalated"
         escalated_ids.append(action.id)
         log_security_action(
             "neutralize_escalate",
@@ -431,9 +429,9 @@ async def escalate_expired(db: AsyncSession) -> list[str]:
             notification_bus.publish(
                 "action_escalated",
                 {
-                    "action_id":    action.id,
-                    "action_type":  action.action_type,
-                    "timeout_min":  action.timeout_minutes,
+                    "action_id": action.id,
+                    "action_type": action.action_type,
+                    "timeout_min": action.timeout_minutes,
                     "initiated_by": action.initiated_by,
                 },
             )
@@ -457,6 +455,7 @@ async def get_pending(db: AsyncSession) -> list[NeutralizationAction]:
 
 
 # ── Rollback ──────────────────────────────────────────────────────────────────
+
 
 async def create_rollback_action(
     db: AsyncSession,
@@ -484,9 +483,7 @@ async def create_rollback_action(
     original = await _get_or_raise(db, original_action_id)
 
     if original.status != "completed":
-        raise ValueError(
-            f"Cannot rollback action in state '{original.status}' — must be 'completed'"
-        )
+        raise ValueError(f"Cannot rollback action in state '{original.status}' — must be 'completed'")
     if not original.rollback_available:
         raise ValueError(
             f"Action {original_action_id!r} is not marked rollback_available. "
@@ -495,14 +492,10 @@ async def create_rollback_action(
     if getattr(original, "is_rollback", False):
         raise ValueError("Cannot rollback a rollback — chain limited to one level.")
     if original.rollback_action_id:
-        raise ValueError(
-            f"A rollback for action {original_action_id!r} already exists: "
-            f"{original.rollback_action_id}"
-        )
+        raise ValueError(f"A rollback for action {original_action_id!r} already exists: {original.rollback_action_id}")
     if original.action_type not in ROLLBACK_MAP:
         raise ValueError(
-            f"Action type '{original.action_type}' is not reversible. "
-            f"Reversible types: {sorted(ROLLBACK_MAP)}"
+            f"Action type '{original.action_type}' is not reversible. Reversible types: {sorted(ROLLBACK_MAP)}"
         )
 
     inverse_type = ROLLBACK_MAP[original.action_type]
@@ -546,12 +539,12 @@ async def create_rollback_action(
         notification_bus.publish(
             "rollback_requested",
             {
-                "rollback_action_id":   rollback.id,
-                "original_action_id":   original.id,
+                "rollback_action_id": rollback.id,
+                "original_action_id": original.id,
                 "original_action_type": original.action_type,
-                "inverse_action_type":  inverse_type,
-                "target":               original.target,
-                "initiated_by":         initiated_by,
+                "inverse_action_type": inverse_type,
+                "target": original.target,
+                "initiated_by": initiated_by,
             },
         )
     )
@@ -561,10 +554,9 @@ async def create_rollback_action(
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
+
 async def _get_or_raise(db: AsyncSession, action_id: str) -> NeutralizationAction:
-    result = await db.execute(
-        select(NeutralizationAction).where(NeutralizationAction.id == action_id)
-    )
+    result = await db.execute(select(NeutralizationAction).where(NeutralizationAction.id == action_id))
     action = result.scalar_one_or_none()
     if not action:
         raise ValueError(f"NeutralizationAction {action_id!r} not found")
@@ -573,14 +565,10 @@ async def _get_or_raise(db: AsyncSession, action_id: str) -> NeutralizationActio
 
 def _check_not_expired(action: NeutralizationAction) -> None:
     if action.expires_at and _now() > action.expires_at:
-        raise ValueError(
-            f"Action {action.id} has expired (expires_at={action.expires_at.isoformat()})"
-        )
+        raise ValueError(f"Action {action.id} has expired (expires_at={action.expires_at.isoformat()})")
 
 
-async def _execute_immediately(
-    db: AsyncSession, action: NeutralizationAction
-) -> NeutralizationAction:
+async def _execute_immediately(db: AsyncSession, action: NeutralizationAction) -> NeutralizationAction:
     """
     Execute via the SPECTER bridge (P16.2).
 
@@ -622,11 +610,7 @@ async def _execute_immediately(
     action.executed_at = _now()
 
     # PANL: mark reversible actions available for dynamic rollback
-    if (
-        result.success
-        and action.action_type in REVERSIBLE_ACTIONS
-        and not getattr(action, "is_rollback", False)
-    ):
+    if result.success and action.action_type in REVERSIBLE_ACTIONS and not getattr(action, "is_rollback", False):
         action.rollback_available = True
 
     await db.commit()
@@ -636,9 +620,7 @@ async def _execute_immediately(
     # Wrapped in try/except so a PFN failure never aborts the neutralization result.
     if result.success and action.approved_by:
         try:
-            approver_result = await db.execute(
-                select(User).where(User.email == action.approved_by)
-            )
+            approver_result = await db.execute(select(User).where(User.email == action.approved_by))
             approver = approver_result.scalar_one_or_none()
             if approver and isinstance(approver, User):
                 await create_forensic_entry(db, action, approver)
@@ -661,13 +643,15 @@ async def _execute_immediately(
 
     asyncio.ensure_future(
         notification_bus.publish(
-            "action_completed" if result.success else ("action_simulated" if action.status == "simulated" else "action_failed"),
+            "action_completed"
+            if result.success
+            else ("action_simulated" if action.status == "simulated" else "action_failed"),
             {
-                "action_id":          action.id,
-                "action_type":        action.action_type,
-                "status":             action.status,
+                "action_id": action.id,
+                "action_type": action.action_type,
+                "status": action.status,
                 "rollback_available": action.rollback_available,
-                "dispatch_mode":      result.details.get("dispatch_mode", "unknown"),
+                "dispatch_mode": result.details.get("dispatch_mode", "unknown"),
             },
         )
     )

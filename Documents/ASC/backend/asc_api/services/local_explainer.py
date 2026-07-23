@@ -9,6 +9,7 @@ Genera 3 secciones (qué ocurrió · por qué importa · qué se recomienda cons
 de los campos REALES de la alerta, en el registro del perfil (hogar/pyme/enterprise), y las
 emite en trozos para conservar el efecto de streaming en vivo del panel.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -62,7 +63,11 @@ _GENERIC_TTP = {
 }
 
 _SEV_PHRASE: dict[str, dict[str, str]] = {
-    "critical": {"hogar": "muy grave y urgente", "pyme": "crítica — requiere atención inmediata", "enterprise": "crítica"},
+    "critical": {
+        "hogar": "muy grave y urgente",
+        "pyme": "crítica — requiere atención inmediata",
+        "enterprise": "crítica",
+    },
     "high": {"hogar": "grave", "pyme": "alta", "enterprise": "alta"},
     "medium": {"hogar": "moderada", "pyme": "media", "enterprise": "media"},
     "low": {"hogar": "baja", "pyme": "baja", "enterprise": "baja"},
@@ -72,12 +77,36 @@ _SEV_PHRASE: dict[str, dict[str, str]] = {
 # Acciones recomendadas (códigos del motor) → frase por registro. Siempre en tono de
 # RECOMENDACIÓN, jamás como algo ya ejecutado.
 _ACTION_KB: dict[str, dict[str, str]] = {
-    "block_ip": {"hogar": "bloquear la conexión sospechosa", "pyme": "bloquear la IP en el firewall", "enterprise": "block_ip en el firewall"},
-    "block_domain": {"hogar": "bloquear el sitio sospechoso", "pyme": "bloquear el dominio (sinkhole DNS)", "enterprise": "block_domain / DNS sinkhole"},
-    "isolate_endpoint": {"hogar": "desconectar el equipo de internet", "pyme": "aislar el equipo de la red", "enterprise": "isolate_endpoint (contención de host)"},
-    "kill_process": {"hogar": "cerrar el programa sospechoso", "pyme": "terminar el proceso malicioso", "enterprise": "kill_process del proceso implicado"},
-    "disable_account": {"hogar": "bloquear temporalmente la cuenta", "pyme": "deshabilitar la cuenta comprometida", "enterprise": "disable_account en el directorio"},
-    "quarantine_file": {"hogar": "poner en cuarentena el archivo peligroso", "pyme": "poner el archivo en cuarentena", "enterprise": "quarantine_file"},
+    "block_ip": {
+        "hogar": "bloquear la conexión sospechosa",
+        "pyme": "bloquear la IP en el firewall",
+        "enterprise": "block_ip en el firewall",
+    },
+    "block_domain": {
+        "hogar": "bloquear el sitio sospechoso",
+        "pyme": "bloquear el dominio (sinkhole DNS)",
+        "enterprise": "block_domain / DNS sinkhole",
+    },
+    "isolate_endpoint": {
+        "hogar": "desconectar el equipo de internet",
+        "pyme": "aislar el equipo de la red",
+        "enterprise": "isolate_endpoint (contención de host)",
+    },
+    "kill_process": {
+        "hogar": "cerrar el programa sospechoso",
+        "pyme": "terminar el proceso malicioso",
+        "enterprise": "kill_process del proceso implicado",
+    },
+    "disable_account": {
+        "hogar": "bloquear temporalmente la cuenta",
+        "pyme": "deshabilitar la cuenta comprometida",
+        "enterprise": "disable_account en el directorio",
+    },
+    "quarantine_file": {
+        "hogar": "poner en cuarentena el archivo peligroso",
+        "pyme": "poner el archivo en cuarentena",
+        "enterprise": "quarantine_file",
+    },
 }
 
 
@@ -150,11 +179,14 @@ def build_explanation(alert: dict[str, Any], profile: str | None) -> str:
             "pyme": "Revisar los accesos recientes y validar si la actividad es legítima.",
             "enterprise": "Correlacionar con eventos adyacentes y validar con telemetría adicional.",
         }[reg]
-    s3 += " " + {
-        "hogar": "(Esto es una recomendación; la decisión y la acción las tomas tú.)",
-        "pyme": "(ASC explica y recomienda; la acción la ejecuta el analista o el motor determinista.)",
-        "enterprise": "(Recomendación; ejecución a cargo del analista o del motor determinista.)",
-    }[reg]
+    s3 += (
+        " "
+        + {
+            "hogar": "(Esto es una recomendación; la decisión y la acción las tomas tú.)",
+            "pyme": "(ASC explica y recomienda; la acción la ejecuta el analista o el motor determinista.)",
+            "enterprise": "(Recomendación; ejecución a cargo del analista o del motor determinista.)",
+        }[reg]
+    )
 
     return " ".join([s1, s2, s3])
 

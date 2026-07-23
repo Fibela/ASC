@@ -7,10 +7,11 @@ All execution is READ-ONLY (GET/POST _search, no index mutations).
 Specter queries are dispatched asynchronously via agent_commander.issue_command.
 Timeout: 30 seconds max per execution (ELK/Wazuh adapters).
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +22,7 @@ from asc_api.models.hunt import HuntQuery
 log = get_logger("asc.query_executor")
 
 EXECUTE_TIMEOUT_S = 30
-MAX_RESULTS = 200   # cap returned to API caller; full count still tracked
+MAX_RESULTS = 200  # cap returned to API caller; full count still tracked
 
 
 async def execute_hunt_query(
@@ -67,12 +68,10 @@ async def execute_hunt_query(
     )
 
     # Update query execution metadata regardless of success
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     query.last_executed_at = now
     query.last_execution_ms = adapter_result.get("execution_ms")
-    query.last_result_count = (
-        adapter_result.get("result_count", 0) if adapter_result.get("success") else 0
-    )
+    query.last_result_count = adapter_result.get("result_count", 0) if adapter_result.get("success") else 0
     await db.commit()
 
     log.info(
@@ -94,10 +93,7 @@ async def execute_hunt_query(
         "data_source": query.data_source,
         "result_count": adapter_result.get("result_count", 0),
         "total": adapter_result.get("total", 0),
-        "truncated": (
-            adapter_result.get("truncated", False)
-            or len(adapter_result.get("results", [])) > MAX_RESULTS
-        ),
+        "truncated": (adapter_result.get("truncated", False) or len(adapter_result.get("results", [])) > MAX_RESULTS),
         "execution_ms": adapter_result.get("execution_ms", 0),
         "results": results,
         "success": adapter_result.get("success", False),
@@ -131,7 +127,7 @@ async def _dispatch(
             _call_adapter(data_source, query_text),
             timeout=EXECUTE_TIMEOUT_S,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {
             "success": False,
             "error": f"Query execution timed out after {EXECUTE_TIMEOUT_S}s",
@@ -158,10 +154,12 @@ async def _call_adapter(data_source: str, query_text: str) -> dict:
     """Dispatch to ELK, Wazuh, or manual adapter (all synchronous results)."""
     if data_source == "elk":
         from asc_api.adapters.elk import ELKAdapter
+
         return await ELKAdapter().search_raw(query_text, limit=MAX_RESULTS)
 
     if data_source == "wazuh":
         from asc_api.adapters.wazuh import WazuhAdapter
+
         return await WazuhAdapter().search_raw(query_text, limit=MAX_RESULTS)
 
     if data_source == "manual":
@@ -186,7 +184,7 @@ async def _call_adapter(data_source: str, query_text: str) -> dict:
     }
 
 
-def _agent_priority_score(agent: "Agent") -> float:  # type: ignore[name-defined]
+def _agent_priority_score(agent: Agent) -> float:  # type: ignore[name-defined]  # noqa: F821
     """
     Fleet-aware agent scoring (lower = preferred).
 
@@ -196,14 +194,15 @@ def _agent_priority_score(agent: "Agent") -> float:  # type: ignore[name-defined
 
     Returns a float where smaller values = better candidate.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     _THREAT_WEIGHT = {"normal": 0, "elevated": 10, "critical": 20}
     threat_penalty = _THREAT_WEIGHT.get(getattr(agent, "threat_level", "normal"), 5)
     last_seen = getattr(agent, "last_seen", None)
     if last_seen:
         if last_seen.tzinfo is None:
-            last_seen = last_seen.replace(tzinfo=timezone.utc)
-        recency_penalty = (datetime.now(timezone.utc) - last_seen).total_seconds()
+            last_seen = last_seen.replace(tzinfo=UTC)
+        recency_penalty = (datetime.now(UTC) - last_seen).total_seconds()
     else:
         recency_penalty = 999_999
     return threat_penalty + recency_penalty * 0.001
@@ -235,12 +234,11 @@ async def _dispatch_to_specter(
     Returns immediately — results arrive when agents respond via record_command_result.
     """
     from sqlalchemy import select as _select
+
     from asc_api.models.agent import Agent
     from asc_api.services.agent_commander import issue_command
 
-    q = await db.execute(
-        _select(Agent).where(Agent.status == "active")
-    )
+    q = await db.execute(_select(Agent).where(Agent.status == "active"))
     active_agents = list(q.scalars().all())
 
     if not active_agents:
@@ -270,11 +268,13 @@ async def _dispatch_to_specter(
             try:
                 cmd = await issue_command(db, agent, "log_query", params, issued_by=executed_by)
                 agent_label = getattr(agent, "hostname", None) or str(agent.id)[:8]
-                commands.append({
-                    "agent_id": str(agent.id),
-                    "agent_label": agent_label,
-                    "command_id": cmd.id,
-                })
+                commands.append(
+                    {
+                        "agent_id": str(agent.id),
+                        "agent_label": agent_label,
+                        "command_id": cmd.id,
+                    }
+                )
                 log.info(
                     "specter_broadcast_dispatched",
                     command_id=cmd.id,

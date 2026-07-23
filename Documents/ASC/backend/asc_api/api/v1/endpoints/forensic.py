@@ -7,21 +7,20 @@ GET  /forensic/actions/{action_id}         — forensic proof for a neutralizati
 POST /forensic/actions/{action_id}/verify  — cryptographically verify the proof
 GET  /forensic/ledger                      — admin-only full ledger listing
 """
-from fastapi import APIRouter, HTTPException, Depends, status, Query, Request
-from sqlalchemy import select, func
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from asc_api.api.deps import get_current_admin, get_current_user
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.forensic_entry import ForensicEntry
 from asc_api.models.neutralization import NeutralizationAction
 from asc_api.models.user import User
-from asc_api.api.deps import get_current_user, get_current_admin
-from asc_api.core.rate_limit import limiter
-from asc_api.core.config import get_settings
 from asc_api.services.pfn import (
     get_entry_by_action,
-    get_entry_by_id,
-    list_entries,
     verify_forensic_entry,
 )
 
@@ -31,20 +30,18 @@ _s = get_settings()
 
 def _entry_dict(entry: ForensicEntry) -> dict:
     return {
-        "id":               entry.id,
-        "action_id":        entry.action_id,
-        "action_type":      entry.action_type,
-        "target":           entry.target,
-        "hash_sha3_512":    entry.hash_sha3_512,
+        "id": entry.id,
+        "action_id": entry.action_id,
+        "action_type": entry.action_type,
+        "target": entry.target,
+        "hash_sha3_512": entry.hash_sha3_512,
         "signature_ed25519": entry.signature_ed25519,
-        "signed_by_email":  entry.signed_by_email,
+        "signed_by_email": entry.signed_by_email,
         "signed_by_user_id": entry.signed_by_user_id,
-        "signed_at":        entry.signed_at.isoformat() if entry.signed_at else None,
-        "verified":         entry.verified,
-        "last_verified_at": (
-            entry.last_verified_at.isoformat() if entry.last_verified_at else None
-        ),
-        "canonical_data":   entry.canonical_data,
+        "signed_at": entry.signed_at.isoformat() if entry.signed_at else None,
+        "verified": entry.verified,
+        "last_verified_at": (entry.last_verified_at.isoformat() if entry.last_verified_at else None),
+        "canonical_data": entry.canonical_data,
     }
 
 
@@ -69,14 +66,14 @@ async def get_forensic_proof(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No hay entrada forense para la acción {action_id}. "
-                   "La acción puede no haberse ejecutado aún o no tener aprobador asignado.",
+            "La acción puede no haberse ejecutado aún o no tener aprobador asignado.",
         )
     entry = await get_entry_by_action(db, action_id)
     if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No hay entrada forense para la acción {action_id}. "
-                   "La acción puede no haberse ejecutado aún o no tener aprobador asignado.",
+            "La acción puede no haberse ejecutado aún o no tener aprobador asignado.",
         )
     return _entry_dict(entry)
 
@@ -114,9 +111,7 @@ async def verify_forensic_proof(
             detail=f"No hay entrada forense para la acción {action_id}.",
         )
 
-    result = await db.execute(
-        select(User).where(User.id == entry.signed_by_user_id)
-    )
+    result = await db.execute(select(User).where(User.id == entry.signed_by_user_id))
     approver = result.scalar_one_or_none()
     if not approver or not approver.signing_public_key:
         raise HTTPException(
@@ -127,14 +122,14 @@ async def verify_forensic_proof(
     valid = await verify_forensic_entry(db, entry, approver.signing_public_key)
 
     return {
-        "action_id":     action_id,
-        "entry_id":      entry.id,
-        "valid":         valid,
+        "action_id": action_id,
+        "entry_id": entry.id,
+        "valid": valid,
         "hash_sha3_512": entry.hash_sha3_512,
-        "signed_by":     entry.signed_by_email,
-        "signed_at":     entry.signed_at.isoformat() if entry.signed_at else None,
-        "verified_at":   entry.last_verified_at.isoformat() if entry.last_verified_at else None,
-        "message":       "Prueba forense válida." if valid else "ADVERTENCIA: la prueba forense no es válida.",
+        "signed_by": entry.signed_by_email,
+        "signed_at": entry.signed_at.isoformat() if entry.signed_at else None,
+        "verified_at": entry.last_verified_at.isoformat() if entry.last_verified_at else None,
+        "message": "Prueba forense válida." if valid else "ADVERTENCIA: la prueba forense no es válida.",
     }
 
 

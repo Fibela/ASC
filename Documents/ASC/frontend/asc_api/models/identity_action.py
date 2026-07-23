@@ -17,10 +17,11 @@ Each action carries:
   - Forensic token: SHA3-512 hash of canonical action data + Ed25519 signature
     signed with PIDS_SIGNING_PRIVATE_KEY (falls back to SPECTER_SIGNING_PRIVATE_KEY)
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -33,9 +34,7 @@ class IdentityAction(Base):
 
     __tablename__ = "identity_actions"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
 
     # Action classification
@@ -59,25 +58,19 @@ class IdentityAction(Base):
     result_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Forensic token
-    hash_sha3_512: Mapped[str | None] = mapped_column(
-        String(128), nullable=True
-    )  # hex-encoded 512-bit hash
+    hash_sha3_512: Mapped[str | None] = mapped_column(String(128), nullable=True)  # hex-encoded 512-bit hash
     signature_ed25519: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )  # base64-encoded Ed25519 signature; None if signing key not configured
     signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    signed_by_email: Mapped[str] = mapped_column(
-        String(256), nullable=False, default="soar_auto"
-    )
+    signed_by_email: Mapped[str] = mapped_column(String(256), nullable=False, default="soar_auto")
 
     # Audit
-    initiated_by: Mapped[str] = mapped_column(
-        String(256), nullable=False
-    )  # analyst email or "soar_auto"
+    initiated_by: Mapped[str] = mapped_column(String(256), nullable=False)  # analyst email or "soar_auto"
     executed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     __table_args__ = (

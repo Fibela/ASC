@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, Integer
+from datetime import UTC, datetime
+
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
@@ -14,26 +16,20 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(50), default="analyst")  # admin, analyst, viewer
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     last_login: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── P16.3 IAM fields ──────────────────────────────────────────────────────
 
     # Brute-force lock: auto-set when failed_login_attempts reaches threshold
     failed_login_attempts: Mapped[int] = mapped_column(Integer, default=0)
-    locked_until: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Admin-initiated password reset flag — blocks all endpoints except change-password
     force_password_reset: Mapped[bool] = mapped_column(Boolean, default=False)
     # S103.3 — epoch de sesión: tokens emitidos antes de este instante quedan
     # inválidos (cambio de contraseña / logout-all). NULL = sin corte.
-    tokens_valid_after: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    tokens_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── P16.3 per-analyst Ed25519 signing keys ────────────────────────────────
 
@@ -55,22 +51,18 @@ class User(Base):
     # SHA-256 hash of the one-time verification token (raw token sent via email).
     email_verification_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # Token expiry — None when already verified or never set.
-    email_verification_expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    email_verification_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Wizard step: pending_email → pending_setup → completed
     onboarding_step: Mapped[str] = mapped_column(String(50), default="completed")
 
     # ── P59 SSO Bridge ────────────────────────────────────────────────────────
     # Supabase user UUID (sub claim). NULL = native ASC user (no SSO link).
     # Indexed for fast lookup during SSO exchange. Unique per Supabase user.
-    supabase_uid: Mapped[str | None] = mapped_column(
-        String(36), nullable=True, unique=True, index=True
-    )
+    supabase_uid: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True, index=True)
 
     @property
     def is_locked(self) -> bool:
         """True when the account has an active time-based lock."""
         if self.locked_until is None:
             return False
-        return datetime.now(timezone.utc) < self.locked_until
+        return datetime.now(UTC) < self.locked_until

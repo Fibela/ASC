@@ -9,22 +9,22 @@ Responsibilities:
 Authentication: API Key (base64 id:key) via Authorization header.
 Document format: ECS-compatible (Elastic Common Schema).
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
-from datetime import datetime, timezone
-from typing import Any
 
-from asc_api.adapters import BaseAdapter, HTTP_TIMEOUT, USER_AGENT
+from asc_api.adapters import HTTP_TIMEOUT, USER_AGENT, BaseAdapter
 from asc_api.core.config import get_settings
-
 
 # ─── ASC → ECS severity mapping ──────────────────────────────────────────────
 
 _SEVERITY_TO_ECS: dict[str, int] = {
-    "low":      25,
-    "medium":   50,
-    "high":     75,
+    "low": 25,
+    "medium": 50,
+    "high": 75,
     "critical": 99,
 }
 
@@ -34,10 +34,10 @@ class ELKAdapter(BaseAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._url              = s.ELASTICSEARCH_URL.rstrip("/")
-        self._api_key          = s.ELASTICSEARCH_API_KEY
-        self._index_alerts     = s.ELASTICSEARCH_INDEX_ALERTS
-        self._index_events     = s.ELASTICSEARCH_INDEX_EVENTS
+        self._url = s.ELASTICSEARCH_URL.rstrip("/")
+        self._api_key = s.ELASTICSEARCH_API_KEY
+        self._index_alerts = s.ELASTICSEARCH_INDEX_ALERTS
+        self._index_events = s.ELASTICSEARCH_INDEX_EVENTS
 
     # ─── Configuration ────────────────────────────────────────────────────────
 
@@ -46,9 +46,9 @@ class ELKAdapter(BaseAdapter):
 
     def _auth_headers(self) -> dict:
         return {
-            "User-Agent":    USER_AGENT,
-            "Accept":        "application/json",
-            "Content-Type":  "application/json",
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+            "Content-Type": "application/json",
             "Authorization": f"ApiKey {self._api_key}",
         }
 
@@ -57,32 +57,32 @@ class ELKAdapter(BaseAdapter):
     def alert_to_document(self, alert: dict) -> dict:
         """Transform an ASC alert dict into an ECS-compatible Elasticsearch document."""
         return {
-            "@timestamp":           alert.get("detected_at") or datetime.now(timezone.utc).isoformat(),
-            "event.kind":           "alert",
-            "event.category":       ["intrusion_detection"],
-            "event.severity":       _SEVERITY_TO_ECS.get(alert.get("severity", "low"), 25),
-            "event.risk_score":     alert.get("risk_score", 0.0),
-            "asc.alert.id":         alert.get("id", ""),
-            "asc.alert.title":      alert.get("title", ""),
-            "asc.alert.severity":   alert.get("severity", "low"),
-            "asc.alert.status":     alert.get("status", "open"),
-            "asc.alert.ttps":       alert.get("ttps", []),
-            "host.hostname":        (alert.get("affected_hosts") or [""])[0],
-            "source":               "asc-premoscorp",
+            "@timestamp": alert.get("detected_at") or datetime.now(UTC).isoformat(),
+            "event.kind": "alert",
+            "event.category": ["intrusion_detection"],
+            "event.severity": _SEVERITY_TO_ECS.get(alert.get("severity", "low"), 25),
+            "event.risk_score": alert.get("risk_score", 0.0),
+            "asc.alert.id": alert.get("id", ""),
+            "asc.alert.title": alert.get("title", ""),
+            "asc.alert.severity": alert.get("severity", "low"),
+            "asc.alert.status": alert.get("status", "open"),
+            "asc.alert.ttps": alert.get("ttps", []),
+            "host.hostname": (alert.get("affected_hosts") or [""])[0],
+            "source": "asc-premoscorp",
         }
 
     def event_to_document(self, event: dict) -> dict:
         """Transform an ASC event dict into an ECS-compatible Elasticsearch document."""
         return {
-            "@timestamp":       event.get("timestamp") or datetime.now(timezone.utc).isoformat(),
-            "event.kind":       "event",
-            "event.category":   [event.get("category", "unknown")],
-            "event.action":     event.get("action", ""),
-            "event.severity":   _SEVERITY_TO_ECS.get(event.get("severity", "low"), 25),
-            "host.hostname":    event.get("host", ""),
-            "asc.event.id":     event.get("id", ""),
+            "@timestamp": event.get("timestamp") or datetime.now(UTC).isoformat(),
+            "event.kind": "event",
+            "event.category": [event.get("category", "unknown")],
+            "event.action": event.get("action", ""),
+            "event.severity": _SEVERITY_TO_ECS.get(event.get("severity", "low"), 25),
+            "host.hostname": event.get("host", ""),
+            "asc.event.id": event.get("id", ""),
             "asc.event.source": event.get("source", ""),
-            "source":           "asc-premoscorp",
+            "source": "asc-premoscorp",
         }
 
     def _search_query(self, since: datetime, size: int) -> dict:
@@ -132,7 +132,7 @@ class ELKAdapter(BaseAdapter):
         if not self.is_configured():
             return self._not_configured()
         doc_id = alert.get("id", "unknown")
-        doc    = self.alert_to_document(alert)
+        doc = self.alert_to_document(alert)
         try:
             async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=True) as client:
                 resp = await client.put(
@@ -161,7 +161,7 @@ class ELKAdapter(BaseAdapter):
         if not self.is_configured():
             return self._not_configured()
         doc_id = event.get("id", "unknown")
-        doc    = self.event_to_document(event)
+        doc = self.event_to_document(event)
         try:
             async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=True) as client:
                 resp = await client.put(
@@ -214,6 +214,7 @@ class ELKAdapter(BaseAdapter):
         }
         try:
             import time
+
             t0 = time.monotonic()
             async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=True) as client:
                 resp = await client.post(
@@ -258,8 +259,8 @@ class ELKAdapter(BaseAdapter):
                     headers=self._auth_headers(),
                 )
             if resp.status_code == 200:
-                body  = resp.json()
-                hits  = body.get("hits", {}).get("hits", [])
+                body = resp.json()
+                hits = body.get("hits", {}).get("hits", [])
                 total = body.get("hits", {}).get("total", {}).get("value", 0)
                 return self._ok(
                     adapter=self.ADAPTER_NAME,

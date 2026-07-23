@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Text, JSON, Boolean
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Boolean, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
@@ -20,9 +22,7 @@ class ForensicEntry(Base):
 
     __tablename__ = "forensic_ledger"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # Link to the neutralization action (kept even if action is later deleted)
     action_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
@@ -42,12 +42,8 @@ class ForensicEntry(Base):
     signed_by_email: Mapped[str] = mapped_column(String(256), nullable=False)
     signed_by_user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
 
-    signed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    signed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     # Set to True on first successful verify; serves as a quick cache
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    last_verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

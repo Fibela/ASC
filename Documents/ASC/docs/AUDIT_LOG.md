@@ -7782,3 +7782,50 @@ traen `refresh_token` a propósito**: se re-autentican vía el portal (el IdP), 
 seguro para SSO. Los 401 observados fueron expiración real / la pestaña sin sesión, no un TTL
 corto. **No se cambia nada** (no inventamos un fix donde no hay bug). Mejora OPCIONAL futura:
 emitir `refresh_token` también para SSO si se quieren sesiones más largas sin re-login.
+
+---
+
+## Sesión 114 — Hotfix CI: fantasma backend/app/ + deuda de lint oculta
+
+**Disparador:** Alexander reportó las GitHub Actions en rojo. Diagnóstico: NO fue
+el push de S112 (solo tocó frontend/src + docs). Causa real = residuo pre-existente.
+
+### Causa raíz (verificada por comando)
+- `ci.yml`, `security-audit.yml`, `p49-security-gates.yml` corrían `ruff`/`bandit`
+  contra **`backend/app/`** — el directorio fantasma borrado el 2026-07-03. Herramienta
+  sobre ruta inexistente → error → job en rojo. El paquete real es `backend/asc_api/`.
+- El pyproject también apuntaba al fantasma: `src=["backend/app"]`,
+  `known-first-party=["app"]`, per-file-ignore `backend/app/db/**`. La config de isort
+  con first-party equivocado habría desordenado los imports.
+
+### Falso-verde destapado
+Al repuntar al paquete real, `ruff check backend/asc_api/` = **608 errores** y
+`ruff format --check` = 132 archivos sin formatear. El código NUNCA se linteó/formateó:
+el gate "pasaba" apuntando a una carpeta vacía. `bandit` sobre asc_api = **0 issues**.
+
+### Acciones
+- Repunte `backend/app/`→`backend/asc_api/` en los 3 workflows + pyproject.
+- `ruff --fix` (653) + `ruff format` (141 archivos) + fixes manuales de limpieza real:
+  código muerto eliminado (correlator `hosts`/`categories`, reporter `label_style`,
+  pcdi `settings`), import sin uso (reporter TA_LEFT/TA_RIGHT), unpack sin uso
+  (webhook_dispatcher), rename `l`→`link` (incidents).
+- Ignores JUSTIFICADOS en pyproject (no ocultan bugs): E711/E712 (filtros SQLAlchemy
+  necesitan `==True/None`), RUF001/2/3 (unicode español en docstrings), S107
+  (token_type="bearer"), RUF006 (fire-and-forget deliberado), S110/S112 (catch
+  best-effort en adaptadores/honeypot/analyzer), E402 per-file en auth_sso (imports
+  intercalados con init — deuda cosmética).
+- `noqa` VISIBLES (auditables) en: S501 ×2 (adapter_registry — `verify=False` a
+  Elasticsearch/Wazuh on-prem con cert autofirmado) y F821 (query_executor `Agent`,
+  falso positivo por `from __future__ import annotations`).
+- Job `docker-build` ELIMINADO de ci.yml (Docker fuera de alcance; Vercel es
+  serverless, no usa imágenes). Se conservan los Dockerfiles.
+- Mirror `frontend/asc_api` resincronizado (134 archivos) — gate `--check` OK.
+
+### Verificación
+`ruff check` limpio · `ruff format --check` 141 ok · `bandit -c pyproject.toml` exit 0 ·
+`py_compile` toda la carpeta exit 0 · sin referencias huérfanas a variables eliminadas ·
+YAML de los 3 workflows válido · mirror íntegro.
+
+### Pendiente para Alexander (marcado, no bug bloqueante)
+- S501 `verify=False` en adaptadores: candidato a toggle `verify_ssl` por adaptador.
+- RUF006: 10 tareas asyncio fire-and-forget — revisar si alguna es crítica.

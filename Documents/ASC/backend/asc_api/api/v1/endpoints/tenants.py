@@ -32,8 +32,8 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
-from typing import Literal, Annotated
+from datetime import UTC, datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -53,23 +53,23 @@ from asc_api.models.webhook import Webhook
 
 router = APIRouter(prefix="/tenants", tags=["Tenants"])
 
-_SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$')
+_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$")
 _VALID_PLANS: frozenset[str] = frozenset({"free", "pro", "enterprise"})
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 
 class TenantCreate(BaseModel):
-    name: str = Field(..., min_length=2, max_length=255,
-                      description="Human-readable organization name")
-    slug: str = Field(..., min_length=3, max_length=100,
-                      description="URL-safe identifier: lowercase letters, digits, hyphens only")
+    name: str = Field(..., min_length=2, max_length=255, description="Human-readable organization name")
+    slug: str = Field(
+        ..., min_length=3, max_length=100, description="URL-safe identifier: lowercase letters, digits, hyphens only"
+    )
     plan: Literal["free", "pro", "enterprise"] = "free"
     contact_email: EmailStr | None = None
-    max_users: int | None = Field(None, ge=1, le=50000,
-                                  description="Max active users (None = unlimited)")
-    max_api_keys_per_user: int | None = Field(None, ge=1, le=500,
-                                               description="Max API keys per user (None = unlimited)")
+    max_users: int | None = Field(None, ge=1, le=50000, description="Max active users (None = unlimited)")
+    max_api_keys_per_user: int | None = Field(
+        None, ge=1, le=500, description="Max API keys per user (None = unlimited)"
+    )
 
     @field_validator("slug")
     @classmethod
@@ -91,8 +91,7 @@ class TenantUpdate(BaseModel):
 
 class TenantPlanChange(BaseModel):
     plan: Literal["free", "pro", "enterprise"]
-    reason: str = Field(..., min_length=5, max_length=500,
-                        description="Business reason for plan change (audit log)")
+    reason: str = Field(..., min_length=5, max_length=500, description="Business reason for plan change (audit log)")
 
 
 class TenantRead(BaseModel):
@@ -132,8 +131,7 @@ async def _get_tenant_or_404(tenant_id: str, db: AsyncSession) -> Tenant:
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if tenant is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Tenant '{tenant_id}' no encontrado")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Tenant '{tenant_id}' no encontrado")
     return tenant
 
 
@@ -170,7 +168,7 @@ async def create_tenant(
         max_users=body.max_users,
         max_api_keys_per_user=body.max_api_keys_per_user,
         is_active=True,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(tenant)
     await db.commit()
@@ -207,7 +205,7 @@ async def list_tenants(
             )
         stmt = stmt.where(Tenant.plan == plan)
     if active_only:
-        stmt = stmt.where(Tenant.is_active == True)  # noqa: E712
+        stmt = stmt.where(Tenant.is_active == True)
 
     # Count before pagination
     count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -270,15 +268,13 @@ async def get_tenant_stats(
     await _get_tenant_or_404(tenant_id, db)
 
     async def _count(model, col_attr) -> int:
-        result = await db.execute(
-            select(func.count()).where(col_attr == tenant_id)
-        )
+        result = await db.execute(select(func.count()).where(col_attr == tenant_id))
         return result.scalar_one()
 
-    user_count     = await _count(User,     User.tenant_id)
-    alert_count    = await _count(Alert,    Alert.tenant_id)
-    api_key_count  = await _count(APIKey,   APIKey.tenant_id)
-    webhook_count  = await _count(Webhook,  Webhook.tenant_id)
+    user_count = await _count(User, User.tenant_id)
+    alert_count = await _count(Alert, Alert.tenant_id)
+    api_key_count = await _count(APIKey, APIKey.tenant_id)
+    webhook_count = await _count(Webhook, Webhook.tenant_id)
     incident_count = await _count(Incident, Incident.tenant_id)
 
     return TenantStats(

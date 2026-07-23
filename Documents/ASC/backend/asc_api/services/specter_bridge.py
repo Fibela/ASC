@@ -54,11 +54,12 @@ Security invariants
 - Firewall adapter and AD adapter failures are non-fatal to the SPECTER broadcast
   so that partial infrastructure outages do not block all neutralization actions.
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import select
@@ -67,21 +68,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from asc_api.core.audit import log_security_action
 from asc_api.core.logging import get_logger
 from asc_api.core.panl import subnet_proximity
-from asc_api.models.agent import Agent, AgentCommand
+from asc_api.models.agent import Agent
 from asc_api.services.agent_commander import issue_command
 from asc_api.services.iam_service import disable_account as iam_disable_account
-from asc_api.services.neutralizer import NeutralizationResult, execute_action
+from asc_api.services.neutralizer import execute_action
 
 log = get_logger(__name__)
 
 
 # ── Adapter factories (lazy — returns None if adapter not configured) ──────────
 
+
 def _get_firewall_adapter():
     """Return the active firewall adapter or None if none is configured."""
     try:
-        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
         from asc_api.adapters.firewall.fortinet import FortinetAdapter
+        from asc_api.adapters.firewall.paloalto import PaloAltoAdapter
+
         pa = PaloAltoAdapter()
         if pa.is_configured():
             return pa
@@ -97,12 +100,14 @@ def _get_identity_adapter():
     """Return the Active Directory adapter or None if not configured."""
     try:
         from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
+
         ad = ActiveDirectoryAdapter()
         if ad.is_configured():
             return ad
     except Exception as exc:
         log.warning("identity_adapter_init_error", error=str(exc))
     return None
+
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -111,42 +116,50 @@ BROADCAST_BATCH_SIZE: int = 10  # agents processed per batch in broadcast mode
 
 # ── Dispatch mode ─────────────────────────────────────────────────────────────
 
-class DispatchMode(str, Enum):
-    SPECTER    = "specter"     # targeted: one specific agent
-    BROADCAST  = "broadcast"   # all active agents (batched + proximity-sorted)
-    IAM        = "iam"         # identity/access management via iam_service
+
+class DispatchMode(StrEnum):
+    SPECTER = "specter"  # targeted: one specific agent
+    BROADCAST = "broadcast"  # all active agents (batched + proximity-sorted)
+    IAM = "iam"  # identity/access management via iam_service
     SIMULATION = "simulation"  # no agent found — neutralizer.py fallback
 
 
 # ── Routing tables ─────────────────────────────────────────────────────────────
 
 # Actions that target a specific host (resolved by hostname or IP)
-_AGENT_TARGETED: frozenset[str] = frozenset({
-    "isolate_endpoint",
-    "kill_process",
-    "quarantine_file",
-    "remove_persistence",
-    # PANL rollback reversals
-    "unisolate_endpoint",
-    "restore_file",
-})
+_AGENT_TARGETED: frozenset[str] = frozenset(
+    {
+        "isolate_endpoint",
+        "kill_process",
+        "quarantine_file",
+        "remove_persistence",
+        # PANL rollback reversals
+        "unisolate_endpoint",
+        "restore_file",
+    }
+)
 
 # Actions broadcast to all active agents
-_BROADCAST_ACTIONS: frozenset[str] = frozenset({
-    "block_ip",
-    "block_domain",
-    # PANL rollback reversals
-    "unblock_ip",
-    "unblock_domain",
-})
+_BROADCAST_ACTIONS: frozenset[str] = frozenset(
+    {
+        "block_ip",
+        "block_domain",
+        # PANL rollback reversals
+        "unblock_ip",
+        "unblock_domain",
+    }
+)
 
 # Actions handled at IAM level — P16.3: wired to iam_service.disable_account()
-_IAM_ACTIONS: frozenset[str] = frozenset({
-    "disable_account",
-})
+_IAM_ACTIONS: frozenset[str] = frozenset(
+    {
+        "disable_account",
+    }
+)
 
 
 # ── Param mapping: neutralizer params → SPECTER command params ─────────────────
+
 
 def map_specter_command(action_type: str, params: dict[str, Any]) -> tuple[str, dict] | None:
     """
@@ -196,7 +209,7 @@ def map_specter_command(action_type: str, params: dict[str, Any]) -> tuple[str, 
         target = params.get("target", "")
         return "remove_persistence", {
             "persistence_type": str(persistence_type),
-            "target":           str(target),
+            "target": str(target),
         }
 
     # ── PANL rollback action types (P16 pre-P16.3) ───────────────────────────
@@ -225,6 +238,7 @@ def map_specter_command(action_type: str, params: dict[str, Any]) -> tuple[str, 
 
 
 # ── Agent resolution ──────────────────────────────────────────────────────────
+
 
 async def resolve_agent(
     db: AsyncSession,
@@ -258,15 +272,12 @@ async def resolve_agent(
 
 async def get_all_active_agents(db: AsyncSession) -> list[Agent]:
     """Return all agents that can receive commands (active, elevated, critical)."""
-    result = await db.execute(
-        select(Agent).where(
-            Agent.status.in_(["active", "elevated", "critical"])
-        )
-    )
+    result = await db.execute(select(Agent).where(Agent.status.in_(["active", "elevated", "critical"])))
     return list(result.scalars().all())
 
 
 # ── Fleet-aware broadcast ─────────────────────────────────────────────────────
+
 
 def _sort_agents_by_proximity(agents: list[Agent], target_ip: str | None) -> list[Agent]:
     """
@@ -325,13 +336,10 @@ async def _broadcast_batched(
     hostnames: list[str] = []
 
     for batch_start in range(0, len(sorted_agents), BROADCAST_BATCH_SIZE):
-        batch = sorted_agents[batch_start: batch_start + BROADCAST_BATCH_SIZE]
+        batch = sorted_agents[batch_start : batch_start + BROADCAST_BATCH_SIZE]
 
         results = await asyncio.gather(
-            *[
-                _issue_command_safe(db, agent, command_type, specter_params, issued_by)
-                for agent in batch
-            ]
+            *[_issue_command_safe(db, agent, command_type, specter_params, issued_by) for agent in batch]
         )
 
         for result in results:
@@ -348,6 +356,7 @@ async def _broadcast_batched(
 
 
 # ── Core dispatch ─────────────────────────────────────────────────────────────
+
 
 class SprecterBridgeResult:
     """Extended NeutralizationResult that includes SPECTER dispatch metadata."""
@@ -368,18 +377,15 @@ class SprecterBridgeResult:
         self.dispatch_mode = dispatch_mode
         # Honestidad (S103): simulated=True cuando nada real ocurrió. Si no se
         # indica, se deriva del modo de despacho (SIMULATION => simulado).
-        self.simulated = (
-            simulated if simulated is not None
-            else (dispatch_mode == DispatchMode.SIMULATION)
-        )
+        self.simulated = simulated if simulated is not None else (dispatch_mode == DispatchMode.SIMULATION)
         self.status = "executed" if success else ("simulated" if self.simulated else "failed")
         self.commands_issued: list[str] = commands_issued or []
         self.agents_targeted: list[str] = agents_targeted or []
         self.details: dict[str, Any] = {
             **(details or {}),
-            "dispatch_mode":   dispatch_mode,
-            "simulated":       self.simulated,
-            "status":          self.status,
+            "dispatch_mode": dispatch_mode,
+            "simulated": self.simulated,
+            "status": self.status,
             "commands_issued": self.commands_issued,
             "agents_targeted": self.agents_targeted,
         }
@@ -391,7 +397,7 @@ async def _execute_iam_action(
     params: dict[str, Any],
     db: AsyncSession,
     issued_by: str,
-) -> "SprecterBridgeResult":
+) -> SprecterBridgeResult:
     """
     Route IAM-level actions.  F1: disable_account now calls BOTH:
       1. iam_service — disables in ASC database (prevents ASC portal login).
@@ -399,11 +405,7 @@ async def _execute_iam_action(
     Either operation may succeed or fail independently; both are logged.
     """
     if action_type == "disable_account":
-        target_email = (
-            params.get("email")
-            or params.get("target")
-            or params.get("username")
-        )
+        target_email = params.get("email") or params.get("target") or params.get("username")
         if not target_email:
             log.warning("specter_bridge_iam_missing_email", action=action_type)
             return SprecterBridgeResult(
@@ -414,9 +416,7 @@ async def _execute_iam_action(
             )
 
         # 1. ASC database — always attempted
-        asc_success, asc_message = await iam_disable_account(
-            target_email, db, performed_by=issued_by
-        )
+        asc_success, asc_message = await iam_disable_account(target_email, db, performed_by=issued_by)
         log_security_action(
             "neutralize_execute",
             user_id=issued_by,
@@ -463,9 +463,8 @@ async def _execute_iam_action(
 
         return SprecterBridgeResult(
             success=overall_success,
-            message=asc_message + (
-                f" | AD: {'ok' if (ad_result or {}).get('success') else 'not_configured_or_failed'}"
-            ),
+            message=asc_message
+            + (f" | AD: {'ok' if (ad_result or {}).get('success') else 'not_configured_or_failed'}"),
             details=details,
             dispatch_mode=DispatchMode.IAM,
         )
@@ -496,7 +495,7 @@ async def dispatch(
       2. AGENT_TARGETED  → resolve agent, issue command, or fallback.
       3. BROADCAST       → issue to all active agents (batched, proximity-sorted).
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # ── 1. IAM actions — database-level identity management ───────────────────
     if action_type in _IAM_ACTIONS:
@@ -523,7 +522,7 @@ async def dispatch(
 
     # kill_process_name (no PID) broadcasts to all agents — analyst decision P16.2.
     effective_broadcast = action_type in _BROADCAST_ACTIONS or command_type == "kill_process_name"
-    effective_targeted  = action_type in _AGENT_TARGETED and not effective_broadcast
+    effective_targeted = action_type in _AGENT_TARGETED and not effective_broadcast
 
     # ── 2. Agent-targeted dispatch ────────────────────────────────────────────
     if effective_targeted:
@@ -539,23 +538,18 @@ async def dispatch(
         if agent is None:
             log.warning(
                 "specter_bridge_agent_not_found",
-                action=action_type, hostname=hostname, ip=ip_addr,
+                action=action_type,
+                hostname=hostname,
+                ip=ip_addr,
             )
             sim = await execute_action(action_type, params)
             return SprecterBridgeResult(
                 success=sim.success,
-                message=(
-                    sim.message
-                    + f" [simulation — no active SPECTER agent found for '{hostname or ip_addr}']"
-                ),
+                message=(sim.message + f" [simulation — no active SPECTER agent found for '{hostname or ip_addr}']"),
                 details={
                     **sim.details,
-                    "simulation_reason": (
-                        f"No active agent registered for {hostname or ip_addr!r}"
-                    ),
-                    "resolution_hint": (
-                        "Register a SPECTER agent on the target host to enable real dispatch"
-                    ),
+                    "simulation_reason": (f"No active agent registered for {hostname or ip_addr!r}"),
+                    "resolution_hint": ("Register a SPECTER agent on the target host to enable real dispatch"),
                 },
                 dispatch_mode=DispatchMode.SIMULATION,
             )
@@ -563,37 +557,31 @@ async def dispatch(
         cmd = await issue_command(db, agent, command_type, specter_params, issued_by)
         log.info(
             "specter_bridge_command_issued",
-            action=action_type, command_type=command_type,
-            agent_id=agent.id, hostname=agent.hostname, cmd_id=cmd.id,
+            action=action_type,
+            command_type=command_type,
+            agent_id=agent.id,
+            hostname=agent.hostname,
+            cmd_id=cmd.id,
         )
         log_security_action(
             "specter_bridge_dispatch",
             user_id=issued_by,
             resource="agent_command",
             resource_id=cmd.id,
-            detail=(
-                f"action={action_type} specter_cmd={command_type} "
-                f"agent={agent.hostname} target={target}"
-            ),
+            detail=(f"action={action_type} specter_cmd={command_type} agent={agent.hostname} target={target}"),
             status="queued",
         )
         return SprecterBridgeResult(
             success=True,
-            message=(
-                f"SPECTER command '{command_type}' queued for agent "
-                f"'{agent.hostname}' (cmd_id={cmd.id})"
-            ),
+            message=(f"SPECTER command '{command_type}' queued for agent '{agent.hostname}' (cmd_id={cmd.id})"),
             details={
-                "host":          agent.hostname,
-                "agent_id":      agent.id,
-                "command_id":    cmd.id,
-                "command_type":  command_type,
+                "host": agent.hostname,
+                "agent_id": agent.id,
+                "command_id": cmd.id,
+                "command_type": command_type,
                 "specter_params": specter_params,
-                "queued_at":     now,
-                "note": (
-                    "Command is pending until agent polls. "
-                    f"Poll interval: {agent.poll_interval}s."
-                ),
+                "queued_at": now,
+                "note": (f"Command is pending until agent polls. Poll interval: {agent.poll_interval}s."),
             },
             dispatch_mode=DispatchMode.SPECTER,
             commands_issued=[cmd.id],
@@ -609,12 +597,7 @@ async def dispatch(
             reason = params.get("reason", f"ASC neutralization — initiated_by={issued_by}")
             try:
                 if action_type in ("block_ip", "unblock_ip"):
-                    ip_val = (
-                        params.get("ip")
-                        or params.get("target")
-                        or (target if target_type == "ip" else None)
-                        or ""
-                    )
+                    ip_val = params.get("ip") or params.get("target") or (target if target_type == "ip" else None) or ""
                     direction = params.get("direction", "both")
                     if action_type == "block_ip":
                         fw_result = await fw_adapter.block_ip(ip_val, direction, reason)
@@ -622,12 +605,7 @@ async def dispatch(
                         fw_result = await fw_adapter.unblock_ip(ip_val)
 
                 elif action_type in ("block_domain", "unblock_domain"):
-                    domain_val = (
-                        params.get("domain")
-                        or params.get("target")
-                        or target
-                        or ""
-                    )
+                    domain_val = params.get("domain") or params.get("target") or target or ""
                     if action_type == "block_domain":
                         fw_result = await fw_adapter.block_domain(domain_val, reason)
                     else:
@@ -704,13 +682,13 @@ async def dispatch(
                 f"SPECTER broadcast: {len(cmd_ids)}/{len(agents)} agents queued"
             ),
             details={
-                "firewall":        fw_detail,
-                "command_type":    command_type,
-                "specter_params":  specter_params,
-                "agents_count":    len(cmd_ids),
-                "agents_total":    len(agents),
-                "batch_size":      BROADCAST_BATCH_SIZE,
-                "queued_at":       now,
+                "firewall": fw_detail,
+                "command_type": command_type,
+                "specter_params": specter_params,
+                "agents_count": len(cmd_ids),
+                "agents_total": len(agents),
+                "batch_size": BROADCAST_BATCH_SIZE,
+                "queued_at": now,
             },
             dispatch_mode=DispatchMode.BROADCAST,
             commands_issued=cmd_ids,

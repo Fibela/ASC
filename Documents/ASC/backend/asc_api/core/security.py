@@ -1,10 +1,12 @@
-from datetime import datetime, timedelta, timezone
-from typing import Any, Literal
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any, Literal
+
 import bcrypt
 import jwt
-from jwt.exceptions import PyJWTError
 from fastapi import HTTPException, status
+from jwt.exceptions import PyJWTError
+
 from asc_api.core.config import get_settings
 
 settings = get_settings()
@@ -44,16 +46,14 @@ def create_access_token(
     *,
     tenant_id: str | None = None,
 ) -> str:
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
     jti = str(uuid.uuid4())
     payload: dict[str, Any] = {
         "exp": expire,
         "sub": str(subject),
         "type": "access",
         "jti": jti,
-        "iat": int(datetime.now(timezone.utc).timestamp()),
+        "iat": int(datetime.now(UTC).timestamp()),
     }
     if tenant_id is not None:
         payload["tenant_id"] = tenant_id
@@ -61,11 +61,10 @@ def create_access_token(
 
 
 def create_refresh_token(subject: str | Any) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=REFRESH_EXPIRE_DAYS)
+    expire = datetime.now(UTC) + timedelta(days=REFRESH_EXPIRE_DAYS)
     jti = str(uuid.uuid4())
     return jwt.encode(
-        {"exp": expire, "sub": str(subject), "type": "refresh", "jti": jti,
-         "iat": int(datetime.now(timezone.utc).timestamp())},
+        {"exp": expire, "sub": str(subject), "type": "refresh", "jti": jti, "iat": int(datetime.now(UTC).timestamp())},
         settings.SECRET_KEY,
         algorithm=ALGORITHM,
     )
@@ -104,9 +103,7 @@ def verify_token(token: str, token_type: Literal["access", "refresh"] = "access"
             )
         return sub
     except PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado o inválido"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expirado o inválido")
 
 
 def decode_token_payload(token: str) -> dict:

@@ -21,8 +21,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.core.logging import get_logger
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.user import User
 from asc_api.services import pids_service
@@ -31,6 +31,7 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/pids", tags=["PIDS"])
 
 # ── Request schemas ────────────────────────────────────────────────────────────
+
 
 class CreateIdentityActionRequest(BaseModel):
     action_type: str = Field(
@@ -49,6 +50,7 @@ class CreateIdentityActionRequest(BaseModel):
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
+
 
 @router.get("/actions", summary="List identity actions")
 @limiter.limit("60/minute")

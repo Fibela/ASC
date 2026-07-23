@@ -13,25 +13,23 @@ Previously stored only in-memory — lost on every restart/redeploy.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
 
 from asc_api.api.deps import get_current_admin
+from asc_api.core.audit import log_security_action
 from asc_api.core.config import get_settings
 from asc_api.core.honeypot import (
-    AttackerFingerprint,
-    CanaryToken,
     canary_store,
     fingerprint_request,
     generate_evidence_report,
     lookup_ip_reputation,
 )
-from asc_api.core.audit import log_security_action
 from asc_api.db.session import get_db
-from asc_api.models.honeypot import HoneypotToken, HoneypotTokenAccess, HoneypotEvidenceReport
+from asc_api.models.honeypot import HoneypotEvidenceReport, HoneypotToken, HoneypotTokenAccess
 from asc_api.models.user import User
 
 router = APIRouter(tags=["SPECTER Honeypot"])
@@ -39,6 +37,7 @@ settings = get_settings()
 
 
 # ── Canary Callback ────────────────────────────────────────────────────────────
+
 
 @router.get("/c/{token_id}", include_in_schema=False)
 async def canary_callback(
@@ -69,10 +68,7 @@ async def canary_callback(
             resource="canary_token",
             resource_id=token_id,
             detail=(
-                f"ip={client_ip} "
-                f"ua={fp.user_agent[:60]} "
-                f"endpoint={token.endpoint} "
-                f"access_count={token.access_count}"
+                f"ip={client_ip} ua={fp.user_agent[:60]} endpoint={token.endpoint} access_count={token.access_count}"
             ),
         )
 
@@ -80,7 +76,7 @@ async def canary_callback(
         access_row = HoneypotTokenAccess(
             id=str(uuid.uuid4()),
             token_id=token_id,
-            ts=datetime.now(timezone.utc),
+            ts=datetime.now(UTC),
             client_ip=client_ip,
             user_agent=fp.user_agent,
             referer=fp.referer,
@@ -116,7 +112,7 @@ async def canary_callback(
             event_type="canary_token_accessed",
             attacker_ip=client_ip,
             severity=report["report"]["incident_summary"]["severity"],
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             report_json=report["report"],
             signature=report["signature"],
             fingerprint_hash=fp.fingerprint_hash,
@@ -129,34 +125,33 @@ async def canary_callback(
 
 # ── Admin: Canary Token Management ────────────────────────────────────────────
 
+
 @router.get("/honeypot/tokens", summary="List active canary tokens (admin)")
 async def list_canary_tokens(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_admin),
 ) -> dict:
     """Return all canary tokens with their access statistics from the DB."""
-    result = await db.execute(
-        select(HoneypotToken).order_by(desc(HoneypotToken.created_at))
-    )
+    result = await db.execute(select(HoneypotToken).order_by(desc(HoneypotToken.created_at)))
     db_tokens = result.scalars().all()
 
     return {
         "total": len(db_tokens),
         "tokens": [
             {
-                "token_id":     t.token_id,
-                "endpoint":     t.endpoint,
-                "label":        t.label,
-                "created_at":   t.created_at.isoformat(),
+                "token_id": t.token_id,
+                "endpoint": t.endpoint,
+                "label": t.label,
+                "created_at": t.created_at.isoformat(),
                 "access_count": len(t.accesses),
                 "first_access": t.accesses[0].ts.isoformat() if t.accesses else None,
-                "last_access":  t.accesses[-1].ts.isoformat() if t.accesses else None,
+                "last_access": t.accesses[-1].ts.isoformat() if t.accesses else None,
                 "accesses": [
                     {
-                        "ts":         a.ts.isoformat(),
-                        "client_ip":  a.client_ip,
+                        "ts": a.ts.isoformat(),
+                        "client_ip": a.client_ip,
                         "user_agent": a.user_agent,
-                        "referer":    a.referer,
+                        "referer": a.referer,
                     }
                     for a in t.accesses
                 ],
@@ -173,25 +168,23 @@ async def get_canary_token(
     _: User = Depends(get_current_admin),
 ) -> dict:
     """Return full detail and access log for a single canary token."""
-    result = await db.execute(
-        select(HoneypotToken).where(HoneypotToken.token_id == token_id)
-    )
+    result = await db.execute(select(HoneypotToken).where(HoneypotToken.token_id == token_id))
     token = result.scalar_one_or_none()
     if not token:
         raise HTTPException(status_code=404, detail="Canary token not found")
 
     return {
-        "token_id":     token.token_id,
-        "endpoint":     token.endpoint,
-        "label":        token.label,
-        "created_at":   token.created_at.isoformat(),
+        "token_id": token.token_id,
+        "endpoint": token.endpoint,
+        "label": token.label,
+        "created_at": token.created_at.isoformat(),
         "access_count": len(token.accesses),
         "accesses": [
             {
-                "ts":               a.ts.isoformat(),
-                "client_ip":        a.client_ip,
-                "user_agent":       a.user_agent,
-                "referer":          a.referer,
+                "ts": a.ts.isoformat(),
+                "client_ip": a.client_ip,
+                "user_agent": a.user_agent,
+                "referer": a.referer,
                 "headers_snapshot": a.headers_snapshot,
             }
             for a in token.accesses
@@ -205,23 +198,22 @@ async def list_evidence_reports(
     _: User = Depends(get_current_admin),
 ) -> dict:
     """Return all generated evidence reports with their HMAC signatures."""
-    result = await db.execute(
-        select(HoneypotEvidenceReport).order_by(desc(HoneypotEvidenceReport.generated_at))
-    )
+    result = await db.execute(select(HoneypotEvidenceReport).order_by(desc(HoneypotEvidenceReport.generated_at)))
     reports = result.scalars().all()
 
     return {
         "total": len(reports),
         "reports": [
             {
-                "report_id":       r.report_id,
-                "event_type":      r.event_type,
-                "attacker_ip":     r.attacker_ip,
-                "severity":        r.severity,
-                "generated_at":    r.generated_at.isoformat(),
+                "report_id": r.report_id,
+                "event_type": r.event_type,
+                "attacker_ip": r.attacker_ip,
+                "severity": r.severity,
+                "generated_at": r.generated_at.isoformat(),
                 "canary_accesses": r.report_json.get("canary_evidence", {}).get("access_count", 0)
-                                   if r.report_json.get("canary_evidence") else 0,
-                "signature":       r.signature,
+                if r.report_json.get("canary_evidence")
+                else 0,
+                "signature": r.signature,
             }
             for r in reports
         ],
@@ -241,15 +233,13 @@ async def get_evidence_report(
     canary access chain, legal notice, and HMAC-SHA256 signature.
     Suitable for direct submission to authorities.
     """
-    result = await db.execute(
-        select(HoneypotEvidenceReport).where(HoneypotEvidenceReport.report_id == report_id)
-    )
+    result = await db.execute(select(HoneypotEvidenceReport).where(HoneypotEvidenceReport.report_id == report_id))
     report = result.scalar_one_or_none()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
     return {
         "report_id": report.report_id,
-        "report":    report.report_json,
+        "report": report.report_json,
         "signature": report.signature,
     }

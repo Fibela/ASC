@@ -33,13 +33,14 @@ Security posture
 - No attacker-controlled data reaches the SOAR evaluation context without
   validation in _build_incident_context().
 """
+
 from __future__ import annotations
 
 import base64
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -59,6 +60,7 @@ _SEV_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
 # ── Context builder ────────────────────────────────────────────────────────────
+
 
 def _build_incident_context(
     incident: Incident,
@@ -89,6 +91,7 @@ def _build_incident_context(
 
 # ── Forensic SLA Ledger entry ──────────────────────────────────────────────────
 
+
 def _sign_ledger(hash_hex: str) -> str:
     """Sign hash_hex with SPECTER_SIGNING_PRIVATE_KEY. Returns base64 sig."""
     private_key_b64 = _s.SPECTER_SIGNING_PRIVATE_KEY
@@ -96,6 +99,7 @@ def _sign_ledger(hash_hex: str) -> str:
         return base64.b64encode(b"PIIL-UNSIGNED").decode()
     try:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
         priv_bytes = base64.b64decode(private_key_b64)
         key = Ed25519PrivateKey.from_private_bytes(priv_bytes)
         return base64.b64encode(key.sign(hash_hex.encode())).decode()
@@ -130,7 +134,7 @@ async def _write_forensic_ledger(
         signature_ed25519=sig,
         signed_by_email=actor,
         signed_by_user_id="system",
-        signed_at=datetime.now(timezone.utc),
+        signed_at=datetime.now(UTC),
         verified=bool(_s.SPECTER_SIGNING_PRIVATE_KEY),
     )
     db.add(entry)
@@ -142,6 +146,7 @@ async def _write_forensic_ledger(
 
 
 # ── SOAR → Incident timeline writer ───────────────────────────────────────────
+
 
 async def write_soar_event_to_timeline(
     db: AsyncSession,
@@ -155,15 +160,13 @@ async def write_soar_event_to_timeline(
     Called by the SOAR engine after a trigger fires in an incident context.
     Non-blocking — errors are logged but not raised.
     """
-    result = await db.execute(
-        select(Incident).where(Incident.id == incident_id)
-    )
+    result = await db.execute(select(Incident).where(Incident.id == incident_id))
     incident = result.scalar_one_or_none()
     if incident is None:
         log.debug("write_soar_event_to_timeline: incident %s not found, skipping", incident_id)
         return
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     entry = IncidentTimeline(
         id=str(uuid.uuid4()),
         incident_id=incident_id,
@@ -182,7 +185,9 @@ async def write_soar_event_to_timeline(
         await db.commit()
         log.info(
             "soar_event_written incident=%s trigger=%r playbook=%r",
-            incident_id, trigger_name, playbook_name,
+            incident_id,
+            trigger_name,
+            playbook_name,
         )
     except Exception as exc:
         log.error("soar_event_to_timeline commit failed (non-fatal): %s", exc)
@@ -190,6 +195,7 @@ async def write_soar_event_to_timeline(
 
 
 # ── Incident → SOAR forward binding ───────────────────────────────────────────
+
 
 async def evaluate_soar_for_incident(
     db: AsyncSession,
@@ -209,7 +215,7 @@ async def evaluate_soar_for_incident(
     from asc_api.services.soar_service import evaluate_triggers_for_context
 
     context = _build_incident_context(incident, new_status, actor)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     fired_count = 0
 
     try:
@@ -259,9 +265,7 @@ async def evaluate_soar_for_incident(
             "timestamp": now.isoformat(),
             "piil_version": "1.0",
         }
-        await _write_forensic_ledger(
-            db, incident.id, new_status, actor, fired_count, canonical
-        )
+        await _write_forensic_ledger(db, incident.id, new_status, actor, fired_count, canonical)
 
         log_security_action(
             "piil_soar_binding_fired",
@@ -271,13 +275,16 @@ async def evaluate_soar_for_incident(
         )
         log.info(
             "piil_soar_binding incident=%s status=%s triggers_fired=%d",
-            incident.id, new_status, fired_count,
+            incident.id,
+            new_status,
+            fired_count,
         )
 
     return fired_count
 
 
 # ── SLA breach proactive escalation ───────────────────────────────────────────
+
 
 async def escalate_sla_breaches(db: AsyncSession) -> int:
     """
@@ -289,7 +296,6 @@ async def escalate_sla_breaches(db: AsyncSession) -> int:
     Returns count of incidents escalated.
     """
     from asc_api.services.incident_service import _check_sla_breach, _utcnow
-    from asc_api.models.incident import VALID_TRANSITIONS
 
     result = await db.execute(
         select(Incident).where(
@@ -306,6 +312,7 @@ async def escalate_sla_breaches(db: AsyncSession) -> int:
             inc.updated_at = _utcnow()
 
             from asc_api.models.incident import IncidentTimeline
+
             now = _utcnow()
             entry = IncidentTimeline(
                 id=str(uuid.uuid4()),

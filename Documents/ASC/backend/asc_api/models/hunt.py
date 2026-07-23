@@ -4,7 +4,14 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text,
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,11 +33,11 @@ class Hunt(Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
 
     # ATT&CK
-    mitre_technique: Mapped[str | None] = mapped_column(String(20), nullable=True)   # e.g. T1055
-    mitre_tactic: Mapped[str | None] = mapped_column(String(100), nullable=True)     # e.g. defense-evasion
+    mitre_technique: Mapped[str | None] = mapped_column(String(20), nullable=True)  # e.g. T1055
+    mitre_tactic: Mapped[str | None] = mapped_column(String(100), nullable=True)  # e.g. defense-evasion
 
     # Scope / priority
-    scope: Mapped[str] = mapped_column(String(50), nullable=False, default="all")    # host | network | cloud | all
+    scope: Mapped[str] = mapped_column(String(50), nullable=False, default="all")  # host | network | cloud | all
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")
 
     # Personnel
@@ -61,10 +68,10 @@ class Hunt(Base):
     tags: Mapped[list] = mapped_column(JSON, default=list)
 
     # Relationships
-    findings: Mapped[list["HuntFinding"]] = relationship(
+    findings: Mapped[list[HuntFinding]] = relationship(
         "HuntFinding", back_populates="hunt", cascade="all, delete-orphan", lazy="select"
     )
-    queries: Mapped[list["HuntQuery"]] = relationship(
+    queries: Mapped[list[HuntQuery]] = relationship(
         "HuntQuery", back_populates="hunt", cascade="all, delete-orphan", lazy="select"
     )
 
@@ -83,9 +90,7 @@ class HuntFinding(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    hunt_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("hunt_sessions.id", ondelete="CASCADE"), nullable=False
-    )
+    hunt_id: Mapped[str] = mapped_column(String(36), ForeignKey("hunt_sessions.id", ondelete="CASCADE"), nullable=False)
 
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -125,7 +130,7 @@ class HuntFinding(Base):
         onupdate=lambda: datetime.utcnow().replace(tzinfo=__import__("datetime").timezone.utc),
     )
 
-    hunt: Mapped["Hunt"] = relationship("Hunt", back_populates="findings")
+    hunt: Mapped[Hunt] = relationship("Hunt", back_populates="findings")
 
     __table_args__ = (
         Index("ix_hf_hunt_id", "hunt_id"),
@@ -141,13 +146,13 @@ class HuntQuery(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
-    hunt_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("hunt_sessions.id", ondelete="CASCADE"), nullable=False
-    )
+    hunt_id: Mapped[str] = mapped_column(String(36), ForeignKey("hunt_sessions.id", ondelete="CASCADE"), nullable=False)
 
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     query_text: Mapped[str] = mapped_column(Text, nullable=False)
-    data_source: Mapped[str] = mapped_column(String(100), nullable=False, default="elk")  # elk | wazuh | specter_agent | manual
+    data_source: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="elk"
+    )  # elk | wazuh | specter_agent | manual
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Execution metadata (populated when query is run)
@@ -162,7 +167,7 @@ class HuntQuery(Base):
         default=lambda: datetime.utcnow().replace(tzinfo=__import__("datetime").timezone.utc),
     )
 
-    hunt: Mapped["Hunt"] = relationship("Hunt", back_populates="queries")
+    hunt: Mapped[Hunt] = relationship("Hunt", back_populates="queries")
 
     __table_args__ = (
         Index("ix_hq_hunt_id", "hunt_id"),

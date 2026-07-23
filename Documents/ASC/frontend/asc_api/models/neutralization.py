@@ -1,7 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Text, JSON, Boolean, Integer
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Boolean, DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
@@ -33,9 +35,7 @@ class NeutralizationAction(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     rollback_available: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Human-in-the-Loop fields (P16.1) ─────────────────────────────────────

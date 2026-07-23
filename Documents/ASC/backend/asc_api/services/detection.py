@@ -5,9 +5,11 @@ Receives normalized events (ECS format) and evaluates them against specific
 detection rules defined in the ASC spec. Does NOT run as an agent on endpoints;
 it analyses events forwarded by EDR/SIEM agents.
 """
-from datetime import datetime, timezone, timedelta
+
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Literal
+
 from asc_api.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -15,35 +17,36 @@ log = get_logger(__name__)
 # ─── Severity levels mapped to semaphore colours ─────────────────────────────
 SEVERITY_SEMAPHORE: dict[str, str] = {
     "critical": "red",
-    "high":     "red",
-    "medium":   "yellow",
-    "low":      "green",
+    "high": "red",
+    "medium": "yellow",
+    "low": "green",
 }
 
 # ─── Data classes ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DetectionResult:
-    rule_id:     str
-    rule_name:   str
-    severity:    Literal["critical", "high", "medium", "low"]
-    semaphore:   str          # green | yellow | red
-    risk_score:  float
+    rule_id: str
+    rule_name: str
+    severity: Literal["critical", "high", "medium", "low"]
+    semaphore: str  # green | yellow | red
+    risk_score: float
     description: str
-    evidence:    dict = field(default_factory=dict)
-    mitre_ttp:   str  = ""
-    detected_at: str  = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    evidence: dict = field(default_factory=dict)
+    mitre_ttp: str = ""
+    detected_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict:
         return {
-            "rule_id":     self.rule_id,
-            "rule_name":   self.rule_name,
-            "severity":    self.severity,
-            "semaphore":   self.semaphore,
-            "risk_score":  self.risk_score,
+            "rule_id": self.rule_id,
+            "rule_name": self.rule_name,
+            "severity": self.severity,
+            "semaphore": self.semaphore,
+            "risk_score": self.risk_score,
             "description": self.description,
-            "evidence":    self.evidence,
-            "mitre_ttp":   self.mitre_ttp,
+            "evidence": self.evidence,
+            "mitre_ttp": self.mitre_ttp,
             "detected_at": self.detected_at,
         }
 
@@ -54,9 +57,10 @@ class DetectionResult:
 # non-standard and are used by malware that masquerades as this binary.
 ACORD_SUSPICIOUS_PARAMS = {"/s", "/o", "/q", "/silent", "/noui"}
 
+
 def check_suspicious_process(event: dict) -> DetectionResult | None:
     process = str(event.get("process", "")).lower().strip()
-    args    = str(event.get("args", event.get("command_line", ""))).lower()
+    args = str(event.get("args", event.get("command_line", ""))).lower()
 
     if "acord32" not in process:
         return None
@@ -71,23 +75,23 @@ def check_suspicious_process(event: dict) -> DetectionResult | None:
     log.warning("detection_suspicious_process", process=process, params=found_params, host=event.get("host"))
 
     return DetectionResult(
-        rule_id    = "DET-001",
-        rule_name  = "Suspicious acord32.exe Execution",
-        severity   = severity,
-        semaphore  = SEVERITY_SEMAPHORE[severity],
-        risk_score = 0.88 if len(found_params) >= 2 else 0.70,
-        description= (
+        rule_id="DET-001",
+        rule_name="Suspicious acord32.exe Execution",
+        severity=severity,
+        semaphore=SEVERITY_SEMAPHORE[severity],
+        risk_score=0.88 if len(found_params) >= 2 else 0.70,
+        description=(
             f"acord32.exe ejecutado con parámetros ocultos: {', '.join(found_params)}. "
             "Técnica común de malware que suplanta el visor ACORD."
         ),
-        evidence   = {
-            "process":          process,
+        evidence={
+            "process": process,
             "suspicious_params": found_params,
-            "host":             event.get("host"),
-            "pid":              event.get("pid"),
-            "parent_process":   event.get("parent_process"),
+            "host": event.get("host"),
+            "pid": event.get("pid"),
+            "parent_process": event.get("parent_process"),
         },
-        mitre_ttp  = "T1036.005",  # Masquerading: Match Legitimate Name or Location
+        mitre_ttp="T1036.005",  # Masquerading: Match Legitimate Name or Location
     )
 
 
@@ -98,15 +102,16 @@ def check_suspicious_process(event: dict) -> DetectionResult | None:
 HOOK_APIS = {
     "SetWindowsHookExW": "WH_KEYBOARD_LL (0x0D) or WH_MOUSE_LL (0x0E) — global keyboard/mouse hook",
     "SetWindowsHookExA": "ANSI variant of SetWindowsHookEx — keyboard/UI hook",
-    "FindWindowW":       "Locates windows by class/title — recon for UI injection",
-    "FindWindowA":       "ANSI variant of FindWindowW",
-    "FindWindowExW":     "Extended window search — child window enumeration for injection",
+    "FindWindowW": "Locates windows by class/title — recon for UI injection",
+    "FindWindowA": "ANSI variant of FindWindowW",
+    "FindWindowExW": "Extended window search — child window enumeration for injection",
 }
+
 
 def check_hook_detection(event: dict) -> DetectionResult | None:
     api_call = str(event.get("api_call", event.get("action", ""))).strip()
-    syscall  = str(event.get("syscall", "")).strip()
-    target   = api_call or syscall
+    syscall = str(event.get("syscall", "")).strip()
+    target = api_call or syscall
 
     matched_api = next((api for api in HOOK_APIS if api.lower() in target.lower()), None)
     if not matched_api:
@@ -117,33 +122,40 @@ def check_hook_detection(event: dict) -> DetectionResult | None:
     log.warning("detection_hook_api", api=matched_api, host=event.get("host"))
 
     return DetectionResult(
-        rule_id    = "DET-002",
-        rule_name  = "Windows Hook API Detected",
-        severity   = severity,
-        semaphore  = SEVERITY_SEMAPHORE[severity],
-        risk_score = 0.85 if "Hook" in matched_api else 0.55,
-        description= (
+        rule_id="DET-002",
+        rule_name="Windows Hook API Detected",
+        severity=severity,
+        semaphore=SEVERITY_SEMAPHORE[severity],
+        risk_score=0.85 if "Hook" in matched_api else 0.55,
+        description=(
             f"API de intercepción detectada: {matched_api}. "
             f"{HOOK_APIS[matched_api]}. "
             "Indicador de keylogger o inyección de interfaz."
         ),
-        evidence   = {
-            "api_call":   matched_api,
+        evidence={
+            "api_call": matched_api,
             "api_detail": HOOK_APIS[matched_api],
-            "host":       event.get("host"),
-            "process":    event.get("process"),
-            "pid":        event.get("pid"),
+            "host": event.get("host"),
+            "process": event.get("process"),
+            "pid": event.get("pid"),
         },
-        mitre_ttp  = "T1056.001",  # Input Capture: Keylogging
+        mitre_ttp="T1056.001",  # Input Capture: Keylogging
     )
 
 
 # ─── Rule 3: Registry persistence ─────────────────────────────────────────────
 
 # RegCreateKeyW / RegDeleteKeyW targeting Run keys = persistence mechanism.
-REGISTRY_APIS = {"RegCreateKeyW", "RegCreateKeyA", "RegSetValueExW",
-                 "RegSetValueExA", "RegDeleteKeyW", "RegDeleteKeyA",
-                 "RegDeleteValueW", "RegDeleteValueA"}
+REGISTRY_APIS = {
+    "RegCreateKeyW",
+    "RegCreateKeyA",
+    "RegSetValueExW",
+    "RegSetValueExA",
+    "RegDeleteKeyW",
+    "RegDeleteKeyA",
+    "RegDeleteValueW",
+    "RegDeleteValueA",
+}
 
 PERSISTENCE_KEYS = [
     r"software\microsoft\windows\currentversion\run",
@@ -154,9 +166,10 @@ PERSISTENCE_KEYS = [
     r"software\microsoft\windows\currentversion\policies\explorer\run",
 ]
 
+
 def check_registry_persistence(event: dict) -> DetectionResult | None:
     api_call = str(event.get("api_call", event.get("action", ""))).strip()
-    reg_key  = str(event.get("reg_key", event.get("registry_key", ""))).lower()
+    reg_key = str(event.get("reg_key", event.get("registry_key", ""))).lower()
 
     api_matched = any(api.lower() in api_call.lower() for api in REGISTRY_APIS)
     key_matched = any(pk in reg_key for pk in PERSISTENCE_KEYS)
@@ -165,28 +178,28 @@ def check_registry_persistence(event: dict) -> DetectionResult | None:
         return None
 
     is_delete = "delete" in api_call.lower()
-    severity  = "high"
+    severity = "high"
     log.warning("detection_registry_persistence", api=api_call, key=reg_key, host=event.get("host"))
 
     return DetectionResult(
-        rule_id    = "DET-003",
-        rule_name  = "Registry Persistence Mechanism",
-        severity   = severity,
-        semaphore  = SEVERITY_SEMAPHORE[severity],
-        risk_score = 0.80,
-        description= (
+        rule_id="DET-003",
+        rule_name="Registry Persistence Mechanism",
+        severity=severity,
+        semaphore=SEVERITY_SEMAPHORE[severity],
+        risk_score=0.80,
+        description=(
             f"{'Eliminación' if is_delete else 'Escritura'} en clave de registro de persistencia: {reg_key}. "
             f"API: {api_call}. Indica intento de {'limpiar huellas' if is_delete else 'establecer persistencia'}."
         ),
-        evidence   = {
-            "api_call":    api_call,
+        evidence={
+            "api_call": api_call,
             "registry_key": reg_key,
-            "operation":   "delete" if is_delete else "write",
-            "host":        event.get("host"),
-            "process":     event.get("process"),
-            "pid":         event.get("pid"),
+            "operation": "delete" if is_delete else "write",
+            "host": event.get("host"),
+            "process": event.get("process"),
+            "pid": event.get("pid"),
         },
-        mitre_ttp  = "T1547.001",  # Boot or Logon Autostart Execution: Registry Run Keys
+        mitre_ttp="T1547.001",  # Boot or Logon Autostart Execution: Registry Run Keys
     )
 
 
@@ -195,6 +208,7 @@ def check_registry_persistence(event: dict) -> DetectionResult | None:
 # Connections that appear hours/days after initial analysis are a C2 beacon
 # indicator — the malware waited to avoid sandbox detection windows.
 DEFERRED_THRESHOLD_HOURS = 2  # connections appearing more than 2h after event ingestion
+
 
 def check_deferred_traffic(
     connection_event: dict,
@@ -210,7 +224,7 @@ def check_deferred_traffic(
         return None
 
     if conn_ts.tzinfo is None:
-        conn_ts = conn_ts.replace(tzinfo=timezone.utc)
+        conn_ts = conn_ts.replace(tzinfo=UTC)
 
     delta_hours = (conn_ts - original_analysis_ts).total_seconds() / 3600
 
@@ -218,35 +232,34 @@ def check_deferred_traffic(
         return None
 
     severity = "critical" if delta_hours > 24 else "high"
-    log.warning("detection_deferred_traffic",
-                dst=connection_event.get("dst_ip"),
-                delay_hours=round(delta_hours, 1))
+    log.warning("detection_deferred_traffic", dst=connection_event.get("dst_ip"), delay_hours=round(delta_hours, 1))
 
     return DetectionResult(
-        rule_id    = "DET-004",
-        rule_name  = "Deferred Network Traffic",
-        severity   = severity,
-        semaphore  = SEVERITY_SEMAPHORE[severity],
-        risk_score = 0.90 if delta_hours > 24 else 0.75,
-        description= (
+        rule_id="DET-004",
+        rule_name="Deferred Network Traffic",
+        severity=severity,
+        semaphore=SEVERITY_SEMAPHORE[severity],
+        risk_score=0.90 if delta_hours > 24 else 0.75,
+        description=(
             f"Conexión detectada {round(delta_hours, 1)}h después del análisis inicial. "
             "El malware retrasó la comunicación para evadir sandbox de tiempo limitado. "
             f"Destino: {connection_event.get('dst_ip', 'unknown')}:{connection_event.get('dst_port', '?')}."
         ),
-        evidence   = {
-            "dst_ip":          connection_event.get("dst_ip"),
-            "dst_port":        connection_event.get("dst_port"),
-            "delay_hours":     round(delta_hours, 1),
+        evidence={
+            "dst_ip": connection_event.get("dst_ip"),
+            "dst_port": connection_event.get("dst_port"),
+            "delay_hours": round(delta_hours, 1),
             "connection_time": conn_ts.isoformat(),
-            "analysis_time":   original_analysis_ts.isoformat(),
-            "host":            connection_event.get("host"),
-            "protocol":        connection_event.get("protocol", "unknown"),
+            "analysis_time": original_analysis_ts.isoformat(),
+            "host": connection_event.get("host"),
+            "protocol": connection_event.get("protocol", "unknown"),
         },
-        mitre_ttp  = "T1071.001",  # Application Layer Protocol: Web Protocols (C2)
+        mitre_ttp="T1071.001",  # Application Layer Protocol: Web Protocols (C2)
     )
 
 
 # ─── Master evaluation function ───────────────────────────────────────────────
+
 
 def evaluate_event(
     event: dict,
@@ -274,10 +287,9 @@ def evaluate_event(
             results.append(r)
 
     if results:
-        log.info("detection_rules_matched",
-                 count=len(results),
-                 rules=[r.rule_id for r in results],
-                 host=event.get("host"))
+        log.info(
+            "detection_rules_matched", count=len(results), rules=[r.rule_id for r in results], host=event.get("host")
+        )
 
     return results
 

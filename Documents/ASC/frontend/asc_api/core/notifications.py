@@ -37,12 +37,13 @@ Event types
   action_failed             → execution failed after approval
   rollback_requested        → forensic rollback initiated
 """
+
 from __future__ import annotations
 
 import asyncio
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -57,9 +58,7 @@ NOTIFICATION_CHANNEL = "asc:panl:v1"
 class Notification:
     event_type: str
     payload: dict[str, Any]
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_sse(self) -> str:
         """Serialise as SSE wire format (RFC 6202)."""
@@ -83,7 +82,7 @@ class HybridNotificationBus:
 
     def __init__(self) -> None:
         self._subscribers: list[asyncio.Queue[Notification]] = []
-        self._redis_pub: Any = None       # redis.asyncio.Redis | None
+        self._redis_pub: Any = None  # redis.asyncio.Redis | None
         self._listener_task: asyncio.Task | None = None
         self._mode: str = "local"
 
@@ -150,7 +149,7 @@ class HybridNotificationBus:
                         n = Notification(
                             event_type=raw["event_type"],
                             payload=raw["payload"],
-                            timestamp=raw.get("timestamp", datetime.now(timezone.utc).isoformat()),
+                            timestamp=raw.get("timestamp", datetime.now(UTC).isoformat()),
                         )
                         await self._fan_out(n)
                     except Exception as exc:
@@ -198,11 +197,13 @@ class HybridNotificationBus:
         n = Notification(event_type=event_type, payload=payload)
 
         if self._redis_pub and self._mode == "redis":
-            data = json.dumps({
-                "event_type": n.event_type,
-                "payload":    n.payload,
-                "timestamp":  n.timestamp,
-            })
+            data = json.dumps(
+                {
+                    "event_type": n.event_type,
+                    "payload": n.payload,
+                    "timestamp": n.timestamp,
+                }
+            )
             try:
                 await self._redis_pub.publish(NOTIFICATION_CHANNEL, data)
                 return

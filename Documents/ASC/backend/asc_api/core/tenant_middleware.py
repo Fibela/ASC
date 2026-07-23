@@ -38,7 +38,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         # 1. Try JWT Bearer token first
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
-            token = auth_header[len("Bearer "):]
+            token = auth_header[len("Bearer ") :]
             payload = decode_token_payload(token)
             tenant_id = payload.get("tenant_id") or None
 

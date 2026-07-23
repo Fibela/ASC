@@ -16,12 +16,13 @@ approved by a specific analyst, executed at a specific time, and has not been al
 Verification is self-contained: recompute SHA3-512 from canonical_data and verify
 the signature against the analyst's stored public key — no external service needed.
 """
+
 from __future__ import annotations
 
 import base64
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -43,6 +44,7 @@ log = get_logger("asc.pfn")
 
 # ── Canonical data ─────────────────────────────────────────────────────────────
 
+
 def _build_canonical(action: NeutralizationAction, approved_by_email: str) -> dict:
     """
     Build the deterministic dict that will be hashed.
@@ -51,24 +53,16 @@ def _build_canonical(action: NeutralizationAction, approved_by_email: str) -> di
     even if action.result is later updated for metadata purposes.
     """
     return {
-        "action_id":    action.id,
-        "action_type":  action.action_type,
-        "target":       action.target,
-        "target_type":  action.target_type,
-        "severity":     action.severity,
-        "approved_by":  approved_by_email,
-        "approved_at":  (
-            action.approved_at.isoformat()
-            if action.approved_at
-            else datetime.now(timezone.utc).isoformat()
-        ),
-        "executed_at":  (
-            action.executed_at.isoformat()
-            if action.executed_at
-            else datetime.now(timezone.utc).isoformat()
-        ),
-        "params":       action.params,
-        "pfn_version":  "1",
+        "action_id": action.id,
+        "action_type": action.action_type,
+        "target": action.target,
+        "target_type": action.target_type,
+        "severity": action.severity,
+        "approved_by": approved_by_email,
+        "approved_at": (action.approved_at.isoformat() if action.approved_at else datetime.now(UTC).isoformat()),
+        "executed_at": (action.executed_at.isoformat() if action.executed_at else datetime.now(UTC).isoformat()),
+        "params": action.params,
+        "pfn_version": "1",
     }
 
 
@@ -79,6 +73,7 @@ def _compute_hash(canonical: dict) -> str:
 
 
 # ── Sign / verify ──────────────────────────────────────────────────────────────
+
 
 def _sign_hash(hash_hex: str, private_key_b64: str) -> str:
     """Ed25519 sign the hash (as UTF-8 bytes). Returns base64-encoded signature."""
@@ -102,6 +97,7 @@ def _verify_signature(hash_hex: str, signature_b64: str, public_key_b64: str) ->
 
 # ── Core API ───────────────────────────────────────────────────────────────────
 
+
 async def create_forensic_entry(
     db: AsyncSession,
     action: NeutralizationAction,
@@ -124,9 +120,7 @@ async def create_forensic_entry(
 
     try:
         settings = get_settings()
-        priv_key_b64 = decrypt_analyst_private_key(
-            approver.signing_private_key_enc, settings.SECRET_KEY
-        )
+        priv_key_b64 = decrypt_analyst_private_key(approver.signing_private_key_enc, settings.SECRET_KEY)
 
         canonical = _build_canonical(action, approver.email)
         hash_hex = _compute_hash(canonical)
@@ -141,7 +135,7 @@ async def create_forensic_entry(
             signature_ed25519=signature,
             signed_by_email=approver.email,
             signed_by_user_id=str(approver.id),
-            signed_at=datetime.now(timezone.utc),
+            signed_at=datetime.now(UTC),
         )
         db.add(entry)
         await db.commit()
@@ -184,13 +178,11 @@ async def verify_forensic_entry(
         )
         return False
 
-    valid_sig = _verify_signature(
-        entry.hash_sha3_512, entry.signature_ed25519, approver_public_key_b64
-    )
+    valid_sig = _verify_signature(entry.hash_sha3_512, entry.signature_ed25519, approver_public_key_b64)
 
     if valid_sig:
         entry.verified = True
-        entry.last_verified_at = datetime.now(timezone.utc)
+        entry.last_verified_at = datetime.now(UTC)
         await db.commit()
 
     log.info(
@@ -201,31 +193,18 @@ async def verify_forensic_entry(
     return valid_sig
 
 
-async def get_entry_by_action(
-    db: AsyncSession, action_id: str
-) -> ForensicEntry | None:
-    result = await db.execute(
-        select(ForensicEntry).where(ForensicEntry.action_id == action_id)
-    )
+async def get_entry_by_action(db: AsyncSession, action_id: str) -> ForensicEntry | None:
+    result = await db.execute(select(ForensicEntry).where(ForensicEntry.action_id == action_id))
     return result.scalar_one_or_none()
 
 
-async def get_entry_by_id(
-    db: AsyncSession, entry_id: str
-) -> ForensicEntry | None:
-    result = await db.execute(
-        select(ForensicEntry).where(ForensicEntry.id == entry_id)
-    )
+async def get_entry_by_id(db: AsyncSession, entry_id: str) -> ForensicEntry | None:
+    result = await db.execute(select(ForensicEntry).where(ForensicEntry.id == entry_id))
     return result.scalar_one_or_none()
 
 
-async def list_entries(
-    db: AsyncSession, limit: int = 100, offset: int = 0
-) -> list[ForensicEntry]:
+async def list_entries(db: AsyncSession, limit: int = 100, offset: int = 0) -> list[ForensicEntry]:
     result = await db.execute(
-        select(ForensicEntry)
-        .order_by(ForensicEntry.signed_at.desc())
-        .limit(limit)
-        .offset(offset)
+        select(ForensicEntry).order_by(ForensicEntry.signed_at.desc()).limit(limit).offset(offset)
     )
     return list(result.scalars().all())

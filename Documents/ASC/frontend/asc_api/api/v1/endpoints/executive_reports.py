@@ -17,19 +17,20 @@ Endpoints
 Security: analyst+ for reads; generate/delete require admin role.
 Rate-limiting: reads 60/min, writes/generate 10/min.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin, get_current_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.core.logging import get_logger
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
-from asc_api.models.executive_report import REPORT_TYPES, REPORT_PERIODS
+from asc_api.models.executive_report import REPORT_PERIODS, REPORT_TYPES
 from asc_api.models.user import User
 from asc_api.services import reporting_service
 
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/reports/executive", tags=["Executive Reports / PIIL"
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
+
 
 class GenerateReportRequest(BaseModel):
     report_type: str = Field("full_executive")
@@ -71,6 +73,7 @@ class GenerateReportRequest(BaseModel):
 
 # ── Serializers ───────────────────────────────────────────────────────────────
 
+
 def _report_summary(r: any) -> dict:
     return {
         "id": r.id,
@@ -103,6 +106,7 @@ def _report_full(r: any) -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/summary", summary="Resumen del módulo de reportes ejecutivos")
 @limiter.limit("60/minute")

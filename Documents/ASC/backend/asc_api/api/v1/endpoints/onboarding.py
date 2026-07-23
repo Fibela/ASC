@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
@@ -43,6 +43,7 @@ _settings = get_settings()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _token_hash(raw_token: str) -> str:
     """SHA-256 hex digest — raw token is never stored in the DB."""
     return hashlib.sha256(raw_token.encode()).hexdigest()
@@ -52,9 +53,7 @@ def _make_verification_token() -> tuple[str, str, datetime]:
     """Return (raw_token, token_hash, expires_at)."""
     raw = secrets.token_urlsafe(32)
     hashed = _token_hash(raw)
-    expires = datetime.now(timezone.utc) + timedelta(
-        hours=_settings.EMAIL_VERIFICATION_EXPIRE_HOURS
-    )
+    expires = datetime.now(UTC) + timedelta(hours=_settings.EMAIL_VERIFICATION_EXPIRE_HOURS)
     return raw, hashed, expires
 
 
@@ -71,7 +70,8 @@ async def _send_verification_email(email: str, raw_token: str) -> None:
         return  # dev/test: verification link is in server logs only
 
     try:
-        import httpx  # noqa: PLC0415 — optional dep, only imported when Resend is configured
+        import httpx
+
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 "https://api.resend.com/emails",
@@ -96,6 +96,7 @@ async def _send_verification_email(email: str, raw_token: str) -> None:
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class RegisterRequest(BaseModel):
     tenant_name: str = Field(..., min_length=2, max_length=255)
@@ -137,6 +138,7 @@ class CompleteOnboardingResponse(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/register",
     response_model=RegisterResponse,
@@ -158,9 +160,7 @@ async def register(
     On success: returns tenant_id and user_id. Login is blocked until email is verified.
     """
     # Check slug uniqueness
-    existing_slug = await db.execute(
-        select(Tenant).where(Tenant.slug == payload.tenant_slug)
-    )
+    existing_slug = await db.execute(select(Tenant).where(Tenant.slug == payload.tenant_slug))
     if existing_slug.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -168,9 +168,7 @@ async def register(
         )
 
     # Check email uniqueness
-    existing_email = await db.execute(
-        select(User).where(User.email == payload.email)
-    )
+    existing_email = await db.execute(select(User).where(User.email == payload.email))
     if existing_email.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -188,7 +186,8 @@ async def register(
     await db.flush()  # populate tenant.id before referencing it in User
 
     # Hash password — import here to avoid circular deps at module level
-    from asc_api.core.security import get_password_hash  # noqa: PLC0415
+    from asc_api.core.security import get_password_hash
+
     raw_token, token_hash, expires_at = _make_verification_token()
 
     user = User(
@@ -238,9 +237,7 @@ async def verify_email(
     clears the token fields.
     """
     token_hash = _token_hash(payload.token)
-    result = await db.execute(
-        select(User).where(User.email_verification_token == token_hash)
-    )
+    result = await db.execute(select(User).where(User.email_verification_token == token_hash))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -249,7 +246,7 @@ async def verify_email(
             detail={"code": "invalid_token", "message": "Token de verificación inválido o ya utilizado."},
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if user.email_verification_expires_at and now > user.email_verification_expires_at:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -312,7 +309,10 @@ async def complete_onboarding(
     if step == "pending_email":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "email_not_verified", "message": "Debes verificar tu email antes de completar el onboarding."},
+            detail={
+                "code": "email_not_verified",
+                "message": "Debes verificar tu email antes de completar el onboarding.",
+            },
         )
 
     current_user.onboarding_step = "completed"
@@ -331,6 +331,7 @@ async def complete_onboarding(
 
 
 # ── FASE 2.3 — SSO Onboarding wizard completion ───────────────────────────────
+
 
 class SSOCompleteRequest(BaseModel):
     tenant_name: str | None = Field(None, min_length=2, max_length=255)
@@ -363,9 +364,7 @@ async def sso_complete_onboarding(
 
     # Update tenant name if provided (and user has a tenant)
     if payload.tenant_name and current_user.tenant_id:
-        tenant_result = await db.execute(
-            select(Tenant).where(Tenant.id == current_user.tenant_id)
-        )
+        tenant_result = await db.execute(select(Tenant).where(Tenant.id == current_user.tenant_id))
         tenant = tenant_result.scalar_one_or_none()
         if tenant:
             tenant.name = payload.tenant_name

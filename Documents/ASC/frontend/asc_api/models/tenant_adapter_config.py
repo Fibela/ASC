@@ -18,42 +18,40 @@ Credential storage plan:
 """
 
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, JSON, UniqueConstraint, Text
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Boolean, DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 # Supported adapter types and their allowed providers
-ADAPTER_TYPES: frozenset[str] = frozenset({
-    "edr",       # Endpoint Detection & Response
-    "firewall",  # Network firewall / perimeter
-    "identity",  # Identity & Access (AD / LDAP)
-    "siem",      # Security Information & Event Management
-    "soar",      # Security Orchestration, Automation & Response
-})
+ADAPTER_TYPES: frozenset[str] = frozenset(
+    {
+        "edr",  # Endpoint Detection & Response
+        "firewall",  # Network firewall / perimeter
+        "identity",  # Identity & Access (AD / LDAP)
+        "siem",  # Security Information & Event Management
+        "soar",  # Security Orchestration, Automation & Response
+    }
+)
 
 ADAPTER_PROVIDERS: dict[str, frozenset[str]] = {
-    "edr":      frozenset({"specter", "none"}),
+    "edr": frozenset({"specter", "none"}),
     "firewall": frozenset({"paloalto", "fortinet", "none"}),
     "identity": frozenset({"active_directory", "none"}),
-    "siem":     frozenset({"elasticsearch", "wazuh", "none"}),
-    "soar":     frozenset({"thehive", "none"}),
+    "siem": frozenset({"elasticsearch", "wazuh", "none"}),
+    "soar": frozenset({"thehive", "none"}),
 }
 
 
 class TenantAdapterConfig(Base):
     __tablename__ = "tenant_adapter_configs"
 
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "adapter_type", name="uq_tenant_adapter_type"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "adapter_type", name="uq_tenant_adapter_type"),)
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    tenant_id: Mapped[str] = mapped_column(
-        String(36), nullable=False, index=True
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     # Category: edr | firewall | identity | siem | soar
     adapter_type: Mapped[str] = mapped_column(String(50), nullable=False)
     # Specific provider within the category
@@ -69,13 +67,11 @@ class TenantAdapterConfig(Base):
     # First 4 chars of the original credential (display only, never the full value)
     credential_hint: Mapped[str | None] = mapped_column(String(8), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     @property

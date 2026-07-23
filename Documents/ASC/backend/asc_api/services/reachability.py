@@ -13,9 +13,10 @@ El backend agrega esos reportes en una ventana reciente:
 Es RETROSPECTIVO (confirma y da radio de impacto tras el hecho); la alerta EN VIVO la da
 el watchdog externo (Capa 2). Aquí se responde: "¿fue ASC o fue la red de un cliente?".
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,21 +26,21 @@ from asc_api.models.agent import Agent, AgentEvent
 CONNECTIVITY_GAP_EVENT = "specter.connectivity_gap"
 
 
-async def assess_distributed_reachability(
-    db: AsyncSession, window_minutes: int = 15
-) -> dict:
+async def assess_distributed_reachability(db: AsyncSession, window_minutes: int = 15) -> dict:
     """Agrega reportes de gap de conectividad de agentes en la ventana reciente."""
-    since = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+    since = datetime.now(UTC) - timedelta(minutes=window_minutes)
 
     # Agentes distintos que reportaron gap + total de reportes.
-    rows = (await db.execute(
-        select(AgentEvent.agent_id, func.count())
-        .where(
-            AgentEvent.event_type == CONNECTIVITY_GAP_EVENT,
-            AgentEvent.received_at >= since,
+    rows = (
+        await db.execute(
+            select(AgentEvent.agent_id, func.count())
+            .where(
+                AgentEvent.event_type == CONNECTIVITY_GAP_EVENT,
+                AgentEvent.received_at >= since,
+            )
+            .group_by(AgentEvent.agent_id)
         )
-        .group_by(AgentEvent.agent_id)
-    )).all()
+    ).all()
 
     agent_ids = [r[0] for r in rows]
     total_reports = int(sum(r[1] for r in rows))
@@ -48,10 +49,9 @@ async def assess_distributed_reachability(
     # Tenants distintos = redes distintas (señal más fuerte de caída global).
     n_tenants = 0
     if agent_ids:
-        n_tenants = (await db.execute(
-            select(func.count(func.distinct(Agent.tenant_id)))
-            .where(Agent.id.in_(agent_ids))
-        )).scalar_one() or 0
+        n_tenants = (
+            await db.execute(select(func.count(func.distinct(Agent.tenant_id))).where(Agent.id.in_(agent_ids)))
+        ).scalar_one() or 0
 
     if n_agents == 0:
         classification = "none"
@@ -68,6 +68,6 @@ async def assess_distributed_reachability(
         "agents_reporting_gaps": n_agents,
         "distinct_networks": int(n_tenants),
         "total_gap_reports": total_reports,
-        "classification": classification,   # none | localized | global
+        "classification": classification,  # none | localized | global
         "note": note,
     }

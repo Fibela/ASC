@@ -17,12 +17,12 @@ import hashlib
 import hmac
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,6 +49,7 @@ RESOURCE_TYPES = ("users", "alerts", "api_keys", "webhooks", "incidents")
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+
 
 class UsageSummaryItem(BaseModel):
     resource_type: str
@@ -93,7 +94,7 @@ class PlanFeatures(BaseModel):
 class PlanInfo(BaseModel):
     id: str
     name: str
-    price_usd: int | None       # None = contact sales
+    price_usd: int | None  # None = contact sales
     price_usd_annual: int | None = None
     billing_period: str
     highlight: bool = False
@@ -126,13 +127,12 @@ class PortalResponse(BaseModel):
     portal_url: str
 
 
-
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _current_period() -> str:
     """Return current billing period in YYYY-MM format."""
-    return datetime.now(timezone.utc).strftime("%Y-%m")
+    return datetime.now(UTC).strftime("%Y-%m")
 
 
 async def _count_resource(resource: str, tenant_id: str, db: AsyncSession) -> int:
@@ -141,31 +141,27 @@ async def _count_resource(resource: str, tenant_id: str, db: AsyncSession) -> in
         result = await db.execute(
             select(func.count()).where(
                 User.tenant_id == tenant_id,
-                User.is_active == True,  # noqa: E712
+                User.is_active == True,
             )
         )
     elif resource == "alerts":
-        result = await db.execute(
-            select(func.count()).where(Alert.tenant_id == tenant_id)
-        )
+        result = await db.execute(select(func.count()).where(Alert.tenant_id == tenant_id))
     elif resource == "api_keys":
         result = await db.execute(
             select(func.count()).where(
                 APIKey.tenant_id == tenant_id,
-                APIKey.is_active == True,  # noqa: E712
+                APIKey.is_active == True,
             )
         )
     elif resource == "webhooks":
         result = await db.execute(
             select(func.count()).where(
                 Webhook.tenant_id == tenant_id,
-                Webhook.is_active == True,  # noqa: E712
+                Webhook.is_active == True,
             )
         )
     elif resource == "incidents":
-        result = await db.execute(
-            select(func.count()).where(Incident.tenant_id == tenant_id)
-        )
+        result = await db.execute(select(func.count()).where(Incident.tenant_id == tenant_id))
     else:
         return 0
     return result.scalar_one()
@@ -180,16 +176,21 @@ async def _upsert_usage_record(
 ) -> None:
     """Insert or update a usage record (PostgreSQL upsert)."""
     import uuid  # local to avoid polluting module namespace
-    stmt = pg_insert(UsageRecord).values(
-        id=str(uuid.uuid4()),
-        tenant_id=tenant_id,
-        period=period,
-        resource_type=resource_type,
-        count=count,
-        recorded_at=datetime.now(timezone.utc),
-    ).on_conflict_do_update(
-        constraint="uq_usage_tenant_period_resource",
-        set_={"count": count, "recorded_at": datetime.now(timezone.utc)},
+
+    stmt = (
+        pg_insert(UsageRecord)
+        .values(
+            id=str(uuid.uuid4()),
+            tenant_id=tenant_id,
+            period=period,
+            resource_type=resource_type,
+            count=count,
+            recorded_at=datetime.now(UTC),
+        )
+        .on_conflict_do_update(
+            constraint="uq_usage_tenant_period_resource",
+            set_={"count": count, "recorded_at": datetime.now(UTC)},
+        )
     )
     await db.execute(stmt)
 
@@ -216,7 +217,8 @@ def _verify_stripe_signature(payload_bytes: bytes, sig_header: str, secret: str)
     except (KeyError, IndexError, ValueError):
         return False
 
-    import time as _time  # noqa: PLC0415
+    import time as _time
+
     if abs(_time.time() - int(timestamp)) > 300:
         return False  # replay attack guard — Stripe requires ±5 min tolerance
 
@@ -227,6 +229,7 @@ def _verify_stripe_signature(payload_bytes: bytes, sig_header: str, secret: str)
 
 
 # ── P60 — Stripe Checkout Auto-Provisioning ──────────────────────────────────
+
 
 async def _provision_stripe_customer(
     customer_email: str,
@@ -249,18 +252,14 @@ async def _provision_stripe_customer(
     """
     # 0. Idempotency guard
     if checkout_session_id:
-        result = await db.execute(
-            select(Tenant).where(Tenant.stripe_checkout_session_id == checkout_session_id)
-        )
+        result = await db.execute(select(Tenant).where(Tenant.stripe_checkout_session_id == checkout_session_id))
         existing = result.scalar_one_or_none()
         if existing:
             return existing, False
 
     # 1. Lookup by stripe_customer_id
     if stripe_customer_id:
-        result = await db.execute(
-            select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id)
-        )
+        result = await db.execute(select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id))
         tenant = result.scalar_one_or_none()
         if tenant:
             tenant.plan = _settings.STRIPE_PROVISIONING_PLAN
@@ -275,9 +274,7 @@ async def _provision_stripe_customer(
     result = await db.execute(select(User).where(User.email == customer_email))
     existing_user = result.scalar_one_or_none()
     if existing_user and existing_user.tenant_id:
-        result = await db.execute(
-            select(Tenant).where(Tenant.id == existing_user.tenant_id)
-        )
+        result = await db.execute(select(Tenant).where(Tenant.id == existing_user.tenant_id))
         tenant = result.scalar_one_or_none()
         if tenant:
             tenant.stripe_customer_id = stripe_customer_id
@@ -291,7 +288,7 @@ async def _provision_stripe_customer(
             return tenant, False
 
     # 3. Auto-provision: new Tenant + admin User
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tenant_id = str(uuid.uuid4())
     slug = customer_email.split("@")[0].lower().replace(".", "-")[:50]
 
@@ -329,14 +326,11 @@ async def _provision_stripe_customer(
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/plans", response_model=PlansResponse)
 async def list_plans(db: AsyncSession = Depends(get_db)):
     """Return available ASC subscription plans sourced from DB. No authentication required."""
-    result = await db.execute(
-        select(BillingPlan)
-        .where(BillingPlan.is_active == True)  # noqa: E712
-        .order_by(BillingPlan.sort_order)
-    )
+    result = await db.execute(select(BillingPlan).where(BillingPlan.is_active == True).order_by(BillingPlan.sort_order))
     plans = result.scalars().all()
     return PlansResponse(
         plans=[
@@ -514,10 +508,7 @@ async def get_my_usage(
     records = result.scalars().all()
     record_map = {r.resource_type: r.count for r in records}
 
-    items = [
-        UsageSummaryItem(resource_type=rt, count=record_map.get(rt, 0), period=period)
-        for rt in RESOURCE_TYPES
-    ]
+    items = [UsageSummaryItem(resource_type=rt, count=record_map.get(rt, 0), period=period) for rt in RESOURCE_TYPES]
     return UsageSummaryResponse(tenant_id=tenant_id, period=period, items=items)
 
 
@@ -540,10 +531,7 @@ async def get_tenant_usage(
     records = result.scalars().all()
     record_map = {r.resource_type: r.count for r in records}
 
-    items = [
-        UsageSummaryItem(resource_type=rt, count=record_map.get(rt, 0), period=period)
-        for rt in RESOURCE_TYPES
-    ]
+    items = [UsageSummaryItem(resource_type=rt, count=record_map.get(rt, 0), period=period) for rt in RESOURCE_TYPES]
     return UsageSummaryResponse(tenant_id=tenant_id, period=period, items=items)
 
 
@@ -624,15 +612,14 @@ async def stripe_webhook(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Missing Stripe-Signature header",
             )
-        if not _verify_stripe_signature(
-            payload_bytes, stripe_signature, _settings.STRIPE_WEBHOOK_SECRET
-        ):
+        if not _verify_stripe_signature(payload_bytes, stripe_signature, _settings.STRIPE_WEBHOOK_SECRET):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid Stripe webhook signature",
             )
 
-    import json  # noqa: PLC0415
+    import json
+
     try:
         event = json.loads(payload_bytes)
     except json.JSONDecodeError:
@@ -648,10 +635,7 @@ async def stripe_webhook(
     # ── P60: checkout.session.completed → provision / upgrade tenant ──────────
     if event_type == "checkout.session.completed":
         session = event.get("data", {}).get("object", {})
-        customer_email: str = (
-            session.get("customer_email")
-            or session.get("customer_details", {}).get("email", "")
-        )
+        customer_email: str = session.get("customer_email") or session.get("customer_details", {}).get("email", "")
         stripe_customer_id: str = session.get("customer", "")
         stripe_subscription_id: str | None = session.get("subscription")
         checkout_session_id: str = session.get("id", "")
@@ -690,9 +674,7 @@ async def stripe_webhook(
         sub_status = subscription.get("status")
 
         if stripe_customer_id and sub_status == "active":
-            result = await db.execute(
-                select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id)
-            )
+            result = await db.execute(select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id))
             tenant = result.scalar_one_or_none()
             if tenant:
                 tenant.stripe_subscription_id = stripe_sub_id
@@ -707,9 +689,7 @@ async def stripe_webhook(
         new_status = subscription.get("status")
 
         if stripe_customer_id:
-            result = await db.execute(
-                select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id)
-            )
+            result = await db.execute(select(Tenant).where(Tenant.stripe_customer_id == stripe_customer_id))
             tenant = result.scalar_one_or_none()
             if tenant:
                 if event_type == "customer.subscription.deleted":

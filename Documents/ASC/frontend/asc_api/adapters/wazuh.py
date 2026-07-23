@@ -24,18 +24,19 @@ Wazuh levels → ASC severity:
   12-14 → high
   15    → critical
 """
+
 from __future__ import annotations
 
 import base64
-import httpx
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
-from asc_api.adapters import BaseAdapter, HTTP_TIMEOUT, USER_AGENT
+import httpx
+
+from asc_api.adapters import HTTP_TIMEOUT, USER_AGENT, BaseAdapter
 from asc_api.core.config import get_settings
 
-
 # ─── Severity mapping ─────────────────────────────────────────────────────────
+
 
 def wazuh_level_to_severity(level: int) -> str:
     if level >= 15:
@@ -58,9 +59,9 @@ class WazuhAdapter(BaseAdapter):
 
     def __init__(self) -> None:
         s = get_settings()
-        self._url        = s.WAZUH_URL.rstrip("/")
-        self._username   = s.WAZUH_USERNAME
-        self._password   = s.WAZUH_PASSWORD
+        self._url = s.WAZUH_URL.rstrip("/")
+        self._username = s.WAZUH_USERNAME
+        self._password = s.WAZUH_PASSWORD
         self._verify_ssl = s.WAZUH_VERIFY_SSL
 
     # ─── Cache helpers ────────────────────────────────────────────────────────
@@ -93,9 +94,9 @@ class WazuhAdapter(BaseAdapter):
         resp = await client.post(
             f"{self._url}/security/user/authenticate",
             headers={
-                "User-Agent":    USER_AGENT,
+                "User-Agent": USER_AGENT,
                 "Authorization": self._basic_auth_header(),
-                "Content-Type":  "application/json",
+                "Content-Type": "application/json",
             },
         )
         resp.raise_for_status()
@@ -107,7 +108,7 @@ class WazuhAdapter(BaseAdapter):
         Reduces Wazuh Manager load and eliminates per-request Basic-auth round trips.
         """
         key = self._cache_key()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         cached = self._token_cache.get(key)
         if cached is not None:
@@ -121,8 +122,8 @@ class WazuhAdapter(BaseAdapter):
 
     def _bearer_headers(self, token: str) -> dict:
         return {
-            "User-Agent":    USER_AGENT,
-            "Accept":        "application/json",
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
             "Authorization": f"Bearer {token}",
         }
 
@@ -133,27 +134,27 @@ class WazuhAdapter(BaseAdapter):
         Transform a Wazuh alert (_source from Wazuh API) into an ASC event dict
         suitable for ingestion via the events pipeline.
         """
-        rule    = hit.get("rule", {})
-        agent   = hit.get("agent", {})
-        level   = int(rule.get("level", 0))
-        ts_raw  = hit.get("timestamp", datetime.now(timezone.utc).isoformat())
+        rule = hit.get("rule", {})
+        agent = hit.get("agent", {})
+        level = int(rule.get("level", 0))
+        ts_raw = hit.get("timestamp", datetime.now(UTC).isoformat())
 
         return {
-            "source":   "wazuh",
+            "source": "wazuh",
             "category": "hids",
-            "action":   rule.get("description", "wazuh_alert"),
-            "host":     agent.get("name", agent.get("id", "unknown")),
+            "action": rule.get("description", "wazuh_alert"),
+            "host": agent.get("name", agent.get("id", "unknown")),
             "severity": wazuh_level_to_severity(level),
-            "raw_log":  str(hit.get("full_log", hit.get("data", ""))),
+            "raw_log": str(hit.get("full_log", hit.get("data", ""))),
             "data": {
-                "wazuh_rule_id":    rule.get("id", ""),
+                "wazuh_rule_id": rule.get("id", ""),
                 "wazuh_rule_level": level,
-                "wazuh_rule_desc":  rule.get("description", ""),
-                "wazuh_agent_id":   agent.get("id", ""),
+                "wazuh_rule_desc": rule.get("description", ""),
+                "wazuh_agent_id": agent.get("id", ""),
                 "wazuh_agent_name": agent.get("name", ""),
-                "wazuh_groups":     rule.get("groups", []),
-                "original_id":      hit.get("id", ""),
-                "timestamp":        ts_raw,
+                "wazuh_groups": rule.get("groups", []),
+                "original_id": hit.get("id", ""),
+                "timestamp": ts_raw,
             },
         }
 
@@ -163,11 +164,9 @@ class WazuhAdapter(BaseAdapter):
         if not self.is_configured():
             return self._not_configured()
         try:
-            async with httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT, verify=self._verify_ssl
-            ) as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=self._verify_ssl) as client:
                 token = await self._get_cached_token(client)
-                resp  = await client.get(
+                resp = await client.get(
                     f"{self._url}/manager/info",
                     headers=self._bearer_headers(token),
                 )
@@ -201,24 +200,22 @@ class WazuhAdapter(BaseAdapter):
             return self._not_configured()
 
         if since is None:
-            since = datetime.now(timezone.utc) - timedelta(hours=1)
+            since = datetime.now(UTC) - timedelta(hours=1)
 
         since_str = since.strftime("%Y-%m-%dT%H:%M:%S")
 
         try:
-            async with httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT, verify=self._verify_ssl
-            ) as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=self._verify_ssl) as client:
                 token = await self._get_cached_token(client)
-                resp  = await client.get(
+                resp = await client.get(
                     f"{self._url}/alerts",
                     params={"limit": limit, "q": f"timestamp>{since_str}"},
                     headers=self._bearer_headers(token),
                 )
             if resp.status_code == 200:
-                body   = resp.json()
+                body = resp.json()
                 alerts = body.get("data", {}).get("affected_items", [])
-                total  = body.get("data", {}).get("total_affected_items", len(alerts))
+                total = body.get("data", {}).get("total_affected_items", len(alerts))
                 return self._ok(
                     adapter=self.ADAPTER_NAME,
                     total=total,
@@ -251,10 +248,9 @@ class WazuhAdapter(BaseAdapter):
         limit = min(limit, 1000)
         try:
             import time
+
             t0 = time.monotonic()
-            async with httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT, verify=self._verify_ssl
-            ) as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=self._verify_ssl) as client:
                 token = await self._get_cached_token(client)
                 resp = await client.get(
                     f"{self._url}/alerts",
@@ -289,17 +285,15 @@ class WazuhAdapter(BaseAdapter):
         if not self.is_configured():
             return self._not_configured()
         try:
-            async with httpx.AsyncClient(
-                timeout=HTTP_TIMEOUT, verify=self._verify_ssl
-            ) as client:
+            async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, verify=self._verify_ssl) as client:
                 token = await self._get_cached_token(client)
-                resp  = await client.get(
+                resp = await client.get(
                     f"{self._url}/agents",
                     params={"status": status, "limit": 500},
                     headers=self._bearer_headers(token),
                 )
             if resp.status_code == 200:
-                body   = resp.json()
+                body = resp.json()
                 agents = body.get("data", {}).get("affected_items", [])
                 return self._ok(
                     adapter=self.ADAPTER_NAME,

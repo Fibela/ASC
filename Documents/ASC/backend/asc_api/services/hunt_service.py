@@ -4,13 +4,14 @@ P22 — Threat Hunting Service
 All operations are PASSIVE (read-only analysis of already-collected data).
 No active probing or outbound connections are initiated here.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.logging import get_logger
@@ -26,11 +27,23 @@ VALID_PRIORITIES = frozenset({"critical", "high", "medium", "low"})
 VALID_SCOPES = frozenset({"host", "network", "cloud", "all"})
 VALID_SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
 VALID_DATA_SOURCES = frozenset({"elk", "wazuh", "specter_agent", "manual"})
-VALID_INDICATOR_TYPES = frozenset({
-    "ip", "cidr", "domain", "url", "email",
-    "hash_md5", "hash_sha1", "hash_sha256",
-    "file_path", "mutex", "registry_key", "cve", "other",
-})
+VALID_INDICATOR_TYPES = frozenset(
+    {
+        "ip",
+        "cidr",
+        "domain",
+        "url",
+        "email",
+        "hash_md5",
+        "hash_sha1",
+        "hash_sha256",
+        "file_path",
+        "mutex",
+        "registry_key",
+        "cve",
+        "other",
+    }
+)
 
 # Status transition rules
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
@@ -44,6 +57,7 @@ _SEV_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
 
 # ── Serializers ────────────────────────────────────────────────────────────────
+
 
 def _hunt_to_dict(h: Hunt, *, include_relations: bool = False) -> dict:
     d: dict[str, Any] = {
@@ -115,6 +129,7 @@ def _query_to_dict(q: HuntQuery) -> dict:
 
 # ── Hunt CRUD ──────────────────────────────────────────────────────────────────
 
+
 async def create_hunt(
     db: AsyncSession,
     *,
@@ -136,7 +151,7 @@ async def create_hunt(
     if not name or not name.strip():
         raise ValueError("Hunt name cannot be empty")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     hunt = Hunt(
         id=str(uuid.uuid4()),
         name=name.strip(),
@@ -223,18 +238,26 @@ async def update_hunt(
         allowed = _ALLOWED_TRANSITIONS.get(hunt.status, set())
         if new_status not in allowed:
             raise ValueError(
-                f"Cannot transition hunt from '{hunt.status}' to '{new_status}'. "
-                f"Allowed: {allowed or 'none'}"
+                f"Cannot transition hunt from '{hunt.status}' to '{new_status}'. Allowed: {allowed or 'none'}"
             )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if new_status == "active" and hunt.started_at is None:
             hunt.started_at = now
         elif new_status == "completed" and hunt.completed_at is None:
             hunt.completed_at = now
 
     allowed_fields = {
-        "name", "description", "hypothesis", "mitre_technique", "mitre_tactic",
-        "scope", "priority", "assigned_to", "conclusion", "tags", "status",
+        "name",
+        "description",
+        "hypothesis",
+        "mitre_technique",
+        "mitre_tactic",
+        "scope",
+        "priority",
+        "assigned_to",
+        "conclusion",
+        "tags",
+        "status",
     }
     for field, value in updates.items():
         if field not in allowed_fields:
@@ -245,7 +268,7 @@ async def update_hunt(
             raise ValueError(f"Invalid priority '{value}'")
         setattr(hunt, field, value)
 
-    hunt.updated_at = datetime.now(timezone.utc)
+    hunt.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(hunt)
     log.info("hunt_updated", hunt_id=hunt_id, fields=list(updates.keys()), updated_by=updated_by)
@@ -258,13 +281,14 @@ async def archive_hunt(db: AsyncSession, hunt_id: str) -> bool:
     if hunt is None:
         return False
     hunt.status = "archived"
-    hunt.updated_at = datetime.now(timezone.utc)
+    hunt.updated_at = datetime.now(UTC)
     await db.commit()
     log.info("hunt_archived", hunt_id=hunt_id)
     return True
 
 
 # ── Findings ──────────────────────────────────────────────────────────────────
+
 
 async def add_finding(
     db: AsyncSession,
@@ -291,7 +315,7 @@ async def add_finding(
     if indicator_type and indicator_type not in VALID_INDICATOR_TYPES:
         raise ValueError(f"Invalid indicator_type '{indicator_type}'")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     finding = HuntFinding(
         id=str(uuid.uuid4()),
         hunt_id=hunt_id,
@@ -357,15 +381,24 @@ async def update_finding(
         return None
 
     allowed_fields = {
-        "title", "description", "severity", "indicator_value", "indicator_type",
-        "affected_host", "affected_user", "data_source", "mitre_technique",
-        "mitre_tactic", "evidence", "analyst_notes",
+        "title",
+        "description",
+        "severity",
+        "indicator_value",
+        "indicator_type",
+        "affected_host",
+        "affected_user",
+        "data_source",
+        "mitre_technique",
+        "mitre_tactic",
+        "evidence",
+        "analyst_notes",
     }
     for field, value in updates.items():
         if field in allowed_fields:
             setattr(finding, field, value)
 
-    finding.updated_at = datetime.now(timezone.utc)
+    finding.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(finding)
     return finding
@@ -389,7 +422,7 @@ async def set_finding_verdict(
     finding.is_false_positive = is_false_positive
     if analyst_notes is not None:
         finding.analyst_notes = analyst_notes
-    finding.updated_at = datetime.now(timezone.utc)
+    finding.updated_at = datetime.now(UTC)
 
     # Update hunt true_positive_count
     hunt = await get_hunt(db, finding.hunt_id)
@@ -398,7 +431,7 @@ async def set_finding_verdict(
             hunt.true_positive_count = (hunt.true_positive_count or 0) + 1
         elif not is_confirmed and was_confirmed:
             hunt.true_positive_count = max(0, (hunt.true_positive_count or 1) - 1)
-        hunt.updated_at = datetime.now(timezone.utc)
+        hunt.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(finding)
@@ -407,6 +440,7 @@ async def set_finding_verdict(
 
 
 # ── Queries ───────────────────────────────────────────────────────────────────
+
 
 async def save_query(
     db: AsyncSession,
@@ -423,7 +457,7 @@ async def save_query(
     if not query_text or not query_text.strip():
         raise ValueError("query_text cannot be empty")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     query = HuntQuery(
         id=str(uuid.uuid4()),
         hunt_id=hunt_id,
@@ -443,9 +477,7 @@ async def save_query(
 
 async def list_queries(db: AsyncSession, hunt_id: str) -> list[HuntQuery]:
     result = await db.execute(
-        select(HuntQuery)
-        .where(HuntQuery.hunt_id == hunt_id)
-        .order_by(HuntQuery.created_at.desc())
+        select(HuntQuery).where(HuntQuery.hunt_id == hunt_id).order_by(HuntQuery.created_at.desc())
     )
     return list(result.scalars().all())
 
@@ -466,40 +498,39 @@ async def delete_query(db: AsyncSession, query_id: str) -> bool:
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 
+
 async def get_hunt_stats(db: AsyncSession) -> dict:
     total = (await db.execute(select(func.count(Hunt.id)))).scalar_one()
 
     # By status
-    status_rows = (await db.execute(
-        select(Hunt.status, func.count(Hunt.id)).group_by(Hunt.status)
-    )).all()
+    status_rows = (await db.execute(select(Hunt.status, func.count(Hunt.id)).group_by(Hunt.status))).all()
     by_status = {row[0]: row[1] for row in status_rows}
 
     # By priority
-    priority_rows = (await db.execute(
-        select(Hunt.priority, func.count(Hunt.id)).group_by(Hunt.priority)
-    )).all()
+    priority_rows = (await db.execute(select(Hunt.priority, func.count(Hunt.id)).group_by(Hunt.priority))).all()
     by_priority = {row[0]: row[1] for row in priority_rows}
 
     # Findings stats
     total_findings = (await db.execute(select(func.count(HuntFinding.id)))).scalar_one()
-    confirmed_findings = (await db.execute(
-        select(func.count(HuntFinding.id)).where(HuntFinding.is_confirmed.is_(True))
-    )).scalar_one()
+    confirmed_findings = (
+        await db.execute(select(func.count(HuntFinding.id)).where(HuntFinding.is_confirmed.is_(True)))
+    ).scalar_one()
 
-    sev_rows = (await db.execute(
-        select(HuntFinding.severity, func.count(HuntFinding.id)).group_by(HuntFinding.severity)
-    )).all()
+    sev_rows = (
+        await db.execute(select(HuntFinding.severity, func.count(HuntFinding.id)).group_by(HuntFinding.severity))
+    ).all()
     findings_by_severity = {row[0]: row[1] for row in sev_rows}
 
     # Top techniques
-    technique_rows = (await db.execute(
-        select(Hunt.mitre_technique, func.count(Hunt.id))
-        .where(Hunt.mitre_technique.isnot(None))
-        .group_by(Hunt.mitre_technique)
-        .order_by(func.count(Hunt.id).desc())
-        .limit(10)
-    )).all()
+    technique_rows = (
+        await db.execute(
+            select(Hunt.mitre_technique, func.count(Hunt.id))
+            .where(Hunt.mitre_technique.isnot(None))
+            .group_by(Hunt.mitre_technique)
+            .order_by(func.count(Hunt.id).desc())
+            .limit(10)
+        )
+    ).all()
     top_techniques = [{"technique": r[0], "count": r[1]} for r in technique_rows]
 
     return {
@@ -510,15 +541,14 @@ async def get_hunt_stats(db: AsyncSession) -> dict:
         "completed_hunts": by_status.get("completed", 0),
         "total_findings": total_findings,
         "confirmed_findings": confirmed_findings,
-        "false_positive_rate": round(
-            1.0 - (confirmed_findings / total_findings) if total_findings > 0 else 0.0, 3
-        ),
+        "false_positive_rate": round(1.0 - (confirmed_findings / total_findings) if total_findings > 0 else 0.0, 3),
         "findings_by_severity": findings_by_severity,
         "top_techniques": top_techniques,
     }
 
 
 # ── P23-F2: Hunt from Alert ───────────────────────────────────────────────────
+
 
 async def create_hunt_from_alert(
     db: AsyncSession,
@@ -545,7 +575,7 @@ async def create_hunt_from_alert(
     if alert is None:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Map alert severity → hunt priority
     priority_map = {"critical": "critical", "high": "high", "medium": "medium", "low": "low"}
@@ -562,7 +592,7 @@ async def create_hunt_from_alert(
     # Extract first MITRE technique from TTPs
     mitre_technique: str | None = None
     mitre_tactic: str | None = None
-    for ttp in (alert.ttps or []):
+    for ttp in alert.ttps or []:
         if isinstance(ttp, str) and ttp.startswith("T"):
             mitre_technique = ttp[:6]  # e.g. "T1055"
             break
@@ -622,6 +652,7 @@ async def create_hunt_from_alert(
 
 # ── P23-F3: TI Auto-Enrichment on Findings ───────────────────────────────────
 
+
 async def enrich_finding(
     db: AsyncSession,
     finding_id: str,
@@ -654,17 +685,11 @@ async def enrich_finding(
 
     enriched = len(matches) > 0
     if enriched:
-        ti_summary = "; ".join(
-            f"{m.indicator_type}:{m.value} [{m.severity}] src={m.source}"
-            for m in matches[:5]
-        )
+        ti_summary = "; ".join(f"{m.indicator_type}:{m.value} [{m.severity}] src={m.source}" for m in matches[:5])
         existing_notes = finding.analyst_notes or ""
         separator = "\n\n" if existing_notes else ""
-        finding.analyst_notes = (
-            f"{existing_notes}{separator}"
-            f"[TI Enrichment] {len(matches)} match(es): {ti_summary}"
-        )
-        finding.updated_at = datetime.now(timezone.utc)
+        finding.analyst_notes = f"{existing_notes}{separator}[TI Enrichment] {len(matches)} match(es): {ti_summary}"
+        finding.updated_at = datetime.now(UTC)
         await db.commit()
 
     log.info(
@@ -676,6 +701,7 @@ async def enrich_finding(
     )
 
     from asc_api.services.threat_intel import _indicator_to_dict
+
     return {
         "finding_id": finding_id,
         "hunt_id": finding.hunt_id,
@@ -697,6 +723,7 @@ def _max_severity_from_matches(matches: list) -> str | None:
 
 
 # ── P23-F4: Hunt Report Export ────────────────────────────────────────────────
+
 
 async def generate_report(db: AsyncSession, hunt_id: str) -> dict | None:
     """
@@ -723,22 +750,28 @@ async def generate_report(db: AsyncSession, hunt_id: str) -> dict | None:
 
     # Timeline events
     timeline = []
-    timeline.append({"event": "hunt_created", "ts": hunt.created_at.isoformat(), "note": f"Created by {hunt.created_by}"})
+    timeline.append(
+        {"event": "hunt_created", "ts": hunt.created_at.isoformat(), "note": f"Created by {hunt.created_by}"}
+    )
     if hunt.started_at:
         timeline.append({"event": "hunt_started", "ts": hunt.started_at.isoformat(), "note": "Status set to active"})
     for f in sorted(findings, key=lambda x: x.created_at):
-        timeline.append({
-            "event": "finding_added",
-            "ts": f.created_at.isoformat(),
-            "note": f"[{f.severity.upper()}] {f.title}",
-            "confirmed": f.is_confirmed,
-            "false_positive": f.is_false_positive,
-        })
+        timeline.append(
+            {
+                "event": "finding_added",
+                "ts": f.created_at.isoformat(),
+                "note": f"[{f.severity.upper()}] {f.title}",
+                "confirmed": f.is_confirmed,
+                "false_positive": f.is_false_positive,
+            }
+        )
     if hunt.completed_at:
-        timeline.append({"event": "hunt_completed", "ts": hunt.completed_at.isoformat(), "note": "Status set to completed"})
+        timeline.append(
+            {"event": "hunt_completed", "ts": hunt.completed_at.isoformat(), "note": "Status set to completed"}
+        )
 
     return {
-        "report_generated_at": datetime.now(timezone.utc).isoformat(),
+        "report_generated_at": datetime.now(UTC).isoformat(),
         "hunt": _hunt_to_dict(hunt),
         "executive_summary": {
             "total_findings": len(findings),
@@ -764,8 +797,8 @@ async def generate_report(db: AsyncSession, hunt_id: str) -> dict | None:
 
 def _duration_hours(hunt: Hunt) -> float | None:
     start = hunt.started_at
-    end = hunt.completed_at or datetime.now(timezone.utc)
+    end = hunt.completed_at or datetime.now(UTC)
     if start is None:
         return None
-    delta = end - start if end.tzinfo else (end.replace(tzinfo=timezone.utc) - start)
+    delta = end - start if end.tzinfo else (end.replace(tzinfo=UTC) - start)
     return round(delta.total_seconds() / 3600, 2)

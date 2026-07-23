@@ -19,6 +19,7 @@ set SLOWAPI_STORAGE_URI in .env to a Redis URI so limits are shared across
 workers:
     SLOWAPI_STORAGE_URI=redis://:password@redis:6379/1
 """
+
 from __future__ import annotations
 
 from slowapi import Limiter

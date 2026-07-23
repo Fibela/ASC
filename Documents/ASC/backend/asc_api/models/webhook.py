@@ -19,29 +19,37 @@ failure_count: incremented on every delivery failure; reset to 0 on success.
 last_triggered_at: updated after every delivery attempt (success or failure).
 Auto-deactivation is a policy decision deferred to the delivery layer.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Integer, JSON, String,
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from asc_api.db.base import Base
 
 # Supported event types (subset exposed at P42; expand in future sprints)
-VALID_WEBHOOK_EVENTS = frozenset({
-    "incident.created",
-    "incident.updated",
-    "incident.resolved",
-    "alert.critical",
-    "alert.high",
-    "playbook.executed",
-    "api_key.rate_limited",
-    "test",            # synthetic event from the /test endpoint
-})
+VALID_WEBHOOK_EVENTS = frozenset(
+    {
+        "incident.created",
+        "incident.updated",
+        "incident.resolved",
+        "alert.critical",
+        "alert.high",
+        "playbook.executed",
+        "api_key.rate_limited",
+        "test",  # synthetic event from the /test endpoint
+    }
+)
 
 _MAX_WEBHOOKS_PER_USER = 10
 
@@ -62,16 +70,12 @@ class Webhook(Base):
     events: Mapped[list] = mapped_column(JSON, default=list)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
-    last_triggered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Consecutive failures; reset to 0 on successful delivery
     failure_count: Mapped[int] = mapped_column(Integer, default=0)
     # P47 Multi-tenancy — NULL = single-tenant / default deployment

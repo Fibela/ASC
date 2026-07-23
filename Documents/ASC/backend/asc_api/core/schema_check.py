@@ -11,6 +11,7 @@ Este chequeo compara las columnas mapeadas en `Base.metadata` contra
 cazado I-3 antes de que el portal cayera. Solo Postgres (producción); en SQLite de
 test se omite (devuelve []).
 """
+
 from __future__ import annotations
 
 from sqlalchemy import text
@@ -34,10 +35,7 @@ async def missing_model_columns(db: AsyncSession) -> list[str]:
 
     rows = (
         await db.execute(
-            text(
-                "SELECT table_name, column_name FROM information_schema.columns "
-                "WHERE table_schema = 'public'"
-            )
+            text("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'")
         )
     ).all()
 

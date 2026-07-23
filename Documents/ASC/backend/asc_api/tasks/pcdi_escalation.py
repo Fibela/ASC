@@ -19,11 +19,11 @@ Design principles:
   - Non-fatal: scoring failures are logged and skipped, not retried infinitely.
   - SSE publication is best-effort (Redis unavailable → skip, DB update still happens).
 """
+
 from __future__ import annotations
 
 import asyncio
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from asc_api.core.logging import get_logger
 from asc_api.db.session import AsyncSessionLocal
@@ -37,21 +37,18 @@ PCDI_CRITICAL_THRESHOLD = 80
 async def _run() -> dict:
     """Core async logic: score unreviewed high-risk findings, escalate critical hunts."""
     from sqlalchemy import select
+
+    from asc_api.core.audit import log_security_action
+    from asc_api.core.notifications import notification_bus
     from asc_api.models.hunt import Hunt, HuntFinding
     from asc_api.services.pcdi_service import compute_adaptive_score
-    from asc_api.core.audit import log_security_action
-    from asc_api.core.config import get_settings
-    from asc_api.core.notifications import notification_bus
 
-    settings = get_settings()
     escalated_hunts: list[str] = []
     scored_findings = 0
 
     async with AsyncSessionLocal() as db:
         # Load active hunts
-        hunts_result = await db.execute(
-            select(Hunt).where(Hunt.status == "active")
-        )
+        hunts_result = await db.execute(select(Hunt).where(Hunt.status == "active"))
         active_hunts = hunts_result.scalars().all()
 
         for hunt in active_hunts:
@@ -76,7 +73,7 @@ async def _run() -> dict:
                     if score > max_score:
                         max_score = score
                     scored_findings += 1
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     log.warning(
                         "pcdi_escalation_score_error",
                         finding_id=finding.id,
@@ -122,7 +119,7 @@ async def _run() -> dict:
                                 "max_pcdi_score": max_score,
                                 "old_priority": old_priority,
                                 "new_priority": "critical",
-                                "ts": datetime.now(timezone.utc).isoformat(),
+                                "ts": datetime.now(UTC).isoformat(),
                             },
                         )
                     )

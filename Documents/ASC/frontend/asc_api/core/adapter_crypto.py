@@ -10,12 +10,13 @@ the API surface (str → str) stays the same.
 
 import base64
 import hashlib
+
 from cryptography.fernet import Fernet, InvalidToken
 
 
 def _derive_fernet_key(secret_key: str) -> bytes:
     raw = hashlib.sha256(secret_key.encode()).digest()  # 32 bytes
-    return base64.urlsafe_b64encode(raw)                # Fernet expects URL-safe b64
+    return base64.urlsafe_b64encode(raw)  # Fernet expects URL-safe b64
 
 
 def encrypt_credential(credential: str, secret_key: str) -> str:

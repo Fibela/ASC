@@ -15,18 +15,19 @@ GET /ops/cross-domain          — Unified TI + Hunting + PANL + Fleet + PCDI me
 All endpoints require a valid JWT (analyst or admin).
 Data is computed on-demand from the live DB (no caching layer needed at SOC scale).
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import func, select, case, cast, Float
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.api.deps import get_analyst_or_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.agent import Agent, AgentCommand
 from asc_api.models.neutralization import NeutralizationAction
@@ -37,6 +38,7 @@ _s = get_settings()
 
 
 # ── Fleet summary ──────────────────────────────────────────────────────────────
+
 
 @router.get("/fleet/summary", summary="Resumen de estado de la flota SPECTER")
 @limiter.limit(_s.RATE_LIMIT_OPS)
@@ -51,12 +53,10 @@ async def fleet_summary(
     - Agents seen in last 5 min (online), last 1 h, offline
     - Count of agents with elevated/critical threat
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tid = current_user.tenant_id
 
-    rows = (await db.execute(
-        select(Agent).where(Agent.tenant_id == tid)
-    )).scalars().all()
+    rows = (await db.execute(select(Agent).where(Agent.tenant_id == tid))).scalars().all()
 
     total = len(rows)
     by_status: dict[str, int] = {}
@@ -85,9 +85,9 @@ async def fleet_summary(
         "by_status": by_status,
         "by_threat_level": by_threat,
         "connectivity": {
-            "online_5m":  online_5m,
-            "online_1h":  online_1h,
-            "offline":    offline,
+            "online_5m": online_5m,
+            "online_1h": online_1h,
+            "offline": offline,
         },
         "at_risk": (by_threat.get("elevated", 0) + by_threat.get("critical", 0)),
         "ts": now.isoformat(),
@@ -95,6 +95,7 @@ async def fleet_summary(
 
 
 # ── Command metrics ────────────────────────────────────────────────────────────
+
 
 @router.get("/commands/metrics", summary="Métricas del pipeline de comandos SPECTER")
 @limiter.limit(_s.RATE_LIMIT_OPS)
@@ -111,7 +112,7 @@ async def commands_metrics(
     """
     from datetime import timedelta
 
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     tid = current_user.tenant_id
 
     result = await db.execute(
@@ -139,13 +140,15 @@ async def commands_metrics(
     if latencies_ms:
         sorted_lat = sorted(latencies_ms)
         n = len(sorted_lat)
-        latency_stats.update({
-            "min_ms":  round(sorted_lat[0], 1),
-            "max_ms":  round(sorted_lat[-1], 1),
-            "avg_ms":  round(sum(sorted_lat) / n, 1),
-            "p50_ms":  round(sorted_lat[int(n * 0.50)], 1),
-            "p95_ms":  round(sorted_lat[min(int(n * 0.95), n - 1)], 1),
-        })
+        latency_stats.update(
+            {
+                "min_ms": round(sorted_lat[0], 1),
+                "max_ms": round(sorted_lat[-1], 1),
+                "avg_ms": round(sum(sorted_lat) / n, 1),
+                "p50_ms": round(sorted_lat[int(n * 0.50)], 1),
+                "p95_ms": round(sorted_lat[min(int(n * 0.95), n - 1)], 1),
+            }
+        )
 
     total = len(commands)
     success_rate = None
@@ -156,17 +159,18 @@ async def commands_metrics(
         success_rate = round(completed / terminal * 100, 1)
 
     return {
-        "window_hours":  hours,
+        "window_hours": hours,
         "total_commands": total,
-        "by_status":     by_status,
-        "by_type":       by_type,
-        "latency":       latency_stats,
+        "by_status": by_status,
+        "by_type": by_type,
+        "latency": latency_stats,
         "success_rate_pct": success_rate,
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
 # ── In-flight commands ─────────────────────────────────────────────────────────
+
 
 @router.get("/commands/inflight", summary="Comandos en vuelo (pendientes/ejecutando)")
 @limiter.limit(_s.RATE_LIMIT_OPS)
@@ -181,7 +185,7 @@ async def commands_inflight(
     Sorted by issued_at descending (most recent first).
     Each entry includes agent_id, command_type, status, issued_by, age_seconds.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tid = current_user.tenant_id
 
     result = await db.execute(
@@ -200,25 +204,28 @@ async def commands_inflight(
         age_s = None
         if cmd.issued_at:
             age_s = round((now - cmd.issued_at).total_seconds(), 1)
-        items.append({
-            "id":           cmd.id,
-            "agent_id":     cmd.agent_id,
-            "command_type": cmd.command_type,
-            "status":       cmd.status,
-            "issued_by":    cmd.issued_by,
-            "issued_at":    cmd.issued_at.isoformat() if cmd.issued_at else None,
-            "age_seconds":  age_s,
-            "params":       cmd.params,
-        })
+        items.append(
+            {
+                "id": cmd.id,
+                "agent_id": cmd.agent_id,
+                "command_type": cmd.command_type,
+                "status": cmd.status,
+                "issued_by": cmd.issued_by,
+                "issued_at": cmd.issued_at.isoformat() if cmd.issued_at else None,
+                "age_seconds": age_s,
+                "params": cmd.params,
+            }
+        )
 
     return {
         "total_inflight": len(items),
-        "commands":       items,
-        "ts":             now.isoformat(),
+        "commands": items,
+        "ts": now.isoformat(),
     }
 
 
 # ── Neutralization metrics ─────────────────────────────────────────────────────
+
 
 @router.get("/neutralizations/metrics", summary="Métricas de acciones de neutralización")
 @limiter.limit(_s.RATE_LIMIT_OPS)
@@ -234,7 +241,7 @@ async def neutralizations_metrics(
     """
     from datetime import timedelta
 
-    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    since = datetime.now(UTC) - timedelta(hours=hours)
     tid = current_user.tenant_id
 
     result = await db.execute(
@@ -256,14 +263,16 @@ async def neutralizations_metrics(
         by_severity[a.severity] = by_severity.get(a.severity, 0) + 1
 
         if a.status == "escalated":
-            recent_escalations.append({
-                "id":           a.id,
-                "action_type":  a.action_type,
-                "severity":     a.severity,
-                "target":       a.target,
-                "initiated_by": a.initiated_by,
-                "escalated_at": a.escalated_at.isoformat() if a.escalated_at else None,
-            })
+            recent_escalations.append(
+                {
+                    "id": a.id,
+                    "action_type": a.action_type,
+                    "severity": a.severity,
+                    "target": a.target,
+                    "initiated_by": a.initiated_by,
+                    "escalated_at": a.escalated_at.isoformat() if a.escalated_at else None,
+                }
+            )
 
     total = len(actions)
     approval_rate = None
@@ -274,19 +283,20 @@ async def neutralizations_metrics(
         approval_rate = round(approved / decided * 100, 1)
 
     return {
-        "window_hours":       hours,
-        "total_actions":      total,
-        "by_status":          by_status,
-        "by_type":            by_type,
-        "by_severity":        by_severity,
-        "approval_rate_pct":  approval_rate,
-        "escalations":        recent_escalations[-10:],  # last 10
-        "escalation_count":   len(recent_escalations),
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "window_hours": hours,
+        "total_actions": total,
+        "by_status": by_status,
+        "by_type": by_type,
+        "by_severity": by_severity,
+        "approval_rate_pct": approval_rate,
+        "escalations": recent_escalations[-10:],  # last 10
+        "escalation_count": len(recent_escalations),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
 # ── Cross-Domain Intelligence Dashboard ───────────────────────────────────────
+
 
 @router.get("/cross-domain", summary="Panel unificado TI + Hunting + PANL + Fleet + PCDI")
 @limiter.limit("20/minute")
@@ -308,21 +318,19 @@ async def cross_domain_dashboard(
     Designed for the SOC manager's single-pane-of-glass view.
     """
     from datetime import timedelta
-    from asc_api.models.hunt import Hunt, HuntFinding
-    from asc_api.models.threat_intel import ThreatIntelIndicator
-    from asc_api.models.pcdi import PCDISignedReport
-    from asc_api.models.soar import PlaybookTrigger, ScheduledReport
-    from asc_api.models.identity_action import IdentityAction
-    from asc_api.models.correlation import CorrelationCluster, CorrelationRule
 
-    now = datetime.now(timezone.utc)
+    from asc_api.models.hunt import Hunt, HuntFinding
+    from asc_api.models.identity_action import IdentityAction
+    from asc_api.models.pcdi import PCDISignedReport
+    from asc_api.models.soar import PlaybookTrigger
+    from asc_api.models.threat_intel import ThreatIntelIndicator
+
+    now = datetime.now(UTC)
     since = now - timedelta(hours=hours)
     tid = current_user.tenant_id
 
     # ── Fleet ──────────────────────────────────────────────────────────────────
-    agents = (await db.execute(
-        select(Agent).where(Agent.tenant_id == tid)
-    )).scalars().all()
+    agents = (await db.execute(select(Agent).where(Agent.tenant_id == tid))).scalars().all()
     fleet_total = len(agents)
     fleet_active = sum(1 for a in agents if a.status == "active")
     fleet_at_risk = sum(1 for a in agents if a.threat_level in ("elevated", "critical"))
@@ -344,27 +352,24 @@ async def cross_domain_dashboard(
     cmd_success_rate = round(cmd_completed / cmd_terminal * 100, 1) if cmd_terminal else None
 
     # ── Threat Hunting ────────────────────────────────────────────────────────
-    hunts = (await db.execute(
-        select(Hunt).where(Hunt.tenant_id == tid)
-    )).scalars().all()
+    hunts = (await db.execute(select(Hunt).where(Hunt.tenant_id == tid))).scalars().all()
     active_hunts = [h for h in hunts if h.status == "active"]
     critical_hunts = [h for h in active_hunts if h.priority == "critical"]
 
     # High-severity unconfirmed findings across all active hunts
     findings_result = await db.execute(
-        select(HuntFinding).where(
+        select(HuntFinding)
+        .where(
             HuntFinding.tenant_id == tid,
             HuntFinding.hunt_id.in_([h.id for h in active_hunts]),
             HuntFinding.severity.in_(["critical", "high"]),
             HuntFinding.is_false_positive.is_(False),
-        ).limit(200)
+        )
+        .limit(200)
     )
     high_sev_findings = list(findings_result.scalars().all())
 
-    completed_hunts_window = [
-        h for h in hunts
-        if h.completed_at and h.completed_at >= since
-    ]
+    completed_hunts_window = [h for h in hunts if h.completed_at and h.completed_at >= since]
     hunt_true_positives = sum(h.true_positive_count for h in completed_hunts_window)
 
     # ── PANL ──────────────────────────────────────────────────────────────────
@@ -385,9 +390,7 @@ async def cross_domain_dashboard(
     panl_approval_rate = round(panl_approved / panl_decided * 100, 1) if panl_decided else None
 
     # ── Threat Intelligence ───────────────────────────────────────────────────
-    ti_result = await db.execute(
-        select(ThreatIntelIndicator).where(ThreatIntelIndicator.tenant_id == tid)
-    )
+    ti_result = await db.execute(select(ThreatIntelIndicator).where(ThreatIntelIndicator.tenant_id == tid))
     ti_all = list(ti_result.scalars().all())
     ti_by_severity: dict[str, int] = {}
     ti_by_type: dict[str, int] = {}
@@ -413,15 +416,10 @@ async def cross_domain_dashboard(
         pcdi_avg_score = round(sum(scored) / len(scored), 1)
 
     # Auto-escalated hunts: hunts escalated to critical by PCDI
-    auto_escalated_critical = len([
-        h for h in hunts
-        if h.priority == "critical" and h.status == "active"
-    ])
+    auto_escalated_critical = len([h for h in hunts if h.priority == "critical" and h.status == "active"])
 
     # ── SOAR + PIDS (P26) ─────────────────────────────────────────────────────
-    soar_trigger_result = await db.execute(
-        select(PlaybookTrigger).where(PlaybookTrigger.tenant_id == tid)
-    )
+    soar_trigger_result = await db.execute(select(PlaybookTrigger).where(PlaybookTrigger.tenant_id == tid))
     soar_triggers = list(soar_trigger_result.scalars().all())
     soar_enabled = sum(1 for t in soar_triggers if t.enabled)
 
@@ -501,9 +499,7 @@ async def cross_domain_dashboard(
             "triggers_fired_24h": soar_triggers_fired_24h,
             "identity_actions_24h": len(pids_recent),
             "identity_actions_successful_24h": pids_successful,
-            "identity_success_rate_pct": (
-                round(pids_successful / len(pids_recent) * 100, 1) if pids_recent else None
-            ),
+            "identity_success_rate_pct": (round(pids_successful / len(pids_recent) * 100, 1) if pids_recent else None),
         },
         "correlation": await _correlation_summary_inline(db, tid),
         "incidents": await _incident_summary_inline(db, tid),
@@ -512,6 +508,7 @@ async def cross_domain_dashboard(
 
 async def _correlation_summary_inline(db: AsyncSession, tenant_id: str) -> dict:
     from asc_api.services.correlation_service import get_correlation_summary
+
     summary = await get_correlation_summary(db, tenant_id=tenant_id)
     return {
         "active_clusters": summary["active_clusters"],
@@ -523,6 +520,7 @@ async def _correlation_summary_inline(db: AsyncSession, tenant_id: str) -> dict:
 
 async def _incident_summary_inline(db: AsyncSession, tenant_id: str) -> dict:
     from asc_api.services.incident_service import get_incident_summary
+
     summary = await get_incident_summary(db, tenant_id=tenant_id)
     return {
         "total": summary["total"],

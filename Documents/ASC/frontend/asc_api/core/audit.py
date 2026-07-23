@@ -14,8 +14,7 @@ Design constraints:
     contained even if log aggregation reorders entries.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import structlog
 
@@ -25,9 +24,9 @@ _audit = structlog.get_logger("asc.audit")
 def log_auth_event(
     action: str,
     *,
-    user_id: Optional[str] = None,
-    email: Optional[str] = None,
-    detail: Optional[str] = None,
+    user_id: str | None = None,
+    email: str | None = None,
+    detail: str | None = None,
 ) -> None:
     """
     Record an authentication lifecycle event.
@@ -41,7 +40,7 @@ def log_auth_event(
         user_id=str(user_id) if user_id is not None else None,
         email=email,
         detail=detail,
-        ts=datetime.now(timezone.utc).isoformat(),
+        ts=datetime.now(UTC).isoformat(),
     )
 
 
@@ -50,7 +49,7 @@ def log_iam_event(
     *,
     performed_by: str,
     target_user: str,
-    detail: Optional[str] = None,
+    detail: str | None = None,
 ) -> None:
     """
     Record an IAM lifecycle event.
@@ -65,21 +64,21 @@ def log_iam_event(
         performed_by=performed_by,
         target_user=target_user,
         detail=detail,
-        ts=datetime.now(timezone.utc).isoformat(),
+        ts=datetime.now(UTC).isoformat(),
     )
 
 
 def log_security_action(
     action: str,
     *,
-    user_id: Optional[str] = None,
-    role: Optional[str] = None,
-    resource: Optional[str] = None,
-    resource_id: Optional[str] = None,
-    detail: Optional[str] = None,
+    user_id: str | None = None,
+    role: str | None = None,
+    resource: str | None = None,
+    resource_id: str | None = None,
+    detail: str | None = None,
     status: str = "ok",
     # Flexible alias parameters accepted by incident_service.py and other callers
-    actor: Optional[str] = None,
+    actor: str | None = None,
     **extra,
 ) -> None:
     """
@@ -103,5 +102,5 @@ def log_security_action(
         resource_id=resource_id,
         status=status,
         detail=detail,
-        ts=datetime.now(timezone.utc).isoformat(),
+        ts=datetime.now(UTC).isoformat(),
     )

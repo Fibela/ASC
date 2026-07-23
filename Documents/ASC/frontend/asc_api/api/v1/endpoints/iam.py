@@ -14,31 +14,31 @@ POST /iam/users/{email}/enable   — reactivate account
 POST /iam/users/{email}/force-reset — require password change on next access
 DELETE /iam/tokens/purge         — clean up expired revoked_tokens rows
 """
-from fastapi import APIRouter, HTTPException, Depends, status
-from pydantic import BaseModel
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.core.config import get_settings
+from asc_api.api.deps import get_current_admin
 from asc_api.core.audit import log_iam_event
+from asc_api.core.config import get_settings
+from asc_api.core.jwt_blacklist import jwt_blacklist
 from asc_api.core.signing import (
-    generate_analyst_keypair,
     encrypt_analyst_private_key,
+    generate_analyst_keypair,
     verify_approval_signature,
 )
 from asc_api.db.session import get_db
 from asc_api.models.neutralization import NeutralizationAction
 from asc_api.models.user import User
-from asc_api.api.deps import get_current_admin
-from asc_api.core.jwt_blacklist import jwt_blacklist
 from asc_api.services.iam_service import (
     disable_account,
     enable_account,
-    lock_account,
-    unlock_account,
-    set_force_password_reset,
     get_user_iam_status,
+    lock_account,
+    set_force_password_reset,
+    unlock_account,
 )
 
 router = APIRouter(prefix="/iam", tags=["IAM"])
@@ -49,6 +49,7 @@ class LockRequest(BaseModel):
 
 
 # ── User IAM status ───────────────────────────────────────────────────────────
+
 
 @router.get("/users/{email}/status", summary="IAM: estado completo de cuenta")
 async def user_iam_status(
@@ -63,6 +64,7 @@ async def user_iam_status(
 
 
 # ── Lock / unlock ─────────────────────────────────────────────────────────────
+
 
 @router.post("/users/{email}/lock", summary="IAM: bloquear cuenta")
 async def lock_user(
@@ -92,6 +94,7 @@ async def unlock_user(
 
 
 # ── Disable / enable ──────────────────────────────────────────────────────────
+
 
 @router.post("/users/{email}/disable", summary="IAM: desactivar cuenta")
 async def disable_user(
@@ -125,6 +128,7 @@ async def enable_user(
 
 # ── Force password reset ──────────────────────────────────────────────────────
 
+
 @router.post("/users/{email}/force-reset", summary="IAM: forzar reset de contraseña")
 async def force_reset_user(
     email: str,
@@ -138,6 +142,7 @@ async def force_reset_user(
 
 
 # ── Token blacklist maintenance ───────────────────────────────────────────────
+
 
 @router.delete("/tokens/purge", summary="IAM: purgar tokens revocados expirados")
 async def purge_expired_tokens(
@@ -159,6 +164,7 @@ async def purge_expired_tokens(
 
 # ── Ed25519 key rotation ──────────────────────────────────────────────────────
 
+
 @router.post("/users/{email}/rotate-keys", summary="IAM: rotar claves Ed25519 del analista")
 async def rotate_analyst_keys(
     email: str,
@@ -175,9 +181,7 @@ async def rotate_analyst_keys(
     Use this after a suspected key compromise or as part of a periodic rotation policy.
     """
     settings = get_settings()
-    result = await db.execute(
-        select(User).where(User.email == email, User.tenant_id == admin.tenant_id)
-    )
+    result = await db.execute(select(User).where(User.email == email, User.tenant_id == admin.tenant_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
@@ -200,6 +204,7 @@ async def rotate_analyst_keys(
 
 
 # ── Approval signature verification ──────────────────────────────────────────
+
 
 @router.get(
     "/actions/{action_id}/verify-signatures",
@@ -241,28 +246,34 @@ async def verify_action_signatures(
         approved_at = entry.get("approved_at", "")
 
         if not sig or not pub:
-            entries.append({
-                "approved_by": approved_by,
-                "approved_at": approved_at,
-                "status": "unsigned",
-                "valid": None,
-            })
+            entries.append(
+                {
+                    "approved_by": approved_by,
+                    "approved_at": approved_at,
+                    "status": "unsigned",
+                    "valid": None,
+                }
+            )
             all_signed = False
             continue
 
         valid = verify_approval_signature(pub, action_id, approved_by, approved_at, sig)
         if not valid:
             all_valid = False
-        entries.append({
-            "approved_by": approved_by,
-            "approved_at": approved_at,
-            "status": "valid" if valid else "invalid",
-            "valid": valid,
-            "public_key_prefix": pub[:16] + "...",
-        })
+        entries.append(
+            {
+                "approved_by": approved_by,
+                "approved_at": approved_at,
+                "status": "valid" if valid else "invalid",
+                "valid": valid,
+                "public_key_prefix": pub[:16] + "...",
+            }
+        )
 
-    verdict = "all_valid" if (all_signed and all_valid) else (
-        "partial_unsigned" if (not all_signed and all_valid) else "invalid"
+    verdict = (
+        "all_valid"
+        if (all_signed and all_valid)
+        else ("partial_unsigned" if (not all_signed and all_valid) else "invalid")
     )
 
     return {

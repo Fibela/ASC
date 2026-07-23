@@ -9,7 +9,9 @@ actions (block_ip, block_domain, unblock_ip, unblock_domain).
 All implementing classes MUST follow the no-raise contract: catch all exceptions
 and return {"success": False, "error": "..."}.
 """
+
 from abc import abstractmethod
+
 from asc_api.adapters import BaseAdapter
 
 

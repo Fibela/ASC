@@ -13,6 +13,7 @@ POST  /pcdi/signed-reports/{report_id}/verify — verify report integrity
 All endpoints require analyst or admin role.
 Report signing uses the authenticated user's stored Ed25519 private key (PFN infra).
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -34,17 +35,21 @@ _s = get_settings()
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
+
 class SignReportRequest(BaseModel):
     """
     Optional override fields for signing.
     The report is auto-generated from the hunt; override only if pre-generated.
     """
+
     report_data: dict | None = Field(
         None,
         description="Pre-generated report JSON. If omitted, auto-generated from hunt.",
     )
     adaptive_score: int | None = Field(
-        None, ge=0, le=100,
+        None,
+        ge=0,
+        le=100,
         description="Optional overall PCDI score to embed in the signed report.",
     )
 
@@ -57,6 +62,7 @@ class VerifyReportRequest(BaseModel):
 
 
 # ── 1. Adaptive Scoring ────────────────────────────────────────────────────────
+
 
 @router.post("/score/{finding_id}", summary="Compute PCDI adaptive threat score")
 @limiter.limit("30/minute")
@@ -83,6 +89,7 @@ async def compute_score(
 
 # ── 2. Cross-Domain Correlation ────────────────────────────────────────────────
 
+
 @router.get("/correlate/{hunt_id}", summary="PANL + TI cross-domain correlation for a hunt")
 @limiter.limit("20/minute")
 async def correlate(
@@ -105,6 +112,7 @@ async def correlate(
 
 
 # ── 3. Sign Hunt Report ────────────────────────────────────────────────────────
+
 
 @router.post("/sign-report/{hunt_id}", status_code=201, summary="Sign hunt report with SHA3-512 + Ed25519")
 @limiter.limit("10/minute")
@@ -129,8 +137,7 @@ async def sign_report(
         raise HTTPException(
             status_code=422,
             detail=(
-                "Your account has no registered signing key. "
-                "Ask an admin to generate your Ed25519 key pair via IAM."
+                "Your account has no registered signing key. Ask an admin to generate your Ed25519 key pair via IAM."
             ),
         )
 
@@ -142,9 +149,7 @@ async def sign_report(
             raise HTTPException(status_code=404, detail="Hunt not found")
 
     try:
-        priv_key_b64 = decrypt_analyst_private_key(
-            current_user.signing_private_key_enc, _s.SECRET_KEY
-        )
+        priv_key_b64 = decrypt_analyst_private_key(current_user.signing_private_key_enc, _s.SECRET_KEY)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to decrypt signing key: {exc}") from exc
 
@@ -161,6 +166,7 @@ async def sign_report(
 
 
 # ── 4. List Signed Reports ─────────────────────────────────────────────────────
+
 
 @router.get("/signed-reports", summary="List PCDI signed hunt reports")
 @limiter.limit("30/minute")
@@ -179,6 +185,7 @@ async def list_signed_reports(
 
 # ── 5. Get Single Signed Report ────────────────────────────────────────────────
 
+
 @router.get("/signed-reports/{report_id}", summary="Get a PCDI signed report by ID")
 @limiter.limit("30/minute")
 async def get_signed_report(
@@ -195,6 +202,7 @@ async def get_signed_report(
 
 
 # ── 6. Verify Report Integrity ────────────────────────────────────────────────
+
 
 @router.post("/signed-reports/{report_id}/verify", summary="Verify PCDI report integrity")
 @limiter.limit("20/minute")
@@ -219,6 +227,7 @@ async def verify_report(
 
 
 # ── 7. Forensic Timeline ───────────────────────────────────────────────────────
+
 
 @router.get("/forensic-timeline/{hunt_id}", summary="Cryptographic forensic timeline for a hunt")
 @limiter.limit("20/minute")

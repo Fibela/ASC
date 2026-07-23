@@ -9,6 +9,7 @@ All adapters implement BaseIdentityAdapter and follow the same contract:
 Available adapters:
   ActiveDirectoryAdapter — Microsoft Active Directory via LDAP3 (LDAPS required in prod)
 """
+
 from asc_api.adapters.identity.active_directory import ActiveDirectoryAdapter
 
 __all__ = ["ActiveDirectoryAdapter"]

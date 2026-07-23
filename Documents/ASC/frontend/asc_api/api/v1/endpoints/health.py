@@ -9,14 +9,14 @@ GET /api/v1/health/adapters   — Live probe every configured adapter (analyst+)
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psutil
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from asc_api.api.deps import get_current_user, get_analyst_or_admin
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
 from asc_api.core.config import get_settings
 from asc_api.db.session import get_db
 from asc_api.models.user import User
@@ -31,20 +31,25 @@ settings = get_settings()
 
 # ── Pure helper (tested independently) ────────────────────────────────────────
 
+
 def format_uptime(seconds: int) -> str:
     """Human-readable uptime string.  e.g. 1d 3h 5m 2s"""
     d, rem = divmod(int(seconds), 86_400)
     h, rem = divmod(rem, 3_600)
-    m, s   = divmod(rem, 60)
+    m, s = divmod(rem, 60)
     parts: list[str] = []
-    if d: parts.append(f"{d}d")
-    if h: parts.append(f"{h}h")
-    if m: parts.append(f"{m}m")
+    if d:
+        parts.append(f"{d}d")
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
     parts.append(f"{s}s")
     return " ".join(parts)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.get("/liveness", summary="Liveness — is the process running?")
 async def liveness():
@@ -54,7 +59,7 @@ async def liveness():
     """
     return {
         "status": "alive",
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -75,6 +80,7 @@ async def readiness(db: AsyncSession = Depends(get_db)):
     if settings.REDIS_URL:
         try:
             import redis.asyncio as aioredis  # type: ignore[import]
+
             r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
             await r.ping()
             await r.aclose()
@@ -88,6 +94,7 @@ async def readiness(db: AsyncSession = Depends(get_db)):
     if db_ok:
         try:
             from asc_api.core.schema_check import missing_model_columns
+
             schema_missing = await missing_model_columns(db)
         except Exception as exc:  # el chequeo nunca debe tumbar readiness
             schema_missing = [f"check_error:{type(exc).__name__}"]
@@ -101,7 +108,7 @@ async def readiness(db: AsyncSession = Depends(get_db)):
             "schema": {"ok": schema_ok, "missing": schema_missing[:20]},
             "redis": {"ok": redis_ok, "detail": redis_msg},
         },
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -116,18 +123,18 @@ async def system_info(_: User = Depends(get_current_user)):
     cpu = _proc.cpu_percent(interval=None)  # non-blocking; first call always returns 0.0
 
     return {
-        "app":            settings.APP_NAME,
-        "version":        settings.APP_VERSION,
-        "environment":    "development" if settings.DEBUG else "production",
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "environment": "development" if settings.DEBUG else "production",
         "uptime_seconds": round(uptime_s),
-        "uptime_human":   format_uptime(int(uptime_s)),
+        "uptime_human": format_uptime(int(uptime_s)),
         "process": {
-            "pid":            _proc.pid,
-            "cpu_percent":    round(cpu, 1),
-            "memory_rss_mb":  round(mem.rss / 1_048_576, 1),
-            "memory_vms_mb":  round(mem.vms / 1_048_576, 1),
+            "pid": _proc.pid,
+            "cpu_percent": round(cpu, 1),
+            "memory_rss_mb": round(mem.rss / 1_048_576, 1),
+            "memory_vms_mb": round(mem.vms / 1_048_576, 1),
         },
-        "ts":             datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -155,26 +162,24 @@ async def adapter_health(_: User = Depends(get_analyst_or_admin)):
                 "status": "reachable" if result.get("success") else "unreachable",
                 "detail": result.get("error") or result.get("message") or "ok",
             }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"adapter": name, "status": "unreachable", "detail": "Timeout after 5s"}
         except Exception as exc:
             return {"adapter": name, "status": "unreachable", "detail": str(exc)}
 
-    probes = await asyncio.gather(*[
-        _probe(name, cls) for name, cls in ADAPTERS.items()
-    ])
+    probes = await asyncio.gather(*[_probe(name, cls) for name, cls in ADAPTERS.items()])
 
     results = list(probes)
     configured_count = sum(1 for r in results if r["status"] != "not_configured")
-    reachable_count  = sum(1 for r in results if r["status"] == "reachable")
+    reachable_count = sum(1 for r in results if r["status"] == "reachable")
 
     return {
-        "total_adapters":     len(results),
-        "configured":         configured_count,
-        "reachable":          reachable_count,
-        "unreachable":        configured_count - reachable_count,
-        "adapters":           results,
-        "ts":                 datetime.now(timezone.utc).isoformat(),
+        "total_adapters": len(results),
+        "configured": configured_count,
+        "reachable": reachable_count,
+        "unreachable": configured_count - reachable_count,
+        "adapters": results,
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -188,54 +193,61 @@ async def adapter_health(_: User = Depends(get_analyst_or_admin)):
 # revelar la cadencia operativa a un atacante); el detalle por-job va con auth.
 
 _STALE_AFTER: dict[str, int] = {
-    "cron-heartbeat":          180,   # */1  → 3 min (si se agenda)
-    "cron-escalation":         720,   # */5  → 12 min
-    "cron-pcdi-scan":          720,   # */5  → 12 min
-    "cron-sla-check":         1320,   # */10 → 22 min
-    "cron-correlation-sweep": 1800,   # */15 → 30 min
-    "cron-scheduled-reports": 5400,   # 0 *  → 90 min
-    "watchdog-supabase":       360,   # */2  → 6 min (señal externa)
+    "cron-heartbeat": 180,  # */1  → 3 min (si se agenda)
+    "cron-escalation": 720,  # */5  → 12 min
+    "cron-pcdi-scan": 720,  # */5  → 12 min
+    "cron-sla-check": 1320,  # */10 → 22 min
+    "cron-correlation-sweep": 1800,  # */15 → 30 min
+    "cron-scheduled-reports": 5400,  # 0 *  → 90 min
+    "watchdog-supabase": 360,  # */2  → 6 min (señal externa)
 }
 _DEFAULT_STALE = 900  # jobs no listados → 15 min
 
 
 async def _load_platform_jobs(db: AsyncSession) -> list[dict] | None:
     """Devuelve el estado por-job, o None si la tabla no existe (degradación honesta)."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
-        rows = (await db.execute(text(
-            "SELECT id, last_seen_at, last_status, consecutive_failures, detail "
-            "FROM platform_heartbeats"
-        ))).mappings().all()
+        rows = (
+            (
+                await db.execute(
+                    text("SELECT id, last_seen_at, last_status, consecutive_failures, detail FROM platform_heartbeats")
+                )
+            )
+            .mappings()
+            .all()
+        )
     except Exception:
         return None  # tabla ausente (migración pendiente) o error → 'unknown'
     jobs: list[dict] = []
     for r in rows:
         last = r["last_seen_at"]
-        if isinstance(last, str):                      # SQLite/aiosqlite devuelve texto
+        if isinstance(last, str):  # SQLite/aiosqlite devuelve texto
             try:
                 last = datetime.fromisoformat(last)
             except ValueError:
                 last = None
-        if last is not None and last.tzinfo is None:   # Postgres puede venir naive
-            last = last.replace(tzinfo=timezone.utc)
+        if last is not None and last.tzinfo is None:  # Postgres puede venir naive
+            last = last.replace(tzinfo=UTC)
         age = (now - last).total_seconds() if last else None
         threshold = _STALE_AFTER.get(r["id"], _DEFAULT_STALE)
-        jobs.append({
-            "id": r["id"],
-            "last_seen_at": last.isoformat() if last else None,
-            "age_seconds": round(age) if age is not None else None,
-            "threshold_seconds": threshold,
-            "stale": (age is None) or (age > threshold),
-            "last_status": r["last_status"],
-            "consecutive_failures": r["consecutive_failures"],
-            "detail": r["detail"],
-        })
+        jobs.append(
+            {
+                "id": r["id"],
+                "last_seen_at": last.isoformat() if last else None,
+                "age_seconds": round(age) if age is not None else None,
+                "threshold_seconds": threshold,
+                "stale": (age is None) or (age > threshold),
+                "last_status": r["last_status"],
+                "consecutive_failures": r["consecutive_failures"],
+                "detail": r["detail"],
+            }
+        )
     return jobs
 
 
 def _overall_platform_status(jobs: list[dict] | None) -> str:
-    if not jobs:                      # None (tabla ausente) o vacío
+    if not jobs:  # None (tabla ausente) o vacío
         return "unknown"
     stale = any(j["stale"] for j in jobs)
     errored = any(j["last_status"] != "ok" for j in jobs)
@@ -247,10 +259,10 @@ async def platform_health(db: AsyncSession = Depends(get_db)):
     """Público: solo resumen (status + conteos). Sin nombres/timing por-job."""
     jobs = await _load_platform_jobs(db)
     return {
-        "status": _overall_platform_status(jobs),   # operational | degraded | unknown
+        "status": _overall_platform_status(jobs),  # operational | degraded | unknown
         "jobs_total": len(jobs) if jobs else 0,
         "jobs_stale": sum(1 for j in (jobs or []) if j["stale"]),
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -261,6 +273,7 @@ async def platform_health_detail(
 ):
     """Con auth: detalle por-job (nombres, edad, fallos, umbral)."""
     from asc_api.services.reachability import assess_distributed_reachability
+
     jobs = await _load_platform_jobs(db)
     try:
         distributed = await assess_distributed_reachability(db)
@@ -269,8 +282,8 @@ async def platform_health_detail(
     return {
         "status": _overall_platform_status(jobs),
         "jobs": jobs or [],
-        "distributed": distributed,   # Capa 3: red SPECTER como monitor distribuido
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "distributed": distributed,  # Capa 3: red SPECTER como monitor distribuido
+        "ts": datetime.now(UTC).isoformat(),
     }
 
 
@@ -279,12 +292,13 @@ async def platform_health_detail(
 # Un cliente debe poder ver "¿ASC está arriba?" SIN loguearse (justo cuando está
 # caído no podría entrar). Página HTML autocontenida que lee readiness + platform.
 
+
 def _status_badge(state: str) -> tuple[str, str]:
     return {
         "operational": ("Operativo", "#3ECF8E"),
-        "degraded":    ("Degradado", "#F2860A"),
-        "down":        ("Caído",     "#8B1E1E"),
-        "unknown":     ("Sin datos", "#9CA3AF"),
+        "degraded": ("Degradado", "#F2860A"),
+        "down": ("Caído", "#8B1E1E"),
+        "unknown": ("Sin datos", "#9CA3AF"),
     }.get(state, ("Sin datos", "#9CA3AF"))
 
 
@@ -329,7 +343,7 @@ async def public_status_page(db: AsyncSession = Depends(get_db)):
             f'<span class="pill" style="color:{col};border-color:{col}">{lbl}</span></div>'
         )
 
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     html = f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="60">

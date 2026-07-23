@@ -34,6 +34,7 @@ Toque Premos guarantees
 • Delivery ID (UUID) in X-ASC-Delivery makes each attempt uniquely auditable.
 • All delivery outcomes (success + failure) are logged to asc.webhook.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -42,7 +43,7 @@ import hmac as _hmac
 import json
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -56,6 +57,7 @@ _DELIVERY_TIMEOUT = httpx.Timeout(connect=5.0, read=5.0, write=5.0, pool=5.0)
 
 
 # ── Signing ───────────────────────────────────────────────────────────────────
+
 
 def sign_payload(secret: str, body: bytes) -> str:
     """
@@ -76,6 +78,7 @@ def verify_signature(secret: str, body: bytes, signature_header: str) -> bool:
 
 
 # ── Single delivery ───────────────────────────────────────────────────────────
+
 
 async def deliver_to_url(
     url: str,
@@ -132,26 +135,26 @@ async def deliver_to_url(
 
 # ── Background delivery task ──────────────────────────────────────────────────
 
-async def _deliver_webhook_background(webhook_id: str, webhook_url: str, webhook_secret: str,
-                                       event_type: str, payload: dict[str, Any],
-                                       db_factory) -> None:
+
+async def _deliver_webhook_background(
+    webhook_id: str, webhook_url: str, webhook_secret: str, event_type: str, payload: dict[str, Any], db_factory
+) -> None:
     """
     Background task: deliver then update webhook stats in DB.
     db_factory is a callable that returns an AsyncSession (used to avoid
     holding a session across the HTTP call).
     """
-    success, status_code, latency_ms, error = await deliver_to_url(
-        webhook_url, webhook_secret, event_type, payload
-    )
+    success, _status_code, _latency_ms, _error = await deliver_to_url(webhook_url, webhook_secret, event_type, payload)
     try:
         from sqlalchemy import select
+
         from asc_api.models.webhook import Webhook
 
         async with db_factory() as db:
             result = await db.execute(select(Webhook).where(Webhook.id == webhook_id))
             wh = result.scalar_one_or_none()
             if wh:
-                wh.last_triggered_at = datetime.now(timezone.utc)
+                wh.last_triggered_at = datetime.now(UTC)
                 if success:
                     wh.failure_count = 0
                 else:
@@ -162,6 +165,7 @@ async def _deliver_webhook_background(webhook_id: str, webhook_url: str, webhook
 
 
 # ── Emit event (public API) ───────────────────────────────────────────────────
+
 
 async def emit_webhook_event(
     event_type: str,
@@ -181,11 +185,12 @@ async def emit_webhook_event(
     If db_factory is None, delivery stats are not persisted (for tests / fire-and-forget).
     """
     from sqlalchemy import select
+
     from asc_api.models.webhook import Webhook
 
     payload = {
         "event": event_type,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "data": data,
     }
 
@@ -205,14 +210,10 @@ async def emit_webhook_event(
 
     for wh in targets[:_MAX_CONCURRENT_DELIVERIES]:
         if db_factory is not None:
-            asyncio.create_task(
-                _deliver_webhook_background(wh.id, wh.url, wh.secret, event_type, payload, db_factory)
-            )
+            asyncio.create_task(_deliver_webhook_background(wh.id, wh.url, wh.secret, event_type, payload, db_factory))
         else:
             # Fire-and-forget without DB update (test / no-factory path)
-            asyncio.create_task(
-                deliver_to_url(wh.url, wh.secret, event_type, payload)
-            )
+            asyncio.create_task(deliver_to_url(wh.url, wh.secret, event_type, payload))
 
     if targets:
         _log.info("webhook_event_emitted", webhook_event=event_type, count=len(targets))

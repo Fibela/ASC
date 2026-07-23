@@ -6,21 +6,22 @@ MIME pre-validation (P21-F5):
   - python-magic is used for server-side type detection (not trusting Content-Type)
   - Per-type file size caps applied after MIME check
 """
+
 from __future__ import annotations
 
-import io
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timezone
 import uuid
+from datetime import UTC, datetime
 
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from asc_api.api.deps import get_analyst_or_admin, get_current_user
+from asc_api.core.config import get_settings
+from asc_api.core.rate_limit import limiter
 from asc_api.db.session import get_db
 from asc_api.models.artifact import Artifact
 from asc_api.models.user import User
-from asc_api.api.deps import get_current_user, get_analyst_or_admin
-from asc_api.core.rate_limit import limiter
 from asc_api.services import analyzer
-from asc_api.core.config import get_settings
 
 router = APIRouter(prefix="/analyze", tags=["Analysis"])
 settings = get_settings()
@@ -30,34 +31,34 @@ settings = get_settings()
 # Maps detected MIME type → max allowed size in bytes
 _ALLOWED_MIME_TYPES: dict[str, int] = {
     # Windows PE / ELF / Mach-O binaries
-    "application/x-dosexec":              50 * 1024 * 1024,
-    "application/x-executable":           50 * 1024 * 1024,
-    "application/x-sharedlib":            50 * 1024 * 1024,
-    "application/x-mach-binary":          50 * 1024 * 1024,
+    "application/x-dosexec": 50 * 1024 * 1024,
+    "application/x-executable": 50 * 1024 * 1024,
+    "application/x-sharedlib": 50 * 1024 * 1024,
+    "application/x-mach-binary": 50 * 1024 * 1024,
     # Archives (for unpacking malware samples)
-    "application/zip":                    50 * 1024 * 1024,
-    "application/x-rar-compressed":       50 * 1024 * 1024,
-    "application/x-tar":                  50 * 1024 * 1024,
-    "application/gzip":                   50 * 1024 * 1024,
-    "application/x-7z-compressed":        50 * 1024 * 1024,
+    "application/zip": 50 * 1024 * 1024,
+    "application/x-rar-compressed": 50 * 1024 * 1024,
+    "application/x-tar": 50 * 1024 * 1024,
+    "application/gzip": 50 * 1024 * 1024,
+    "application/x-7z-compressed": 50 * 1024 * 1024,
     # Office documents (macro analysis)
-    "application/msword":                 20 * 1024 * 1024,
+    "application/msword": 20 * 1024 * 1024,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 20 * 1024 * 1024,
-    "application/vnd.ms-excel":           20 * 1024 * 1024,
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       20 * 1024 * 1024,
-    "application/vnd.ms-powerpoint":      20 * 1024 * 1024,
+    "application/vnd.ms-excel": 20 * 1024 * 1024,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 20 * 1024 * 1024,
+    "application/vnd.ms-powerpoint": 20 * 1024 * 1024,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": 20 * 1024 * 1024,
     # PDF
-    "application/pdf":                    20 * 1024 * 1024,
+    "application/pdf": 20 * 1024 * 1024,
     # Scripts
-    "text/x-python":                       5 * 1024 * 1024,
-    "text/x-shellscript":                  5 * 1024 * 1024,
-    "application/x-sh":                    5 * 1024 * 1024,
-    "text/x-powershell":                   5 * 1024 * 1024,
+    "text/x-python": 5 * 1024 * 1024,
+    "text/x-shellscript": 5 * 1024 * 1024,
+    "application/x-sh": 5 * 1024 * 1024,
+    "text/x-powershell": 5 * 1024 * 1024,
     # Generic binary / octet-stream (last resort — accept but apply strict size)
-    "application/octet-stream":           50 * 1024 * 1024,
+    "application/octet-stream": 50 * 1024 * 1024,
     # Plain text (config dumps, log snippets)
-    "text/plain":                          5 * 1024 * 1024,
+    "text/plain": 5 * 1024 * 1024,
 }
 
 
@@ -65,6 +66,7 @@ def _detect_mime(data: bytes) -> str:
     """Detect MIME type from file bytes using python-magic. Falls back gracefully."""
     try:
         import magic
+
         return magic.from_buffer(data[:4096], mime=True)
     except Exception:
         return "application/octet-stream"
@@ -88,12 +90,13 @@ def _validate_file(filename: str, data: bytes) -> str:
     if len(data) > max_size:
         raise HTTPException(
             status_code=413,
-            detail=f"File exceeds {max_size // (1024*1024)} MB limit for type '{detected_mime}'.",
+            detail=f"File exceeds {max_size // (1024 * 1024)} MB limit for type '{detected_mime}'.",
         )
     return detected_mime
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @router.post("/file", summary="Analyze a suspicious file/artifact")
 @limiter.limit(settings.RATE_LIMIT_ANALYZE_FILE)
@@ -132,7 +135,7 @@ async def analyze_file(
         verdict=result["verdict"],
         analysis_result=result,
         yara_matches=result["signature_hits"],
-        analyzed_at=datetime.now(timezone.utc),
+        analyzed_at=datetime.now(UTC),
         submitted_by=current_user.id,
         tenant_id=current_user.tenant_id,
     )
@@ -174,15 +177,12 @@ async def get_artifact(
     current_user: User = Depends(get_current_user),
 ):
     from sqlalchemy import select
+
     # SEC-6: scope by tenant_id — same NULL-vs-value semantics as tenant_filter.py
     tenant_filter = (
-        Artifact.tenant_id.is_(None)
-        if current_user.tenant_id is None
-        else Artifact.tenant_id == current_user.tenant_id
+        Artifact.tenant_id.is_(None) if current_user.tenant_id is None else Artifact.tenant_id == current_user.tenant_id
     )
-    result = await db.execute(
-        select(Artifact).where(Artifact.id == artifact_id, tenant_filter)
-    )
+    result = await db.execute(select(Artifact).where(Artifact.id == artifact_id, tenant_filter))
     artifact = result.scalar_one_or_none()
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")

@@ -11,28 +11,23 @@ period format: YYYY-MM (e.g. "2026-06")
 """
 
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Integer, DateTime, UniqueConstraint
+from datetime import UTC, datetime
+
+from sqlalchemy import DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
+
 from asc_api.db.base import Base
 
 
 class UsageRecord(Base):
     __tablename__ = "usage_records"
-    __table_args__ = (
-        UniqueConstraint("tenant_id", "period", "resource_type",
-                         name="uq_usage_tenant_period_resource"),
-    )
+    __table_args__ = (UniqueConstraint("tenant_id", "period", "resource_type", name="uq_usage_tenant_period_resource"),)
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     # Billing period in YYYY-MM format (e.g. "2026-06")
     period: Mapped[str] = mapped_column(String(7), nullable=False)
     # Resource being metered: users | alerts | api_keys | webhooks | incidents
     resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    recorded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))

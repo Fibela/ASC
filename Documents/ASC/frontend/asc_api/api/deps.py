@@ -1,20 +1,20 @@
 import hashlib
 import hmac as _hmac
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, Security, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.core.config import get_settings
+from asc_api.core.jwt_blacklist import jwt_blacklist
+from asc_api.core.security import decode_token_payload, is_token_before_epoch, verify_token
 from asc_api.core.tenant_context import set_tenant_id
 from asc_api.db.session import get_db
-from asc_api.models.user import User
 from asc_api.models.api_key import APIKey
-from asc_api.core.security import verify_token, decode_token_payload, is_token_before_epoch
-from asc_api.core.jwt_blacklist import jwt_blacklist
+from asc_api.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=True)
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -62,9 +62,7 @@ async def _resolve_user(
             detail="Token revocado. Inicia sesión nuevamente.",
         )
 
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.is_active == True)
-    )
+    result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
@@ -183,7 +181,7 @@ async def get_user_from_api_key(
             headers={"WWW-Authenticate": "ApiKey"},
         )
 
-    if api_key.expires_at and datetime.now(timezone.utc) > api_key.expires_at:
+    if api_key.expires_at and datetime.now(UTC) > api_key.expires_at:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key expirada",
@@ -191,9 +189,7 @@ async def get_user_from_api_key(
         )
 
     # Load the owner user
-    user_result = await db.execute(
-        select(User).where(User.id == api_key.user_id, User.is_active == True)
-    )
+    user_result = await db.execute(select(User).where(User.id == api_key.user_id, User.is_active == True))
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(
@@ -212,7 +208,7 @@ async def get_user_from_api_key(
     set_tenant_id(user.tenant_id)
 
     # Touch last_used_at (fire-and-forget style — non-critical)
-    api_key.last_used_at = datetime.now(timezone.utc)
+    api_key.last_used_at = datetime.now(UTC)
     await db.commit()
 
     return user
@@ -235,6 +231,7 @@ def require_api_key_scope(scope: str) -> Callable:
     When the caller authenticated via JWT (no api_key_scopes on request.state):
       - Passes through — JWT-authenticated users have full role-based access.
     """
+
     async def _check(
         request: Request,
         user: User = Depends(get_user_from_api_key),
