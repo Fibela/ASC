@@ -44,6 +44,8 @@ from asc_api.core.specter_security import (
     check_injection,
     check_suspicious_registration,
     generate_enrollment_token,
+    generate_tenant_enrollment_token,
+    verify_and_extract_tenant,
     log_honeypot_trigger,
     validate_command_params,
     verify_enrollment_token,
@@ -235,8 +237,11 @@ async def register_agent(
     """
     _guard(response)
 
-    # Barrier: enrollment token
-    if not verify_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET, x_specter_token):
+    # Barrier: enrollment token — extrae el tenant del token (S111.3), no del payload
+    _token_valid, _token_tenant = verify_and_extract_tenant(
+        settings.SPECTER_ENROLLMENT_SECRET, x_specter_token
+    )
+    if not _token_valid:
         log_security_action(
             "specter_enrollment_token_invalid",
             user_id="agent",
@@ -267,14 +272,14 @@ async def register_agent(
         agent.specter_version = payload.specter_version
         agent.status = "active"
         agent.last_seen = datetime.now(timezone.utc)
-        if payload.tenant_id and not agent.tenant_id:
-            agent.tenant_id = payload.tenant_id
+        if _token_tenant and not agent.tenant_id:
+            agent.tenant_id = _token_tenant
         await db.commit()
         await db.refresh(agent)
     else:
         agent = Agent(
             id=str(uuid.uuid4()),
-            tenant_id=payload.tenant_id,
+            tenant_id=_token_tenant,  # del token verificado, no del payload (S111.3)
             hostname=payload.hostname,
             os_type=payload.os_type,
             os_version=payload.os_version,
@@ -326,7 +331,7 @@ async def list_agents(
 
 @router.get("/enrollment-token", summary="Get current SPECTER enrollment token (admin)")
 async def get_enrollment_token(
-    _: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_admin),
 ) -> dict:
     """
     Returns the current SPECTER enrollment token for the authenticated admin.
@@ -347,7 +352,11 @@ async def get_enrollment_token(
             "note": "SPECTER_ENROLLMENT_SECRET not configured â€” dev mode (open registration)",
         }
 
-    token = generate_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET)
+    # S111.3 — si el admin tiene tenant, el token lo embebe (ata el agente a ese tenant).
+    if current_user.tenant_id:
+        token = generate_tenant_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET, current_user.tenant_id)
+    else:
+        token = generate_enrollment_token(settings.SPECTER_ENROLLMENT_SECRET)
     seconds_remaining = int(3600 - (_time.time() % 3600))
 
     return {

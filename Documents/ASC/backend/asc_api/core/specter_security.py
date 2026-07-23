@@ -13,6 +13,7 @@ PremosCorp proprietary defense layers for the SPECTER agent network:
   Trap 3    — Canary ping (Ed25519 proof-of-private-key liveness check)
 """
 
+import base64
 import hashlib
 import hmac
 import math
@@ -69,6 +70,46 @@ def verify_enrollment_token(secret: str, token: str) -> bool:
         return False
     valid = {generate_enrollment_token(secret, offset) for offset in (0, -1)}
     return any(hmac.compare_digest(token, t) for t in valid)
+
+
+# ── S111.3 — Enrolamiento ATADO a tenant (token que embebe el tenant_id) ───────
+# El token de un admin embebe su tenant_id de forma verificable; el register extrae
+# el tenant del token (no del payload) para que un agente no pueda auto-asignarse
+# un tenant ajeno. Formato: "<tenant_b64>.<hmac(secret, PREFIX:tenant:window)>".
+# Token sin "." = global/legacy (tenant None) — retrocompatible.
+
+def generate_tenant_enrollment_token(secret: str, tenant_id: str, window_offset: int = 0) -> str:
+    """Token de enrolamiento que ata el agente al tenant indicado."""
+    window = _current_window() + window_offset
+    sig = _hmac_hex(secret, f"{_ENROLL_PREFIX}:{tenant_id}:{window}")
+    tid_b64 = base64.urlsafe_b64encode(tenant_id.encode()).decode().rstrip("=")
+    return f"{tid_b64}.{sig}"
+
+
+def verify_and_extract_tenant(secret: str, token: str) -> tuple[bool, str | None]:
+    """
+    Verifica el token de enrolamiento y devuelve (válido, tenant_id).
+    tenant_id None = token global/legacy (agente sin tenant). En modo dev (secreto
+    vacío) devuelve (True, None) — registro abierto.
+    """
+    if not secret:
+        return True, None
+    if not token:
+        return False, None
+    if "." in token:
+        tid_b64, sig = token.split(".", 1)
+        try:
+            pad = "=" * (-len(tid_b64) % 4)
+            tenant_id = base64.urlsafe_b64decode(tid_b64 + pad).decode()
+        except Exception:
+            return False, None
+        for off in (0, -1):
+            expected = _hmac_hex(secret, f"{_ENROLL_PREFIX}:{tenant_id}:{_current_window() + off}")
+            if hmac.compare_digest(sig, expected):
+                return True, tenant_id
+        return False, None
+    # Legacy/global: sin tenant embebido.
+    return verify_enrollment_token(secret, token), None
 
 
 # ── Command param schema allowlist ─────────────────────────────────────────────

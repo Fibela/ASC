@@ -7733,3 +7733,35 @@ eliminado. Settings `ANTHROPIC_*` quedan inertes en config (seguras, opcional li
 
 **Resultado:** la ventaja competitiva (explicación adaptativa) ahora es 100% PremosCorp, privada
 y gratuita — a diferencia de antes, no depende de un tercero ni de créditos.
+
+---
+
+## Sesión 111 — Cierre de follow-ups de seguridad (backlog S107)
+
+Cerrados los 3 hallazgos reales flagueados en sesiones previas.
+
+### S111.1 — JWT en la URL del SSE de notificaciones (fuga) — CERRADO
+El backend `/notifications/stream` ya aceptaba el JWT por header; la fuga era del
+**frontend** (`useSSENotifications` usaba `EventSource`, que no permite headers → metía el
+token en `?token=`). Reescrito a **fetch-streaming con el JWT en el header `Authorization`**
+(mismo patrón que `explainStream`). El token sale por completo de la URL. Interfaz del hook
+sin cambios (callers intactos). Typecheck aislado limpio.
+
+### S111.2 — /events/ingest[/bulk] sin tenant_id — CERRADO
+`ingest_event`/`ingest_bulk`/`list_events` creaban `Event`/`Alert` sin `tenant_id` (globales).
+Fix: `_` anónimo → `current_user`; `Event` y `Alert` heredan `current_user.tenant_id`;
+`list_events` scopeado con visibilidad de 2 capas `or_(NULL, ==mío)`. Tests
+`test_s111_events_isolation.py` (3): ingest/bulk setean tenant, list no muestra el de otro.
+
+### S111.3 — Agente enrola sin tenant_id — CERRADO
+El token de enrolamiento era tenant-agnóstico y el agente quedaba global. Fix: **token que
+embebe el tenant_id de forma verificable** (`generate_tenant_enrollment_token` +
+`verify_and_extract_tenant`, formato `<tenant_b64>.<hmac(PREFIX:tenant:window)>`). El endpoint
+admin genera el token con SU tenant; **el register extrae el tenant del token (no del payload)**
+→ un agente no puede auto-asignarse un tenant ajeno. Backward-compat: token sin tenant = global
+(None). Tests `test_s111_enrollment_tenant.py` (7): token con tenant verifica/extrae, tenant
+manipulado inválido, legacy global, dev mode, y **register ata el tenant del token ignorando el
+payload falso**.
+
+**Regresión:** agents + ingesta + specter_security + p36 = 216 tests verdes. Espejo íntegro
+(141). Guardia IDOR 2/2. Sin migración.

@@ -1,17 +1,18 @@
 'use client'
 
 /**
- * useSSENotifications — P21-F4
+ * useSSENotifications — P21-F4 · endurecido en S111.1
  *
- * Reusable hook for the PANL real-time SSE event stream.
- * Connects to GET /api/v1/notifications/stream?token=<jwt>
- * and delivers typed notification events to callers.
+ * Stream SSE en tiempo real de PANL. Consume GET /api/v1/notifications/stream
+ * vía `fetch` con el JWT en el HEADER `Authorization` (NO en la URL) — cerrando
+ * la fuga de token en la URL (S111.1: los tokens en la URL se filtran a logs,
+ * historial y proxies). EventSource no permite headers; por eso usamos fetch+stream.
  *
  * Features:
- *  - Auto-reconnect on error (exponential backoff, max 30s)
- *  - Caller supplies an onEvent callback; hook handles lifecycle
- *  - Returns { connected, lastEvent, reconnectCount }
- *  - Cleans up EventSource on unmount
+ *  - Auto-reconnect con backoff exponencial (máx 30s)
+ *  - onEvent callback; el hook maneja el ciclo de vida
+ *  - Devuelve { connected, lastEvent, reconnectCount }
+ *  - Aborta el fetch en unmount
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -53,57 +54,77 @@ export function useSSENotifications({ onEvent, enabled = true }: UseSSEOptions =
     reconnectCount: 0,
   })
 
-  const esRef = useRef<EventSource | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reconnectCountRef = useRef(0)
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     const token = getAccessToken()
     if (!token || !enabled) return
 
-    const url = `${env.API_URL}/api/v1/notifications/stream?token=${encodeURIComponent(token)}`
-    const es = new EventSource(url)
-    esRef.current = es
+    const ac = new AbortController()
+    abortRef.current = ac
 
-    es.onopen = () => {
-      reconnectCountRef.current = 0
-      setState(prev => ({ ...prev, connected: true, reconnectCount: 0 }))
-    }
-
-    es.onmessage = (e) => {
-      try {
-        const parsed: SSENotification = JSON.parse(e.data)
-        setState(prev => ({ ...prev, lastEvent: parsed }))
-        onEventRef.current?.(parsed)
-      } catch {
-        // Heartbeat comments (": heartbeat") are not message events; ignore parse errors
-      }
-    }
-
-    es.onerror = () => {
-      es.close()
-      esRef.current = null
+    const scheduleReconnect = () => {
       setState(prev => ({ ...prev, connected: false }))
-
-      // Exponential backoff
       const delay = Math.min(BASE_BACKOFF_MS * 2 ** reconnectCountRef.current, MAX_BACKOFF_MS)
       reconnectCountRef.current += 1
       setState(prev => ({ ...prev, reconnectCount: reconnectCountRef.current }))
+      reconnectTimerRef.current = setTimeout(() => { void connect() }, delay)
+    }
 
-      reconnectTimerRef.current = setTimeout(connect, delay)
+    try {
+      const resp = await fetch(`${env.API_URL}/api/v1/notifications/stream`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
+        signal: ac.signal,
+      })
+      if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`)
+
+      reconnectCountRef.current = 0
+      setState(prev => ({ ...prev, connected: true, reconnectCount: 0 }))
+
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const frames = buffer.split('\n\n')
+        buffer = frames.pop() ?? ''
+        for (const frame of frames) {
+          // Solo líneas 'data:'; se ignoran comentarios (': heartbeat') y 'event:'.
+          const dataLines = frame
+            .split('\n')
+            .filter(l => l.startsWith('data:'))
+            .map(l => l.slice(5).trim())
+          if (dataLines.length === 0) continue
+          try {
+            const parsed: SSENotification = JSON.parse(dataLines.join('\n'))
+            setState(prev => ({ ...prev, lastEvent: parsed }))
+            onEventRef.current?.(parsed)
+          } catch {
+            // heartbeat / no-JSON → ignorar
+          }
+        }
+      }
+      // El stream terminó limpio → reconectar.
+      scheduleReconnect()
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
+      scheduleReconnect()
     }
   }, [enabled])
 
   useEffect(() => {
     if (!enabled) return
-
-    connect()
-
+    void connect()
     return () => {
-      esRef.current?.close()
-      esRef.current = null
+      abortRef.current?.abort()
+      abortRef.current = null
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
     }
   }, [connect, enabled])

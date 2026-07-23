@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from datetime import datetime, timezone
 from typing import Any
 import uuid
@@ -35,7 +35,7 @@ class BulkEventIngest(BaseModel):
 async def ingest_event(
     payload: EventIngest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     normalized = await normalize_event({**payload.data, "source": payload.source, "category": payload.category, "action": payload.action, "host": payload.host})
 
@@ -68,6 +68,7 @@ async def ingest_event(
         severity=severity,
         risk_score=risk,
         correlated=bool(matched),
+        tenant_id=current_user.tenant_id,
     )
     db.add(event)
     await db.commit()
@@ -78,7 +79,7 @@ async def ingest_event(
 async def ingest_bulk(
     payload: BulkEventIngest,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
     normalized_events = []
     created_ids = []
@@ -90,6 +91,7 @@ async def ingest_bulk(
             id=str(uuid.uuid4()),
             source=e.source, category=e.category, action=e.action, host=e.host,
             raw_log=e.raw_log, normalized=norm,
+            tenant_id=current_user.tenant_id,
         )
         db.add(event)
         created_ids.append(event.id)
@@ -121,6 +123,7 @@ async def ingest_bulk(
             ttps=alert_data["ttps"],
             source_events=created_ids,
             threat_start_at=threat_start,
+            tenant_id=current_user.tenant_id,
         )
         db.add(alert)
         created_alerts.append(alert.id)
@@ -135,9 +138,12 @@ async def list_events(
     offset: int = Query(0),
     severity: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_analyst_or_admin),
+    current_user: User = Depends(get_analyst_or_admin),
 ):
-    q = select(Event).order_by(desc(Event.timestamp)).offset(offset).limit(limit)
+    # Visibilidad de 2 capas (S111.2): global (tenant_id NULL) + propio.
+    q = (select(Event)
+         .where(or_(Event.tenant_id.is_(None), Event.tenant_id == current_user.tenant_id))
+         .order_by(desc(Event.timestamp)).offset(offset).limit(limit))
     if severity:
         q = q.where(Event.severity == severity)
     result = await db.execute(q)
