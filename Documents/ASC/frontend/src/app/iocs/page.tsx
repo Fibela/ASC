@@ -64,7 +64,12 @@ export default function IoCsPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { if (!isReady) return; load() }, [filter, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S117.3)
+    return () => clearInterval(id)
+  }, [filter, isReady])
 
   async function addIoC() {
     setSaving(true)

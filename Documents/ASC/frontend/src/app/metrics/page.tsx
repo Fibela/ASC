@@ -43,7 +43,12 @@ export default function MetricsPage() {
     }
   }
 
-  useEffect(() => { if (!isReady) return; load() }, [period, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S117.3)
+    return () => clearInterval(id)
+  }, [period, isReady])
 
   const sevPie = metrics24?.by_severity
     ? [

@@ -248,7 +248,12 @@ export default function ThreatIntelPage() {
     }
   }, [page, typeFilter, sevFilter])
 
-  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S117.3)
+    return () => clearInterval(id)
+  }, [load, isReady])
 
   async function handleDelete(id: string) {
     setDeleting(id)

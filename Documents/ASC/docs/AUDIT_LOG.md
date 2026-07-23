@@ -7947,3 +7947,14 @@ Solo frontend/src (no mirror). Sin migración.
 
 **Pendientes:** S117.3 poner en tiempo real las páginas de análisis que cargan al montar;
 S117.4 ampliar reglas de detección.
+
+---
+
+## Sesión 117.3 — Poner en vivo threat-intel / iocs / métricas
+
+Tras la supresión (S117), las páginas que quedan deben leer datos reales en tiempo real
+(criterio VALT). Añadido auto-refresh de 30s (patrón del dashboard: `setInterval(load, 30_000)`
++ `clearInterval` en cleanup) a `/threat-intel`, `/iocs`, `/metrics`. Se dejaron SIN polling
+los testers manuales (`/detection`, `/analyze`) y las vistas históricas (`/forensic`,
+`/reports`, `/reports/executive`) — refrescarlas no aporta y molestaría al usuario.
+typecheck limpio (resolución real del proyecto). Solo frontend/src. Sin migración.
