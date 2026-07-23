@@ -415,7 +415,12 @@ export default function ExecutiveReportsPage() {
     }
   }, [filterType])
 
-  useEffect(() => { if (isReady) load() }, [load, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S118.1)
+    return () => clearInterval(id)
+  }, [load, isReady])
 
   if (!isReady) return <AuthLoader />
 

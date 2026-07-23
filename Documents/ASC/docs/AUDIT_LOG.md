@@ -7994,3 +7994,13 @@ py_compile OK, alembic head único, mirror sync (142).
 
 **DESPLIEGUE (orden I-3):** correr `backend/migrations_s117_detection_rules.sql` en Supabase SQL
 Editor ANTES del push. Es aditivo (columnas con server_default + inserts) → seguro. Luego push.
+
+---
+
+## Sesión 118.1 — Poner en vivo el resto de páginas de datos
+
+Auto-refresh 30s (patrón dashboard) a `/forensic` (ledger crece), `/reports/executive` y
+`/webhooks` (estado de entregas). Se dejaron SIN polling, con criterio verificado:
+`/detection` y `/analyze` (testers manuales), `/threat-hunting` (interactivo — el polling
+rompería una consulta en curso), y **`/reports`** (es un formulario de descarga PDF/HTML, no
+una vista de datos — no hay nada que refrescar). typecheck limpio. Solo frontend/src.

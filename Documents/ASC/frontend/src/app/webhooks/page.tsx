@@ -410,7 +410,12 @@ export default function WebhooksPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S118.1)
+    return () => clearInterval(id)
+  }, [load, isReady])
 
   async function handleCreate(payload: { url: string; events: string[]; description: string | null }) {
     const created: WebhookCreated = await createWebhook(payload)

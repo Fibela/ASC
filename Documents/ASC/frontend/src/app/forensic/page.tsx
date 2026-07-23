@@ -63,7 +63,12 @@ export default function ForensicPage() {
     }
   }, [page])
 
-  useEffect(() => { if (!isReady) return; load() }, [load, isReady])
+  useEffect(() => {
+    if (!isReady) return
+    load()
+    const id = setInterval(load, 30_000)  // tiempo real (S118.1)
+    return () => clearInterval(id)
+  }, [load, isReady])
 
   async function handleVerify(entry: ForensicEntry) {
     setVerifying(entry.id)
