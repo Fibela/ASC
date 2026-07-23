@@ -7878,3 +7878,43 @@ de código de producción ni migración.
 romperá con CADA migración nueva. El invariante que importa ya está en la línea de arriba
 (`len(heads) == 1`). Sugerido: quitar el assert del valor exacto y quedarse con el de head
 único — deja de ser un valor mágico que hay que editar a mano. A decisión de Alexander.
+
+---
+
+## Sesión 113 — Flujo de registro self-service (UI viva, meta #5)
+
+**Contexto:** dentro del frente "UI viva, sin mocks". La auditoría del portal salió LIMPIA
+(cero mocks, cero Math.random, cero dashboards fabricados; las 32 páginas traen datos reales
+de Supabase vía @/lib/api). El único hallazgo fue un embudo incompleto: el registro
+self-service existía en backend pero sin UI, y el enlace de verificación apuntaba a una ruta
+inexistente (404).
+
+**CORRECCIÓN de una afirmación previa (gana el código):** antes dije que "la verificación de
+email es ceremonial porque /auth/login no la comprueba". **Era incorrecto** — miré solo el
+endpoint de login, no la dependencia. El gate SÍ existe en `deps._resolve_user` (deps.py:88):
+corre en CADA request autenticado y devuelve 403 `email_verification_required` a los no
+verificados. Está tue­steado (test_p53_onboarding.py). Por tanto la verificación NUNCA fue
+ceremonial. No añadí un gate redundante en /auth/login (lo revertí); auth.py queda igual a origin.
+
+**El gap real era solo frontend.** Construido:
+- `lib/api.ts`: `registerTenant()` + `verifyEmail()` + interfaces (contra el contrato real:
+  RegisterRequest/Response, VerifyEmailResponse).
+- `app/register/page.tsx`: alta de tenant+admin, validación cliente que calca las restricciones
+  del backend (slug `^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$`, password ≥8), auto-slug desde el nombre.
+- `app/verify-email/page.tsx`: consume `?token=` (la ruta que el email ya apuntaba y daba 404),
+  llama verify-email, con guard anti-doble-invocación de StrictMode.
+- `app/login/password/page.tsx`: login email+contraseña para clientes self-service (el /login
+  es gateway SSO-only, solo para staff). Tras login hace un sondeo `getMe()` — que pasa por el
+  gate de deps — y si el email no está verificado (403) avisa claro en vez de dejar entrar a un
+  dashboard que fallaría.
+- Enlace de descubrimiento "¿Cliente nuevo? Crea tu cuenta" en el gateway `/login`.
+- `onboarding.py`: corregidos 2 docstrings mentirosos (el email SÍ se envía por Resend; el gate
+  está en deps._resolve_user, no en /auth/login).
+
+**Verificación:** typecheck del proyecto (resolución real de `@/` + node_modules) limpio en los
+5 archivos; ruff backend limpio; mirror frontend/asc_api resincronizado; auth.py idéntico a origin.
+
+**Pendiente para Alexander (no bloquea el código):**
+- Para que el email de verificación se envíe en producción, `RESEND_API_KEY` debe estar en el
+  env del backend en Vercel (si falta, el enlace solo se loguea server-side — dev mode).
+- Tests jest de las nuevas funciones API: no ejecutables en sandbox (SWC/red); pendiente opcional.

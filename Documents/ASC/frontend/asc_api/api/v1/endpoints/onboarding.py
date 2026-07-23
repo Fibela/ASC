@@ -155,9 +155,13 @@ async def register(
 
     Creates a new Tenant + admin User in a single transaction.
     The new user starts with email_verified=False and onboarding_step='pending_email'.
-    A verification token is generated and would be emailed to the user (stub in P53).
+    A verification token is generated and emailed to the user via Resend when
+    RESEND_API_KEY is configured; otherwise the verification link is logged
+    server-side (dev/test).  See _send_verification_email.
 
-    On success: returns tenant_id and user_id. Login is blocked until email is verified.
+    On success: returns tenant_id and user_id. Login is blocked until email is
+    verified — enforced by the email_verified gate in deps._resolve_user (runs on
+    every authenticated request; unverified users get 403 email_verification_required).
     """
     # Check slug uniqueness
     existing_slug = await db.execute(select(Tenant).where(Tenant.slug == payload.tenant_slug))

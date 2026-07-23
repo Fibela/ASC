@@ -248,6 +248,13 @@ function LoginGateway() {
         </div>
 
         {/* ── Footer ───────────────────────────────────────────────────── */}
+        {/* Entrada self-service para clientes (S113) */}
+        <p className="text-center text-xs mb-3" style={{ color: '#5A5A5A' }}>
+          ¿Cliente nuevo?{' '}
+          <a href="/register" style={{ color: '#E85D04' }}>Crea tu cuenta</a>
+          {' · '}
+          <a href="/login/password" style={{ color: '#8A8A8A' }}>acceso con contraseña</a>
+        </p>
         <p className="text-center text-xs" style={{ color: '#1E1E1E' }}>
           Acceso restringido — Personal autorizado PremosCorp
         </p>

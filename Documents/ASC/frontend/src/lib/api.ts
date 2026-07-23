@@ -56,6 +56,40 @@ export async function ssoCompleteOnboarding(
   return data
 }
 
+// --- Registro self-service (S113) ---
+
+export interface RegisterTenantRequest {
+  tenant_name: string
+  tenant_slug: string
+  email: string
+  password: string
+  full_name: string
+}
+
+export interface RegisterTenantResponse {
+  tenant_id: string
+  user_id: string
+  email: string
+  onboarding_step: string
+  message: string
+}
+
+export async function registerTenant(payload: RegisterTenantRequest): Promise<RegisterTenantResponse> {
+  const { data } = await api.post<RegisterTenantResponse>('/onboarding/register', payload)
+  return data
+}
+
+export interface VerifyEmailResponse {
+  email_verified: boolean
+  onboarding_step: string
+  message: string
+}
+
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  const { data } = await api.post<VerifyEmailResponse>('/onboarding/verify-email', { token })
+  return data
+}
+
 // --- API Keys (P40) ---
 
 export interface APIKeyResponse {
