@@ -10,7 +10,7 @@ from asc_api.core.logging import get_logger
 from asc_api.db.session import get_db
 from asc_api.models.detection_rule import DetectionRule
 from asc_api.models.user import User
-from asc_api.services.detection import DetectionResult, evaluate_bulk, evaluate_event
+from asc_api.services.detection import DetectionResult, evaluate_bulk, evaluate_dynamic, evaluate_event
 from asc_api.services.fingerprint import analyze_environmental_keying
 
 log = get_logger(__name__)
@@ -92,6 +92,7 @@ def _result_list(results: list[DetectionResult]) -> dict:
 async def evaluate_single_event(
     payload: EventPayload,
     original_analysis_ts: str | None = None,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
     """
@@ -103,6 +104,9 @@ async def evaluate_single_event(
     ts = _parse_ts(original_analysis_ts)
     event = payload.model_dump(exclude_none=True)
     results = evaluate_event(event, ts)
+    # S117.4 — reglas editables desde DB (además de las 4 hardcodeadas)
+    db_rules = (await db.execute(select(DetectionRule).where(DetectionRule.is_active == True))).scalars().all()
+    results += evaluate_dynamic(event, db_rules)
     log.info("api_detection_evaluate", user=current_user.email, host=payload.host, matches=len(results))
     return _result_list(results)
 
@@ -114,6 +118,7 @@ async def evaluate_single_event(
 )
 async def evaluate_bulk_events(
     body: BulkEvaluationRequest,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_analyst_or_admin),
 ):
     """
@@ -123,6 +128,16 @@ async def evaluate_bulk_events(
     ts = _parse_ts(body.original_analysis_ts)
     events = [e.model_dump(exclude_none=True) for e in body.events]
     results = evaluate_bulk(events, ts)
+    # S117.4 — reglas editables desde DB, deduplicadas por (rule_id, host)
+    db_rules = (await db.execute(select(DetectionRule).where(DetectionRule.is_active == True))).scalars().all()
+    seen = {(r.rule_id, None) for r in results}
+    for ev in events:
+        for res in evaluate_dynamic(ev, db_rules):
+            key = (res.rule_id, ev.get("host"))
+            if key in seen:
+                continue
+            seen.add(key)
+            results.append(res)
     log.info("api_detection_bulk", user=current_user.email, events=len(events), matches=len(results))
     return {
         **_result_list(results),

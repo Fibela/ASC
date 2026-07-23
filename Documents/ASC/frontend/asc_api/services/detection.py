@@ -310,3 +310,39 @@ def evaluate_bulk(
                 all_results.append(result)
 
     return all_results
+
+
+def evaluate_dynamic(event: dict, rules) -> list[DetectionResult]:
+    """Evaluate data-driven DB rules (conditions) against an event (S117.4).
+
+    `rules` is any iterable of objects exposing rule_id, name, mitre_ttp, severity,
+    description, risk_score_default, conditions, match_type. Rules with empty
+    conditions are skipped (legacy DET-001..004 fire via their hardcoded check_*).
+    The condition logic lives in services/detection_rules (pure, unit-tested in
+    isolation) — this only maps a match to a DetectionResult.
+    """
+    from asc_api.services.detection_rules import evaluate_conditions
+
+    out: list[DetectionResult] = []
+    for r in rules:
+        conditions = getattr(r, "conditions", None) or []
+        if not conditions:
+            continue
+        match_type = getattr(r, "match_type", "all") or "all"
+        if not evaluate_conditions(event, conditions, match_type):
+            continue
+        severity = getattr(r, "severity", "medium")
+        sev = severity if severity in ("critical", "high", "medium", "low") else "medium"
+        out.append(
+            DetectionResult(
+                rule_id=getattr(r, "rule_id", ""),
+                rule_name=getattr(r, "name", ""),
+                severity=sev,
+                semaphore=SEVERITY_SEMAPHORE.get(sev, "yellow"),
+                risk_score=float(getattr(r, "risk_score_default", 0.5) or 0.5),
+                description=getattr(r, "description", ""),
+                evidence={"engine": "data-driven", "conditions_matched": len(conditions)},
+                mitre_ttp=getattr(r, "mitre_ttp", ""),
+            )
+        )
+    return out

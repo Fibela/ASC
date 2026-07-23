@@ -21,6 +21,10 @@ class DetectionRule(Base):
     tags: Mapped[list] = mapped_column(JSON, default=list)
     risk_score_default: Mapped[float] = mapped_column(Float, default=0.5)  # baseline risk for catalog display
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # S117.4 — regla editable desde datos: condiciones evaluadas por detection_rules.evaluate_conditions.
+    # [] = regla legacy hardcodeada (fire vía su check_*). match_type: all | any.
+    conditions: Mapped[list] = mapped_column(JSON, default=list)
+    match_type: Mapped[str] = mapped_column(String(10), default="all", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),

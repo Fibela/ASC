@@ -53,6 +53,6 @@ ampliar el ruleset** para que `/detection` sostenga el nombre ASC.
 
 ## Pendientes
 - S117.3: poner en tiempo real las páginas de análisis que cargan al montar.
-- S117.4: ampliar el ruleset de detección (cobertura MITRE más ancha).
+- S117.4 ✅ HECHO: motor editable (condiciones JSON en DB, sin código) + 10 reglas nuevas (DET-005..014).
 - Backend dormido: los endpoints suprimidos siguen auth-gated; evaluar retirarlos del
   router en una tanda futura si se confirma que no se re-introducen.

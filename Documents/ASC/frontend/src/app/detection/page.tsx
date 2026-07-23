@@ -11,17 +11,15 @@ type Tab = 'event' | 'bulk' | 'fingerprint' | 'rules'
 
 const EMPTY_EVENT = `{
   "host": "PREMOS-WS-01",
-  "process": "acord32.exe",
-  "args": "/s /o",
-  "api_call": "",
-  "registry_key": "",
+  "process": "powershell.exe",
+  "command_line": "powershell -nop -w hidden -enc SQBFAFgAIABOAGUAdwAtAE8AYgBq",
   "category": "process"
 }`
 
 const BULK_EXAMPLE = `{
   "events": [
-    { "host": "PREMOS-WS-01", "process": "acord32.exe", "args": "/s /o" },
-    { "host": "PREMOS-WS-02", "api_call": "SetWindowsHookExW" }
+    { "host": "PREMOS-WS-01", "process": "powershell.exe", "command_line": "powershell -enc SQBFAFgA" },
+    { "host": "PREMOS-WS-02", "process": "rundll32.exe", "command_line": "rundll32 comsvcs.dll MiniDump 640 lsass.dmp full" }
   ]
 }`
 
@@ -117,7 +115,7 @@ export default function DetectionPage() {
               Módulo de Detección
             </h1>
             <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
-              DET-001–004 · MITRE ATT&CK · Environmental Keying
+              14 reglas MITRE ATT&CK · motor editable
             </p>
           </div>
         </div>

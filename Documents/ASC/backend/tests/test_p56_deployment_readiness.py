@@ -41,8 +41,6 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -249,7 +247,7 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "a7u90v8y2t15"   # S108 platform_heartbeats — head real (actualizar al añadir migraciones)
+    _EXPECTED_HEAD  = "b8f2a1c9d4e7"   # S117.4 detection rules editable — head real (actualizar al añadir migraciones)
     _EXPECTED_COUNT = 26               # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge
 
     def test_migrations_directory_exists(self):
@@ -438,7 +436,7 @@ class TestEnvironmentConfig:
             if line.startswith("DATABASE_URL="):
                 value = line.split("=", 1)[1].strip()
                 assert "REPLACE_" in value or "example" in value.lower(), \
-                    f"DATABASE_URL appears to have a real value in .env.example"
+                    "DATABASE_URL appears to have a real value in .env.example"
                 break
 
 
@@ -495,7 +493,11 @@ class TestApplicationHealth:
     def test_all_models_importable(self):
         """All SQLAlchemy models must be importable (checks for syntax errors)."""
         from asc_api.models import (
-            User, Alert, APIKey, Webhook, Tenant,
+            Alert,
+            APIKey,
+            Tenant,
+            User,
+            Webhook,
         )
         for model in (User, Alert, APIKey, Webhook, Tenant):
             assert hasattr(model, "__tablename__")
@@ -606,9 +608,8 @@ class TestDeploymentRegression:
     """All key sprints since P39 are present and wired."""
 
     def test_p47_tenant_model_has_tenant_id(self):
-        from asc_api.models.tenant import Tenant
-        from asc_api.models.user import User
         from asc_api.models.api_key import APIKey
+        from asc_api.models.user import User
         from asc_api.models.webhook import Webhook
         for model in (User, APIKey, Webhook):
             assert hasattr(model, "tenant_id"), f"{model.__name__} missing tenant_id"

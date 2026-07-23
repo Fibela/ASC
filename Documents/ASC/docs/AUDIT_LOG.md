@@ -7958,3 +7958,39 @@ Tras la supresión (S117), las páginas que quedan deben leer datos reales en ti
 los testers manuales (`/detection`, `/analyze`) y las vistas históricas (`/forensic`,
 `/reports`, `/reports/executive`) — refrescarlas no aporta y molestaría al usuario.
 typecheck limpio (resolución real del proyecto). Solo frontend/src. Sin migración.
+
+---
+
+## Sesión 117.4 — Motor de detección editable desde DB + ampliación MITRE (4→14 reglas)
+
+**Decisión de Alexander:** reglas editables desde datos (sin código), y "vivo primero"
+(S117.3 hecho antes). Foco: credibilidad del módulo de detección.
+
+**Arquitectura (separación motor/datos):**
+- `services/detection_rules.py` (NUEVO, puro): evaluador de condiciones con lista blanca de
+  operadores (`contains`, `contains_any`, `token_any`, `regex`, `gt/lt`, `exists`…). **SIN
+  eval/exec.** No importa nada pesado → **unit-testeable en aislamiento** (corre en Python 3.10
+  del sandbox, a diferencia de detection.py). Contiene `SEED_RULES` (10 reglas) como fuente única.
+- Modelo `DetectionRule` + columnas `conditions` (JSON) y `match_type` (all|any). `[]` = regla
+  legacy hardcodeada.
+- `detection.py`: `evaluate_dynamic(event, rules)` mapea coincidencias a DetectionResult.
+  **Aditivo**: las 4 hardcodeadas (DET-001..004) siguen igual → cero regresión. En tests la tabla
+  está vacía (create_all sin seed) → el motor dinámico no añade nada → tests existentes intactos.
+- Endpoint `/detection/evaluate[/bulk]`: carga reglas activas de la DB y corre el motor dinámico
+  además de las 4.
+
+**10 reglas nuevas (DET-005..014), MITRE-mapeadas:** PowerShell codificado (T1059.001), LOLBins
+(T1218), volcado de credenciales/LSASS (T1003), tarea programada (T1053.005), servicio (T1543.003),
+desactivar defensas (T1562.001), borrar logs (T1070.001), WMI (T1047), BITS (T1197), reverse shell
+(T1059). Catálogo DB == motor == tests (una sola fuente: SEED_RULES, importada por la migración).
+
+**Migración `b8f2a1c9d4e7`** (head único, encadenada a a7u90v8y2t15): añade columnas + siembra las
+10. SQL para Supabase en `backend/migrations_s117_detection_rules.sql`. `test_p56._EXPECTED_HEAD`
+actualizado a b8f2a1c9d4e7. UI: demo default reconocible (PowerShell + LSASS) + subtítulo "14 reglas".
+
+**Verificación:** `test_detection_rules.py` **corrido en sandbox = 31 passed / 0 failed** (cada
+regla dispara en positivo, ninguna en benigno; operadores + guardas). ruff backend limpio,
+py_compile OK, alembic head único, mirror sync (142). 
+
+**DESPLIEGUE (orden I-3):** correr `backend/migrations_s117_detection_rules.sql` en Supabase SQL
+Editor ANTES del push. Es aditivo (columnas con server_default + inserts) → seguro. Luego push.
