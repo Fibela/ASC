@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import {
   getDetectionRules, getSocMetrics, getAlerts, getTimeline,
-  SocMetrics, AlertItem, TimelinePoint, DetectionRule,
+  getFleetSummary, getAlertStats,
+  SocMetrics, AlertItem, TimelinePoint, DetectionRule, FleetSummary, AlertStats,
 } from '@/lib/api'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { getRole } from '@/lib/auth'
@@ -17,7 +18,7 @@ import {
 } from 'recharts'
 import {
   RefreshCw, Shield, AlertTriangle, Eye, Cpu,
-  Clock, Activity, Target, CheckCircle, AlertCircle,
+  Clock, Activity, Target, CheckCircle, AlertCircle, Bot, Layers,
 } from 'lucide-react'
 
 
@@ -60,6 +61,8 @@ export default function DashboardPage() {
   const [alerts, setAlerts]           = useState<AlertItem[]>([])
   const [timeline, setTimeline]       = useState<TimelinePoint[]>([])
   const [rules, setRules]             = useState<DetectionRule[]>([])
+  const [fleet, setFleet]             = useState<FleetSummary | null>(null)
+  const [alertStats, setAlertStats]   = useState<AlertStats | null>(null)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState(new Date())
@@ -80,6 +83,9 @@ export default function DashboardPage() {
       // API always returns { rules: DetectionRule[] }; take up to 4 active ones
       setRules(r.rules.filter(x => x.is_active !== false).slice(0, 4))
       setLastRefresh(new Date())
+      // Flota + stats por estado son secundarios: un fallo suyo NO debe romper el dashboard.
+      getFleetSummary().then(setFleet).catch(() => {})
+      getAlertStats().then(setAlertStats).catch(() => {})
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Error desconocido'
       setError(`No se pudo conectar con el servidor ASC. ${msg}`)
@@ -407,6 +413,68 @@ export default function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+              )}
+            </div>
+          </div>
+
+          {/* ── Row 4: Flota SPECTER + Alertas por estado (consolidado S118.2) ── */}
+          <div className="grid grid-cols-12 gap-4">
+
+            <div className="col-span-12 lg:col-span-5 card p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: '#EAEAEA' }}>
+                <Bot size={15} style={{ color: '#E85D04' }} />
+                Flota SPECTER
+              </h2>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <p className="text-2xl font-bold" style={{ color: '#EAEAEA' }}>{fleet?.total_agents ?? '—'}</p>
+                  <p className="text-xs" style={{ color: '#5A5A5A' }}>Agentes</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" style={{ color: '#3ECF8E' }}>{fleet?.connectivity.online_5m ?? '—'}</p>
+                  <p className="text-xs" style={{ color: '#5A5A5A' }}>En línea (5m)</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold" style={{ color: '#C0152E' }}>{fleet?.at_risk ?? '—'}</p>
+                  <p className="text-xs" style={{ color: '#5A5A5A' }}>En riesgo</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 flex items-center justify-between text-xs"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: '#3A3A3A' }}>
+                <span>{fleet ? `${fleet.connectivity.offline} offline` : 'Sin datos de flota'}</span>
+                <a href="/agents" style={{ color: '#E85D04' }} className="hover:underline">Ver agentes →</a>
+              </div>
+            </div>
+
+            <div className="col-span-12 lg:col-span-7 card p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: '#EAEAEA' }}>
+                <Layers size={15} style={{ color: '#E85D04' }} />
+                Alertas por Estado
+              </h2>
+              {alertStats && Object.keys(alertStats.by_status).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(alertStats.by_status).map(([st, count]) => (
+                    <div key={st} className="flex items-center gap-3">
+                      <span className="text-xs capitalize w-28 flex-shrink-0" style={{ color: '#A0A0A0' }}>{st}</span>
+                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                        <div className="h-full rounded-full" style={{
+                          width: `${Math.min(100, (count / Math.max(alertStats.total, 1)) * 100)}%`,
+                          background: '#E85D04',
+                        }} />
+                      </div>
+                      <span className="text-xs font-mono font-bold w-8 text-right" style={{ color: '#EAEAEA' }}>{count}</span>
+                    </div>
+                  ))}
+                  <div className="mt-4 pt-3 flex items-center justify-between text-xs"
+                    style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: '#3A3A3A' }}>
+                    <span>{alertStats.total} alertas · {alertStats.open} abiertas</span>
+                    <span>Riesgo prom.: {alertStats.avg_risk_score != null ? alertStats.avg_risk_score.toFixed(2) : '—'}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-32 flex items-center justify-center text-sm" style={{ color: '#3A3A3A' }}>
+                  Sin alertas registradas
+                </div>
               )}
             </div>
           </div>

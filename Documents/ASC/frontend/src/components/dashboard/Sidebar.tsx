@@ -4,10 +4,10 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import {
-  LayoutDashboard, MonitorDot, ScanSearch, ShieldAlert, Activity, Database,
+  LayoutDashboard, ScanSearch, ShieldAlert, Activity, Database,
   ClipboardList, Globe, Crosshair, Radar,
   Bot, Flame, Lock, ScrollText,
-  BarChart3, FileText, Webhook, KeyRound, Gauge, Server,
+  FileText, Webhook, KeyRound, Gauge, Server,
   Users, LogOut, User, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { logout, getRole } from '@/lib/auth'
@@ -18,7 +18,6 @@ const NAV_GROUPS = [
     label: 'Centro de Control',
     items: [
       { href: '/',    label: 'Dashboard',     icon: LayoutDashboard },
-      { href: '/ops', label: 'Ops Dashboard', icon: MonitorDot },
     ],
   },
   {
@@ -51,7 +50,6 @@ const NAV_GROUPS = [
     items: [
       { href: '/forensic',          label: 'Ledger Forense',  icon: Lock },
       { href: '/reports/executive', label: 'Rep. Ejecutivos', icon: ScrollText },
-      { href: '/metrics',           label: 'Métricas SOC',    icon: BarChart3 },
       { href: '/reports',           label: 'Reportes',        icon: FileText },
     ],
   },

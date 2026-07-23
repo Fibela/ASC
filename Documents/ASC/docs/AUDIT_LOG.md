@@ -8004,3 +8004,25 @@ Auto-refresh 30s (patrón dashboard) a `/forensic` (ledger crece), `/reports/exe
 `/detection` y `/analyze` (testers manuales), `/threat-hunting` (interactivo — el polling
 rompería una consulta en curso), y **`/reports`** (es un formulario de descarga PDF/HTML, no
 una vista de datos — no hay nada que refrescar). typecheck limpio. Solo frontend/src.
+
+---
+
+## Sesión 118.2 — Consolidar métricas en 1 solo panel (elección de Alexander)
+
+**Hallazgo:** 3 paneles de métricas con solape. `/metrics` duplicaba el Dashboard (mismos
+getSocMetrics/getTimeline). `/ops` mezclaba flota SPECTER (útil) con paneles de
+Neutralizaciones/Comandos — métricas de los módulos SUPRIMIDOS en S117 (malfuncionamiento:
+UI sin feature detrás). Datos reales en todos (sin mocks).
+
+**Consolidación (1 panel):** el Dashboard (`/`) absorbe lo útil:
+- Nueva fila "Flota SPECTER" (getFleetSummary): agentes, en línea 5m, en riesgo, offline.
+- Nueva fila "Alertas por Estado" (getAlertStats, lo único propio de /metrics): barras por estado.
+- Fetch de ambos RESILIENTE (`.catch(()=>{})`) — un fallo suyo no rompe el dashboard principal.
+
+Eliminadas las páginas `/ops` y `/metrics` + sus enlaces del Sidebar + iconos sin uso
+(MonitorDot, BarChart3). Los paneles muertos de neutralización NO se migraron (feature suprimida).
+Endpoints backend intactos (getFleetSummary ahora lo usa el dashboard; los de command/neutralization
+quedan como exports sin uso, inocuos). Portal: 21→19 rutas.
+
+**Verificación:** typecheck limpio (dashboard + Sidebar, resolución real); cero referencias
+colgantes a /ops o /metrics; iconos sin uso removidos. Solo frontend/src. Sin migración.
