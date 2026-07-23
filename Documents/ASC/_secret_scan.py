@@ -15,6 +15,7 @@ SKIP_TOKENS = [
     'localhost', 'test_', '_test', 'YOUR_', 'os.environ', 'Field(', 'default=',
     'env=', 'SecretStr', '${', 'field.default',
     '# nosec',  # bandit/nosec annotation — explicitly reviewed and accepted
+    'PEGA_', 'REEMPLAZA', 'EJEMPLO',  # placeholders en español (no aparecen en secretos reales)
 ]
 TARGET_EXT = {'.py', '.ts', '.tsx', '.env', '.yaml', '.yml', '.toml'}
 

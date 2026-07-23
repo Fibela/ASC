@@ -7829,3 +7829,28 @@ YAML de los 3 workflows válido · mirror íntegro.
 ### Pendiente para Alexander (marcado, no bug bloqueante)
 - S501 `verify=False` en adaptadores: candidato a toggle `verify_ssl` por adaptador.
 - RUF006: 10 tareas asyncio fire-and-forget — revisar si alguna es crítica.
+
+---
+
+## Sesión 115 — Falso positivo del secret-scan (placeholder en español)
+
+**Disparador:** job de CI `python3 _secret_scan.py` en rojo. Marcaba
+`asc-agent/gen_enrollment_token.py:6` con `SPECTER_ENROLLMENT_SECRET = 'PEGA_EL_SECRETO_...'`.
+
+**Verificación:** es un PLACEHOLDER dentro de un docstring de uso (PowerShell). El secreto
+real se lee de `os.environ` — el código es correcto. Corrida completa del escáner = **1 solo
+hit en todo el repo** (este). Cero secretos reales hardcodeados.
+
+**Causa:** el escáner tiene allowlist (`SKIP_TOKENS`) con placeholders en inglés
+(`YOUR_`, `REPLACE_ME`, `placeholder`) pero NO en español → `PEGA_EL_SECRETO` se le escapó.
+
+**Fix (doble, defensa en profundidad):**
+- `asc-agent/gen_enrollment_token.py`: placeholder `'PEGA_EL_SECRETO_CON_COMILLAS_SIMPLES'`
+  → `'<PEGA_AQUI_TU_SECRETO>'` (empieza con `<`, ya no coincide con el regex de secreto).
+- `_secret_scan.py`: `SKIP_TOKENS` += `PEGA_`, `REEMPLAZA`, `EJEMPLO` (palabras que no
+  aparecen en secretos reales). Se descartaron `<` y `AQUI` por ser demasiado amplios
+  (habrían creado puntos ciegos — verificado que un secreto real con `<` sigue detectándose).
+
+**Nota:** la invocación de `_secret_scan.py` NO está en el repo local (Grep no la halla) —
+se añadió como paso de CI en GitHub. Al pushear, el escáner remoto usará el `_secret_scan.py`
+corregido del repo y pasará.
