@@ -7765,3 +7765,20 @@ payload falso**.
 
 **Regresión:** agents + ingesta + specter_security + p36 = 216 tests verdes. Espejo íntegro
 (141). Guardia IDOR 2/2. Sin migración.
+
+---
+
+## Sesión 112 — Onboarding de agente (botón token) + diagnóstico de sesión
+
+### S112.1 — Botón "Generar token de agente" en el portal — HECHO
+Quita la fricción de sacar el token a mano. `GET /agents/enrollment-token` (admin; el backend
+lo ata al tenant del admin, S111.3) + `getEnrollmentToken()` en el cliente API +
+`EnrollTokenModal.tsx` (muestra el token con copiar + los pasos de arranque del agente) +
+botón "Enrolar agente" en la página Agentes SPECTER. Typecheck aislado limpio.
+
+### S112.2 — TTL de sesión — DIAGNOSTICADO: NO es un bug
+El access token dura **8h** (no es corto) y hay auto-refresh en axios. Las sesiones **SSO no
+traen `refresh_token` a propósito**: se re-autentican vía el portal (el IdP), lo estándar y más
+seguro para SSO. Los 401 observados fueron expiración real / la pestaña sin sesión, no un TTL
+corto. **No se cambia nada** (no inventamos un fix donde no hay bug). Mejora OPCIONAL futura:
+emitir `refresh_token` también para SSO si se quieren sesiones más largas sin re-login.

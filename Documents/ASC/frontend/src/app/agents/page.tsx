@@ -15,7 +15,8 @@ import {
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { useAuthGuard } from '@/lib/auth-guard'
 import { AuthLoader } from '@/components/AuthLoader'
-import { Bot, RefreshCw } from 'lucide-react'
+import { Bot, RefreshCw, KeyRound } from 'lucide-react'
+import { EnrollTokenModal } from '@/components/dashboard/EnrollTokenModal'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -331,6 +332,7 @@ function CommandHistoryPanel({ agentId }: { agentId: string }) {
 
 export default function AgentsPage() {
   const [agents, setAgents]             = useState<SprecterAgent[]>([])
+  const [showEnroll, setShowEnroll]     = useState(false)
   const [selected, setSelected]         = useState<SprecterAgent | null>(null)
   const [timeline, setTimeline]         = useState<AgentEvent[]>([])
   const [anomaliesOnly, setAnomaliesOnly] = useState(false)
@@ -479,11 +481,21 @@ export default function AgentsPage() {
               </p>
             </div>
           </div>
-          <button onClick={loadAgents} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
-            <RefreshCw size={13} />
-            Actualizar
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowEnroll(true)}
+                    className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3"
+                    style={{ color: '#E85D04' }} title="Generar token para enrolar un agente">
+              <KeyRound size={13} />
+              Enrolar agente
+            </button>
+            <button onClick={loadAgents} className="btn-secondary flex items-center gap-1.5 text-xs py-1.5 px-3">
+              <RefreshCw size={13} />
+              Actualizar
+            </button>
+          </div>
         </div>
+
+        {showEnroll && <EnrollTokenModal onClose={() => setShowEnroll(false)} />}
 
       <div className="p-6 space-y-5 animate-fade-in">
       {error && (

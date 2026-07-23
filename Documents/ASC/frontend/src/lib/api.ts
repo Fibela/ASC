@@ -771,6 +771,19 @@ export async function listAgents(params?: {
   return data
 }
 
+export interface EnrollmentTokenResponse {
+  configured: boolean
+  token: string | null
+  valid_for_seconds: number | null
+  note: string
+}
+
+// S112.1 — token de enrolamiento de agente (admin). El backend lo ata al tenant del admin.
+export async function getEnrollmentToken(): Promise<EnrollmentTokenResponse> {
+  const { data } = await api.get<EnrollmentTokenResponse>('/agents/enrollment-token')
+  return data
+}
+
 export async function getAgent(agentId: string): Promise<SprecterAgent> {
   const { data } = await api.get(`/agents/${agentId}`)
   return data

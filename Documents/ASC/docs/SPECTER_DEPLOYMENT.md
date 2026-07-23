@@ -162,6 +162,7 @@ python pilot_bruteforce_sim.py   # registra, firma y envía 3 auth-fail → aler
 muestra el host; portal → Alerts muestra alertas por anomalía (agente real) y/o
 'Brute Force Authentication' (simulador). La respuesta del POST incluye `alerts_created`.
 
-**Hallazgo abierto (S107):** el cliente registra SIN `tenant_id` y el token de enrolamiento
-es tenant-agnóstico → hoy no hay forma de atar un agente a un tenant al enrolar (todos
-quedan globales). Inocuo en single-tenant; a resolver para multi-tenant real.
+**Cerrado (S111.3 + S112.1):** el token de enrolamiento ahora **embebe el tenant** de forma
+verificable y el register ata el agente a ese tenant (no al payload). Además, el portal tiene
+un botón **"Enrolar agente"** (Agentes SPECTER → esquina superior) que genera y copia el token
+con los pasos — sin sacarlo a mano.
