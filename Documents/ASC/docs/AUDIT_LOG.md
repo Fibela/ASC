@@ -7918,3 +7918,32 @@ ceremonial. No añadí un gate redundante en /auth/login (lo revertí); auth.py 
 - Para que el email de verificación se envíe en producción, `RESEND_API_KEY` debe estar en el
   env del backend en Vercel (si falta, el enlace solo se loguea server-side — dev mode).
 - Tests jest de las nuevas funciones API: no ejecutables en sandbox (SWC/red); pendiente opcional.
+
+---
+
+## Sesión 117 — Rediseño VALT: auditoría de rutas + supresión honesta + veredicto detección
+
+**Criterio de Alexander:** que se vea limpia; suprimir lo inaccesible / sin funcionamiento
+/ no ejecutable por normas; lo que quede, vivo con datos reales.
+
+**Recon (35 rutas):** las 27 del dashboard están enlazadas en el Sidebar (accesibles); las
+no-enlazadas son solo auth/entrada (correcto). El portal está limpio de mocks (confirmado en
+S113): las páginas traen datos reales de Supabase.
+
+**Supresión (solo UI, backend dormido) — 7 módulos:** `/neutralize` `/soar` `/playbooks`
+`/pids` (Respuesta activa: solo simulan sin infra, no ejecutables por normas) + `/adapters`
+(config de respuesta) + `/correlation` (encaje VALT) + `/pricing` (Stripe fuera de alcance).
+Borradas las páginas + enlaces del Sidebar; endpoints backend intactos (tests/crons/auto-
+respuesta de incidentes no se rompen). Reposiciona ASC a detectar+explicar+recomendar.
+Detalle y tabla en `docs/ui/VALT_REDISENO.md`.
+
+**Detección (foco de credibilidad):** motor REAL y honesto (no stub/mock) — 4 reglas MITRE
+(DET-001…004), catálogo DB == motor (sin reglas fantasma). Credibilidad limitada por AMPLITUD
+(solo 4 reglas, una nicho acord32.exe), no por falsedad. Pendiente ampliar ruleset (S117.4).
+
+**Verificación:** cero referencias colgantes a las 7 rutas en el frontend; ningún import
+roto; iconos sin uso removidos del Sidebar; typecheck limpio (Sidebar + incidents + detection).
+Solo frontend/src (no mirror). Sin migración.
+
+**Pendientes:** S117.3 poner en tiempo real las páginas de análisis que cargan al montar;
+S117.4 ampliar reglas de detección.

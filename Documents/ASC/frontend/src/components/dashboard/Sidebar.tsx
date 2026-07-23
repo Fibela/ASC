@@ -5,10 +5,10 @@ import { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import {
   LayoutDashboard, MonitorDot, ScanSearch, ShieldAlert, Activity, Database,
-  Zap, BookOpen, ClipboardList, Globe, Crosshair, Radar, GitBranch,
-  Bot, Flame, ShieldCheck, Network, Lock, ScrollText,
+  ClipboardList, Globe, Crosshair, Radar,
+  Bot, Flame, Lock, ScrollText,
   BarChart3, FileText, Webhook, KeyRound, Gauge, Server,
-  Users, LogOut, User, ChevronLeft, ChevronRight, CreditCard,
+  Users, LogOut, User, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { logout, getRole } from '@/lib/auth'
 
@@ -22,58 +22,46 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Detección & Alertas',
+    label: 'Detección & Respuesta',
     items: [
-      { href: '/detection',   label: 'Detecciones',  icon: ScanSearch },
-      { href: '/alerts',      label: 'Alertas',      icon: ShieldAlert },
-      { href: '/events',      label: 'Eventos',      icon: Activity },
-      { href: '/iocs',        label: 'IoCs',         icon: Database },
-      { href: '/correlation', label: 'Correlación',  icon: GitBranch },
-    ],
-  },
-  {
-    label: 'Respuesta',
-    items: [
-      { href: '/neutralize', label: 'Neutralización', icon: Zap },
-      { href: '/playbooks',  label: 'Playbooks',      icon: BookOpen },
-      { href: '/soar',       label: 'SOAR',           icon: Zap },
-      { href: '/incidents',  label: 'Incidentes',     icon: ClipboardList },
+      { href: '/detection', label: 'Detecciones', icon: ScanSearch },
+      { href: '/alerts',    label: 'Alertas',     icon: ShieldAlert },
+      { href: '/events',    label: 'Eventos',     icon: Activity },
+      { href: '/iocs',      label: 'IoCs',        icon: Database },
+      { href: '/incidents', label: 'Incidentes',  icon: ClipboardList },
     ],
   },
   {
     label: 'Inteligencia',
     items: [
-      { href: '/threat-intel',   label: 'Threat Intel',    icon: Globe },
-      { href: '/threat-hunting', label: 'Threat Hunting',  icon: Crosshair },
-      { href: '/analyze',        label: 'Análisis',        icon: Radar },
+      { href: '/threat-intel',   label: 'Threat Intel',   icon: Globe },
+      { href: '/threat-hunting', label: 'Threat Hunting', icon: Crosshair },
+      { href: '/analyze',        label: 'Análisis',       icon: Radar },
     ],
   },
   {
-    label: 'SPECTER & Identidad',
+    label: 'SPECTER',
     items: [
       { href: '/agents',   label: 'Agentes SPECTER', icon: Bot },
       { href: '/honeypot', label: 'Honeypot',        icon: Flame },
-      { href: '/pids',     label: 'PIDS Identity',   icon: ShieldCheck },
-      { href: '/adapters', label: 'Adaptadores',     icon: Network },
     ],
   },
   {
     label: 'Forense & Reportes',
     items: [
-      { href: '/forensic',          label: 'Ledger Forense',   icon: Lock },
-      { href: '/reports/executive', label: 'Rep. Ejecutivos',  icon: ScrollText },
-      { href: '/metrics',           label: 'Métricas SOC',     icon: BarChart3 },
-      { href: '/reports',           label: 'Reportes',         icon: FileText },
+      { href: '/forensic',          label: 'Ledger Forense',  icon: Lock },
+      { href: '/reports/executive', label: 'Rep. Ejecutivos', icon: ScrollText },
+      { href: '/metrics',           label: 'Métricas SOC',    icon: BarChart3 },
+      { href: '/reports',           label: 'Reportes',        icon: FileText },
     ],
   },
   {
     label: 'Plataforma',
     items: [
-      { href: '/webhooks',   label: 'Webhooks',       icon: Webhook },
-      { href: '/api-keys',   label: 'API Keys',       icon: KeyRound },
-      { href: '/rate-limits',label: 'Rate Limits',    icon: Gauge },
-      { href: '/status',     label: 'Estado Sistema', icon: Server },
-      { href: '/pricing',    label: 'Planes & Precios', icon: CreditCard },
+      { href: '/webhooks',    label: 'Webhooks',       icon: Webhook },
+      { href: '/api-keys',    label: 'API Keys',       icon: KeyRound },
+      { href: '/rate-limits', label: 'Rate Limits',    icon: Gauge },
+      { href: '/status',      label: 'Estado Sistema', icon: Server },
     ],
   },
   {
