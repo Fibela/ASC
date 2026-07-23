@@ -7854,3 +7854,27 @@ hit en todo el repo** (este). Cero secretos reales hardcodeados.
 **Nota:** la invocación de `_secret_scan.py` NO está en el repo local (Grep no la halla) —
 se añadió como paso de CI en GitHub. Al pushear, el escáner remoto usará el `_secret_scan.py`
 corregido del repo y pasará.
+
+---
+
+## Sesión 116 — Test de head Alembic obsoleto (valor mágico, no bug de código)
+
+**Disparador:** suite backend en rojo, 1 test: `test_alembic_head_importable`
+esperaba head `f9edec8a6897`, real `a7u90v8y2t15`. (5023 passed / 1 failed.)
+
+**Verificación (misma lógica del test, ejecutada):** `ScriptDirectory.get_heads()` =
+`['a7u90v8y2t15']` → **UN solo head**, 30 revisiones en cadena limpia. El invariante real
+(head único, sin forks — lo que evita el incidente I-3) está INTACTO.
+
+**Causa:** `_EXPECTED_HEAD = "f9edec8a6897"` era el head de la época de S103.3. Cuando se
+añadió la migración `a7u90v8y2t15_platform_heartbeats` (S108, monitoreo), nadie actualizó
+el valor hardcodeado. Es el MISMO antipatrón que el proyecto ya denunciaba ("conteos 24→26
+editados a mano"): el test valida un valor congelado, no el sistema. Gana el código.
+
+**Fix:** `_EXPECTED_HEAD` → `a7u90v8y2t15` + tag `heartbeats` en `expected_tags`. Sin cambio
+de código de producción ni migración.
+
+**Recomendación (fragilidad recurrente):** el assert `heads[0] == valor_hardcodeado` se
+romperá con CADA migración nueva. El invariante que importa ya está en la línea de arriba
+(`len(heads) == 1`). Sugerido: quitar el assert del valor exacto y quedarse con el de head
+único — deja de ser un valor mágico que hay que editar a mano. A decisión de Alexander.

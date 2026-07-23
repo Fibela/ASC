@@ -249,7 +249,7 @@ class TestDatabaseMigrations:
     """Alembic migration chain is complete and the head is known."""
 
     _MIGRATIONS_DIR = _BACKEND / "migrations" / "versions"
-    _EXPECTED_HEAD  = "f9edec8a6897"   # S103.3 head real (actualizar al añadir migraciones)
+    _EXPECTED_HEAD  = "a7u90v8y2t15"   # S108 platform_heartbeats — head real (actualizar al añadir migraciones)
     _EXPECTED_COUNT = 26               # 24 (P-16) + b3c4d5e6f7a8 + c9d12f0e5b67 merge
 
     def test_migrations_directory_exists(self):
@@ -274,6 +274,7 @@ class TestDatabaseMigrations:
             "onboarding",       # P53
             "billing_metering", # P55
             "adapter_registry", # P58
+            "heartbeats",       # S108 platform_heartbeats
         ]
         files = [f.name for f in self._MIGRATIONS_DIR.glob("*.py") if f.name != "__init__.py"]
         for tag in expected_tags:
