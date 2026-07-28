@@ -49,8 +49,8 @@ function KpiCard({ icon: Icon, label, value, sub, accent }: {
 }) {
   return (
     <div className="bg-navy-800 rounded-lg p-4 border border-navy-700 flex items-start gap-3">
-      <div className={clsx('mt-0.5 p-2 rounded', accent ?? 'bg-cyan-400/10')}>
-        <Icon size={16} className="text-cyan-400" />
+      <div className={clsx('mt-0.5 p-2 rounded', accent ?? 'bg-[#E85D04]/10')}>
+        <Icon size={16} className="text-[#E85D04]" />
       </div>
       <div>
         <p className="text-2xl font-bold text-white">{value}</p>
@@ -74,12 +74,12 @@ function ReportRow({
       className={clsx(
         'p-3 rounded-lg border cursor-pointer transition-colors',
         selected
-          ? 'bg-cyan-400/10 border-cyan-400/30'
+          ? 'bg-[#E85D04]/10 border-[#E85D04]/30'
           : 'bg-navy-800 border-navy-700 hover:border-navy-600',
       )}
     >
       <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-xs font-semibold text-cyan-400">
+        <span className="text-xs font-semibold text-[#E85D04]">
           {REPORT_TYPE_LABELS[report.report_type] ?? report.report_type}
         </span>
         <SigBadge valid={report.signature_valid} />
@@ -134,7 +134,7 @@ function ReportDetail({
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-400/10 text-cyan-400 border border-cyan-400/20">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#E85D04]/10 text-[#E85D04] border border-[#E85D04]/20">
               {REPORT_TYPE_LABELS[report.report_type] ?? report.report_type}
             </span>
             <span className="text-xs text-gray-500">{PERIOD_LABELS[report.period]}</span>
@@ -206,7 +206,7 @@ function ReportDetail({
           {soarData && (
             <div className="bg-navy-900 rounded p-3">
               <p className="text-xs text-gray-500 mb-1">SOAR disparado</p>
-              <p className="text-lg font-bold text-blue-400">{soarData.soar_triggers_fired ?? '—'}</p>
+              <p className="text-lg font-bold text-[#E85D04]">{soarData.soar_triggers_fired ?? '—'}</p>
               <p className="text-xs text-gray-600">{soarData.alerts_in_period ?? 0} alertas</p>
             </div>
           )}
@@ -214,10 +214,10 @@ function ReportDetail({
       )}
 
       {/* PIIL Seal */}
-      <div className="bg-navy-900 rounded-lg p-4 space-y-2 border border-cyan-900/30">
+      <div className="bg-navy-900 rounded-lg p-4 space-y-2 border border-[#E85D04]/20">
         <div className="flex items-center gap-2 mb-2">
-          <Lock size={14} className="text-cyan-400" />
-          <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">PIIL Forensic Seal</span>
+          <Lock size={14} className="text-[#E85D04]" />
+          <span className="text-xs font-semibold text-[#E85D04] uppercase tracking-wide">PIIL Forensic Seal</span>
         </div>
         <div className="grid grid-cols-1 gap-1 text-xs font-mono">
           <div className="flex gap-2">
@@ -251,7 +251,7 @@ function ReportDetail({
         <button
           onClick={doVerify}
           disabled={verifying}
-          className="mt-2 px-3 py-1.5 text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded hover:bg-cyan-500/20 disabled:opacity-40"
+          className="mt-2 px-3 py-1.5 text-xs bg-[#E85D04]/10 text-[#E85D04] border border-[#E85D04]/30 rounded hover:bg-[#E85D04]/20 disabled:opacity-40"
         >
           {verifying ? 'Verificando…' : 'Verificar firma PIIL'}
         </button>
@@ -319,7 +319,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
   return (
     <div className="bg-navy-800 border border-navy-700 rounded-lg p-5 space-y-4">
       <h3 className="text-white font-semibold text-sm flex items-center gap-2">
-        <ScrollText size={14} className="text-cyan-400" />
+        <ScrollText size={14} className="text-[#E85D04]" />
         Generar Reporte Ejecutivo (PIIL)
       </h3>
 
@@ -327,7 +327,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Tipo de Reporte</label>
           <select
-            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#E85D04]"
             value={form.report_type}
             onChange={e => setForm(f => ({ ...f, report_type: e.target.value }))}
           >
@@ -339,7 +339,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
         <div>
           <label className="text-xs text-gray-500 mb-1 block">Período</label>
           <select
-            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+            className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#E85D04]"
             value={form.period}
             onChange={e => setForm(f => ({ ...f, period: e.target.value }))}
           >
@@ -358,7 +358,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
             </label>
             <input
               type="date"
-              className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+              className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#E85D04]"
               value={form[field as keyof typeof form]}
               onChange={e => setForm(f => ({ ...f, [field]: e.target.value }))}
             />
@@ -369,7 +369,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
       <div>
         <label className="text-xs text-gray-500 mb-1 block">Título (opcional)</label>
         <input
-          className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+          className="w-full bg-navy-900 border border-navy-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#E85D04]"
           placeholder="PremosCorp ASC — Reporte Mensual Junio 2026"
           value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -381,7 +381,7 @@ function GenerateForm({ onGenerated }: { onGenerated: () => void }) {
       <button
         onClick={submit}
         disabled={saving}
-        className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-navy-900 font-bold text-sm rounded disabled:opacity-40"
+        className="w-full py-2 bg-[#E85D04] hover:bg-[#FF7A25] text-white font-bold text-sm rounded disabled:opacity-40"
       >
         {saving ? 'Generando…' : 'Generar y Sellar (PIIL)'}
       </button>
@@ -439,8 +439,8 @@ export default function ExecutiveReportsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-cyan-400/10 rounded">
-            <ScrollText size={20} className="text-cyan-400" />
+          <div className="p-2 bg-[#E85D04]/10 rounded">
+            <ScrollText size={20} className="text-[#E85D04]" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Reportes Ejecutivos</h1>
@@ -452,7 +452,7 @@ export default function ExecutiveReportsPage() {
         <div className="flex gap-2">
           <button
             onClick={() => setShowGenerate(v => !v)}
-            className="px-3 py-1.5 text-sm bg-cyan-500 hover:bg-cyan-400 text-navy-900 font-semibold rounded"
+            className="px-3 py-1.5 text-sm bg-[#E85D04] hover:bg-[#FF7A25] text-white font-semibold rounded"
           >
             + Generar
           </button>
@@ -484,7 +484,7 @@ export default function ExecutiveReportsPage() {
       {/* Type filter */}
       <div className="flex gap-3">
         <select
-          className="bg-navy-800 border border-navy-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-cyan-500"
+          className="bg-navy-800 border border-navy-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#E85D04]"
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
         >
@@ -501,7 +501,7 @@ export default function ExecutiveReportsPage() {
         <div className="lg:col-span-1 xl:col-span-2 space-y-2">
           {loading && reports.length === 0 ? (
             <div className="flex justify-center py-12">
-              <RefreshCw size={20} className="text-cyan-400 animate-spin" />
+              <RefreshCw size={20} className="text-[#E85D04] animate-spin" />
             </div>
           ) : reports.length === 0 ? (
             <div className="bg-navy-800 border border-navy-700 rounded-lg p-8 text-center">

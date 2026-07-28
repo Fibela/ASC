@@ -8138,3 +8138,20 @@ El documento no parecía de la misma empresa que el portal.
 test_p33 (isinstance/DOCTYPE/PremosCorp/Advanced Security Center/valores de datos) no rompen —
 solo cambié contenido de strings y colores, no lógica ni estructura. mirror sync. Sin migración.
 No corrible en sandbox (reporter.py usa datetime.UTC, py3.10) — verificado por construcción.
+
+---
+
+## Sesión 119.3 — Rebrand ember/void de Rep. Ejecutivos (misma marca)
+
+Cierre del módulo Forense & Reportes: `/reports/executive` usaba la paleta vieja navy/cyan
+(text-cyan-400, bg-cyan-500…) — inconsistente con la marca ember del portal. Rebrandeado el
+accent cyan→ember (#E85D04) vía valores arbitrarios Tailwind (que el proyecto ya usa), conservando
+los fondos navy oscuros (profesionales) y el sello PIIL (firma Ed25519 del reporte). Incluye el
+botón Generar (cyan→ember), inputs (focus ember), badges y la etiqueta "PIIL Forensic Seal".
+
+**Auditoría de paso (recurring):** `Object.keys(summary.by_type)` (línea 479) NO es bomba como el
+S118.5 — el backend `get_reporting_summary` SIEMPRE devuelve `by_type` como dict ({} mínimo, group_by),
+nunca null. Verificado en reporting_service.py. Safe.
+
+typecheck limpio, solo frontend/src, sin migración. Módulo Forense & Reportes: Ledger Forense
+(sello S119), reportes PDF/HTML (branding S119.2) y Rep. Ejecutivos UI (S119.3) — todos ember.
