@@ -380,4 +380,9 @@ class TestAlertStats:
             headers=analyst_headers,
         )
         resp = await client.get("/api/v1/alerts/stats/summary", headers=viewer_headers)
-        assert resp.json()["open"] == 1
+        body = resp.json()
+        assert body["open"] == 1
+        # S118.5: by_status debe existir y reflejar los estados sembrados
+        assert body["by_status"].get("open") == 1
+        assert body["by_status"].get("resolved") == 1
+        assert "avg_risk_score" in body

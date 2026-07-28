@@ -242,9 +242,11 @@ export async function getAlerts(params?: { severity?: string; status?: string; l
 export interface AlertStats {
   total: number
   open: number
+  critical: number
+  high: number
+  false_positive_rate: number
   by_severity: Record<string, number>
   by_status: Record<string, number>
-  false_positive_count: number
   avg_risk_score: number | null
 }
 

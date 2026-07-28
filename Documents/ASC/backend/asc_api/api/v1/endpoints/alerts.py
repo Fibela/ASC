@@ -70,11 +70,20 @@ async def alert_stats(
                 func.count(case((Alert.severity == "critical", 1))).label("critical"),
                 func.count(case((Alert.severity == "high", 1))).label("high"),
                 func.count(case((Alert.false_positive == True, 1))).label("fp"),
+                func.avg(Alert.risk_score).label("avg_risk"),
             ).where(Alert.tenant_id == tid)
         )
     ).one()
-    total, open_count, critical, high, fp = row
+    total, open_count, critical, high, fp, avg_risk = row
     fp_rate = round(fp / total, 4) if total else 0.0
+
+    # by_status: conteo por estado (S118.5 — la UI "Alertas por Estado" lo consume)
+    status_rows = (
+        await db.execute(
+            select(Alert.status, func.count().label("c")).where(Alert.tenant_id == tid).group_by(Alert.status)
+        )
+    ).all()
+    by_status = {str(st): c for st, c in status_rows if st}
 
     return {
         "total": total,
@@ -83,6 +92,8 @@ async def alert_stats(
         "high": high,
         "false_positive_rate": fp_rate,
         "by_severity": {"critical": critical, "high": high},
+        "by_status": by_status,
+        "avg_risk_score": round(float(avg_risk), 2) if avg_risk is not None else None,
     }
 
 

@@ -8058,3 +8058,31 @@ pasada de ruff, con `timezone.utc` ya inexistente. Fix: `timezone.utc` → `UTC`
 el resto del archivo). Re-corrido ruff como ÚLTIMA pasada para no reintroducir drift.
 Lección: correr ruff al final, tras TODAS las ediciones. Los otros 6 tests ya pasaban y la
 cobertura estaba en 85.03% — este fix solo elimina el fallo.
+
+---
+
+## Sesión 118.5 — Fix crash del Dashboard (Object.keys null) + causa raíz doc-vs-código
+
+**Síntoma (producción):** "El módulo no pudo renderizarse" + `TypeError: Cannot convert
+undefined or null to object at Object.keys`. El Dashboard (/) crasheaba.
+
+**Causa raíz (doc-vs-código):** la fila "Alertas por Estado" que añadí en S118.2 hacía
+`Object.keys(alertStats.by_status)`, pero el endpoint `/alerts/stats/summary` **NO devolvía
+by_status** (ni avg_risk_score) — la interfaz TS `AlertStats` los DECLARABA pero el backend no
+los emitía. En runtime `by_status` era `undefined` → `Object.keys(undefined)` → crash. Gana el
+código: la interfaz mentía sobre la forma real.
+
+**Fix (doble, honesto):**
+1. Frontend defensivo (detiene el crash pase lo que pase): `alertStats?.by_status && Object.keys(...)`,
+   `Object.entries(... ?? {})`, y `fleet?.connectivity?.online_5m`/`.offline` (el optional chaining
+   solo cubría `fleet`, no `connectivity` — mismo bug latente).
+2. Backend real: `/alerts/stats/summary` ahora devuelve `by_status` (group by status) + `avg_risk_score`
+   (avg risk_score). La interfaz TS alineada a la respuesta real (quitado `false_positive_count`
+   que no existía). Así el panel muestra datos reales, no solo deja de crashear.
+
+**Verificación:** tests existentes de TestAlertStats no rompen (chequean campos específicos, no el
+set) + aserción nueva de by_status/avg_risk_score; ruff limpio; py_compile ok; typecheck frontend
+limpio; mirror sync (142). Sin migración.
+
+**Lección:** una interfaz TS no es evidencia de la forma real del endpoint — verificar la respuesta
+del backend antes de consumir campos. Este crash nació de asumir la interfaz al construir el panel.

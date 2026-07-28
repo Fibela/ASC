@@ -431,7 +431,7 @@ export default function DashboardPage() {
                   <p className="text-xs" style={{ color: '#5A5A5A' }}>Agentes</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold" style={{ color: '#3ECF8E' }}>{fleet?.connectivity.online_5m ?? '—'}</p>
+                  <p className="text-2xl font-bold" style={{ color: '#3ECF8E' }}>{fleet?.connectivity?.online_5m ?? '—'}</p>
                   <p className="text-xs" style={{ color: '#5A5A5A' }}>En línea (5m)</p>
                 </div>
                 <div>
@@ -441,7 +441,7 @@ export default function DashboardPage() {
               </div>
               <div className="mt-4 pt-3 flex items-center justify-between text-xs"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)', color: '#3A3A3A' }}>
-                <span>{fleet ? `${fleet.connectivity.offline} offline` : 'Sin datos de flota'}</span>
+                <span>{fleet?.connectivity ? `${fleet.connectivity.offline} offline` : 'Sin datos de flota'}</span>
                 <a href="/agents" style={{ color: '#E85D04' }} className="hover:underline">Ver agentes →</a>
               </div>
             </div>
@@ -451,9 +451,9 @@ export default function DashboardPage() {
                 <Layers size={15} style={{ color: '#E85D04' }} />
                 Alertas por Estado
               </h2>
-              {alertStats && Object.keys(alertStats.by_status).length > 0 ? (
+              {alertStats?.by_status && Object.keys(alertStats.by_status).length > 0 ? (
                 <div className="space-y-2">
-                  {Object.entries(alertStats.by_status).map(([st, count]) => (
+                  {Object.entries(alertStats.by_status ?? {}).map(([st, count]) => (
                     <div key={st} className="flex items-center gap-3">
                       <span className="text-xs capitalize w-28 flex-shrink-0" style={{ color: '#A0A0A0' }}>{st}</span>
                       <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
