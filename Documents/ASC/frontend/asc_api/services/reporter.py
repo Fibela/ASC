@@ -47,12 +47,12 @@ def generate_pdf_report(report_data: dict) -> bytes:
         )
 
         styles = getSampleStyleSheet()
-        navy = colors.Color(*COLOR_PRIMARY)
-        cyan = colors.Color(*COLOR_ACCENT)
+        charcoal = colors.Color(*COLOR_PRIMARY)
+        ember = colors.Color(*COLOR_ACCENT)
 
-        title_style = ParagraphStyle("Title", parent=styles["Title"], textColor=navy, fontSize=22, spaceAfter=6)
+        title_style = ParagraphStyle("Title", parent=styles["Title"], textColor=charcoal, fontSize=22, spaceAfter=6)
         h2_style = ParagraphStyle(
-            "H2", parent=styles["Heading2"], textColor=navy, fontSize=14, spaceBefore=14, spaceAfter=6
+            "H2", parent=styles["Heading2"], textColor=charcoal, fontSize=14, spaceBefore=14, spaceAfter=6
         )
         body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=10, spaceAfter=4)
 
@@ -63,21 +63,21 @@ def generate_pdf_report(report_data: dict) -> bytes:
         story.append(
             Paragraph(
                 "Advanced Security Center — Reporte de Análisis de Seguridad",
-                ParagraphStyle("Sub", parent=styles["Normal"], textColor=cyan, fontSize=12),
+                ParagraphStyle("Sub", parent=styles["Normal"], textColor=ember, fontSize=12),
             )
         )
-        story.append(HRFlowable(width="100%", thickness=2, color=cyan, spaceAfter=10))
+        story.append(HRFlowable(width="100%", thickness=2, color=ember, spaceAfter=10))
 
         # Metadata table
         meta = [
             [
-                "Report ID",
+                "ID de Reporte",
                 report_data.get("report_id", "N/A"),
-                "Generated",
+                "Generado",
                 datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
             ],
-            ["Analyst", report_data.get("analyst", "System"), "Period", report_data.get("period", "N/A")],
-            ["Client", report_data.get("client", settings.REPORT_COMPANY_NAME), "Classification", "CONFIDENTIAL"],
+            ["Analista", report_data.get("analyst", "System"), "Período", report_data.get("period", "N/A")],
+            ["Cliente", report_data.get("client", settings.REPORT_COMPANY_NAME), "Clasificación", "CONFIDENCIAL"],
         ]
         meta_table = Table(meta, colWidths=[3.5 * cm, 5.5 * cm, 3.5 * cm, 5.5 * cm])
         meta_table.setStyle(
@@ -134,7 +134,7 @@ def generate_pdf_report(report_data: dict) -> bytes:
         m_table.setStyle(
             TableStyle(
                 [
-                    ("BACKGROUND", (0, 0), (-1, 0), navy),
+                    ("BACKGROUND", (0, 0), (-1, 0), charcoal),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -166,7 +166,7 @@ def generate_pdf_report(report_data: dict) -> bytes:
                 )
             a_table = Table(alert_data, colWidths=[0.8 * cm, 7 * cm, 2.2 * cm, 2 * cm, 2.5 * cm, 2.5 * cm])
             row_styles = [
-                ("BACKGROUND", (0, 0), (-1, 0), navy),
+                ("BACKGROUND", (0, 0), (-1, 0), charcoal),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, -1), 8),

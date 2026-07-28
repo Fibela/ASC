@@ -223,7 +223,7 @@ class TestGenerateHtmlReport:
 
     def test_confidential_footer(self):
         from asc_api.services.reporter import generate_html_report
-        assert "CONFIDENTIAL" in generate_html_report(self._data())
+        assert "CONFIDENCIAL" in generate_html_report(self._data())
 
 
 class TestGeneratePdfReport:

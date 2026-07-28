@@ -8214,3 +8214,29 @@ migración, sin cambio de backend, sin mocks. Enriquecimiento VT/AbuseIPDB: clav
 defecto → degradación honesta, no datos inventados.
 
 **Pendiente:** i18n (idiomas de premoscorp.com) y continuar módulo por módulo.
+
+
+---
+
+## Sesión 120.1 — Fix CI: footer del reporter (regresión de branding S119.2)
+
+La 1ª corrida de CI tras el push de S120 falló en
+`test_p33_coverage_b::test_confidential_footer`: asertaba el inglés **"CONFIDENTIAL"** pero el
+footer del HTML se pasó a español **"CONFIDENCIAL"** en S119.2 (rebrand PremosCorp aprobado). El
+código es lo intencional → se **alineó el test**, no se revirtió el branding. Es exactamente el
+patrón "un test que codifica la cadena vieja": corregido, no maquillado. (Cobertura CI 85.02% ≥ 85%,
+el único rojo era este assert.)
+
+**Coherencia adicional (misma raíz):** la tabla meta del PDF seguía en inglés
+(Report ID / Generated / Analyst / Period / Client / Classification / CONFIDENTIAL) mientras el HTML
+ya era español → traducida (ID de Reporte / Generado / Analista / Período / Cliente / Clasificación /
+CONFIDENCIAL). Ningún test aserta esas etiquetas (validado por grep; el PDF se valida como
+bytes/%PDF). Renombradas las variables engañosas `navy`→`charcoal`, `cyan`→`ember` (los VALORES ya
+eran charcoal/ember desde S119.2; solo los nombres mentían — me confundieron a mí mismo al auditar).
+
+**Verificación (esta vez en runtime):** importé y ejecuté `generate_html_report` real (shim
+`datetime.UTC` para el py3.10 del sandbox) con dos juegos de datos → el footer contiene
+"CONFIDENCIAL", NO "CONFIDENTIAL", `lang="es"`. El test corregido pasa contra la salida real.
+py_compile OK; mirror sync (reporter.py). **Lección:** al cambiar una cadena que un reporte emite,
+grepear `backend/tests` por la cadena VIEJA antes de commitear — la suite completa no corre en el
+sandbox y por eso S119.2 pasó este assert por alto.
