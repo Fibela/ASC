@@ -9,7 +9,7 @@ import {
   ForensicEntry, ForensicLedger, ForensicVerifyResult,
 } from '@/lib/api'
 import {
-  Lock, CheckCircle2, XCircle, RefreshCw, ShieldCheck,
+  Lock, CheckCircle2, XCircle, RefreshCw, ShieldCheck, Fingerprint,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -23,15 +23,17 @@ function formatTs(ts: string | null | undefined): string {
 }
 
 function VerifiedBadge({ v }: { v: boolean | null }) {
-  if (v === null) return <span className="text-xs" style={{ color: '#5A5A5A' }}>No verificada</span>
+  if (v === null) return <span className="text-xs" style={{ color: '#5A5A5A' }}>Sin verificar</span>
   return v
     ? (
-      <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#3FD175' }}>
-        <CheckCircle2 size={12} /> Válida
+      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+        style={{ color: '#3FD175', background: 'rgba(63,209,117,0.08)', border: '1px solid rgba(63,209,117,0.25)' }}>
+        <CheckCircle2 size={11} /> Íntegra
       </span>
     ) : (
-      <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: '#E8526E' }}>
-        <XCircle size={12} /> Inválida
+      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+        style={{ color: '#E8526E', background: 'rgba(232,82,110,0.08)', border: '1px solid rgba(232,82,110,0.25)' }}>
+        <XCircle size={11} /> Alterada
       </span>
     )
 }
@@ -91,6 +93,7 @@ export default function ForensicPage() {
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
+  const verifiedCount = entries.filter(e => e.verified).length
 
   if (!isReady) return <AuthLoader />
 
@@ -112,15 +115,15 @@ export default function ForensicPage() {
             <Lock size={18} style={{ color: '#E85D04' }} />
             <div>
               <h1 className="text-sm font-bold leading-none" style={{ color: '#EAEAEA' }}>
-                Ledger Forense PFN
+                Ledger Forense
               </h1>
               <p className="text-xs mt-0.5" style={{ color: '#3A3A3A' }}>
-                Registro inmutable de neutralizaciones · Ed25519 + SHA3-512
+                Notaría criptográfica de acciones · sello de autenticidad PremosCorp
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs" style={{ color: '#3A3A3A' }}>{total} entradas</span>
+            <span className="text-xs" style={{ color: '#3A3A3A' }}>{total} selladas</span>
             <button
               onClick={load}
               disabled={loading}
@@ -143,6 +146,48 @@ export default function ForensicPage() {
             </div>
           )}
 
+          {/* ── Sello de autenticidad PremosCorp ─────────────────────────── */}
+          <div
+            className="rounded-2xl p-5 flex items-center gap-5 relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(232,93,4,0.07) 0%, rgba(14,14,14,0.6) 55%)',
+              border: '1px solid rgba(232,93,4,0.18)',
+            }}
+          >
+            <div
+              className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #C44D03 0%, #E85D04 100%)',
+                boxShadow: '0 0 28px rgba(232,93,4,0.35)',
+              }}
+            >
+              <Fingerprint size={26} color="#fff" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold" style={{ color: '#EAEAEA' }}>Notaría Forense PremosCorp</h2>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{ color: '#E85D04', background: 'rgba(232,93,4,0.1)', border: '1px solid rgba(232,93,4,0.25)' }}>
+                  Ed25519 · SHA3-512
+                </span>
+              </div>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: '#8A8A8A' }}>
+                Cada acción de seguridad se sella con firma criptográfica y se encadena por hash — evidencia
+                <span style={{ color: '#A0A0A0' }}> inmutable y verificable</span> de extremo a extremo.
+              </p>
+            </div>
+            <div className="hidden sm:flex flex-col items-end gap-1 flex-shrink-0 pl-4"
+              style={{ borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
+              <span className="text-2xl font-bold" style={{ color: '#EAEAEA' }}>{total}</span>
+              <span className="text-[11px]" style={{ color: '#5A5A5A' }}>acciones selladas</span>
+              {verifiedCount > 0 && (
+                <span className="text-[11px] flex items-center gap-1" style={{ color: '#3FD175' }}>
+                  <ShieldCheck size={11} /> {verifiedCount} verificadas
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Ledger table */}
           <div className="card overflow-x-auto">
             {loading ? (
@@ -151,24 +196,27 @@ export default function ForensicPage() {
                 <span className="text-sm">Cargando ledger…</span>
               </div>
             ) : entries.length === 0 ? (
-              <div className="text-center py-16">
-                <ShieldCheck size={32} className="mx-auto mb-3 opacity-20" style={{ color: '#3FD175' }} />
-                <p className="text-sm" style={{ color: '#5A5A5A' }}>Sin entradas forenses registradas</p>
-                <p className="text-xs mt-1" style={{ color: '#3A3A3A' }}>
-                  Las entradas se crean al ejecutar neutralizaciones aprobadas con clave de firma activa
+              <div className="text-center py-16 px-6">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+                  style={{ background: 'rgba(232,93,4,0.06)', border: '1px solid rgba(232,93,4,0.15)' }}>
+                  <ShieldCheck size={26} style={{ color: '#E85D04' }} />
+                </div>
+                <p className="text-sm font-medium" style={{ color: '#A0A0A0' }}>Notaría lista — sin acciones selladas aún</p>
+                <p className="text-xs mt-1.5 max-w-md mx-auto leading-relaxed" style={{ color: '#5A5A5A' }}>
+                  Cuando el ASC registre una acción de seguridad, quedará sellada aquí con firma Ed25519 e
+                  integridad SHA3-512, lista para auditoría.
                 </p>
               </div>
             ) : (
               <table className="table-asc">
                 <thead>
                   <tr>
-                    <th>Acción ID</th>
-                    <th>Tipo</th>
-                    <th>Target</th>
+                    <th>Acción</th>
+                    <th>Objetivo</th>
                     <th>Firmado por</th>
-                    <th>Firmado</th>
-                    <th>Hash SHA3-512</th>
-                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Sello (SHA3-512)</th>
+                    <th>Integridad</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -178,10 +226,9 @@ export default function ForensicPage() {
                     const verified = vr ? vr.valid : (entry.verified ? true : null)
                     return (
                       <tr key={entry.id}>
-                        <td className="font-mono text-xs" style={{ color: '#E85D04' }} title={entry.action_id}>
-                          {trunc(entry.action_id, 12)}
+                        <td className="text-xs font-medium" style={{ color: '#EAEAEA' }} title={entry.action_id}>
+                          {entry.action_type}
                         </td>
-                        <td className="text-xs" style={{ color: '#EAEAEA' }}>{entry.action_type}</td>
                         <td
                           className="text-xs max-w-[160px] truncate"
                           style={{ color: '#A0A0A0' }}
@@ -190,7 +237,7 @@ export default function ForensicPage() {
                           {entry.target}
                         </td>
                         <td
-                          className="text-xs max-w-[140px] truncate"
+                          className="text-xs max-w-[150px] truncate"
                           style={{ color: '#A0A0A0' }}
                           title={entry.signed_by_email}
                         >
@@ -199,15 +246,15 @@ export default function ForensicPage() {
                         <td className="text-xs whitespace-nowrap" style={{ color: '#5A5A5A' }}>
                           {formatTs(entry.signed_at)}
                         </td>
-                        <td className="font-mono text-xs" style={{ color: '#3A3A3A' }} title={entry.hash_sha3_512}>
-                          {trunc(entry.hash_sha3_512, 20)}
+                        <td className="font-mono text-xs" style={{ color: '#E85D04' }} title={entry.hash_sha3_512}>
+                          {trunc(entry.hash_sha3_512, 18)}
                         </td>
                         <td><VerifiedBadge v={verified} /></td>
                         <td>
                           <button
                             onClick={() => handleVerify(entry)}
                             disabled={verifying === entry.id}
-                            className="px-2 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-40"
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all disabled:opacity-40 inline-flex items-center gap-1"
                             style={{
                               border:   '1px solid rgba(232,93,4,0.3)',
                               color:    '#E85D04',
@@ -216,7 +263,9 @@ export default function ForensicPage() {
                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(232,93,4,0.14)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(232,93,4,0.06)')}
                           >
-                            {verifying === entry.id ? <RefreshCw size={11} className="animate-spin" /> : 'Verificar'}
+                            {verifying === entry.id
+                              ? <RefreshCw size={11} className="animate-spin" />
+                              : <><ShieldCheck size={11} /> Verificar</>}
                           </button>
                         </td>
                       </tr>
@@ -245,7 +294,7 @@ export default function ForensicPage() {
                       : <XCircle     size={14} style={{ color: '#E8526E' }} />
                     }
                     <span className="font-semibold" style={{ color: vr.valid ? '#3FD175' : '#E8526E' }}>
-                      Entrada {trunc(entryId, 12)} — {vr.valid ? 'Firma criptográfica válida ✓' : 'FIRMA INVÁLIDA — posible manipulación ✗'}
+                      {vr.valid ? 'Sello PremosCorp válido — evidencia íntegra ✓' : 'SELLO INVÁLIDO — posible manipulación ✗'}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1" style={{ color: '#5A5A5A' }}>

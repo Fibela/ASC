@@ -8086,3 +8086,31 @@ limpio; mirror sync (142). Sin migración.
 
 **Lección:** una interfaz TS no es evidencia de la forma real del endpoint — verificar la respuesta
 del backend antes de consumir campos. Este crash nació de asumir la interfaz al construir el panel.
+
+---
+
+## Sesión 119 — Fase BETA 1.0.0: pulido módulo por módulo (arranque Forense)
+
+**Transición alfa→beta.** El código ya era 1.0.0 (package.json + APP_VERSION); "alfa" solo vivía
+en el reporte de madurez → actualizado a **beta 1.0.0** con nota de transición S113–S119. No hay
+etiqueta de versión en la UI. Arranque: pulido "módulo por módulo" con datos reales (sin mocks),
+sello PremosCorp, empezando por Forense & Reportes.
+
+**Auditoría Forense & Reportes:**
+- Ledger Forense: notario PFN real (Ed25519 + cadena SHA3-512) pero **atado a NeutralizationAction**
+  (write-path desde approval.py al aprobar neutralizaciones). Como se suprimió respuesta en S117,
+  queda vacío por diseño — no por bug. Decisión de Alexander: NO refactorizar el notario; pulir
+  estética + quitar datos innecesarios + sello de autenticidad Premos.
+- Rep. Ejecutivos: vivo y real — el admin genera bajo demanda, reporting_service agrega alertas/
+  métricas reales del tenant, PDF/HTML sellado con firma Ed25519 (PIIL). (Pulido pendiente.)
+
+**Rediseño Ledger Forense (`/forensic`):**
+- Banner de **sello de autenticidad PremosCorp** (Notaría Forense · Ed25519 · SHA3-512) con
+  huella + stats (selladas / verificadas). El valor criptográfico real, antes enterrado, ahora es
+  el centro.
+- Ruido eliminado: columna "Acción ID" (UUID crudo) fuera; subtítulo obsoleto "neutralizaciones"
+  → "notaría criptográfica de acciones"; badges de integridad "Íntegra/Alterada".
+- Estado vacío profesional y honesto ("Notaría lista — sin acciones selladas aún"), sin prometer
+  datos que no llegarán solos. typecheck limpio. Solo frontend/src.
+
+**Pendiente S119:** pulido de Rep. Ejecutivos (branding PremosCorp en PDF/HTML + UI).

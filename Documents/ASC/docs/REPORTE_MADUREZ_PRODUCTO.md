@@ -1,10 +1,14 @@
 <!-- TRAZABILIDAD -->
-> **Versión:** ASC alfa 2.0.2 — snapshot de madurez de producto (actualizado)
-> **Fecha de corte:** 2026-07-22
+> **Versión:** ASC **beta 1.0.0** — inicio de fase beta (antes: alfa 2.0.2)
+> **Fecha de corte:** 2026-07-23
 > **Lema:** *Cree en tu ambición.* — PremosCorp
-> **Estado:** piloto/beta vendible con clientes seleccionados; P0 legales+piloto pendientes.
-> **Trazabilidad:** este documento congela el estado verificado tras S105. Cualquier avance
-> de los frentes (legal, piloto, operación) referencia esta línea base 2.0.1.
+> **Estado:** beta vendible. Portal saneado (VALT), detección editable (14 reglas MITRE),
+> alta self-service, CI sano ≥85%, dashboard consolidado. P0 legales pendientes.
+> **Transición alfa→beta (S113–S119):** self-service (S113), CI real sin falso-verde (S114–S116),
+> rediseño VALT + supresión honesta de módulos no ejecutables por normas (S117), motor de detección
+> editable desde DB 4→14 reglas verificado en vivo (S117.4), consolidación de métricas en un panel
+> (S118). Fase beta: pulido módulo por módulo con sello PremosCorp, arrancando por Forense &
+> Reportes (S119) — datos reales, sin mocks.
 
 ---
 
