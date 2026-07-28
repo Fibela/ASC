@@ -316,10 +316,18 @@ export async function createIoC(payload: Record<string, unknown>): Promise<IoCIt
 // --- Analysis ---
 export interface AnalysisResult {
   verdict: 'malicious' | 'suspicious' | 'clean' | 'unknown'
-  confidence: number
-  indicators: string[]
-  details: Record<string, unknown>
   analyzed_at: string
+  risk_score?: number
+  hashes?: Record<string, string>
+  file_type?: string
+  size_bytes?: number
+  ttps?: string[]
+  signature_hits?: Array<Record<string, unknown>>
+  pe_analysis?: Record<string, unknown>
+  mutex_analysis?: Record<string, unknown>
+  strings_count?: number
+  // La respuesta real varía entre archivo/dominio/IP; índice abierto para campos extra.
+  [key: string]: unknown
 }
 
 export async function analyzeFile(file: File): Promise<AnalysisResult> {
@@ -327,17 +335,18 @@ export async function analyzeFile(file: File): Promise<AnalysisResult> {
   form.append('file', file)
   const { data } = await api.post<AnalysisResult>('/analyze/file', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30000,
   })
   return data
 }
 
 export async function analyzeDomain(domain: string): Promise<AnalysisResult> {
-  const { data } = await api.post<AnalysisResult>('/analyze/domain', null, { params: { domain } })
+  const { data } = await api.post<AnalysisResult>('/analyze/domain', null, { params: { domain }, timeout: 30000 })
   return data
 }
 
 export async function analyzeIP(ip: string): Promise<AnalysisResult> {
-  const { data } = await api.post<AnalysisResult>('/analyze/ip', null, { params: { ip } })
+  const { data } = await api.post<AnalysisResult>('/analyze/ip', null, { params: { ip }, timeout: 30000 })
   return data
 }
 

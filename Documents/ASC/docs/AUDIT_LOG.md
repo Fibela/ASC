@@ -8155,3 +8155,62 @@ nunca null. Verificado en reporting_service.py. Safe.
 
 typecheck limpio, solo frontend/src, sin migración. Módulo Forense & Reportes: Ledger Forense
 (sello S119), reportes PDF/HTML (branding S119.2) y Rep. Ejecutivos UI (S119.3) — todos ember.
+
+
+---
+
+## Sesión 120 — Análisis de Artefactos (/analyze): errores 413/timeout, UI honesta y educativa
+
+**Módulo:** Análisis de Artefactos (dentro de Inteligencia). Arranque de pulido en fase beta 1.0.0.
+
+**Errores que reportó Alexander (reproducidos):**
+- `arduino-ide_2.3.8_Windows_64bit.exe` → `timeout of 15000ms exceeded`.
+- `LockdownBrowser.exe` → `POST /api/v1/analyze/file` **413**.
+
+**Causa raíz (verificada — NO es bug del analizador):** ambos son binarios grandes. La ruta
+serverless (Vercel) tiene un límite de cuerpo de request de **~4.5 MB**: el `.exe` grande devuelve
+**413** antes de tocar el backend, y el otro superó el **timeout por defecto de axios (15 s)**
+subiendo un archivo enorme. El motor real (`services/analyzer.py`, 936 líneas, análisis estático
+de verdad) funciona; simplemente **nunca recibió estos archivos**. El problema era de la capa de
+subida y de la comunicación al usuario, no del análisis.
+
+**Correcciones (frontend, sin mocks):**
+1. **Guard de tamaño del lado del cliente** (`MAX_FILE_MB = 4`, margen bajo el ~4.5 MB de Vercel):
+   rechaza binarios grandes ANTES de subir, con mensaje claro. Elimina el 413 de raíz.
+2. **timeout 15 s → 30 s** en `analyzeFile/analyzeDomain/analyzeIP`: el análisis legítimo de un
+   archivo pequeño con enriquecimiento VirusTotal no se aborta antes de tiempo.
+3. **Mapeo honesto de errores** (`errMessage`): 413 y timeout se traducen a mensajes humanos que
+   nombran la limitación real de la plataforma, en vez de un stack técnico.
+4. **Panel educativo** (`TAB_INFO`) para Archivo / Dominio / IP: *qué analiza*, *qué lo hace
+   peligroso* y *limitaciones* (análisis ESTÁTICO, sin sandbox dinámico, ~4 MB máx, enriquecimiento
+   VT/AbuseIPDB requiere clave). Cumple el pedido de "explicar qué analiza y sus limitaciones",
+   extendido a las tres pestañas.
+5. **Resultado enriquecido**: la UI ahora muestra la salida REAL del analizador (SHA-256, tipo,
+   TTPs MITRE, APIs sospechosas de la cabecera PE, mutex de familias conocidas, firmas) en vez de
+   la forma inventada anterior.
+
+**Fix doc-vs-código (gana el código):** la interfaz `AnalysisResult` (api.ts) afirmaba
+`{ verdict, confidence, indicators, details, analyzed_at }`. **`confidence`, `indicators` y
+`details` NO existen** en la respuesta real de `analyzer.analyze_artifact` (que devuelve
+`hashes / risk_score / file_type / size_bytes / ttps / pe_analysis / mutex_analysis /
+signature_hits / strings_count`). Corregida la interfaz a la forma real (+ índice abierto para las
+variantes de dominio/IP). Verificado que nada más consumía los campos fantasma: `detection/` e
+`iocs/` usan su propio `result`/`form` local, no `AnalysisResult`.
+
+**Contradicción señalada (no silenciada):** `core/config.py` declara `MAX_FILE_SIZE_MB = 50` y el
+mapa de MIME permite 50 MB para ejecutables, pero el límite REAL por la ruta serverless es el
+~4.5 MB de Vercel — los 50 MB son inalcanzables por esa vía. La UI ahora dice la verdad (~4 MB).
+Dejé el config de backend intacto para no romper tests; queda como residuo a reconciliar.
+
+**Testing robusto:** extraje la lógica pura a `frontend/src/lib/analyze-format.ts` para que las
+pruebas validen el **código real** (no una copia — el anti-patrón que la auditoría marcó). Añadido
+`src/__tests__/analyze-logic.test.ts` (13 casos: guard de tamaño con el caso arduino-ide.exe, 413,
+timeout `of 15000ms exceeded`, propagación de `detail`, fallbacks). Evidencia local: compilé el
+módulo con `tsc` y corrí las aserciones en node → **19/19 en verde**. El `.test.ts` corre en CI
+(el sandbox no tiene el binario SWC de Next). typecheck aislado limpio (page + lib + api + test).
+
+**Alcance:** solo `frontend` (page.tsx, lib/api.ts, lib/analyze-format.ts nuevo, test nuevo). Sin
+migración, sin cambio de backend, sin mocks. Enriquecimiento VT/AbuseIPDB: claves vacías por
+defecto → degradación honesta, no datos inventados.
+
+**Pendiente:** i18n (idiomas de premoscorp.com) y continuar módulo por módulo.
