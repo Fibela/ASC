@@ -8046,3 +8046,15 @@ directo; test_detection_rules.py cubre solo el módulo puro detection_rules, no 
 `evaluate_dynamic` = ~20 statements; el test unitario los cubre todos (se necesitaban ~7 para
 cruzar 85%) → margen cómodo. Import de evaluate_dynamic verificado (resuelve en CI). No corrible
 en sandbox (detection.py usa datetime.UTC, py3.10) — tests correctos-por-construcción + py_compile.
+
+---
+
+## Sesión 118.4 — Fix NameError en test bulk (timezone → UTC)
+
+CI: cobertura ya cruzó (85.03%) pero 1 test falló: `test_post_bulk_fires_seeded_db_rule`
+NameError `timezone`. Causa: `ruff --fix` (S118.3) reescribió `datetime.now(timezone.utc)`
+→ `datetime.now(UTC)` y quitó `timezone` del import; el test bulk se agregó DESPUÉS de esa
+pasada de ruff, con `timezone.utc` ya inexistente. Fix: `timezone.utc` → `UTC` (consistente con
+el resto del archivo). Re-corrido ruff como ÚLTIMA pasada para no reintroducir drift.
+Lección: correr ruff al final, tras TODAS las ediciones. Los otros 6 tests ya pasaban y la
+cobertura estaba en 85.03% — este fix solo elimina el fallo.

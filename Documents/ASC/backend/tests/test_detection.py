@@ -554,7 +554,7 @@ class TestEvaluateEndpointDynamic:
 
     @pytest.mark.asyncio
     async def test_post_bulk_fires_seeded_db_rule(self, client, db: AsyncSession, analyst_headers):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         rule = DetectionRule(
             id=str(uuid.uuid4()),
             rule_id="DET-902",
