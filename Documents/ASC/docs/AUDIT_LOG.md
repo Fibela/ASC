@@ -8026,3 +8026,23 @@ quedan como exports sin uso, inocuos). Portal: 21→19 rutas.
 
 **Verificación:** typecheck limpio (dashboard + Sidebar, resolución real); cero referencias
 colgantes a /ops o /metrics; iconos sin uso removidos. Solo frontend/src. Sin migración.
+
+---
+
+## Sesión 118.3 — Fix de cobertura CI (84.95% < 85%) tras S117.4
+
+**Disparador:** suite backend verde (5055 passed) pero cobertura 84.95% < 85%. Causa: el
+código nuevo de S117.4 (`evaluate_dynamic` en detection.py + wiring del endpoint) llegó sin
+tests que lo ejercieran (los tests de detección existentes llaman a evaluate_event/bulk
+directo; test_detection_rules.py cubre solo el módulo puro detection_rules, no detection.py).
+
+**Fix (añadir cobertura, NO bajar el umbral — como en S104.2):** en `test_detection.py`:
+- `TestEvaluateDynamic` (5 tests, SimpleNamespace): cubre el cuerpo de `evaluate_dynamic`
+  (match, no-match, condiciones vacías saltadas, severidad inválida→medium, match_type=any).
+- `TestEvaluateEndpointDynamic` (1 test async): siembra una DetectionRule con `conditions` en la
+  DB y hace POST /detection/evaluate con un evento PowerShell -enc → verifica que la regla de
+  datos dispara vía el endpoint. Cubre el wiring (carga de reglas de DB + evaluate_dynamic).
+
+`evaluate_dynamic` = ~20 statements; el test unitario los cubre todos (se necesitaban ~7 para
+cruzar 85%) → margen cómodo. Import de evaluate_dynamic verificado (resuelve en CI). No corrible
+en sandbox (detection.py usa datetime.UTC, py3.10) — tests correctos-por-construcción + py_compile.

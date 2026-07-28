@@ -3,25 +3,28 @@ Detection tests — covers:
   - services/detection.py (pure unit, no DB)
   - GET /detection/rules endpoint (DB-backed via conftest fixtures)
 """
+
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from asc_api.services.detection import (
-    check_suspicious_process,
+    DEFERRED_THRESHOLD_HOURS,
+    check_deferred_traffic,
     check_hook_detection,
     check_registry_persistence,
-    check_deferred_traffic,
-    evaluate_event,
+    check_suspicious_process,
     evaluate_bulk,
-    DEFERRED_THRESHOLD_HOURS,
+    evaluate_dynamic,
+    evaluate_event,
 )
 
-
 # ─── DET-001: Suspicious acord32.exe ──────────────────────────────────────────
+
 
 class TestSuspiciousProcess:
     def test_acord32_with_two_params_is_critical(self):
@@ -82,6 +85,7 @@ class TestSuspiciousProcess:
 
 # ─── DET-002: Windows Hook APIs ───────────────────────────────────────────────
 
+
 class TestHookDetection:
     def test_setwindowshookexw_is_critical(self):
         event = {"api_call": "SetWindowsHookExW", "pid": 9999}
@@ -134,10 +138,11 @@ class TestHookDetection:
 
 # ─── DET-003: Registry Persistence ───────────────────────────────────────────
 
+
 class TestRegistryPersistence:
     def _run_reg(self):
         return {
-            "api_call":    "RegSetValueExW",
+            "api_call": "RegSetValueExW",
             "registry_key": r"software\microsoft\windows\currentversion\run\backdoor",
         }
 
@@ -150,7 +155,7 @@ class TestRegistryPersistence:
 
     def test_regcreatekey_on_runonce(self):
         event = {
-            "api_call":    "RegCreateKeyW",
+            "api_call": "RegCreateKeyW",
             "registry_key": r"software\microsoft\windows\currentversion\runonce\evil",
         }
         result = check_registry_persistence(event)
@@ -159,7 +164,7 @@ class TestRegistryPersistence:
 
     def test_regdeletekey_on_run_key_detected(self):
         event = {
-            "api_call":    "RegDeleteKeyW",
+            "api_call": "RegDeleteKeyW",
             "registry_key": r"software\microsoft\windows\currentversion\run\cleanup",
         }
         result = check_registry_persistence(event)
@@ -169,7 +174,7 @@ class TestRegistryPersistence:
 
     def test_api_without_persistence_key_no_match(self):
         event = {
-            "api_call":    "RegSetValueExW",
+            "api_call": "RegSetValueExW",
             "registry_key": r"software\myapp\settings",
         }
         result = check_registry_persistence(event)
@@ -177,7 +182,7 @@ class TestRegistryPersistence:
 
     def test_persistence_key_without_registry_api_no_match(self):
         event = {
-            "api_call":    "CreateFile",
+            "api_call": "CreateFile",
             "registry_key": r"software\microsoft\windows\currentversion\run\evil",
         }
         result = check_registry_persistence(event)
@@ -185,7 +190,7 @@ class TestRegistryPersistence:
 
     def test_winlogon_key_detected(self):
         event = {
-            "api_call":    "RegSetValueExA",
+            "api_call": "RegSetValueExA",
             "registry_key": r"software\microsoft\windows nt\currentversion\winlogon\userinit",
         }
         result = check_registry_persistence(event)
@@ -202,19 +207,20 @@ class TestRegistryPersistence:
 
 # ─── DET-004: Deferred Traffic ────────────────────────────────────────────────
 
+
 class TestDeferredTraffic:
     def _base_ts(self):
-        return datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        return datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
 
     def _conn_after(self, hours: float) -> dict:
         ts = self._base_ts() + timedelta(hours=hours)
         return {
-            "timestamp":  ts.isoformat(),
-            "dst_ip":     "185.220.101.45",
-            "dst_port":   443,
-            "protocol":   "tcp",
-            "host":       "PREMOS-WS-10",
-            "category":   "network",
+            "timestamp": ts.isoformat(),
+            "dst_ip": "185.220.101.45",
+            "dst_port": 443,
+            "protocol": "tcp",
+            "host": "PREMOS-WS-10",
+            "category": "network",
         }
 
     def test_connection_after_25h_is_critical(self):
@@ -270,12 +276,13 @@ class TestDeferredTraffic:
 
 # ─── evaluate_event: master dispatcher ───────────────────────────────────────
 
+
 class TestEvaluateEvent:
     def test_multiple_rules_can_fire_for_one_event(self):
         # DET-001 + DET-002 fire from a single event with process+api_call
         event = {
-            "process":  "acord32.exe",
-            "args":     "/s /o",
+            "process": "acord32.exe",
+            "args": "/s /o",
             "api_call": "SetWindowsHookExW",
         }
         results = evaluate_event(event)
@@ -288,7 +295,7 @@ class TestEvaluateEvent:
     def test_registry_fires_independently(self):
         # DET-003 fires when both a registry API and a persistence key are present
         event = {
-            "api_call":     "RegSetValueExW",
+            "api_call": "RegSetValueExW",
             "registry_key": r"software\microsoft\windows\currentversion\run\malware",
         }
         results = evaluate_event(event)
@@ -300,23 +307,24 @@ class TestEvaluateEvent:
         assert results == []
 
     def test_deferred_traffic_requires_network_category_and_ts(self):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         conn_ts = now + timedelta(hours=10)
         event = {
             "timestamp": conn_ts.isoformat(),
-            "dst_ip":    "1.2.3.4",
-            "category":  "network",
+            "dst_ip": "1.2.3.4",
+            "category": "network",
         }
         results = evaluate_event(event, original_analysis_ts=now - timedelta(hours=10))
         assert any(r.rule_id == "DET-004" for r in results)
 
     def test_deferred_traffic_ignored_without_original_ts(self):
-        event = {"timestamp": datetime.now(timezone.utc).isoformat(), "category": "network"}
+        event = {"timestamp": datetime.now(UTC).isoformat(), "category": "network"}
         results = evaluate_event(event, original_analysis_ts=None)
         assert not any(r.rule_id == "DET-004" for r in results)
 
 
 # ─── evaluate_bulk: deduplication ────────────────────────────────────────────
+
 
 class TestEvaluateBulk:
     def test_same_rule_same_host_deduplicated(self):
@@ -356,7 +364,7 @@ from asc_api.models.detection_rule import DetectionRule
 
 
 def _make_rule(rule_id: str, **kwargs) -> DetectionRule:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     defaults = {
         "DET-001": dict(name="Suspicious acord32.exe Execution", mitre_ttp="T1036.005", severity="critical/high"),
         "DET-002": dict(name="Windows Hook API Detected", mitre_ttp="T1056.001", severity="critical/medium"),
@@ -457,3 +465,118 @@ class TestDetectionRulesEndpoint:
     async def test_viewer_gets_200(self, client, seeded_rules, viewer_headers):
         resp = await client.get("/api/v1/detection/rules", headers=viewer_headers)
         assert resp.status_code == 200
+
+
+# ─── evaluate_dynamic: reglas editables desde datos (S117.4) ──────────────────
+
+
+def _dyn_rule(**kw):
+    """Fake rule (SimpleNamespace) con los atributos que evaluate_dynamic lee."""
+    base = dict(
+        rule_id="DET-900",
+        name="Dynamic Test",
+        mitre_ttp="T1059.001",
+        severity="high",
+        description="test dinámico",
+        risk_score_default=0.8,
+        conditions=[{"field": "process", "op": "contains", "value": "evil"}],
+        match_type="all",
+    )
+    base.update(kw)
+    return SimpleNamespace(**base)
+
+
+class TestEvaluateDynamic:
+    def test_fires_on_match(self):
+        res = evaluate_dynamic({"process": "evil.exe"}, [_dyn_rule()])
+        assert len(res) == 1
+        assert res[0].rule_id == "DET-900"
+        assert res[0].rule_name == "Dynamic Test"
+        assert res[0].severity == "high"
+        assert res[0].mitre_ttp == "T1059.001"
+        assert res[0].risk_score == 0.8
+
+    def test_no_match_returns_empty(self):
+        assert evaluate_dynamic({"process": "good.exe"}, [_dyn_rule()]) == []
+
+    def test_empty_conditions_skipped(self):
+        assert evaluate_dynamic({"process": "evil.exe"}, [_dyn_rule(conditions=[])]) == []
+
+    def test_invalid_severity_defaults_medium(self):
+        res = evaluate_dynamic({"process": "evil.exe"}, [_dyn_rule(severity="bogus")])
+        assert len(res) == 1
+        assert res[0].severity == "medium"
+
+    def test_match_any(self):
+        rule = _dyn_rule(
+            match_type="any",
+            conditions=[
+                {"field": "process", "op": "contains", "value": "nomatch"},
+                {"field": "command_line", "op": "contains", "value": "mimikatz"},
+            ],
+        )
+        res = evaluate_dynamic({"process": "x.exe", "command_line": "run mimikatz"}, [rule])
+        assert len(res) == 1
+
+
+class TestEvaluateEndpointDynamic:
+    @pytest.mark.asyncio
+    async def test_post_evaluate_fires_seeded_db_rule(self, client, db: AsyncSession, analyst_headers):
+        now = datetime.now(UTC)
+        rule = DetectionRule(
+            id=str(uuid.uuid4()),
+            rule_id="DET-901",
+            name="PS codificado (dinámica)",
+            mitre_ttp="T1059.001",
+            severity="high",
+            description="test endpoint dinámico",
+            tags=[],
+            risk_score_default=0.8,
+            is_active=True,
+            conditions=[
+                {"field": "process", "op": "contains", "value": "powershell"},
+                {"field": "command_line", "op": "contains", "value": "-enc"},
+            ],
+            match_type="all",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(rule)
+        await db.commit()
+        resp = await client.post(
+            "/api/v1/detection/evaluate",
+            headers=analyst_headers,
+            json={"process": "powershell.exe", "command_line": "powershell -enc AAAA"},
+        )
+        assert resp.status_code == 200
+        ids = [r["rule_id"] for r in resp.json()["results"]]
+        assert "DET-901" in ids
+
+    @pytest.mark.asyncio
+    async def test_post_bulk_fires_seeded_db_rule(self, client, db: AsyncSession, analyst_headers):
+        now = datetime.now(timezone.utc)
+        rule = DetectionRule(
+            id=str(uuid.uuid4()),
+            rule_id="DET-902",
+            name="LSASS (dinámica bulk)",
+            mitre_ttp="T1003",
+            severity="critical",
+            description="test bulk dinámico",
+            tags=[],
+            risk_score_default=0.9,
+            is_active=True,
+            conditions=[{"field": "command_line", "op": "contains", "value": "mimikatz"}],
+            match_type="all",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(rule)
+        await db.commit()
+        resp = await client.post(
+            "/api/v1/detection/evaluate/bulk",
+            headers=analyst_headers,
+            json={"events": [{"process": "x.exe", "command_line": "run mimikatz sekurlsa"}]},
+        )
+        assert resp.status_code == 200
+        ids = [r["rule_id"] for r in resp.json()["results"]]
+        assert "DET-902" in ids
