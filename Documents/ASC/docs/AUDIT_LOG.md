@@ -8240,3 +8240,26 @@ eran charcoal/ember desde S119.2; solo los nombres mentían — me confundieron 
 py_compile OK; mirror sync (reporter.py). **Lección:** al cambiar una cadena que un reporte emite,
 grepear `backend/tests` por la cadena VIEJA antes de commitear — la suite completa no corre en el
 sandbox y por eso S119.2 pasó este assert por alto.
+
+
+---
+
+## Sesión 121 — i18n: recon + plan (cierre de beta 1.0.0)
+
+Entregable de cierre de beta: `docs/I18N_PLAN.md`. Recon verificado en vivo y sobre el código (no READMEs); NO se implementó i18n (por decisión de Alexander, la beta 1.0.0 cierra en el plan).
+
+**Idiomas objetivo (evidencia, selector real de premoscorp.com):** 8 — es, en, pt, fr, de, zh (中文), ja (日本語), ar (عربي). Dos exigen trabajo extra: **árabe = RTL** y **CJK = fuentes** (Inter no trae glifos CJK). Sitio client-rendered; su mecanismo de traducción (ruta vs cliente) quedó sin verificar — la sonda del navegador la bloqueó la capa de seguridad al leer datos de cookie/query; no bloquea el plan.
+
+**Estado del portal (código real):** cero infraestructura i18n (sin `next-intl`/`i18next`, sin bloque `i18n` en `next.config`, sin `messages/`/`locales/`). `layout.tsx` con `<html lang="es">` fijo. ~31 archivos con español hardcodeado inline (28/34 en `app/` + 3/9 en `components/`). Sin selector de idioma. **La capa de datos no puede persistir la preferencia: no existe columna `language`/`locale` en ningún modelo → requiere migración.**
+
+**Contenido generado en español (alcance honesto):** `reporter.py` (PDF/HTML) y `local_explainer.py` (varía por perfil hogar/pyme/enterprise, NO por idioma) emiten español. Traducir solo la UI dejaría reportes y explicaciones en español hasta localizarlos (Fase D del plan).
+
+**Arquitectura recomendada:** `next-intl` + `app/[locale]` + `middleware` de negociación. Descartado el `i18n` nativo de `next.config` (solo Pages Router, no App Router).
+
+**Testing robusto (definido en el plan):** test de **paridad de claves** entre los 8 catálogos JSON (corre en el sandbox — JSON puro, sin el SWC que bloquea a jest); guard anti-hardcode; typecheck + jest en CI; verificación en vivo del render (incluido RTL). Migración de la columna `users.language` con `.sql` a correr en Supabase ANTES del push (lección I-3).
+
+**Auditoría de paso:** sin llaves hardcodeadas en `frontend/src` (solo tokens falsos en tests de auth); `NEXT_PUBLIC_*` = solo API_URL/PORTAL_URL; sin mocks; el recon no tocó código de producción.
+
+**Riesgo mayor / decisión pendiente de Alexander:** fuente de las traducciones. La regla anti-mock prohíbe publicar traducción automática sin revisión (sería dato inventado). Recomendación: es/en a mano para la Fase A; decidir el resto por presupuesto. Otras decisiones abiertas en §10 del plan.
+
+**Estado beta 1.0.0:** CERRADA en el plan. Fases A–D propuestas para la post-beta.
