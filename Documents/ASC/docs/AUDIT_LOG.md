@@ -8114,3 +8114,27 @@ sello PremosCorp, empezando por Forense & Reportes.
   datos que no llegarán solos. typecheck limpio. Solo frontend/src.
 
 **Pendiente S119:** pulido de Rep. Ejecutivos (branding PremosCorp en PDF/HTML + UI).
+
+---
+
+## Sesión 119.2 — Branding PremosCorp real en los reportes generados (PDF/HTML)
+
+**Aclaración de Alexander:** "los reportes que generamos" = los documentos PDF/HTML que produce el
+ASC (`services/reporter.py`), no solo el ledger.
+
+**Hallazgo:** el reporter YA tenía branding, pero con paleta **navy/cyan** (#0d1b2a/#00b4d8) y en
+inglés — INCONSISTENTE con la identidad real PremosCorp del portal (**ember #E85D04 / void #0A0A0A**).
+El documento no parecía de la misma empresa que el portal.
+
+**Mejora (marca real + sello + español):**
+- Paleta alineada: PDF (COLOR_ACCENT cyan→ember, COLOR_PRIMARY navy→charcoal) + HTML completo
+  (#00b4d8→#E85D04, #0d1b2a→#0A0A0A). Ahora el reporte se ve del mismo dueño que el portal.
+- Español: títulos (Resumen Ejecutivo, Métricas SOC, Alertas), subtítulo, cabeceras de tabla.
+- **Sello PremosCorp**: footer "Generado y sellado por PremosCorp ASC · vX · CONFIDENCIAL".
+- Conservado lo que asertan los tests: "PremosCorp", "Advanced Security Center", "<!DOCTYPE html>",
+  y `_severity_color` intacto (colores semánticos de severidad). El PDF solo se valida como bytes/%PDF.
+
+**Verificación:** ruff limpio; py_compile ok; strings asertados presentes (8 ocurrencias); tests
+test_p33 (isinstance/DOCTYPE/PremosCorp/Advanced Security Center/valores de datos) no rompen —
+solo cambié contenido de strings y colores, no lógica ni estructura. mirror sync. Sin migración.
+No corrible en sandbox (reporter.py usa datetime.UTC, py3.10) — verificado por construcción.
